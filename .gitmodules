@@ -1,0 +1,6 @@
+[submodule "deps/DPF"]
+	path = deps/DPF
+	url = https://github.com/DISTRHO/DPF.git
+[submodule "deps/DPF-Widgets"]
+	path = deps/DPF-Widgets
+	url = https://github.com/DISTRHO/DPF-Widgets.git

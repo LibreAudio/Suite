@@ -1,0 +1,91 @@
+{% block ImplementationDescription %}
+// --------------------------------------------------------------------------------------------------------------------
+// This file was generated using the Faust compiler (https://faust.grame.fr),
+// and the Faust post-processor (https://github.com/SpotlightKid/faustdoctor).
+//
+// Source: {{filename}}
+// Name: {{name}}
+// Author: {{author}}
+// Copyright: {{copyright}}
+// License: {{license}}
+// Version: {{version}}
+// FAUST version: {{faustversion}}
+// FAUST compilation options: {{meta.compile_options}}
+// --------------------------------------------------------------------------------------------------------------------
+{% endblock %}
+
+{% block ImplementationPrologue %}
+{% if fdrversioninfo is undefined or fdrversioninfo < (0, 2, 0) %}
+{{fail("This template is not compatible with faustdoctor version < 0.2.0.")}}
+{% endif %}
+{% if not (id is defined and id == cid(id)) %}
+{{fail("`id` is undefined or invalid.")}}
+{% endif %}
+{% endblock %}
+{% block ImplementationIncludeHeader %}
+#include "FaustDSP.hpp"
+{% endblock %}
+{% block ImplementationIncludeExtra %}
+{% endblock %}
+
+// --------------------------------------------------------------------------------------------------------------------
+// faust generated code
+
+{% block ImplementationFaustCode %}
+
+{{ classcode
+    | replace('#include <math.h>\n', '')
+    | replace('\n\t\n', '\n\n')
+    | replace('\t' + id + '() {', '\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
+    | replace('\t', '    ')
+    | replace(' : public dsp', '')
+    | replace(' FAUSTDR_PRIVATE', 'private')
+    | replace(' FAUSTDR_PROTECTED', 'protected')
+    | replace('FAUSTDR_VIRTUAL ', '')
+    | replace(', FAUSTFLOAT** RESTRICT inputs,', ', const FAUSTFLOAT** RESTRICT inputs,')
+    | replace('  FAUSTFLOAT* input', '  const FAUSTFLOAT* input')
+}}
+
+{% endblock %}
+
+// --------------------------------------------------------------------------------------------------------------------
+// custom extensions to faust generated code
+
+FAUSTDR_BEGIN_NAMESPACE
+
+inline float {{id}}::get(int index) const
+{
+    switch (index) {
+    {% for w in active + passive %}
+    case {{loop.index0}}:
+        return {{w.varname}};
+    {% endfor %}
+    default:
+        return 0.f;
+    }
+}
+
+inline void {{id}}::set(int index, float value)
+{
+    switch (index) {
+    {% for w in active %}
+    case {{loop.index0}}:
+        {{w.varname}} = value;
+        break;
+    {% endfor %}
+    }
+}
+
+FAUSTDR_END_NAMESPACE
+
+// --------------------------------------------------------------------------------------------------------------------
+// cleanup
+
+#undef FAUSTCLASS
+#undef RESTRICT
+
+#ifdef __APPLE__
+#undef exp10f
+#undef exp10
+#endif
+
