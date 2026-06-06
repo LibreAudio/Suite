@@ -12,7 +12,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
     COMMAND
       faustdr
-      -a ${CMAKE_SOURCE_DIR}/src/template/dsp.hpp.in
+      -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.hpp.in
       -c ${TARGET}
       -o ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
       -Did=${TARGET}
@@ -20,7 +20,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
-      template/dsp.hpp.in
+      templates/dsp.hpp.in
     VERBATIM
   )
 
@@ -29,14 +29,14 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
     COMMAND
       faustdr
-      -a ${CMAKE_SOURCE_DIR}/src/template/metadata.hpp.in
+      -a ${CMAKE_SOURCE_DIR}/src/templates/metadata.hpp.in
       -c ${TARGET}
       -o ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
       -Did=${TARGET}
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
-      template/metadata.hpp.in
+      templates/metadata.hpp.in
     VERBATIM
   )
 endfunction()
@@ -51,14 +51,14 @@ function(las_generate_faust_config TARGET)
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/config.h
     COMMAND
       faustdr
-      -a ${CMAKE_SOURCE_DIR}/src/template/config.h.in
+      -a ${CMAKE_SOURCE_DIR}/src/templates/config.h.in
       -c ${TARGET}
       -l c
       -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/config.h
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
-      template/config.h.in
+      templates/config.h.in
     VERBATIM
   )
 endfunction()
@@ -142,6 +142,7 @@ endfunction()
 # ---------------------------------------------------------------------------------------------------------------------
 # setup all plugins
 
+las_add_plugin(chorus)
 las_add_plugin(djFilter)
 
 # ---------------------------------------------------------------------------------------------------------------------

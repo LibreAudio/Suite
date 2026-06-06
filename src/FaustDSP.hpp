@@ -28,16 +28,17 @@ public:
 
 class UI {
 public:
-    void openHorizontalBox(...) {}
-    void openVerticalBox(...) {}
-    void closeBox(...) {}
-    void declare(...) {}
     void addButton(...) {}
     void addCheckButton(...) {}
-    void addVerticalSlider(...) {}
-    void addHorizontalSlider(...) {}
-    void addVerticalBargraph(...) {}
     void addHorizontalBargraph(...) {}
+    void addHorizontalSlider(...) {}
+    void addNumEntry(...) {}
+    void addVerticalBargraph(...) {}
+    void addVerticalSlider(...) {}
+    void closeBox(...) {}
+    void declare(...) {}
+    void openHorizontalBox(...) {}
+    void openVerticalBox(...) {}
 };
 
 }
