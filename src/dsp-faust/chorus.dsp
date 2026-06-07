@@ -12,23 +12,19 @@ import("stdfaust.lib");
 // matching the Juno-60 circuit topology.
 
 // --- UI ---
-mode = nentry("mode[style:radio{'I':0;'II':1}]", 0, 0, 1, 1) : int;
-dry  = hslider("dry",  0.5, 0, 1, 0.01);
-wet  = hslider("wet",  0.5, 0, 1, 0.01);
-
-// --- Juno-60 circuit-derived constants ---
-// MN3009: 256 stages, nominal clock ~21 kHz → center delay ≈ 6 ms
-// LFO sweeps clock between ~15–45 kHz → delay range ~2.8–8.5 ms
-rate1  = 0.513;    // primary LFO (Hz)
-rate2  = 0.863;    // secondary LFO, Chorus II only (Hz)
-dctr   = 0.006;    // center delay: 6 ms
-ddepth = 0.003;    // modulation depth: ±3 ms
+mode        = nentry("mode[style:radio{'I':0;'II':1}][symbol:mode]", 0, 0, 1, 1) : int;
+true_stereo = checkbox("true stereo[symbol:true_stereo]");
+dry         = hslider("dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
+wet         = hslider("wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
+rate1       = hslider("rate1[unit:Hz][symbol:rate1]",  0.513, 0.05, 5.0,    0.001);  // primary LFO (Hz)
+rate2       = hslider("rate2[unit:Hz][symbol:rate2]",  0.863, 0.05, 5.0,    0.001);  // secondary LFO, mode II only (Hz)
+dctr        = hslider("dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1)  / 1000;
+ddepth      = hslider("ddepth [unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01) / 1000; // LFO rate detune between L/R instances (true stereo)
+detune      = hslider("detune [unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1)  / 100;
+hp_freq     = hslider("hp_freq [unit:Hz][symbol:hp_freq]",    20,    20,   2000,  1);
+lp_freq     = hslider("lp_freq [unit:Hz][symbol:lp_freq]",    20000, 200,  20000, 1);
 
 MAXN = 1 << 17;    // delay buffer size in samples
-
-// --- BBD emulation ---
-// MN3009 has a 2-pole anti-aliasing/reconstruction filter rolling off ~8 kHz
-bbd = fi.lowpass(2, 8000);
 
 // Delay time in samples, clamped to >= 1
 samp(t) = max(1.0, t * float(ma.SR));
@@ -47,21 +43,54 @@ dtI_R = samp(dctr - lfo1 * ddepth);
 dtII_L = samp(dctr + ( lfo1 + lfo2) * ddepth * 0.5);
 dtII_R = samp(dctr + (-lfo1 + lfo2) * ddepth * 0.5);
 
-// Pure wet chorus: returns two modulated delay lines, no dry signal
-chorus(x) = wetL, wetR
+// True stereo: two detuned instances, one per channel
+// Instance A processes L (rates detuned down), instance B processes R (rates detuned up)
+// Their stereo outputs are summed back to a stereo pair
+lfo1_a = os.osc(rate1 * (1 - detune));
+lfo1_b = os.osc(rate1 * (1 + detune));
+lfo2_a = os.osc(rate2 * (1 - detune));
+lfo2_b = os.osc(rate2 * (1 + detune));
+
+dtIII_LL = samp(dctr + lfo1_a * ddepth);
+dtIII_LR = samp(dctr - lfo1_a * ddepth);
+dtIII_RL = samp(dctr + lfo1_b * ddepth);
+dtIII_RR = samp(dctr - lfo1_b * ddepth);
+
+dtIV_LL = samp(dctr + ( lfo1_a + lfo2_a) * ddepth * 0.5);
+dtIV_LR = samp(dctr + (-lfo1_a + lfo2_a) * ddepth * 0.5);
+dtIV_RL = samp(dctr + ( lfo1_b + lfo2_b) * ddepth * 0.5);
+dtIV_RR = samp(dctr + (-lfo1_b + lfo2_b) * ddepth * 0.5);
+
+process(L, R) = outL, outR
 with {
-    dtL  = select2(mode, dtI_L, dtII_L);
-    dtR  = select2(mode, dtI_R, dtII_R);
-    wetL = de.fdelay(MAXN, dtL, x) : bbd;
-    wetR = de.fdelay(MAXN, dtR, x) : bbd;
+    // Modes I/II: sum to mono, single delay pair
+    mono   = L + R;
+    dtL_12 = select2(mode, dtI_L, dtII_L);
+    dtR_12 = select2(mode, dtI_R, dtII_R);
+    wL_12  = de.fdelay(MAXN, dtL_12, mono);
+    wR_12  = de.fdelay(MAXN, dtR_12, mono);
+
+    // True stereo, mode I
+    wLL_3  = de.fdelay(MAXN, dtIII_LL, L);
+    wLR_3  = de.fdelay(MAXN, dtIII_LR, L);
+    wRL_3  = de.fdelay(MAXN, dtIII_RL, R);
+    wRR_3  = de.fdelay(MAXN, dtIII_RR, R);
+    wL_3   = wLL_3 + wRL_3;
+    wR_3   = wLR_3 + wRR_3;
+
+    // True stereo, mode II
+    wLL_4  = de.fdelay(MAXN, dtIV_LL, L);
+    wLR_4  = de.fdelay(MAXN, dtIV_LR, L);
+    wRL_4  = de.fdelay(MAXN, dtIV_RL, R);
+    wRR_4  = de.fdelay(MAXN, dtIV_RR, R);
+    wL_4   = wLL_4 + wRL_4;
+    wR_4   = wLR_4 + wRR_4;
+
+    wL_raw = select2(true_stereo, wL_12, select2(mode, wL_3, wL_4));
+    wR_raw = select2(true_stereo, wR_12, select2(mode, wR_3, wR_4));
+    wL     = wL_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
+    wR     = wR_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
+    outL   = L * dry + wL * wet;
+    outR   = R * dry + wR * wet;
 };
 
-process(x) = outL, outR
-with {
-    dtL  = select2(mode, dtI_L, dtII_L);
-    dtR  = select2(mode, dtI_R, dtII_R);
-    wL   = de.fdelay(MAXN, dtL, x) : bbd;
-    wR   = de.fdelay(MAXN, dtR, x) : bbd;
-    outL = x * dry + wL * wet;
-    outR = x * dry + wR * wet;
-};
