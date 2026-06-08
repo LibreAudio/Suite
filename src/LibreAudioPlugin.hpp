@@ -37,7 +37,7 @@ class LibreAudioPlugin : public Plugin
         kParametersInputStart,
         kParametersInputEnd = kParametersInputStart + common_input::kNumParameters - 1,
         kParametersOutputStart,
-        kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 1,
+        kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 2, // extra IO mid-side
         kParametersMainStart,
     };
 
@@ -125,7 +125,7 @@ private:
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
             parameter.groupId = kGroupOutput;
-            initParameterFromFaust(parameter, common_output::kParameters[index - kParametersOutputStart]);
+            initParameterFromFaust(parameter, common_output::kParameters[index - kParametersOutputStart + 1]);
             break;
         default:
             parameter.groupId = kGroupMain;
@@ -198,7 +198,7 @@ private:
         case kParametersInputStart ... kParametersInputEnd:
             return dspInput->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
-            return dspOutput->get(index - kParametersOutputStart);
+            return dspOutput->get(index - kParametersOutputStart + 1);
         default:
             return dsp->get(index - kParametersMainStart);
         }
@@ -212,6 +212,9 @@ private:
     */
     void setParameterValue(uint32_t index, const float value) final
     {
+        if (index == kParametersInputStart)
+            dspOutput->set(0, value);
+
         switch (index)
         {
         case kParametersCommonStart ... kParametersCommonEnd:
@@ -223,7 +226,7 @@ private:
             dspInput->set(index - kParametersInputStart, value);
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
-            dspOutput->set(index - kParametersOutputStart, value);
+            dspOutput->set(index - kParametersOutputStart, value + 1);
             break;
         default:
             dsp->set(index - kParametersMainStart, value);

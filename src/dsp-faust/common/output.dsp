@@ -1,9 +1,9 @@
 import("stdfaust.lib");
 
-trim_db  = vslider("v:Output/[1][unit:dB]trim[symbol:output_trim]", 0, -20, 20, 0.1);
-gain_lin = trim_db : si.smoo : ba.db2linear;
+ms_on = checkbox("v:Input/[1]mid/side[symbol:input_ms_on]");
 
-ms_on   = checkbox("v:Output/[2]mid/side[symbol:output_ms_on]");
+trim_db  = vslider("v:Output/[2][unit:dB]trim[symbol:output_trim]", 0, -20, 20, 0.1);
+gain_lin = trim_db : si.smoo : ba.db2linear;
 
 peak_meter_fall = 0.2;
 
