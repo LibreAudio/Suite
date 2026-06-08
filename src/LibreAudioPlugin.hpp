@@ -212,14 +212,10 @@ private:
     */
     void setParameterValue(uint32_t index, const float value) final
     {
-        if (index == kParametersInputStart)
-            dspOutput->set(0, value);
-
+        // common handling first
         switch (index)
         {
         case kParametersCommonStart ... kParametersCommonEnd:
-            if (index == kCommonParameterBypass)
-                globalDryValue.setTargetValue(value);
             fCommonParameters[index - kParametersCommonStart] = value;
             break;
         case kParametersInputStart ... kParametersInputEnd:
@@ -230,6 +226,17 @@ private:
             break;
         default:
             dsp->set(index - kParametersMainStart, value);
+            break;
+        }
+
+        // custom behaviour
+        switch (index)
+        {
+        case kCommonParameterBypass:
+            globalDryValue.setTargetValue(value);
+            break;
+        case kParametersInputStart + common_input::kParameterInput_ms_on:
+            dspOutput->set(common_output::kParameterInput_ms_on, value);
             break;
         }
     }
