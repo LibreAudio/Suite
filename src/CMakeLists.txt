@@ -7,36 +7,22 @@
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
+  string(REPLACE "/" "_" OUTPUT ${TARGET})
+
   add_custom_command(
     OUTPUT
-      ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
     COMMAND
       ${FAUSTDR}
       -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.hpp.in
       -c ${TARGET}
-      -o ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
-      -Did=${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
+      -Did=${OUTPUT}
       -X-vec
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
       templates/dsp.hpp.in
-    VERBATIM
-  )
-
-  add_custom_command(
-    OUTPUT
-      ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
-    COMMAND
-      ${FAUSTDR}
-      -a ${CMAKE_SOURCE_DIR}/src/templates/metadata.hpp.in
-      -c ${TARGET}
-      -o ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
-      -Did=${TARGET}
-      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
-    DEPENDS
-      dsp-faust/${TARGET}.dsp
-      templates/metadata.hpp.in
     VERBATIM
   )
 endfunction()
@@ -77,8 +63,8 @@ endfunction()
 # ---------------------------------------------------------------------------------------------------------------------
 # common definitions between all plugins
 
-las_generate_faust_cpp(input)
-las_generate_faust_cpp(output)
+las_generate_faust_cpp(common/input)
+las_generate_faust_cpp(common/output)
 
 add_library(las-definitions INTERFACE)
 
@@ -102,10 +88,8 @@ target_include_directories(las-definitions
 
 target_sources(las-definitions
   INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}/dsp-input.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/dsp-output.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/metadata-input.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/metadata-output.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output.hpp
 )
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -144,8 +128,7 @@ function(las_add_plugin LABEL)
 
   target_sources(${TARGET}
     PRIVATE
-      ${CMAKE_CURRENT_BINARY_DIR}/dsp-${LABEL}.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/metadata-${LABEL}.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
   )
 endfunction()

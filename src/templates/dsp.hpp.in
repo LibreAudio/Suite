@@ -22,6 +22,12 @@
 {{fail("`id` is undefined or invalid.")}}
 {% endif %}
 {% endblock %}
+
+#pragma once
+
+#define FAUSTDR_BEGIN_NAMESPACE namespace {{id}} {
+#define FAUSTDR_END_NAMESPACE }
+
 {% block ImplementationIncludeHeader %}
 #include "FaustDSP.hpp"
 {% endblock %}
@@ -48,10 +54,10 @@
 
 {% endblock %}
 
+FAUSTDR_BEGIN_NAMESPACE
+
 // --------------------------------------------------------------------------------------------------------------------
 // custom extensions to faust generated code
-
-FAUSTDR_BEGIN_NAMESPACE
 
 inline float {{id}}::get(int index) const
 {
@@ -76,11 +82,44 @@ inline void {{id}}::set(int index, float value)
     }
 }
 
+// --------------------------------------------------------------------------------------------------------------------
+// generate meta-data
+
+static constexpr const uint32_t kNumInputs = {{inputs}};
+static constexpr const uint32_t kNumOutputs = {{outputs}};
+static constexpr const uint32_t kNumParameters = {{active|length + passive|length}};
+static constexpr const uint32_t kNumParametersActive = {{active|length}};
+static constexpr const uint32_t kNumParametersPassive = {{passive|length}};
+
+static constexpr const FaustParameters<kNumParameters> kParameters = {
+    {% for w in active + passive %}
+    {
+        .label = "{{w.label}}",
+        .symbol = "{{w.symbol}}",
+        .tooltip = "{{w.tooltip}}",
+        .unit = "{{w.unit}}",
+        .init = {{w.init}},
+        .min = {{w.min}},
+        .max = {{w.max}},
+        .step = {{w.step}},
+        .isBoolean = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined else 'false' }},
+        .isInteger = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined or w.meta.integer else 'false' }},
+        .isLogarithmic = {{ 'true'  if w.scale == "log" else 'false' }},
+        .isOutput = {{ 'true' if w in passive else 'false' }},
+        .isTrigger = {{ 'true' if w.type == "button" or w.meta.trigger is defined else 'false' }},
+    },
+    {% endfor %}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 FAUSTDR_END_NAMESPACE
 
 // --------------------------------------------------------------------------------------------------------------------
 // cleanup
 
+#undef FAUSTDR_BEGIN_NAMESPACE
+#undef FAUSTDR_END_NAMESPACE
 #undef FAUSTCLASS
 #undef RESTRICT
 

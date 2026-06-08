@@ -4,8 +4,7 @@
 
 #include "LibreAudioPlugin.hpp"
 
-#include "dsp-chorus.hpp"
-#include "metadata-chorus.hpp"
+#include "chorus.hpp"
 
 START_NAMESPACE_DISTRHO
 

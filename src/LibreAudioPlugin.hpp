@@ -5,13 +5,9 @@
 #pragma once
 
 #include "DistrhoPlugin.hpp"
-#include "FaustMetadata.hpp"
 
-#include "dsp-input.hpp"
-#include "dsp-output.hpp"
-
-#include "metadata-input.hpp"
-#include "metadata-output.hpp"
+#include "common_input.hpp"
+#include "common_output.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -30,9 +26,9 @@ class LibreAudioPlugin : public Plugin
         kParametersCommonStart,
         kParametersCommonEnd = kParametersCommonStart + kCommonParameterCount - 1,
         kParametersInputStart,
-        kParametersInputEnd = kParametersInputStart + ::input::kNumParameters - 1,
+        kParametersInputEnd = kParametersInputStart + common_input::kNumParameters - 1,
         kParametersOutputStart,
-        kParametersOutputEnd = kParametersOutputStart + ::output::kNumParameters - 1,
+        kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 1,
         kParametersMainStart,
     };
 
@@ -43,8 +39,8 @@ class LibreAudioPlugin : public Plugin
     };
 
     DSP* const dsp = new DSP;
-    input* const dspInput = new input;
-    output* const dspOutput = new output;
+    common_input::common_input* const dspInput = new common_input::common_input;
+    common_output::common_output* const dspOutput = new common_output::common_output;
 
     const FaustParameters<numParameters>& parametersMeta;
 
@@ -110,11 +106,11 @@ private:
             break;
         case kParametersInputStart ... kParametersInputEnd:
             parameter.groupId = kGroupInput;
-            initParameterFromFaust(parameter, ::input::kParameters[index - kParametersInputStart]);
+            initParameterFromFaust(parameter, common_input::kParameters[index - kParametersInputStart]);
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
             parameter.groupId = kGroupOutput;
-            initParameterFromFaust(parameter, ::output::kParameters[index - kParametersOutputStart]);
+            initParameterFromFaust(parameter, common_output::kParameters[index - kParametersOutputStart]);
             break;
         default:
             parameter.groupId = kGroupMain;

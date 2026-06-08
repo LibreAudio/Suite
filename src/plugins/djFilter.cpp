@@ -4,8 +4,7 @@
 
 #include "LibreAudioPlugin.hpp"
 
-#include "dsp-djFilter.hpp"
-#include "metadata-djFilter.hpp"
+#include "djFilter.hpp"
 
 START_NAMESPACE_DISTRHO
 
