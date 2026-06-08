@@ -280,7 +280,7 @@ private:
                 wet = 1.f - dry;
 
                 for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                    outputs[c][j] = cycledOutputs[c][j] * wet + inputs[c][j] * dry;
+                    outputs[c][i + j] = cycledOutputs[c][j] * wet + inputs[c][i + j] * dry;
             }
         }
     }
