@@ -1,14 +1,16 @@
 import("stdfaust.lib");
 
-ms_on = checkbox("v:Input/[1]mid/side[symbol:input_ms_on]");
+meters_minimum = -96;
 
-trim_db  = vslider("v:Output/[2][unit:dB]trim[symbol:output_trim]", 0, -20, 20, 0.1);
+trim_db  = vslider("v:Output/[1][unit:dB]trim[symbol:output_trim]", 0, -20, 20, 0.1);
 gain_lin = trim_db : si.smoo : ba.db2linear;
+
+ms_on   = checkbox("v:Output/[2]mid/side[symbol:input_ms_on]");
 
 peak_meter_fall = 0.2;
 
-peak_meter_l = _ <: attach(_, an.peak_envelope(peak_meter_fall) : ba.linear2db : vbargraph("v:Output/h:[5]meters/[1][unit:dB]L[symbol:output_peak_L]", -70, 24));
-peak_meter_r = _ <: attach(_, an.peak_envelope(peak_meter_fall) : ba.linear2db : vbargraph("v:Output/h:[5]meters/[2][unit:dB]R[symbol:output_peak_R]", -70, 24));
+peak_meter_l = _ <: attach(_, an.peak_envelope(peak_meter_fall) : ba.linear2db : max(meters_minimum) : vbargraph("v:Output/h:[5]meters/[1][unit:dB]L[symbol:output_peak_L]", -70, 24));
+peak_meter_r = _ <: attach(_, an.peak_envelope(peak_meter_fall) : ba.linear2db : max(meters_minimum) : vbargraph("v:Output/h:[5]meters/[2][unit:dB]R[symbol:output_peak_R]", -70, 24));
 
 phase_sign(p) = 1 - 2*p;
 
