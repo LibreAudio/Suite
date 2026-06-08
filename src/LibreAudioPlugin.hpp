@@ -198,7 +198,7 @@ private:
         case kParametersInputStart ... kParametersInputEnd:
             return dspInput->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
-            return dspInput->get(index - kParametersOutputStart);
+            return dspOutput->get(index - kParametersOutputStart);
         default:
             return dsp->get(index - kParametersMainStart);
         }
