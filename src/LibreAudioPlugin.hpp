@@ -26,6 +26,16 @@ class LibreAudioPlugin : public Plugin
         kCommonParameterCount
     };
 
+    enum Parameters {
+        kParametersCommonStart,
+        kParametersCommonEnd = kParametersCommonStart + kCommonParameterCount - 1,
+        kParametersInputStart,
+        kParametersInputEnd = kParametersInputStart + ::input::kNumParameters - 1,
+        kParametersOutputStart,
+        kParametersOutputEnd = kParametersOutputStart + ::output::kNumParameters - 1,
+        kParametersMainStart,
+    };
+
     enum Groups {
         kGroupInput,
         kGroupOutput,
@@ -40,7 +50,7 @@ class LibreAudioPlugin : public Plugin
 
 public:
     LibreAudioPlugin(const FaustParameters<numParameters>& parameters)
-        : Plugin(kCommonParameterCount + ::input::kNumParameters + ::output::kNumParameters + numParameters, 0, 0),
+        : Plugin(kParametersMainStart + numParameters, 0, 0),
           parametersMeta(parameters)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
@@ -90,45 +100,27 @@ private:
     */
     void initParameter(uint32_t index, Parameter& parameter) final
     {
-        if (index < kCommonParameterCount)
+        switch (index)
         {
-            switch (static_cast<CommonParameters>(index))
-            {
-            case kCommonParameterBypass:
-                parameter.initDesignation(kParameterDesignationBypass);
-                break;
-            case kCommonParameterReset:
-                parameter.initDesignation(kParameterDesignationReset);
-                break;
-            case kCommonParameterCount:
-                __builtin_unreachable();
-                break;
-            }
-            return;
-        }
-
-        index -= kCommonParameterCount;
-
-        if (index < ::input::kNumParameters)
-        {
+        case kCommonParameterBypass:
+            parameter.initDesignation(kParameterDesignationBypass);
+            break;
+        case kCommonParameterReset:
+            parameter.initDesignation(kParameterDesignationReset);
+            break;
+        case kParametersInputStart ... kParametersInputEnd:
             parameter.groupId = kGroupInput;
-            initParameterFromFaust(parameter, ::input::kParameters[index]);
-            return;
-        }
-
-        index -= ::input::kNumParameters;
-
-        if (index < ::output::kNumParameters)
-        {
+            initParameterFromFaust(parameter, ::input::kParameters[index - kParametersInputStart]);
+            break;
+        case kParametersOutputStart ... kParametersOutputEnd:
             parameter.groupId = kGroupOutput;
-            initParameterFromFaust(parameter, ::output::kParameters[index]);
-            return;
+            initParameterFromFaust(parameter, ::output::kParameters[index - kParametersOutputStart]);
+            break;
+        default:
+            parameter.groupId = kGroupMain;
+            initParameterFromFaust(parameter, parametersMeta[index - kParametersMainStart]);
+            break;
         }
-
-        index -= ::output::kNumParameters;
-
-        parameter.groupId = kGroupMain;
-        initParameterFromFaust(parameter, parametersMeta[index]);
     }
 
     static void initParameterFromFaust(Parameter& parameter, const FaustParameter& faustParameter)
@@ -186,24 +178,19 @@ private:
       Get the current value of a parameter.
       The host may call this function from any context, including realtime processing.
     */
-    float getParameterValue(uint32_t index) const final
+    float getParameterValue(const uint32_t index) const final
     {
-        if (index < kCommonParameterCount)
-            return fCommonParameters[index];
-
-        index -= kCommonParameterCount;
-
-        if (index < ::input::kNumParameters)
-            return dspInput->get(index);
-
-        index -= ::input::kNumParameters;
-
-        if (index < ::output::kNumParameters)
-            return dspOutput->get(index);
-
-        index -= ::output::kNumParameters;
-
-        return dsp->get(index);
+        switch (index)
+        {
+        case kParametersCommonStart ... kParametersCommonEnd:
+            return fCommonParameters[index - kParametersCommonStart];
+        case kParametersInputStart ... kParametersInputEnd:
+            return dspInput->get(index - kParametersInputStart);
+        case kParametersOutputStart ... kParametersOutputEnd:
+            return dspInput->get(index - kParametersOutputStart);
+        default:
+            return dsp->get(index - kParametersMainStart);
+        }
     }
 
    /**
@@ -214,33 +201,21 @@ private:
     */
     void setParameterValue(uint32_t index, const float value) final
     {
-        if (index < kCommonParameterCount)
+        switch (index)
         {
-            fCommonParameters[index] = value;
-
-            // TODO special handling
-            return;
+        case kParametersCommonStart ... kParametersCommonEnd:
+            fCommonParameters[index - kParametersCommonStart] = value;
+            break;
+        case kParametersInputStart ... kParametersInputEnd:
+            dspInput->set(index - kParametersInputStart, value);
+            break;
+        case kParametersOutputStart ... kParametersOutputEnd:
+            dspOutput->set(index - kParametersOutputStart, value);
+            break;
+        default:
+            dsp->set(index - kParametersMainStart, value);
+            break;
         }
-
-        index -= kCommonParameterCount;
-
-        if (index < ::input::kNumParameters)
-        {
-            dspInput->set(index, value);
-            return;
-        }
-
-        index -= ::input::kNumParameters;
-
-        if (index < ::output::kNumParameters)
-        {
-            dspOutput->set(index, value);
-            return;
-        }
-
-        index -= ::output::kNumParameters;
-
-        dsp->set(index, value);
     }
 
    /* -----------------------------------------------------------------------------------------------------------------
