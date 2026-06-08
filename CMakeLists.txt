@@ -13,6 +13,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(LibreAudioSuite)
 
+find_program(FAUSTDR faustdr REQUIRED)
+
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
 add_subdirectory(src)
