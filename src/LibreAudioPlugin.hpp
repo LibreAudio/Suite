@@ -76,7 +76,7 @@ public:
 
         globalDryValue.setSampleRate(sampleRate);
         globalDryValue.setTimeConstant(0.02f);
-        globalDryValue.setTargetValue(1.f);
+        globalDryValue.setTargetValue(0.f);
 
         dsp->init(iSampleRate);
         dspInput->init(iSampleRate);
