@@ -48,8 +48,7 @@
     | replace(' FAUSTDR_PRIVATE', 'private')
     | replace(' FAUSTDR_PROTECTED', 'protected')
     | replace('FAUSTDR_VIRTUAL ', '')
-    | replace(', FAUSTFLOAT** RESTRICT inputs,', ', FAUSTFLOAT** inputs,')
-    | replace(', FAUSTFLOAT** RESTRICT outputs,', ', FAUSTFLOAT** outputs,')
+    | replace(', FAUSTFLOAT** RESTRICT inputs,', ', const FAUSTFLOAT* const* RESTRICT inputs,')
     | replace('  FAUSTFLOAT* input', '  const FAUSTFLOAT* input')
 }}
 

@@ -257,10 +257,12 @@ private:
             dspOutput->instanceClear();
         }
 
-        float cycledInputs[DISTRHO_PLUGIN_NUM_INPUTS][32];
-        float cycledOutputs[DISTRHO_PLUGIN_NUM_OUTPUTS][32];
-        float* cycledInputsPtr[2] = { cycledInputs[0], cycledInputs[1] };
-        float* cycledOutputsPtr[2] = { cycledOutputs[0], cycledOutputs[1] };
+        float _cycledInputs0[32];
+        float _cycledInputs1[32];
+        float _cycledOutputs0[32];
+        float _cycledOutputs1[32];
+        float* cycledInputs[2] = { _cycledInputs0, _cycledInputs1 };
+        float* cycledOutputs[2] = { _cycledOutputs0, _cycledOutputs1 };
         float dry, wet;
 
         for (uint32_t i = 0, cycleFrames; i < frames; i += 32)
@@ -268,11 +270,11 @@ private:
             cycleFrames = std::min<uint32_t>(32, frames - i);
 
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                std::memcpy(cycledInputs[c], inputs[c], sizeof(float) * cycleFrames);
+                std::memcpy(cycledInputs[c], inputs[c] + i, sizeof(float) * cycleFrames);
 
-            dspInput->compute(cycleFrames, cycledInputsPtr, cycledOutputsPtr);
-            dsp->compute(cycleFrames, cycledOutputsPtr, cycledOutputsPtr);
-            dspOutput->compute(cycleFrames, cycledOutputsPtr, cycledOutputsPtr);
+            dspInput->compute(cycleFrames, cycledInputs, cycledOutputs);
+            dsp->compute(cycleFrames, cycledOutputs, cycledOutputs);
+            dspOutput->compute(cycleFrames, cycledOutputs, cycledOutputs);
 
             for (uint32_t j = 0; j < cycleFrames; ++j)
             {
