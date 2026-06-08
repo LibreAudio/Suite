@@ -152,7 +152,15 @@ endfunction()
 # ---------------------------------------------------------------------------------------------------------------------
 # setup all plugins
 
-las_add_plugin(chorus)
-las_add_plugin(djFilter)
+file(GLOB
+  LIBREAUDIO_PLUGINS
+    CONFIGURE_DEPENDS
+      dsp-faust/*.dsp
+)
+
+foreach(PLUGIN ${LIBREAUDIO_PLUGINS})
+  string(REGEX REPLACE "^(.*)/(.*)\.dsp$" "\\2" PLUGIN "${PLUGIN}")
+  las_add_plugin(${PLUGIN})
+endforeach()
 
 # ---------------------------------------------------------------------------------------------------------------------
