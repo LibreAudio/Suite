@@ -1,0 +1,37 @@
+{% block ImplementationDescription %}
+// --------------------------------------------------------------------------------------------------------------------
+// This file was generated using the Faust compiler (https://faust.grame.fr),
+// and the Faust post-processor (https://github.com/SpotlightKid/faustdoctor).
+//
+// Source: {{filename}}
+// Name: {{name}}
+// Author: {{author}}
+// Copyright: {{copyright}}
+// License: {{license}}
+// Version: {{version}}
+// FAUST version: {{faustversion}}
+// FAUST compilation options: {{meta.compile_options}}
+// --------------------------------------------------------------------------------------------------------------------
+{% endblock %}
+
+{% block ImplementationPrologue %}
+{% if fdrversioninfo is undefined or fdrversioninfo < (0, 2, 0) %}
+{{fail("This template is not compatible with faustdoctor version < 0.2.0.")}}
+{% endif %}
+{% if not (id is defined and id == cid(id)) %}
+{{fail("`id` is undefined or invalid.")}}
+{% endif %}
+{% endblock %}
+
+#include "LibreAudioPlugin.hpp"
+
+#include "{{id}}.hpp"
+
+START_NAMESPACE_DISTRHO
+
+Plugin* createPlugin()
+{
+    return new LibreAudioPlugin<{{id}}, kNumParameters>(kParameters);
+}
+
+END_NAMESPACE_DISTRHO

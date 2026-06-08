@@ -28,10 +28,10 @@ function(las_generate_faust_cpp TARGET)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET/config.h
+# function to generate $TARGET/config.h and $TARGET/plugin.cpp
 # used for DPF plugins
 
-function(las_generate_faust_config TARGET)
+function(las_generate_faust_plugin TARGET)
   add_custom_command(
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
@@ -56,6 +56,22 @@ function(las_generate_faust_config TARGET)
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
       dsp-faust/${TARGET}.dsp
       templates/config.h.in
+    VERBATIM
+  )
+  add_custom_command(
+    OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/plugin.cpp
+    COMMAND
+      ${FAUSTDR}
+      -a ${CMAKE_SOURCE_DIR}/src/templates/plugin.cpp.in
+      -c ${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/plugin.cpp
+      -Did=${TARGET}
+      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
+    DEPENDS
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
+      dsp-faust/${TARGET}.dsp
+      templates/plugin.cpp.in
     VERBATIM
   )
 endfunction()
@@ -102,11 +118,11 @@ function(las_add_plugin LABEL)
     TARGETS
       clap lv2 vst3 jack
     FILES_DSP
-      plugins/${LABEL}.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/plugin.cpp
   )
 
   las_generate_faust_cpp(${LABEL})
-  las_generate_faust_config(${LABEL})
+  las_generate_faust_plugin(${LABEL})
 
   target_compile_definitions(${TARGET}
     PUBLIC
