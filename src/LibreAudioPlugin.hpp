@@ -5,9 +5,18 @@
 #pragma once
 
 #include "DistrhoPlugin.hpp"
+#include "extra/ScopedDenormalDisable.hpp"
+#include "extra/ValueSmoother.hpp"
 
 #include "common_input.hpp"
 #include "common_output.hpp"
+
+// --------------------------------------------------------------------------------------------------------------------
+
+static_assert(DISTRHO_PLUGIN_NUM_INPUTS == 2, "has 2 audio inputs");
+static_assert(DISTRHO_PLUGIN_NUM_OUTPUTS == 2, "has 2 audio outputs");
+
+// --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
 
@@ -62,10 +71,16 @@ public:
             }
         }
 
-        const int sampleRate = d_roundToIntPositive(getSampleRate());
-        dsp->init(sampleRate);
-        dspInput->init(sampleRate);
-        dspOutput->init(sampleRate);
+        const double sampleRate = getSampleRate();
+        const int iSampleRate = d_roundToIntPositive(sampleRate);
+
+        globalDryValue.setSampleRate(sampleRate);
+        globalDryValue.setTimeConstant(0.02f);
+        globalDryValue.setTargetValue(1.f);
+
+        dsp->init(iSampleRate);
+        dspInput->init(iSampleRate);
+        dspOutput->init(iSampleRate);
     }
 
     ~LibreAudioPlugin() override
@@ -200,6 +215,8 @@ private:
         switch (index)
         {
         case kParametersCommonStart ... kParametersCommonEnd:
+            if (index == kCommonParameterBypass)
+                globalDryValue.setTargetValue(value);
             fCommonParameters[index - kParametersCommonStart] = value;
             break;
         case kParametersInputStart ... kParametersInputEnd:
@@ -234,16 +251,38 @@ private:
         if (d_isNotZero(fCommonParameters[kCommonParameterReset]))
         {
             fCommonParameters[kCommonParameterReset] = 0.f;
+            globalDryValue.clearToTargetValue();
             dsp->instanceClear();
             dspInput->instanceClear();
             dspOutput->instanceClear();
         }
 
-        const float** routputs = const_cast<const float**>(outputs);
+        float cycledInputs[DISTRHO_PLUGIN_NUM_INPUTS][32];
+        float cycledOutputs[DISTRHO_PLUGIN_NUM_OUTPUTS][32];
+        float* cycledInputsPtr[2] = { cycledInputs[0], cycledInputs[1] };
+        float* cycledOutputsPtr[2] = { cycledOutputs[0], cycledOutputs[1] };
+        float dry, wet;
 
-        dspInput->compute(frames, inputs, outputs);
-        dsp->compute(frames, routputs, outputs);
-        dspOutput->compute(frames, routputs, outputs);
+        for (uint32_t i = 0, cycleFrames; i < frames; i += 32)
+        {
+            cycleFrames = std::min<uint32_t>(32, frames - i);
+
+            for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                std::memcpy(cycledInputs[c], inputs[c], sizeof(float) * cycleFrames);
+
+            dspInput->compute(cycleFrames, cycledInputsPtr, cycledOutputsPtr);
+            dsp->compute(cycleFrames, cycledOutputsPtr, cycledOutputsPtr);
+            dspOutput->compute(cycleFrames, cycledOutputsPtr, cycledOutputsPtr);
+
+            for (uint32_t j = 0; j < cycleFrames; ++j)
+            {
+                dry = globalDryValue.next();
+                wet = 1.f - dry;
+
+                for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                    outputs[c][j] = cycledOutputs[c][j] * wet + inputs[c][j] * dry;
+            }
+        }
     }
 
    /* -----------------------------------------------------------------------------------------------------------------
@@ -255,6 +294,8 @@ private:
     */
     void sampleRateChanged(const double newSampleRate) final
     {
+        globalDryValue.setSampleRate(newSampleRate);
+
         const int sampleRate = d_roundToIntPositive(newSampleRate);
         dsp->instanceConstants(sampleRate);
         dspInput->instanceConstants(sampleRate);
@@ -263,6 +304,7 @@ private:
 
 // protected:
     float fCommonParameters[kCommonParameterCount];
+    LinearValueSmoother globalDryValue;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
