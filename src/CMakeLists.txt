@@ -11,7 +11,7 @@ function(las_generate_faust_cpp TARGET)
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
     COMMAND
-      faustdr
+      ${FAUSTDR}
       -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.hpp.in
       -c ${TARGET}
       -o ${CMAKE_CURRENT_BINARY_DIR}/dsp-${TARGET}.hpp
@@ -28,7 +28,7 @@ function(las_generate_faust_cpp TARGET)
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
     COMMAND
-      faustdr
+      ${FAUSTDR}
       -a ${CMAKE_SOURCE_DIR}/src/templates/metadata.hpp.in
       -c ${TARGET}
       -o ${CMAKE_CURRENT_BINARY_DIR}/metadata-${TARGET}.hpp
@@ -48,15 +48,26 @@ endfunction()
 function(las_generate_faust_config TARGET)
   add_custom_command(
     OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
+    COMMAND
+      ${CMAKE_COMMAND}
+      -E
+      make_directory
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
+    VERBATIM
+  )
+  add_custom_command(
+    OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/config.h
     COMMAND
-      faustdr
+      ${FAUSTDR}
       -a ${CMAKE_SOURCE_DIR}/src/templates/config.h.in
       -c ${TARGET}
       -l c
       -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/config.h
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
       dsp-faust/${TARGET}.dsp
       templates/config.h.in
     VERBATIM
