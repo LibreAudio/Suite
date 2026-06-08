@@ -1,5 +1,7 @@
 import("stdfaust.lib");
 
+declare drywet "true";
+
 // Roland Juno-60 Stereo Chorus
 //
 // Emulates the MN3009 BBD (256-stage bucket-brigade) chorus circuit.
