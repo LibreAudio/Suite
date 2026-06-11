@@ -12,7 +12,7 @@ import("stdfaust.lib");
 Nch = 2;
 
 // maximum time in seconds for attack, hold and release
-maxRelTime = 3;
+maxRelTime = 1;
 
 maxHold = 1000;
 
@@ -21,10 +21,10 @@ maxLookaheadSamples = 19200; // 100ms at 192kHz
 latency_meter = _ <: attach(_,meter_group(hbargraph("[symbol:latency_samples]latency_samples", 0, maxLookaheadSamples)));
 
 
-process =       bp2(ms_switch,ms_enc)
-            :   expanderSC_N_chan(strength,threshold,range,attack,hold,release,knee,prePost,link,meter,maxHold,Nch,sidechain(scfreq),0,0,lookaheadSamples)
+process =       // bp2(ms_switch,ms_enc) :
+            expanderSC_N_chan(strength,threshold,range,attack,hold,release,knee,prePost,link,meter1,maxHold,Nch,sidechain(scfreq),0,0,lookaheadSamples)
                 
-            :   bp2(ms_switch,ms_dec)
+                //:   bp2(ms_switch,ms_dec)
         ;
 
 sidechain(scfreq) = fi.highpass(1,scfreq);
@@ -50,7 +50,10 @@ meter_group(x)  = expander_group(vgroup("[1]Meters", x));
 knob_group(x)  = expander_group(hgroup("[0]Controls", x));
 
 maxGR = -100;
-meter = _<:(_, (max(maxGR):meter_group((hbargraph("[1][unit:dB][tooltip: gain reduction in dB]", -20, 20))))):attach;
+meter1 = _<:(_, (max(maxGR):meter_group((hbargraph("[1]gain 1[unit:dB][tooltip: gain in dB]", 0, 20))))):attach;
+meter2 = _<:(_, (max(maxGR):meter_group((hbargraph("[2]gain 2[unit:dB][tooltip: gain in dB]", 0, 20))))):attach;
+chanMeter(0) = meter1;
+chanMeter(1) = meter2;
 
 ctl_group(x)  = knob_group(hgroup("[3] Compression Control", x));
 
@@ -68,9 +71,13 @@ knee = ctl_group(vslider("[3] Knee [unit:dB]
       [tooltip: soft knee amount in dB]",
                          6, 0, 24, 0.1));
 
-scale = ctl_group(vslider("[4] Scale [unit:%]
-      [tooltip: Scales the amount of compression boost applied]",
-                         100, 0, 100, 1) / 100);
+scale1 = ctl_group(vslider("[4] Scale 1 [unit:%]
+      [tooltip: Scales the amount of compression boost for channel 1]",
+                         100, 0, 200, 1) / 100);
+scale2 = ctl_group(vslider("[5] Scale 2 [unit:%]
+      [tooltip: Scales the amount of compression boost for channel 2]",
+                         100, 0, 200, 1) / 100);
+chanScale(i) = select2(i, scale1, scale2);
 
 env_group(x)  = knob_group(hgroup("[4] Compression Response", x));
 
@@ -93,7 +100,7 @@ sw_group(x)  = env_group(vgroup("[4]Options", x));
 prePost = sw_group(checkbox("[1] slow/fast  [tooltip: Unchecked: log  domain return-to-threshold detector
       Checked: linear return-to-zero detector]")*-1)+1;
 
-ms_switch = sw_group(checkbox("[1] M-S  [tooltip: Unchecked: Left and right
+ms_switch = sw_group(checkbox("[1] mid/side  [tooltip: Unchecked: Left and right
       Checked: Mid and side]")*-1)+1;
 
 SCswitch = sw_group(checkbox("[2] External SideChain  [tooltip: Unchecked: original signal
@@ -282,4 +289,4 @@ expanderSC_N_chan(strength,thresh,range,att,hold,rel,knee,prePost,link,meter,max
     : peak_expansion_gain_N_chan_db(strength,thresh,range,att,hold,rel,knee,prePost,link,maxHold,N))
   ,(par(i, N, de.delay(maxLookaheadSamples, lookaheadSamp))))
   : ro.interleave(N,2)
-  : par(i,N,(*(scale):meter:ba.db2linear)*_);
+  : par(i,N,(*(chanScale(i)):chanMeter(i):ba.db2linear)*_);
