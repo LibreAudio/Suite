@@ -12,9 +12,7 @@
 #include "common_output.hpp"
 
 /* TODO
- * - use common coding style
  * - convert common IO to C++
- * - mute/unmute for clicky operations (e.g. IO phase change)
  */
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -26,7 +24,9 @@ START_NAMESPACE_DISTRHO
 template<class DSP, int numParameters>
 class LibreAudioPlugin : public Plugin
 {
-    static constexpr uint32_t kCommonIOParameters = 1;
+    static constexpr const uint32_t kCommonIOParameters = 1;
+    static constexpr const uint32_t kInternalBufferSize = 32;
+    static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
     enum CommonParameters {
         kCommonParameterBypass,
@@ -34,6 +34,7 @@ class LibreAudioPlugin : public Plugin
        #if LIBREAUDIO_WANT_DRYWET
         kCommonParameterDryWet,
        #endif
+        kCommonParameterTestClickFreeChanges,
         kCommonParameterCount
     };
 
@@ -53,16 +54,34 @@ class LibreAudioPlugin : public Plugin
         kGroupMain,
     };
 
-    DSP* const dsp = new DSP;
-    common_input::common_input* const dspInput = new common_input::common_input;
-    common_output::common_output* const dspOutput = new common_output::common_output;
+    const FaustParameters<numParameters>& fFaustParameters;
 
-    const FaustParameters<numParameters>& parametersMeta;
+    float fCommonParameterValues[kCommonParameterCount];
+    LinearValueSmoother fGlobalDryValue;
+    LinearValueSmoother fGlobalWetValue;
+
+    float* fCycleBuffer1[2] = {
+        fInternalBuffer + kInternalBufferSize * 0,
+        fInternalBuffer + kInternalBufferSize * 1,
+    };
+    float* fCycleBuffer2[2] = {
+        fInternalBuffer + kInternalBufferSize * 2,
+        fInternalBuffer + kInternalBufferSize * 3,
+    };
+    float fInternalBuffer[kInternalBufferSize * 4];
+
+    // click-free mute/unmute run-time values
+    uint32_t fNumSamplesNeededForMuting;
+    uint32_t fNumSamplesUntilMuted = 0;
+
+    DSP* const fMainDSP = new DSP;
+    common_input::common_input* const fInputDSP = new common_input::common_input;
+    common_output::common_output* const fOutputDSP = new common_output::common_output;
 
 public:
     LibreAudioPlugin(const FaustParameters<numParameters>& parameters)
         : Plugin(kParametersMainStart + numParameters, 0, 0),
-          parametersMeta(parameters)
+          fFaustParameters(parameters)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
         {
@@ -70,11 +89,12 @@ public:
             {
             case kCommonParameterBypass:
             case kCommonParameterReset:
-                fCommonParameters[i] = 0.f;
+            case kCommonParameterTestClickFreeChanges:
+                fCommonParameterValues[i] = 0.f;
                 break;
            #if LIBREAUDIO_WANT_DRYWET
             case kCommonParameterDryWet:
-                fCommonParameters[i] = 50.f;
+                fCommonParameterValues[i] = 50.f;
            #endif
                 break;
             case kCommonParameterCount:
@@ -85,25 +105,32 @@ public:
         const double sampleRate = getSampleRate();
         const int iSampleRate = d_roundToIntPositive(sampleRate);
 
-        globalWetValue.setSampleRate(sampleRate);
-        globalWetValue.setTimeConstant(0.02f);
-        globalWetValue.setTargetValue(0.f);
+        fGlobalDryValue.setSampleRate(sampleRate);
+        fGlobalDryValue.setTimeConstant(kParameterSmoothingTime);
+        fGlobalDryValue.setTargetValue(0.f);
 
-        dsp->init(iSampleRate);
-        dspInput->init(iSampleRate);
-        dspOutput->init(iSampleRate);
+        fGlobalWetValue.setSampleRate(sampleRate);
+        fGlobalWetValue.setTimeConstant(kParameterSmoothingTime);
+        fGlobalWetValue.setTargetValue(0.f);
+
+        // FIXME why 1.1 needed?
+        fNumSamplesNeededForMuting = d_roundToUnsignedInt(sampleRate * kParameterSmoothingTime * 1.1) + 1;
+
+        fMainDSP->init(iSampleRate);
+        fInputDSP->init(iSampleRate);
+        fOutputDSP->init(iSampleRate);
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
-        dsp->compute(0, cycledInputs, cycledOutputs);
-        setLatency(dsp->latency());
+        fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);
+        setLatency(fMainDSP->latency());
        #endif
     }
 
     ~LibreAudioPlugin() override
     {
-        delete dsp;
-        delete dspInput;
-        delete dspOutput;
+        delete fMainDSP;
+        delete fInputDSP;
+        delete fOutputDSP;
     }
 
 private:
@@ -146,6 +173,14 @@ private:
             parameter.ranges.max = 100.f;
             break;
        #endif
+        case kCommonParameterTestClickFreeChanges:
+            parameter.hints = kParameterIsAutomatable | kParameterIsBoolean;
+            parameter.name = "Test Click-Free Changes";
+            parameter.symbol = "TestClickFreeChanges";
+            parameter.ranges.def = 0.f;
+            parameter.ranges.min = 0.f;
+            parameter.ranges.max = 1.f;
+            break;
         case kParametersInputStart ... kParametersInputEnd:
             parameter.groupId = kGroupInput;
             initParameterFromFaust(parameter, common_input::kParameters[index - kParametersInputStart]);
@@ -158,7 +193,7 @@ private:
         default:
             DISTRHO_SAFE_ASSERT_RETURN(index >= kParametersMainStart,);
             parameter.groupId = kGroupMain;
-            initParameterFromFaust(parameter, parametersMeta[index - kParametersMainStart]);
+            initParameterFromFaust(parameter, fFaustParameters[index - kParametersMainStart]);
             break;
         }
     }
@@ -223,13 +258,13 @@ private:
         switch (index)
         {
         case kParametersCommonStart ... kParametersCommonEnd:
-            return fCommonParameters[index - kParametersCommonStart];
+            return fCommonParameterValues[index - kParametersCommonStart];
         case kParametersInputStart ... kParametersInputEnd:
-            return dspInput->get(index - kParametersInputStart);
+            return fInputDSP->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
-            return dspOutput->get(index - kParametersOutputStart + kCommonIOParameters);
+            return fOutputDSP->get(index - kParametersOutputStart + kCommonIOParameters);
         default:
-            return dsp->get(index - kParametersMainStart);
+            return fMainDSP->get(index - kParametersMainStart);
         }
     }
 
@@ -245,16 +280,16 @@ private:
         switch (index)
         {
         case kParametersCommonStart ... kParametersCommonEnd:
-            fCommonParameters[index - kParametersCommonStart] = value;
+            fCommonParameterValues[index - kParametersCommonStart] = value;
             break;
         case kParametersInputStart ... kParametersInputEnd:
-            dspInput->set(index - kParametersInputStart, value);
+            fInputDSP->set(index - kParametersInputStart, value);
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
-            dspOutput->set(index - kParametersOutputStart, value + kCommonIOParameters);
+            fOutputDSP->set(index - kParametersOutputStart, value + kCommonIOParameters);
             break;
         default:
-            dsp->set(index - kParametersMainStart, value);
+            fMainDSP->set(index - kParametersMainStart, value);
             break;
         }
 
@@ -263,18 +298,36 @@ private:
         {
        #if LIBREAUDIO_WANT_DRYWET
         case kCommonParameterBypass:
-            globalWetValue.setTargetValue(d_isZero(value) ? fCommonParameters[kCommonParameterDryWet] * 0.01f : 0.f);
+            if (fNumSamplesUntilMuted == 0)
+            {
+                const float wet = d_isZero(value) ? fCommonParameterValues[kCommonParameterDryWet] * 0.01f : 0.f;
+                fGlobalDryValue.setTargetValue(1.f - wet);
+                fGlobalWetValue.setTargetValue(wet);
+            }
             break;
         case kCommonParameterDryWet:
-            globalWetValue.setTargetValue(d_isZero(fCommonParameters[kCommonParameterBypass]) ? value * 0.01f : 0.f);
+            if (fNumSamplesUntilMuted == 0)
+            {
+                const float wet = d_isZero(fCommonParameterValues[kCommonParameterBypass]) ? value * 0.01f : 0.f;
+                fGlobalDryValue.setTargetValue(1.f - wet);
+                fGlobalWetValue.setTargetValue(wet);
+            }
             break;
        #else
         case kCommonParameterBypass:
-            globalWetValue.setTargetValue(d_isZero(value) ? 1.f : 0.f);
+            if (fNumSamplesUntilMuted == 0)
+            {
+                const float wet = d_isZero(value) ? 1.f : 0.f;
+                fGlobalDryValue.setTargetValue(1.f - wet);
+                fGlobalWetValue.setTargetValue(wet);
+            }
             break;
        #endif
+        case kCommonParameterTestClickFreeChanges:
+            mute();
+            break;
         case kParametersInputStart + common_input::kParameterInput_ms_on:
-            dspOutput->set(common_output::kParameterInput_ms_on, value);
+            fOutputDSP->set(common_output::kParameterInput_ms_on, value);
             break;
         }
     }
@@ -282,12 +335,50 @@ private:
    /* -----------------------------------------------------------------------------------------------------------------
     * Audio/MIDI Processing */
 
+    void mute()
+    {
+        fNumSamplesUntilMuted = 1;
+
+        // do not mute if bypassed
+        if (d_isZero(fCommonParameterValues[kCommonParameterBypass]))
+        {
+            fGlobalDryValue.setTargetValue(0.f);
+            fGlobalWetValue.setTargetValue(0.f);
+        }
+    }
+
+    void unmute()
+    {
+        // NOTE can trigger clicky operation here
+
+        fNumSamplesUntilMuted = 0;
+
+        if (d_isZero(fCommonParameterValues[kCommonParameterBypass]))
+        {
+            // enabled, use full wet
+           #if LIBREAUDIO_WANT_DRYWET
+            const float wet = fCommonParameterValues[kCommonParameterDryWet] * 0.01f;
+            fGlobalDryValue.setTargetValue(1.f - wet);
+            fGlobalWetValue.setTargetValue(wet);
+           #else
+            fGlobalDryValue.setTargetValue(0.f);
+            fGlobalWetValue.setTargetValue(1.f);
+           #endif
+        }
+        else
+        {
+            // bypassed, use full dry
+            fGlobalDryValue.setTargetValue(1.f);
+            fGlobalWetValue.setTargetValue(0.f);
+        }
+    }
+
    /**
       Activate this plugin.
     */
     void activate() final
     {
-        fCommonParameters[kCommonParameterReset] = 1.f;
+        fCommonParameterValues[kCommonParameterReset] = 1.f;
     }
 
    /**
@@ -296,39 +387,49 @@ private:
     */
     void run(const float** const inputs, float** const outputs, const uint32_t frames) final
     {
-        if (d_isNotZero(fCommonParameters[kCommonParameterReset]))
+        if (d_isNotZero(fCommonParameterValues[kCommonParameterReset]))
         {
-            fCommonParameters[kCommonParameterReset] = 0.f;
-            globalWetValue.clearToTargetValue();
-            dsp->instanceClear();
-            dspInput->instanceClear();
-            dspOutput->instanceClear();
+            if (fNumSamplesUntilMuted != 0)
+                unmute();
+
+            fCommonParameterValues[kCommonParameterReset] = 0.f;
+            fGlobalDryValue.clearToTargetValue();
+            fGlobalWetValue.clearToTargetValue();
+            fMainDSP->instanceClear();
+            fInputDSP->instanceClear();
+            fOutputDSP->instanceClear();
         }
 
         float dry, wet;
         for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBufferSize)
         {
             cycleFrames = std::min<uint32_t>(kInternalBufferSize, frames - i);
+           #ifdef __GNUC__
+            #pragma GCC poison frames
+           #endif
 
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                std::memcpy(cycledInputs[c], inputs[c] + i, sizeof(float) * cycleFrames);
+                std::memcpy(fCycleBuffer1[c], inputs[c] + i, sizeof(float) * cycleFrames);
 
-            dspInput->compute(cycleFrames, cycledInputs, cycledOutputs);
-            dsp->compute(cycleFrames, cycledOutputs, cycledOutputs);
-            dspOutput->compute(cycleFrames, cycledOutputs, cycledOutputs);
+            fInputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
+            fMainDSP->compute(cycleFrames, fCycleBuffer2, fCycleBuffer1);
+            fOutputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
 
             for (uint32_t j = 0; j < cycleFrames; ++j)
             {
-                wet = globalWetValue.next();
-                dry = 1.f - wet;
+                dry = fGlobalDryValue.next();
+                wet = fGlobalWetValue.next();
 
                 for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                    outputs[c][i + j] = cycledOutputs[c][j] * wet + inputs[c][i + j] * dry;
+                    outputs[c][i + j] = fCycleBuffer2[c][j] * wet + inputs[c][i + j] * dry;
             }
+
+            if (fNumSamplesUntilMuted != 0 && (fNumSamplesUntilMuted += cycleFrames) > fNumSamplesNeededForMuting)
+                unmute();
         }
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
-        setLatency(dsp->latency());
+        setLatency(fMainDSP->latency());
        #endif
     }
 
@@ -341,30 +442,19 @@ private:
     */
     void sampleRateChanged(const double newSampleRate) final
     {
-        globalWetValue.setSampleRate(newSampleRate);
+        fGlobalDryValue.setSampleRate(newSampleRate);
+        fGlobalWetValue.setSampleRate(newSampleRate);
 
         const int sampleRate = d_roundToIntPositive(newSampleRate);
-        dsp->instanceConstants(sampleRate);
-        dspInput->instanceConstants(sampleRate);
-        dspOutput->instanceConstants(sampleRate);
+        fMainDSP->instanceConstants(sampleRate);
+        fInputDSP->instanceConstants(sampleRate);
+        fOutputDSP->instanceConstants(sampleRate);
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
-        dsp->compute(0, cycledInputs, cycledOutputs);
-        setLatency(dsp->latency());
+        fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);
+        setLatency(fMainDSP->latency());
        #endif
     }
-
-// protected:
-    float fCommonParameters[kCommonParameterCount];
-    LinearValueSmoother globalWetValue;
-
-    static constexpr uint32_t kInternalBufferSize = 32;
-    float _cycledInputs0[kInternalBufferSize];
-    float _cycledInputs1[kInternalBufferSize];
-    float _cycledOutputs0[kInternalBufferSize];
-    float _cycledOutputs1[kInternalBufferSize];
-    float* cycledInputs[2] = { _cycledInputs0, _cycledInputs1 };
-    float* cycledOutputs[2] = { _cycledOutputs0, _cycledOutputs1 };
 };
 
 // --------------------------------------------------------------------------------------------------------------------
