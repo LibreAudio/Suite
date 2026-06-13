@@ -2,12 +2,14 @@ import("stdfaust.lib");
 
 meters_minimum = -96;
 
+// note: common parameters must be first
+ms_on = checkbox("v:Input/[0]mid/side[symbol:input_ms_on]");
+
 trim_db  = vslider("v:Input/[1][unit:dB]trim[symbol:input_trim]", 0, -20, 20, 0.1);
 gain_lin = trim_db : si.smoo : ba.db2linear;
 
-ms_on   = checkbox("v:Input/[2]mid/side[symbol:input_ms_on]");
-phase_l = checkbox("v:Input/[3]phase L[symbol:input_phase_l]");
-phase_r = checkbox("v:Input/[4]phase R[symbol:input_phase_r]");
+phase_l = checkbox("v:Input/[2]phase L[symbol:input_phase_l]");
+phase_r = checkbox("v:Input/[3]phase R[symbol:input_phase_r]");
 
 peak_meter_fall = 0.2;
 

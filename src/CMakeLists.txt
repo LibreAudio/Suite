@@ -119,6 +119,7 @@ function(las_add_plugin LABEL)
       clap lv2 vst3 jack
     FILES_DSP
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/plugin.cpp
+    RUNTIME_TESTING
   )
 
   las_generate_faust_cpp(${LABEL})

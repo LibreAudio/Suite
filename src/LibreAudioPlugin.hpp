@@ -13,11 +13,6 @@
 
 // --------------------------------------------------------------------------------------------------------------------
 
-static_assert(DISTRHO_PLUGIN_NUM_INPUTS == 2, "has 2 audio inputs");
-static_assert(DISTRHO_PLUGIN_NUM_OUTPUTS == 2, "has 2 audio outputs");
-
-// --------------------------------------------------------------------------------------------------------------------
-
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -25,6 +20,8 @@ START_NAMESPACE_DISTRHO
 template<class DSP, int numParameters>
 class LibreAudioPlugin : public Plugin
 {
+    static constexpr uint32_t kCommonIOParameters = 1;
+
     enum CommonParameters {
         kCommonParameterBypass,
         kCommonParameterReset,
@@ -37,7 +34,7 @@ class LibreAudioPlugin : public Plugin
         kParametersInputStart,
         kParametersInputEnd = kParametersInputStart + common_input::kNumParameters - 1,
         kParametersOutputStart,
-        kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 2, // extra IO mid-side
+        kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 1 - kCommonIOParameters,
         kParametersMainStart,
     };
 
@@ -125,7 +122,8 @@ private:
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
             parameter.groupId = kGroupOutput;
-            initParameterFromFaust(parameter, common_output::kParameters[index - kParametersOutputStart + 1]);
+            initParameterFromFaust(parameter,
+                                   common_output::kParameters[index - kParametersOutputStart + kCommonIOParameters]);
             break;
         default:
             parameter.groupId = kGroupMain;
@@ -198,7 +196,7 @@ private:
         case kParametersInputStart ... kParametersInputEnd:
             return dspInput->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
-            return dspOutput->get(index - kParametersOutputStart + 1);
+            return dspOutput->get(index - kParametersOutputStart + kCommonIOParameters);
         default:
             return dsp->get(index - kParametersMainStart);
         }
@@ -222,7 +220,7 @@ private:
             dspInput->set(index - kParametersInputStart, value);
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
-            dspOutput->set(index - kParametersOutputStart, value + 1);
+            dspOutput->set(index - kParametersOutputStart, value + kCommonIOParameters);
             break;
         default:
             dsp->set(index - kParametersMainStart, value);
