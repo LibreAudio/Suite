@@ -20,9 +20,11 @@
 
 #pragma once
 
+#define DISTRHO_PLUGIN_DESCRIPTION "{{meta.description}}"
 #define DISTRHO_PLUGIN_NAME "{{name}}"
 #define DISTRHO_PLUGIN_NUM_INPUTS {{inputs}}
 #define DISTRHO_PLUGIN_NUM_OUTPUTS {{outputs}}
+#define DISTRHO_PLUGIN_UNIQUE_ID {{meta.unique_id}}
 {% for w in passive if w.symbol == "latency_samples" %}
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
 {% endfor %}

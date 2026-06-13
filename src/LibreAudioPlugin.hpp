@@ -167,15 +167,15 @@ private:
     {
         parameter.hints = kParameterIsAutomatable;
         if (faustParameter.isBoolean)
-            parameter.hints = kParameterIsBoolean;
+            parameter.hints |= kParameterIsBoolean;
         if (faustParameter.isInteger)
-            parameter.hints = kParameterIsInteger;
+            parameter.hints |= kParameterIsInteger;
         if (faustParameter.isLogarithmic)
-            parameter.hints = kParameterIsLogarithmic;
+            parameter.hints |= kParameterIsLogarithmic;
         if (faustParameter.isOutput)
-            parameter.hints = kParameterIsOutput;
+            parameter.hints |= kParameterIsOutput;
         if (faustParameter.isTrigger)
-            parameter.hints = kParameterIsTrigger;
+            parameter.hints |= kParameterIsTrigger;
 
         parameter.name = faustParameter.label;
         parameter.symbol = faustParameter.symbol;

@@ -4,6 +4,7 @@ declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
 declare name "Spectral Balancer";
+declare unique_id "LAsb";
 
 process = balancer;
 

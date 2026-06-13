@@ -4,6 +4,7 @@ declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
 declare name "Chorus";
+declare unique_id "LAch";
 
 // config
 declare drywet "true";

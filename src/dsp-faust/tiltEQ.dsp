@@ -4,6 +4,7 @@ declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
 declare name "Tilt EQ";
+declare unique_id "LAte";
 
 Nch = 2; //stereo
 

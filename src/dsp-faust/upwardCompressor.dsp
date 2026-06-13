@@ -6,6 +6,7 @@ declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
 declare name "Upward Compressor";
+declare unique_id "LAuc";
 
 // numerb of channels
 Nch = 2;
