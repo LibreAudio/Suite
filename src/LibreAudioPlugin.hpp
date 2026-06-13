@@ -11,6 +11,12 @@
 #include "common_input.hpp"
 #include "common_output.hpp"
 
+/* TODO
+ * - use common coding style
+ * - convert common IO to C++
+ * - mute/unmute for clicky operations (e.g. IO phase change)
+ */
+
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
@@ -25,6 +31,9 @@ class LibreAudioPlugin : public Plugin
     enum CommonParameters {
         kCommonParameterBypass,
         kCommonParameterReset,
+       #if LIBREAUDIO_WANT_DRYWET
+        kCommonParameterDryWet,
+       #endif
         kCommonParameterCount
     };
 
@@ -63,6 +72,11 @@ public:
             case kCommonParameterReset:
                 fCommonParameters[i] = 0.f;
                 break;
+           #if LIBREAUDIO_WANT_DRYWET
+            case kCommonParameterDryWet:
+                fCommonParameters[i] = 50.f;
+           #endif
+                break;
             case kCommonParameterCount:
                 break;
             }
@@ -71,13 +85,18 @@ public:
         const double sampleRate = getSampleRate();
         const int iSampleRate = d_roundToIntPositive(sampleRate);
 
-        globalDryValue.setSampleRate(sampleRate);
-        globalDryValue.setTimeConstant(0.02f);
-        globalDryValue.setTargetValue(0.f);
+        globalWetValue.setSampleRate(sampleRate);
+        globalWetValue.setTimeConstant(0.02f);
+        globalWetValue.setTargetValue(0.f);
 
         dsp->init(iSampleRate);
         dspInput->init(iSampleRate);
         dspOutput->init(iSampleRate);
+
+       #if DISTRHO_PLUGIN_WANT_LATENCY
+        dsp->compute(0, cycledInputs, cycledOutputs);
+        setLatency(dsp->latency());
+       #endif
     }
 
     ~LibreAudioPlugin() override
@@ -116,6 +135,17 @@ private:
         case kCommonParameterReset:
             parameter.initDesignation(kParameterDesignationReset);
             break;
+       #if LIBREAUDIO_WANT_DRYWET
+        case kCommonParameterDryWet:
+            parameter.hints = kParameterIsAutomatable;
+            parameter.name = "Dry / Wet";
+            parameter.symbol = "dry_wet";
+            parameter.unit = "%";
+            parameter.ranges.def = 50.f;
+            parameter.ranges.min = 0.f;
+            parameter.ranges.max = 100.f;
+            break;
+       #endif
         case kParametersInputStart ... kParametersInputEnd:
             parameter.groupId = kGroupInput;
             initParameterFromFaust(parameter, common_input::kParameters[index - kParametersInputStart]);
@@ -126,6 +156,7 @@ private:
                                    common_output::kParameters[index - kParametersOutputStart + kCommonIOParameters]);
             break;
         default:
+            DISTRHO_SAFE_ASSERT_RETURN(index >= kParametersMainStart,);
             parameter.groupId = kGroupMain;
             initParameterFromFaust(parameter, parametersMeta[index - kParametersMainStart]);
             break;
@@ -230,9 +261,18 @@ private:
         // custom behaviour
         switch (index)
         {
+       #if LIBREAUDIO_WANT_DRYWET
         case kCommonParameterBypass:
-            globalDryValue.setTargetValue(value);
+            globalWetValue.setTargetValue(d_isZero(value) ? fCommonParameters[kCommonParameterDryWet] * 0.01f : 0.f);
             break;
+        case kCommonParameterDryWet:
+            globalWetValue.setTargetValue(d_isZero(fCommonParameters[kCommonParameterBypass]) ? value * 0.01f : 0.f);
+            break;
+       #else
+        case kCommonParameterBypass:
+            globalWetValue.setTargetValue(d_isZero(value) ? 1.f : 0.f);
+            break;
+       #endif
         case kParametersInputStart + common_input::kParameterInput_ms_on:
             dspOutput->set(common_output::kParameterInput_ms_on, value);
             break;
@@ -259,23 +299,16 @@ private:
         if (d_isNotZero(fCommonParameters[kCommonParameterReset]))
         {
             fCommonParameters[kCommonParameterReset] = 0.f;
-            globalDryValue.clearToTargetValue();
+            globalWetValue.clearToTargetValue();
             dsp->instanceClear();
             dspInput->instanceClear();
             dspOutput->instanceClear();
         }
 
-        float _cycledInputs0[32];
-        float _cycledInputs1[32];
-        float _cycledOutputs0[32];
-        float _cycledOutputs1[32];
-        float* cycledInputs[2] = { _cycledInputs0, _cycledInputs1 };
-        float* cycledOutputs[2] = { _cycledOutputs0, _cycledOutputs1 };
         float dry, wet;
-
-        for (uint32_t i = 0, cycleFrames; i < frames; i += 32)
+        for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBufferSize)
         {
-            cycleFrames = std::min<uint32_t>(32, frames - i);
+            cycleFrames = std::min<uint32_t>(kInternalBufferSize, frames - i);
 
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 std::memcpy(cycledInputs[c], inputs[c] + i, sizeof(float) * cycleFrames);
@@ -286,13 +319,17 @@ private:
 
             for (uint32_t j = 0; j < cycleFrames; ++j)
             {
-                dry = globalDryValue.next();
-                wet = 1.f - dry;
+                wet = globalWetValue.next();
+                dry = 1.f - wet;
 
                 for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                     outputs[c][i + j] = cycledOutputs[c][j] * wet + inputs[c][i + j] * dry;
             }
         }
+
+       #if DISTRHO_PLUGIN_WANT_LATENCY
+        setLatency(dsp->latency());
+       #endif
     }
 
    /* -----------------------------------------------------------------------------------------------------------------
@@ -304,17 +341,30 @@ private:
     */
     void sampleRateChanged(const double newSampleRate) final
     {
-        globalDryValue.setSampleRate(newSampleRate);
+        globalWetValue.setSampleRate(newSampleRate);
 
         const int sampleRate = d_roundToIntPositive(newSampleRate);
         dsp->instanceConstants(sampleRate);
         dspInput->instanceConstants(sampleRate);
         dspOutput->instanceConstants(sampleRate);
+
+       #if DISTRHO_PLUGIN_WANT_LATENCY
+        dsp->compute(0, cycledInputs, cycledOutputs);
+        setLatency(dsp->latency());
+       #endif
     }
 
 // protected:
     float fCommonParameters[kCommonParameterCount];
-    LinearValueSmoother globalDryValue;
+    LinearValueSmoother globalWetValue;
+
+    static constexpr uint32_t kInternalBufferSize = 32;
+    float _cycledInputs0[kInternalBufferSize];
+    float _cycledInputs1[kInternalBufferSize];
+    float _cycledOutputs0[kInternalBufferSize];
+    float _cycledOutputs1[kInternalBufferSize];
+    float* cycledInputs[2] = { _cycledInputs0, _cycledInputs1 };
+    float* cycledOutputs[2] = { _cycledOutputs0, _cycledOutputs1 };
 };
 
 // --------------------------------------------------------------------------------------------------------------------

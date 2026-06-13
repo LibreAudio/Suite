@@ -6,9 +6,7 @@
 // Source: {{filename}}
 // Name: {{name}}
 // Author: {{author}}
-// Copyright: {{copyright}}
 // License: {{license}}
-// Version: {{version}}
 // FAUST version: {{faustversion}}
 // FAUST compilation options: {{meta.compile_options}}
 // --------------------------------------------------------------------------------------------------------------------
@@ -42,7 +40,7 @@
 {{ classcode
     | replace('#include <math.h>\n', '')
     | replace('\n\t\n', '\n\n')
-    | replace('\t' + id + '() {', '\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
+    | replace('\t' + id + '() {', '\tfloat latency() const;\n\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
     | replace('\t', '    ')
     | replace(' : public dsp', '')
     | replace(' FAUSTDR_PRIVATE', 'private')
@@ -62,7 +60,7 @@ FAUSTDR_BEGIN_NAMESPACE
 inline float {{id}}::get(int index) const
 {
     switch (index) {
-    {% for w in active + passive %}
+    {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
     case {{loop.index0}}:
         return {{w.varname}};
     {% endfor %}
@@ -82,11 +80,18 @@ inline void {{id}}::set(int index, float value)
     }
 }
 
+{% for w in passive if w.symbol == "latency_samples" %}
+inline float {{id}}::latency() const
+{
+    return {{w.varname}};
+}
+{% endfor %}
+
 // --------------------------------------------------------------------------------------------------------------------
 // generate meta-data
 
 enum Parameters {
-    {% for w in active + passive %}
+    {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
     kParameter{{ w.symbol | title() }},
     {% endfor %}
     kParameterCount
@@ -94,12 +99,12 @@ enum Parameters {
 
 static constexpr const uint32_t kNumInputs = {{inputs}};
 static constexpr const uint32_t kNumOutputs = {{outputs}};
-static constexpr const uint32_t kNumParameters = {{active|length + passive|length}};
 static constexpr const uint32_t kNumParametersActive = {{active|length}};
-static constexpr const uint32_t kNumParametersPassive = {{passive|length}};
+static constexpr const uint32_t kNumParametersPassive = {{passive|length - (1 if meta.latency_symbol is defined else 0)}};
+static constexpr const uint32_t kNumParameters = kNumParametersActive + kNumParametersPassive;
 
 static constexpr const FaustParameters<kNumParameters> kParameters = {
-    {% for w in active + passive %}
+    {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
     {
         .label = "{{w.label}}",
         .symbol = "{{w.symbol}}",

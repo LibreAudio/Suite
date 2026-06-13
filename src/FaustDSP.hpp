@@ -47,6 +47,7 @@ public:
 struct FaustDSP
 {
     FaustDSP* clone();
+    float latency(int index) const;
     float get(int index) const;
     int getNumInputs();
     int getNumOutputs();

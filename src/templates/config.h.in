@@ -6,9 +6,7 @@
 // Source: {{filename}}
 // Name: {{name}}
 // Author: {{author}}
-// Copyright: {{copyright}}
 // License: {{license}}
-// Version: {{version}}
 // FAUST version: {{faustversion}}
 // FAUST compilation options: {{meta.compile_options}}
 //------------------------------------------------------------------------------
@@ -25,6 +23,11 @@
 #define DISTRHO_PLUGIN_NAME "{{name}}"
 #define DISTRHO_PLUGIN_NUM_INPUTS {{inputs}}
 #define DISTRHO_PLUGIN_NUM_OUTPUTS {{outputs}}
+{% for w in passive if w.symbol == "latency_samples" %}
+#define DISTRHO_PLUGIN_WANT_LATENCY 1
+{% endfor %}
+
+#define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
 
 {% block HeaderEpilogue %}
 {% endblock %}
