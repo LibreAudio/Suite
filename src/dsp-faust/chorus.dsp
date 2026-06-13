@@ -1,5 +1,11 @@
 import("stdfaust.lib");
 
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Chorus";
+
+// config
 declare drywet "true";
 
 // Roland Juno-60 Stereo Chorus

@@ -1,5 +1,10 @@
 import("stdfaust.lib");
 
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "DJ Filter";
+
 Nch = 2;                            // djFilter is stereo
 
 // Signal chain: highpass → lowpass → volume fadeout → reverb send/return → limiter

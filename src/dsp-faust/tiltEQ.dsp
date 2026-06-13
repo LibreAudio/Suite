@@ -1,5 +1,9 @@
 import("stdfaust.lib");
 
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Tilt EQ";
 
 Nch = 2; //stereo
 

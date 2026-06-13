@@ -4,14 +4,14 @@
 
 cmake_minimum_required(VERSION 3.8...3.31)
 
+project(LibreAudioSuite VERSION 0.0.1)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # set(CMAKE_C_VISIBILITY_PRESET hidden)
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 # set(CMAKE_VISIBILITY_INLINES_HIDDEN TRUE)
-
-project(LibreAudioSuite)
 
 find_program(FAUSTDR faustdr REQUIRED)
 

@@ -99,7 +99,7 @@ private:
     */
     uint32_t getVersion() const noexcept final
     {
-        return 0;
+        return d_version(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     }
 
    /* -----------------------------------------------------------------------------------------------------------------

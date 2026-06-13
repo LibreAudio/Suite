@@ -1,5 +1,10 @@
 import("stdfaust.lib");
 
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Flanger";
+
 process = _,_ : flanger : _,_;
 
 

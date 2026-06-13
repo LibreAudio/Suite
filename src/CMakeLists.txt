@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate dsp-$TARGET.hpp and metadata-$TARGET.hpp
+# function to generate $TARGET.hpp
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
@@ -91,9 +91,9 @@ set_target_properties(las-definitions
 
 target_compile_definitions(las-definitions
   INTERFACE
-    DISTRHO_PLUGIN_HOMEPAGE="https://libreaudio.org/"
-    DISTRHO_PLUGIN_LICENSE="GPL-3.0-or-later"
-    DISTRHO_PLUGIN_MAKER="Libre Audio"
+    VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
+    VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
+    VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
 )
 
 target_include_directories(las-definitions

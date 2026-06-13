@@ -1,12 +1,11 @@
 // -*-Faust-*-
 
-declare name "upwardComp";
-declare version "1.0";
-declare author "Klaus Scheuermann";
-declare license "GPLv3";
-
-
 import("stdfaust.lib");
+
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Upward Compressor";
 
 // numerb of channels
 Nch = 2;
