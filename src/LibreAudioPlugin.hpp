@@ -11,6 +11,9 @@
 #include "common_input.hpp"
 #include "common_output.hpp"
 
+#include <atomic>
+#include <cassert>
+
 /* TODO
  * - convert common IO to C++
  */
@@ -26,7 +29,7 @@ class LibreAudioPlugin : public Plugin
 {
     static constexpr const uint32_t kCommonIOParameters = 1;
     static constexpr const uint32_t kInternalBufferSize = 32;
-    static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
+    static constexpr const float kParameterSmoothingTime = 0.5f; // in seconds
 
     enum CommonParameters {
         kCommonParameterBypass,
@@ -70,9 +73,8 @@ class LibreAudioPlugin : public Plugin
     };
     float fInternalBuffer[kInternalBufferSize * 4];
 
-    // click-free mute/unmute run-time values
-    uint32_t fNumSamplesNeededForMuting;
-    uint32_t fNumSamplesUntilMuted = 0;
+    // click-free mute/unmute status
+    std::atomic<bool> fMuting { false };
 
     DSP* const fMainDSP = new DSP;
     common_input::common_input* const fInputDSP = new common_input::common_input;
@@ -112,9 +114,6 @@ public:
         fGlobalWetValue.setSampleRate(sampleRate);
         fGlobalWetValue.setTimeConstant(kParameterSmoothingTime);
         fGlobalWetValue.setTargetValue(0.f);
-
-        // FIXME why 1.1 needed?
-        fNumSamplesNeededForMuting = d_roundToUnsignedInt(sampleRate * kParameterSmoothingTime * 1.1) + 1;
 
         fMainDSP->init(iSampleRate);
         fInputDSP->init(iSampleRate);
@@ -296,31 +295,12 @@ private:
         // custom behaviour
         switch (index)
         {
+        case kCommonParameterBypass:
        #if LIBREAUDIO_WANT_DRYWET
-        case kCommonParameterBypass:
-            if (fNumSamplesUntilMuted == 0)
-            {
-                const float wet = d_isZero(value) ? fCommonParameterValues[kCommonParameterDryWet] * 0.01f : 0.f;
-                fGlobalDryValue.setTargetValue(1.f - wet);
-                fGlobalWetValue.setTargetValue(wet);
-            }
-            break;
         case kCommonParameterDryWet:
-            if (fNumSamplesUntilMuted == 0)
-            {
-                const float wet = d_isZero(fCommonParameterValues[kCommonParameterBypass]) ? value * 0.01f : 0.f;
-                fGlobalDryValue.setTargetValue(1.f - wet);
-                fGlobalWetValue.setTargetValue(wet);
-            }
-            break;
        #else
-        case kCommonParameterBypass:
-            if (fNumSamplesUntilMuted == 0)
-            {
-                const float wet = d_isZero(value) ? 1.f : 0.f;
-                fGlobalDryValue.setTargetValue(1.f - wet);
-                fGlobalWetValue.setTargetValue(wet);
-            }
+            if (fMuting.load() == false)
+                doUnmute();
             break;
        #endif
         case kCommonParameterTestClickFreeChanges:
@@ -337,7 +317,13 @@ private:
 
     void mute()
     {
-        fNumSamplesUntilMuted = 1;
+        fMuting.store(true);
+        doMute();
+    }
+
+    inline void doMute()
+    {
+        assert(fMuting.load());
 
         // do not mute if bypassed
         if (d_isZero(fCommonParameterValues[kCommonParameterBypass]))
@@ -349,9 +335,15 @@ private:
 
     void unmute()
     {
-        // NOTE can trigger clicky operation here
+        fMuting.store(false);
+        doUnmute();
+    }
 
-        fNumSamplesUntilMuted = 0;
+    inline void doUnmute()
+    {
+        assert(fMuting.load() == false);
+
+        // NOTE can trigger clicky operation here
 
         if (d_isZero(fCommonParameterValues[kCommonParameterBypass]))
         {
@@ -389,8 +381,8 @@ private:
     {
         if (d_isNotZero(fCommonParameterValues[kCommonParameterReset]))
         {
-            if (fNumSamplesUntilMuted != 0)
-                unmute();
+            if (fMuting.exchange(false))
+                doUnmute();
 
             fCommonParameterValues[kCommonParameterReset] = 0.f;
             fGlobalDryValue.clearToTargetValue();
@@ -424,7 +416,7 @@ private:
                     outputs[c][i + j] = fCycleBuffer2[c][j] * wet + inputs[c][i + j] * dry;
             }
 
-            if (fNumSamplesUntilMuted != 0 && (fNumSamplesUntilMuted += cycleFrames) > fNumSamplesNeededForMuting)
+            if (fMuting.load() && d_isZero(fGlobalDryValue.peek()) && d_isZero(fGlobalWetValue.peek()))
                 unmute();
         }
 
