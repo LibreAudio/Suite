@@ -29,7 +29,7 @@ class LibreAudioPlugin : public Plugin
 {
     static constexpr const uint32_t kCommonIOParameters = 1;
     static constexpr const uint32_t kInternalBufferSize = 32;
-    static constexpr const float kParameterSmoothingTime = 0.5f; // in seconds
+    static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
     enum CommonParameters {
         kCommonParameterBypass,
@@ -49,6 +49,7 @@ class LibreAudioPlugin : public Plugin
         kParametersOutputStart,
         kParametersOutputEnd = kParametersOutputStart + common_output::kNumParameters - 1 - kCommonIOParameters,
         kParametersMainStart,
+        kParametersMainEnd = kParametersMainStart + numParameters - 1,
     };
 
     enum Groups {
@@ -92,7 +93,7 @@ class LibreAudioPlugin : public Plugin
 
 public:
     LibreAudioPlugin(const FaustParameters<numParameters>& parameters)
-        : Plugin(kParametersMainStart + numParameters - 1, 0, 0),
+        : Plugin(kParametersMainEnd, 0, 0),
           fFaustParameters(parameters)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
@@ -226,8 +227,7 @@ private:
             initParameterFromFaust(parameter,
                                    common_output::kParameters[index - kParametersOutputStart + kCommonIOParameters]);
             break;
-        default:
-            DISTRHO_SAFE_ASSERT_RETURN(index >= kParametersMainStart,);
+        case kParametersMainStart ... kParametersMainEnd:
             parameter.groupId = kGroupMain;
             initParameterFromFaust(parameter, fFaustParameters[index - kParametersMainStart]);
             break;
@@ -299,8 +299,10 @@ private:
             return fInputDSP->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
             return fOutputDSP->get(index - kParametersOutputStart + kCommonIOParameters);
-        default:
+        case kParametersMainStart ... kParametersMainEnd:
             return fMainDSP->get(index - kParametersMainStart);
+        default:
+            return 0.f;
         }
     }
 
@@ -324,7 +326,7 @@ private:
         case kParametersOutputStart ... kParametersOutputEnd:
             fOutputDSP->set(index - kParametersOutputStart + kCommonIOParameters, value);
             break;
-        default:
+        case kParametersMainStart ... kParametersMainEnd:
             fMainDSP->set(index - kParametersMainStart, value);
             break;
         }
