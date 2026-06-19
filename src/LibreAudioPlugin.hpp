@@ -64,6 +64,7 @@ class LibreAudioPlugin : public Plugin
     LinearValueSmoother fGlobalDryValue;
     LinearValueSmoother fGlobalWetValue;
 
+    float* const fInternalBuffer = new float[kInternalBufferSize * 4];
     float* fCycleBuffer1[2] = {
         fInternalBuffer + kInternalBufferSize * 0,
         fInternalBuffer + kInternalBufferSize * 1,
@@ -72,7 +73,6 @@ class LibreAudioPlugin : public Plugin
         fInternalBuffer + kInternalBufferSize * 2,
         fInternalBuffer + kInternalBufferSize * 3,
     };
-    float fInternalBuffer[kInternalBufferSize * 4];
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
     float* fLatencyBuffer[2] = {
@@ -141,6 +141,7 @@ public:
         delete fMainDSP;
         delete fInputDSP;
         delete fOutputDSP;
+        delete[] fInternalBuffer;
        #if DISTRHO_PLUGIN_WANT_LATENCY
         delete[] fLatencyBuffer[0];
         delete[] fLatencyBuffer[1];
@@ -431,7 +432,7 @@ private:
             fOutputDSP->instanceClear();
 
            #if DISTRHO_PLUGIN_WANT_LATENCY
-            fLatencyReadPos - fLastKnownLatency;
+            fLatencyReadPos = -fLastKnownLatency;
             fLatencyWritePos = 0;
            #endif
         }
