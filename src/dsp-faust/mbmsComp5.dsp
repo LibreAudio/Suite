@@ -37,7 +37,7 @@ B_band_Compressor_N_chan(B,N) =
   si.bus (N) <: si.bus (2 * N)
   : ( (crossover:gain_calc), si.bus(N) )
   : apply_gain
-  : outputGain
+  //: outputGain
 with {
   crossover =
     par(i, N, an.analyzer (6, crossoverFreqs)
@@ -64,8 +64,7 @@ with {
    * meanwhile this is safe since there are only 8 bands (1..9) and 2 channels.
    */
   meter(b,c) =
-    _<: attach(_, (max(-6):min(0):vbargraph(
-                     // "h:4ohm mbmscomp4/h:[6]mscomp_meter/[%b.%c][unit:dB][tooltip: gain reduction in db][symbol:msredux%b%c]mscomp redux band %b chn %c", -3, 0)
+    _<: attach(_, (max(-12):min(0):vbargraph(
                      "h:4ohm mbmscomp4/h:[7]meters/[%b.%c][unit:dB][tooltip: gain reduction in db][symbol:msredux%b%c]", -12, 0)
                   ));
 
