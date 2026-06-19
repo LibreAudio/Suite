@@ -92,7 +92,7 @@ class LibreAudioPlugin : public Plugin
 
 public:
     LibreAudioPlugin(const FaustParameters<numParameters>& parameters)
-        : Plugin(kParametersMainStart + numParameters, 0, 0),
+        : Plugin(kParametersMainStart + numParameters - 1, 0, 0),
           fFaustParameters(parameters)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
@@ -322,7 +322,7 @@ private:
             fInputDSP->set(index - kParametersInputStart, value);
             break;
         case kParametersOutputStart ... kParametersOutputEnd:
-            fOutputDSP->set(index - kParametersOutputStart, value + kCommonIOParameters);
+            fOutputDSP->set(index - kParametersOutputStart + kCommonIOParameters, value);
             break;
         default:
             fMainDSP->set(index - kParametersMainStart, value);
