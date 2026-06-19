@@ -3,8 +3,11 @@
 declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
-declare name "5-band Mid-Side Compressor";
+declare name "Multiband Mid-Side Compressor";
 declare unique_id "LAmc";
+
+// config
+declare drywet "true";
 
 import("stdfaust.lib");
 

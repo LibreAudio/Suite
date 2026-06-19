@@ -2,7 +2,7 @@
 declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
-declare name "LA Simple Reverb";
+declare name "Simple Reverb";
 declare unique_id "LAsr";
 
 
