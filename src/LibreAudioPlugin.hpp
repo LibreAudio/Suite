@@ -123,7 +123,7 @@ public:
 
         fGlobalWetValue.setSampleRate(sampleRate);
         fGlobalWetValue.setTimeConstant(kParameterSmoothingTime);
-        fGlobalWetValue.setTargetValue(0.f);
+        fGlobalWetValue.setTargetValue(1.f);
 
         fMainDSP->init(iSampleRate);
         fInputDSP->init(iSampleRate);
@@ -455,7 +455,8 @@ private:
             for (uint32_t j = 0; j < cycleFrames; ++j)
             {
                 for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                    fLatencyBuffer[c][latencyWritePos] = fCycleBuffer1[c][j];
+                    fLatencyBuffer[c][latencyWritePos] = inputs[c][i + j];
+                // fCycleBuffer1[c][j];
 
                 if (++latencyWritePos == LIBREAUDIO_MAX_LATENCY_SAMPLES)
                     latencyWritePos = 0;
