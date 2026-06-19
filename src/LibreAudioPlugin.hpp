@@ -73,6 +73,16 @@ class LibreAudioPlugin : public Plugin
     };
     float fInternalBuffer[kInternalBufferSize * 4];
 
+   #if DISTRHO_PLUGIN_WANT_LATENCY
+    float* fLatencyBuffer[2] = {
+        new float[LIBREAUDIO_MAX_LATENCY_SAMPLES],
+        new float[LIBREAUDIO_MAX_LATENCY_SAMPLES],
+    };
+    int32_t fLatencyReadPos = 0;
+    int32_t fLatencyWritePos = 0;
+    uint32_t fLastKnownLatency = 0;
+   #endif
+
     // click-free mute/unmute status
     std::atomic<bool> fMuting { false };
 
@@ -121,7 +131,7 @@ public:
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
         fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);
-        setLatency(fMainDSP->latency());
+        updateLatencyIfNeeded();
        #endif
     }
 
@@ -130,9 +140,36 @@ public:
         delete fMainDSP;
         delete fInputDSP;
         delete fOutputDSP;
+       #if DISTRHO_PLUGIN_WANT_LATENCY
+        delete[] fLatencyBuffer[0];
+        delete[] fLatencyBuffer[1];
+       #endif
     }
 
 private:
+   #if DISTRHO_PLUGIN_WANT_LATENCY
+    // called when deactivated or during run()
+    bool updateLatencyIfNeeded()
+    {
+        const uint32_t latency = fMainDSP->latency();
+        DISTRHO_SAFE_ASSERT_UINT2_RETURN(latency < LIBREAUDIO_MAX_LATENCY_SAMPLES,
+                                         latency,
+                                         LIBREAUDIO_MAX_LATENCY_SAMPLES, true);
+
+        if (fLastKnownLatency == latency)
+            return false;
+
+        for (uint32_t c = 0; c < ARRAY_SIZE(fLatencyBuffer); ++c)
+            std::memset(fLatencyBuffer[c], 0, sizeof(float) * latency);
+
+        fLastKnownLatency = latency;
+        fLatencyReadPos = -latency;
+        fLatencyWritePos = 0;
+        setLatency(latency);
+
+        return true;
+    }
+   #endif
    /* -----------------------------------------------------------------------------------------------------------------
     * Information */
 
@@ -390,9 +427,20 @@ private:
             fMainDSP->instanceClear();
             fInputDSP->instanceClear();
             fOutputDSP->instanceClear();
+
+           #if DISTRHO_PLUGIN_WANT_LATENCY
+            fLatencyReadPos - fLastKnownLatency;
+            fLatencyWritePos = 0;
+           #endif
         }
 
         float dry, wet;
+       #if DISTRHO_PLUGIN_WANT_LATENCY
+        float input;
+        int32_t latencyReadPos = fLatencyReadPos;
+        int32_t latencyWritePos = fLatencyWritePos;
+       #endif
+
         for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBufferSize)
         {
             cycleFrames = std::min<uint32_t>(kInternalBufferSize, frames - i);
@@ -402,6 +450,17 @@ private:
 
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 std::memcpy(fCycleBuffer1[c], inputs[c] + i, sizeof(float) * cycleFrames);
+
+           #if DISTRHO_PLUGIN_WANT_LATENCY
+            for (uint32_t j = 0; j < cycleFrames; ++j)
+            {
+                for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                    fLatencyBuffer[c][latencyWritePos] = fCycleBuffer1[c][j];
+
+                if (++latencyWritePos == LIBREAUDIO_MAX_LATENCY_SAMPLES)
+                    latencyWritePos = 0;
+            }
+           #endif
 
             fInputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
             fMainDSP->compute(cycleFrames, fCycleBuffer2, fCycleBuffer1);
@@ -413,7 +472,19 @@ private:
                 wet = fGlobalWetValue.next();
 
                 for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                {
+                   #if DISTRHO_PLUGIN_WANT_LATENCY
+                    input = latencyReadPos >= 0 ? fLatencyBuffer[c][latencyReadPos] * dry : 0.f;
+                    outputs[c][i + j] = fCycleBuffer2[c][j] * wet + input;
+                   #else
                     outputs[c][i + j] = fCycleBuffer2[c][j] * wet + inputs[c][i + j] * dry;
+                   #endif
+                }
+
+               #if DISTRHO_PLUGIN_WANT_LATENCY
+                if (++latencyReadPos == LIBREAUDIO_MAX_LATENCY_SAMPLES)
+                    latencyReadPos = 0;
+               #endif
             }
 
             if (fMuting.load() && d_isZero(fGlobalDryValue.peek()) && d_isZero(fGlobalWetValue.peek()))
@@ -421,7 +492,11 @@ private:
         }
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
-        setLatency(fMainDSP->latency());
+        if (! updateLatencyIfNeeded())
+        {
+            fLatencyReadPos = latencyReadPos;
+            fLatencyWritePos = latencyWritePos;
+        }
        #endif
     }
 
@@ -444,7 +519,7 @@ private:
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
         fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);
-        setLatency(fMainDSP->latency());
+        updateLatencyIfNeeded();
        #endif
     }
 };

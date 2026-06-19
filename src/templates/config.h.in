@@ -27,6 +27,7 @@
 #define DISTRHO_PLUGIN_UNIQUE_ID {{meta.unique_id}}
 {% for w in passive if w.symbol == "latency_samples" %}
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
+#define LIBREAUDIO_MAX_LATENCY_SAMPLES {{w.max|int}}
 {% endfor %}
 
 #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
