@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 # set(CMAKE_VISIBILITY_INLINES_HIDDEN TRUE)
 
+find_program(FAUST faust REQUIRED)
 find_program(FAUSTDR faustdr REQUIRED)
 
 add_subdirectory(deps/DPF)
