@@ -27,10 +27,10 @@ START_NAMESPACE_DISTRHO
 template<class DSP, int numParameters>
 class LibreAudioPlugin : public Plugin
 {
-   #ifdef INTERNAL_BUFFER_SIZE
-    static constexpr const uint32_t kInternalBufferSize = INTERNAL_BUFFER_SIZE;
+   #ifdef LIBREAUDIO_BLOCK_SIZE
+    static constexpr const uint32_t kInternalBlockSize = LIBREAUDIO_BLOCK_SIZE;
    #else
-    static constexpr const uint32_t kInternalBufferSize = 32;
+    static constexpr const uint32_t kInternalBlockSize = 32;
    #endif
     static constexpr const uint32_t kCommonIOParameters = 1;
     static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
@@ -68,14 +68,14 @@ class LibreAudioPlugin : public Plugin
     LinearValueSmoother fGlobalDryValue;
     LinearValueSmoother fGlobalWetValue;
 
-    float* const fInternalBuffer = new float[kInternalBufferSize * 4];
+    float* const fInternalBuffer = new float[kInternalBlockSize * 4];
     float* fCycleBuffer1[2] = {
-        fInternalBuffer + kInternalBufferSize * 0,
-        fInternalBuffer + kInternalBufferSize * 1,
+        fInternalBuffer + kInternalBlockSize * 0,
+        fInternalBuffer + kInternalBlockSize * 1,
     };
     float* fCycleBuffer2[2] = {
-        fInternalBuffer + kInternalBufferSize * 2,
-        fInternalBuffer + kInternalBufferSize * 3,
+        fInternalBuffer + kInternalBlockSize * 2,
+        fInternalBuffer + kInternalBlockSize * 3,
     };
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
@@ -448,9 +448,9 @@ private:
         int32_t latencyWritePos = fLatencyWritePos;
        #endif
 
-        for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBufferSize)
+        for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBlockSize)
         {
-            cycleFrames = std::min<uint32_t>(kInternalBufferSize, frames - i);
+            cycleFrames = std::min<uint32_t>(kInternalBlockSize, frames - i);
            #ifdef __GNUC__
             #pragma GCC poison frames
            #endif

@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.8...3.31)
 
 project(LibreAudioSuite VERSION 0.0.1)
 
+option(LIBREAUDIO_BLOCK_SIZE "Vectorizable block size")
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -33,5 +35,3 @@ find_program(FAUSTDR faustdr REQUIRED)
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
 add_subdirectory(src)
-
-option(LIBREAUDIO_INTERNAL_BUFFER_SIZE "" 16)

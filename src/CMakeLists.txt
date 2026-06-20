@@ -9,6 +9,10 @@
 function(las_generate_faust_cpp TARGET)
   string(REPLACE "/" "_" OUTPUT ${TARGET})
 
+  if(${LIBREAUDIO_BLOCK_SIZE})
+    set(VEC_ARGS "-X-vec -X-vs -X${LIBREAUDIO_BLOCK_SIZE}")
+  endif()
+
   add_custom_command(
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
@@ -18,8 +22,7 @@ function(las_generate_faust_cpp TARGET)
       -c ${TARGET}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
       -Did=${OUTPUT}
-      -X-vec
-      -X-vs -X${LIBREAUDIO_INTERNAL_BUFFER_SIZE}
+      ${VEC_ARGS}
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
@@ -100,7 +103,7 @@ endif()
 
 target_compile_definitions(las-definitions
   INTERFACE
-    INTERNAL_BUFFER_SIZE=${LIBREAUDIO_INTERNAL_BUFFER_SIZE}
+    LIBREAUDIO_BLOCK_SIZE=${LIBREAUDIO_BLOCK_SIZE}
     VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
     VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
     VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
