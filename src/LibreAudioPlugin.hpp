@@ -27,8 +27,12 @@ START_NAMESPACE_DISTRHO
 template<class DSP, int numParameters>
 class LibreAudioPlugin : public Plugin
 {
-    static constexpr const uint32_t kCommonIOParameters = 1;
+   #ifdef INTERNAL_BUFFER_SIZE
+    static constexpr const uint32_t kInternalBufferSize = INTERNAL_BUFFER_SIZE;
+   #else
     static constexpr const uint32_t kInternalBufferSize = 32;
+   #endif
+    static constexpr const uint32_t kCommonIOParameters = 1;
     static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
     enum CommonParameters {
