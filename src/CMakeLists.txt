@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET.hpp
+# function to generate $TARGET.hpp and $TARGET-parameters.hpp
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
@@ -29,10 +29,26 @@ function(las_generate_faust_cpp TARGET)
       templates/dsp.hpp.in
     VERBATIM
   )
+
+  add_custom_command(
+    OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.hpp
+    COMMAND
+      ${FAUSTDR}
+      -a ${CMAKE_SOURCE_DIR}/src/templates/parameters.hpp.in
+      -c ${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.hpp
+      -Did=${OUTPUT}
+      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
+    DEPENDS
+      dsp-faust/${TARGET}.dsp
+      templates/parameters.hpp.in
+    VERBATIM
+  )
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET/config.h and $TARGET/plugin.cpp
+# function to generate $TARGET/config.h, $TARGET/plugin.cpp and $TARGET/ui.cpp
 # used for DPF plugins
 
 function(las_generate_faust_plugin TARGET)
@@ -78,6 +94,22 @@ function(las_generate_faust_plugin TARGET)
       templates/plugin.cpp.in
     VERBATIM
   )
+  add_custom_command(
+    OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ui.cpp
+    COMMAND
+      ${FAUSTDR}
+      -a ${CMAKE_SOURCE_DIR}/src/templates/ui.cpp.in
+      -c ${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ui.cpp
+      -Did=${TARGET}
+      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
+    DEPENDS
+      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
+      dsp-faust/${TARGET}.dsp
+      templates/ui.cpp.in
+    VERBATIM
+  )
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -103,6 +135,9 @@ endif()
 
 target_compile_definitions(las-definitions
   INTERFACE
+    IMGUI_DISABLE_DEBUG_TOOLS
+    IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
+    IMGUI_DISABLE_DEMO_WINDOWS
     VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
     VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
     VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
@@ -112,13 +147,17 @@ target_compile_definitions(las-definitions
 target_include_directories(las-definitions
   INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}
-    "."
+    ../deps/DPF-Widgets/generic
+    ../deps/DPF-Widgets/opengl
+    .
 )
 
 target_sources(las-definitions
   INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}/common_input.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
 )
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -132,6 +171,9 @@ function(las_add_plugin LABEL)
       clap lv2 vst3 jack
     FILES_DSP
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/plugin.cpp
+    FILES_UI
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/ui.cpp
+      ../deps/DPF-Widgets/opengl/DearImGui.cpp
     RUNTIME_TESTING
   )
 
@@ -159,6 +201,7 @@ function(las_add_plugin LABEL)
   target_sources(${TARGET}
     PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
   )
 endfunction()

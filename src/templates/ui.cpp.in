@@ -21,16 +21,15 @@
 {% endif %}
 {% endblock %}
 
-#include "LibreAudioPlugin.hpp"
+#include "LibreAudioUI.hpp"
 
-#include "{{id}}.hpp"
 #include "{{id}}-parameters.hpp"
 
 START_NAMESPACE_DISTRHO
 
-Plugin* createPlugin()
+UI* createUI()
 {
-    return new LibreAudioPlugin<{{id}}, kFaustParameterCount>(kFaustParameters);
+    return new LibreAudioUI<kFaustParameterCount>(kFaustParameters);
 }
 
 END_NAMESPACE_DISTRHO
