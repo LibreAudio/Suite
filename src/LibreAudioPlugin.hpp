@@ -41,7 +41,6 @@ class LibreAudioPlugin : public Plugin
        #if LIBREAUDIO_WANT_DRYWET
         kCommonParameterDryWet,
        #endif
-        kCommonParameterTestClickFreeChanges,
         kCommonParameterCount
     };
 
@@ -106,7 +105,6 @@ public:
             {
             case kCommonParameterBypass:
             case kCommonParameterReset:
-            case kCommonParameterTestClickFreeChanges:
                 fCommonParameterValues[i] = 0.f;
                 break;
            #if LIBREAUDIO_WANT_DRYWET
@@ -215,14 +213,6 @@ private:
             parameter.ranges.max = 100.f;
             break;
        #endif
-        case kCommonParameterTestClickFreeChanges:
-            parameter.hints = kParameterIsAutomatable | kParameterIsBoolean;
-            parameter.name = "Test Click-Free Changes";
-            parameter.symbol = "TestClickFreeChanges";
-            parameter.ranges.def = 0.f;
-            parameter.ranges.min = 0.f;
-            parameter.ranges.max = 1.f;
-            break;
         case kParametersInputStart ... kParametersInputEnd:
             parameter.groupId = kGroupInput;
             initParameterFromFaust(parameter, common_input::kParameters[index - kParametersInputStart]);
@@ -260,6 +250,29 @@ private:
         parameter.ranges.def = faustParameter.init;
         parameter.ranges.min = faustParameter.min;
         parameter.ranges.max = faustParameter.max;
+
+        if (std::strcmp(faustParameter.symbol, "input_ms_on") == 0)
+        {
+            ParameterEnumerationValue* const values = new ParameterEnumerationValue[2];
+            values[0].label = "L/R";
+            values[0].value = 0.f;
+            values[1].label = "Mid/Side";
+            values[1].value = 1.f;
+            parameter.enumValues.restrictedMode = true;
+            parameter.enumValues.count = 2;
+            parameter.enumValues.values = values;
+        }
+        else if (std::strncmp(faustParameter.symbol, "input_phase_", 12) == 0)
+        {
+            ParameterEnumerationValue* const values = new ParameterEnumerationValue[2];
+            values[0].label = "Normal";
+            values[0].value = 0.f;
+            values[1].label = "Inverted";
+            values[1].value = 1.f;
+            parameter.enumValues.restrictedMode = true;
+            parameter.enumValues.count = 2;
+            parameter.enumValues.values = values;
+        }
     }
 
    /**
@@ -345,9 +358,6 @@ private:
        #endif
             if (fMuting.load() == false)
                 doUnmute();
-            break;
-        case kCommonParameterTestClickFreeChanges:
-            mute();
             break;
         case kParametersInputStart + common_input::kParameterInput_ms_on:
             fOutputDSP->set(common_output::kParameterInput_ms_on, value);
