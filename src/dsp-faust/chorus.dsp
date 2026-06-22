@@ -1,3 +1,11 @@
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Chorus";
+declare unique_id "LAcs";
+
+// declare drywet "true";
+
 import("stdfaust.lib");
 
 // Roland Juno-60 Stereo Chorus
