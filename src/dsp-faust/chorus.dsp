@@ -1,14 +1,5 @@
 import("stdfaust.lib");
 
-declare author "Klaus Scheuermann";
-declare description "";
-declare license "GPL-3.0-or-later";
-declare name "Chorus";
-declare unique_id "LAch";
-
-// config
-declare drywet "true";
-
 // Roland Juno-60 Stereo Chorus
 //
 // Emulates the MN3009 BBD (256-stage bucket-brigade) chorus circuit.
@@ -25,6 +16,7 @@ mode        = nentry("mode[style:radio{'I':0;'II':1}][symbol:mode]", 0, 0, 1, 1)
 true_stereo = checkbox("true stereo[symbol:true_stereo]");
 dry         = hslider("dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
 wet         = hslider("wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
+drywet      = hslider("drywet [unit:%][symbol:drywet]",50,0,100,1) / 100;
 rate1       = hslider("rate1[unit:Hz][symbol:rate1]",  0.513, 0.05, 5.0,    0.001);  // primary LFO (Hz)
 rate2       = hslider("rate2[unit:Hz][symbol:rate2]",  0.863, 0.05, 5.0,    0.001);  // secondary LFO, mode II only (Hz)
 dctr        = hslider("dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1)  / 1000;
@@ -70,7 +62,16 @@ dtIV_LR = samp(dctr + (-lfo1_a + lfo2_a) * ddepth * 0.5);
 dtIV_RL = samp(dctr + ( lfo1_b + lfo2_b) * ddepth * 0.5);
 dtIV_RR = samp(dctr + (-lfo1_b + lfo2_b) * ddepth * 0.5);
 
-process(L, R) = outL, outR
+dryWetMixerUnity(dw, X) = _,_ <: (*(dG),*(dG)), (X : *(wG),*(wG)) :> _,_
+with { dG = min(1.0, 2.0*(1.0-dw)); wG = min(1.0, 2.0*dw); };
+
+// equal-power crossfade: both channels at -3 dB at mid position
+dryWetMixer3dB(dw, X) = _,_ <: (*(dG),*(dG)), (X : *(wG),*(wG)) :> _,_
+with { dG = cos(dw * ma.PI/2.0); wG = sin(dw * ma.PI/2.0); };
+
+process = dryWetMixer3dB(drywet, chorus);
+
+chorus(L, R) = outL, outR
 with {
     // Modes I/II: sum to mono, single delay pair
     mono   = L + R;
@@ -99,7 +100,9 @@ with {
     wR_raw = select2(true_stereo, wR_12, select2(mode, wR_3, wR_4));
     wL     = wL_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
     wR     = wR_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
-    outL   = L * dry + wL * wet;
-    outR   = R * dry + wR * wet;
+    // outL   = L * dry + wL * wet;
+    // outR   = R * dry + wR * wet;
+    outL   = wL * 0.5;
+    outR   = wR * 0.5;
 };
 
