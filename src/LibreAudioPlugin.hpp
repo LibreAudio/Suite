@@ -342,11 +342,10 @@ private:
         case kCommonParameterBypass:
        #if LIBREAUDIO_WANT_DRYWET
         case kCommonParameterDryWet:
-       #else
+       #endif
             if (fMuting.load() == false)
                 doUnmute();
             break;
-       #endif
         case kCommonParameterTestClickFreeChanges:
             mute();
             break;
