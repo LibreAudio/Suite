@@ -26,6 +26,7 @@ class LibreAudioUI : public UI
     const uint32_t kParameterCount;
     float* const fParameterValues;
     std::vector<std::string> fParameterLabels;
+    std::vector<std::string> fParameterRenders;
 
 public:
     LibreAudioUI(const std::vector<FaustParameter>& parameters)
@@ -38,8 +39,9 @@ public:
         const double scaleFactor = getScaleFactor();
         setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
 
-        // caching labels (name + symbol) for display
+        // caching strings for display
         fParameterLabels.resize(kParameterCount);
+        fParameterRenders.resize(kParameterCount);
 
         for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
         {
@@ -49,6 +51,14 @@ public:
             label = param.label;
             label += "##";
             label += param.symbol;
+
+            std::string& render = fParameterRenders[kParametersInputStart + i];
+            render = param.isInteger ? "%d" : "%.2f";
+            if (param.unit != nullptr)
+            {
+                render += " ";
+                render += param.unit;
+            }
         }
 
         for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
@@ -59,6 +69,14 @@ public:
             label = param.label;
             label += "##";
             label += param.symbol;
+
+            std::string& render = fParameterRenders[kParametersOutputStart + i - kCommonIOParameters];
+            render = param.isInteger ? "%d" : "%.2f";
+            if (param.unit != nullptr)
+            {
+                render += " ";
+                render += param.unit;
+            }
         }
 
         for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
@@ -69,6 +87,14 @@ public:
             label = param.label;
             label += "##";
             label += param.symbol;
+
+            std::string& render = fParameterRenders[kParametersMainStart + i];
+            render = param.isInteger ? "%d" : "%.2f";
+            if (param.unit != nullptr)
+            {
+                render += " ";
+                render += param.unit;
+            }
         }
     }
 
@@ -298,7 +324,7 @@ protected:
                                    valueptr,
                                    param.min,
                                    param.max,
-                                   "%.3f",
+                                   fParameterRenders[index].c_str(),
                                    param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0))
             {
                 if (ImGui::IsItemActivated())
@@ -318,7 +344,7 @@ protected:
                            &fParameterValues[index],
                            param.min,
                            param.max,
-                           "%.3f",
+                           fParameterRenders[index].c_str(),
                            ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
     }
 

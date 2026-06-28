@@ -15,8 +15,8 @@ process = si.bus(Nch) : with_highpass : with_lowpass : with_overdrive : volume_a
 knob = hslider("knob", 0, -1, 1, 0.0001) : si.smoo;
 
 // filter frequency meters
-highpass_meter = _ <: attach(_, hbargraph("[scale:log]highpass_frequency", highpass_frequency_low, highpass_frequency_hi));
-lowpass_meter = _ <: attach(_, hbargraph("[scale:log]lowpass_frequency",  lowpass_frequency_low,  lowpass_frequency_hi));
+highpass_meter = _ <: attach(_, hbargraph("[scale:log][unit:Hz]highpass_frequency", highpass_frequency_low, highpass_frequency_hi));
+lowpass_meter = _ <: attach(_, hbargraph("[scale:log][unit:Hz]lowpass_frequency",  lowpass_frequency_low,  lowpass_frequency_hi));
 
 // --- Parameters ---
 
