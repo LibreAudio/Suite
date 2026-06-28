@@ -41,7 +41,7 @@
     | replace('#include <math.h>\n', '')
     | replace('\n\t\n', '\n\n')
     | replace(' \n', '\n')
-    | replace('\t' + id + '() {', '\t~' + id + '(){};\n\tfloat latency() const;\n\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
+    | replace('\t' + id + '() {', '\tfloat latency() const;\n\tfloat get(int) const;\n\tvoid set(int, float);\n\n\t' + id + '(){')
     | replace('\t', '    ')
     | replace(' FAUSTDR_PRIVATE', 'private')
     | replace(' FAUSTDR_PROTECTED', 'protected')
