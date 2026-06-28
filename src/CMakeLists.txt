@@ -23,6 +23,8 @@ function(las_generate_faust_cpp TARGET)
       -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
       -Did=${OUTPUT}
       ${VEC_ARGS}
+      -X--class-name -X${OUTPUT}
+      -X--super-class-name -XFaustDSP
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp

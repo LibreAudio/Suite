@@ -40,14 +40,15 @@
 {{ classcode
     | replace('#include <math.h>\n', '')
     | replace('\n\t\n', '\n\n')
-    | replace('\t' + id + '() {', '\tfloat latency() const;\n\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
+    | replace(' \n', '\n')
+    | replace('\t' + id + '() {', '\t~' + id + '(){};\n\tfloat latency() const;\n\tfloat get(int) const;\n\n\tvoid set(int, float);\n\n\t' + id + '(){')
     | replace('\t', '    ')
-    | replace(' : public dsp', '')
     | replace(' FAUSTDR_PRIVATE', 'private')
     | replace(' FAUSTDR_PROTECTED', 'protected')
     | replace('FAUSTDR_VIRTUAL ', '')
     | replace(', FAUSTFLOAT** RESTRICT inputs,', ', const FAUSTFLOAT* const* RESTRICT inputs,')
-    | replace('  FAUSTFLOAT* input', '  const FAUSTFLOAT* input')
+    | replace('  FAUSTFLOAT* input', '  const FAUSTFLOAT* RESTRICT input')
+    | replace('  FAUSTFLOAT* output', '  FAUSTFLOAT* RESTRICT output')
 }}
 
 {% endblock %}
@@ -81,11 +82,21 @@ inline void {{id}}::set(int index, float value)
 }
 
 {% for w in passive if w.symbol == "latency_samples" %}
+#define FIXME_LATENCY_CALL_DEFINED
 inline float {{id}}::latency() const
 {
     return {{w.varname}};
 }
 {% endfor %}
+
+#ifndef FIXME_LATENCY_CALL_DEFINED
+inline float {{id}}::latency() const
+{
+    return 0.f;
+}
+#endif
+
+#undef FIXME_LATENCY_CALL_DEFINED
 
 // --------------------------------------------------------------------------------------------------------------------
 

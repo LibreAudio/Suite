@@ -29,7 +29,8 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudioUI<kFaustParameterCount>(kFaustParameters);
+    static const std::vector<FaustParameter> parameters(kFaustParameters.begin(), kFaustParameters.end());
+    return new LibreAudioUI(parameters);
 }
 
 END_NAMESPACE_DISTRHO

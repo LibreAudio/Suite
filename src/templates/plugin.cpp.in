@@ -30,7 +30,8 @@ START_NAMESPACE_DISTRHO
 
 Plugin* createPlugin()
 {
-    return new LibreAudioPlugin<{{id}}, kFaustParameterCount>(kFaustParameters);
+    static const std::vector<FaustParameter> parameters(kFaustParameters.begin(), kFaustParameters.end());
+    return new LibreAudioPlugin(parameters, new {{id}});
 }
 
 END_NAMESPACE_DISTRHO

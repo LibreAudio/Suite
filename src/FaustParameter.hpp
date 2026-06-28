@@ -26,7 +26,4 @@ struct FaustParameter
     bool isTrigger : 1;
 };
 
-template<int count>
-using FaustParameters = FaustParameter[count];
-
 // --------------------------------------------------------------------------------------------------------------------

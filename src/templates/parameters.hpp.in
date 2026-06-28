@@ -26,6 +26,8 @@
 {% block ImplementationIncludeExtra %}
 {% endblock %}
 
+#include <array>
+
 namespace {{id}} {
 
 enum FaustParameterList {
@@ -51,7 +53,9 @@ static_assert(kNumFaustParametersActive + kNumFaustParametersPassive == kFaustPa
 
 #undef HIDDEN_PARAMS
 
-inline constexpr const FaustParameters<kFaustParameterCount> kFaustParameters = {
+// FaustParameters<kFaustParameterCount>
+inline constexpr const std::array<FaustParameter, kFaustParameterCount> kFaustParameters = {
+{
     {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
     {
         .label = "{{w.label}}",
@@ -69,7 +73,7 @@ inline constexpr const FaustParameters<kFaustParameterCount> kFaustParameters = 
         .isTrigger = {{ 'true' if w.type == "button" or w.meta.trigger is defined else 'false' }},
     },
     {% endfor %}
-};
+}};
 
 }
 

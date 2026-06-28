@@ -8,29 +8,35 @@
 
 #include "LibreAudioParameters.hpp"
 
+#include <vector>
+
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<int numFaustParameters>
 class LibreAudioUI : public UI
 {
-    static constexpr const uint32_t kParameterCount = kParametersMainStart  + numFaustParameters;
-
-    float fParameterValues[kParameterCount + 2] = {};
-
-    const FaustParameters<numFaustParameters>& kFaustParameters;
+    const std::vector<FaustParameter>& kFaustParameters;
+    const uint32_t kParameterCount;
+    float* const fParameterValues;
 
 public:
-    LibreAudioUI(const FaustParameters<numFaustParameters>& parameters)
+    LibreAudioUI(const std::vector<FaustParameter>& parameters)
         : UI(),
-          kFaustParameters(parameters)
+          kFaustParameters(parameters),
+          kParameterCount(kParametersMainStart  + parameters.size()),
+          fParameterValues(new float[kParameterCount])
     {
         // set minimum size
         const double scaleFactor = getScaleFactor();
         setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
+    }
+
+    ~LibreAudioUI() override
+    {
+        delete[] fParameterValues;
     }
 
 protected:
@@ -76,7 +82,7 @@ protected:
         {
         }
 
-        for (int i = 0; i < numFaustParameters; ++i)
+        for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
         {
             const FaustParameter &param = kFaustParameters[i];
 
@@ -118,7 +124,7 @@ protected:
 
         ImGui::BeginDisabled();
 
-        for (int i = 0; i < numFaustParameters; ++i)
+        for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
         {
             const FaustParameter &param = kFaustParameters[i];
 

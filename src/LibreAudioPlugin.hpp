@@ -15,6 +15,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <vector>
 
 /* TODO
  * - convert common IO to C++
@@ -26,7 +27,6 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class DSP, int numFaustParameters>
 class LibreAudioPlugin : public Plugin
 {
    #ifdef LIBREAUDIO_BLOCK_SIZE
@@ -34,10 +34,10 @@ class LibreAudioPlugin : public Plugin
    #else
     static constexpr const uint32_t kInternalBlockSize = 32;
    #endif
-    static constexpr const uint32_t kParameterCount = kParametersMainStart  + numFaustParameters;
     static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
-    const FaustParameters<numFaustParameters>& kFaustParameters;
+    const std::vector<FaustParameter>& kFaustParameters;
+    const uint32_t kParameterCount;
 
     float fCommonParameterValues[kCommonParameterCount];
     LinearValueSmoother fGlobalDryValue;
@@ -66,14 +66,16 @@ class LibreAudioPlugin : public Plugin
     // click-free mute/unmute status
     std::atomic<bool> fMuting { false };
 
-    DSP* const fMainDSP = new DSP;
-    common_input::common_input* const fInputDSP = new common_input::common_input;
-    common_output::common_output* const fOutputDSP = new common_output::common_output;
+    FaustDSP* const fMainDSP;
+    FaustDSP* const fInputDSP = new common_input::common_input;
+    FaustDSP* const fOutputDSP = new common_output::common_output;
 
 public:
-    LibreAudioPlugin(const FaustParameters<numFaustParameters>& parameters)
-        : Plugin(kParameterCount, 0, kStateCount),
-          kFaustParameters(parameters)
+    LibreAudioPlugin(const std::vector<FaustParameter>& faustParameters, FaustDSP* const dsp)
+        : Plugin(kParametersMainStart  + faustParameters.size(), 0, kStateCount),
+          kFaustParameters(faustParameters),
+          kParameterCount(kParametersMainStart  + faustParameters.size()),
+          fMainDSP(dsp)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
         {
@@ -198,7 +200,8 @@ private:
             initParameterFromFaust(parameter,
                                    common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters]);
             break;
-        case kParametersMainStart ... kParameterCount:
+        default:
+            DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount,);
             parameter.groupId = kGroupMain;
             initParameterFromFaust(parameter, kFaustParameters[index - kParametersMainStart]);
             break;
@@ -328,10 +331,9 @@ private:
             return fInputDSP->get(index - kParametersInputStart);
         case kParametersOutputStart ... kParametersOutputEnd:
             return fOutputDSP->get(index - kParametersOutputStart + kCommonIOParameters);
-        case kParametersMainStart ... kParameterCount:
-            return fMainDSP->get(index - kParametersMainStart);
         default:
-            return 0.f;
+            DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount, 0.f);
+            return fMainDSP->get(index - kParametersMainStart);
         }
     }
 
@@ -355,7 +357,8 @@ private:
         case kParametersOutputStart ... kParametersOutputEnd:
             fOutputDSP->set(index - kParametersOutputStart + kCommonIOParameters, value);
             break;
-        case kParametersMainStart ... kParameterCount:
+        default:
+            DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount,);
             fMainDSP->set(index - kParametersMainStart, value);
             break;
         }
