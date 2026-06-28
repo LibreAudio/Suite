@@ -8,6 +8,10 @@
 
 #include "LibreAudioParameters.hpp"
 
+#include "common_input-parameters.hpp"
+#include "common_output-parameters.hpp"
+
+#include <string>
 #include <vector>
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -21,17 +25,51 @@ class LibreAudioUI : public UI
     const std::vector<FaustParameter>& kFaustParameters;
     const uint32_t kParameterCount;
     float* const fParameterValues;
+    std::vector<std::string> fParameterLabels;
 
 public:
     LibreAudioUI(const std::vector<FaustParameter>& parameters)
         : UI(),
           kFaustParameters(parameters),
-          kParameterCount(kParametersMainStart  + parameters.size()),
+          kParameterCount(kParametersMainStart  + parameters.size() + 2),
           fParameterValues(new float[kParameterCount])
     {
         // set minimum size
         const double scaleFactor = getScaleFactor();
         setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
+
+        // caching labels (name + symbol) for display
+        fParameterLabels.resize(kParameterCount);
+
+        for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+        {
+            const FaustParameter &param = common_input::kFaustParameters[i];
+
+            std::string& label = fParameterLabels[kParametersInputStart + i];
+            label = param.label;
+            label += "##";
+            label += param.symbol;
+        }
+
+        for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+        {
+            const FaustParameter &param = common_output::kFaustParameters[i];
+
+            std::string& label = fParameterLabels[kParametersOutputStart + i - kCommonIOParameters];
+            label = param.label;
+            label += "##";
+            label += param.symbol;
+        }
+
+        for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
+        {
+            const FaustParameter &param = kFaustParameters[i];
+
+            std::string& label = fParameterLabels[kParametersMainStart + i];
+            label = param.label;
+            label += "##";
+            label += param.symbol;
+        }
     }
 
     ~LibreAudioUI() override
@@ -74,74 +112,214 @@ protected:
 
         ImGui::Begin("LibreAudio", nullptr, flags);
 
-        if (ImGui::Button("Undo"))
         {
-        }
+            ImGui::SeparatorText("Undo / Redo");
+            ImGui::BeginGroup();
 
-        if (ImGui::Button("Redo"))
-        {
-        }
-
-        for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
-        {
-            const FaustParameter &param = kFaustParameters[i];
-
-            if (param.isOutput)
-                continue;
-
-            float* const valueptr = &fParameterValues[kParametersMainStart + i];
-
-            // if (param.isBoolean && 0)
-            // {
-            //     if (ImGui::Checkbox(param.label, valueptr))
-            //     {
-            //         if (ImGui::IsItemActivated())
-            //             editParameter(kParametersMainStart + i, true);
-            //
-            //         valueptr = ui->parameters[i].bvalue ? ui->parameters[i].max : ui->parameters[i].min;
-            //         setParameterValue(kParametersMainStart + i, valueptr);
-            //     }
-            // }
-            // else
+            if (ImGui::Button("Undo"))
             {
-                if (ImGui::SliderFloat(param.label,
-                                       valueptr,
-                                       param.min,
-                                       param.max,
-                                       "%.3f",
-                                       param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0))
-                {
-                    if (ImGui::IsItemActivated())
-                        editParameter(kParametersMainStart + i, true);
-
-                    setParameterValue(kParametersMainStart + i, *valueptr);
-                }
             }
 
-            if (ImGui::IsItemDeactivated())
-                editParameter(kParametersMainStart + i, false);
+            ImGui::SameLine();
+
+            if (ImGui::Button("Redo"))
+            {
+            }
+
+            ImGui::EndGroup();
         }
 
-        ImGui::BeginDisabled();
-
-        for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
         {
-            const FaustParameter &param = kFaustParameters[i];
+            ImGui::SeparatorText("Snapshots");
+            ImGui::BeginGroup();
 
-            if (! param.isOutput)
-                continue;
+            if (ImGui::Button("X"))
+            {
+            }
 
-            ImGui::SliderFloat(param.label,
-                               &fParameterValues[kParametersMainStart + i],
-                               param.min,
-                               param.max,
-                               "%.3f",
-                               ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
+            ImGui::SameLine();
+
+            ImGui::Spacing();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("A"))
+            {
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("B"))
+            {
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("C"))
+            {
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("D"))
+            {
+            }
+
+            ImGui::EndGroup();
         }
 
-        ImGui::EndDisabled();
+        {
+            ImGui::SeparatorText("Input");
+            ImGui::BeginGroup();
+
+            for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+            {
+                const FaustParameter &param = common_input::kFaustParameters[i];
+
+                if (param.isOutput)
+                    continue;
+
+                displaySlider(param, kParametersInputStart + i);
+            }
+
+            ImGui::BeginDisabled();
+
+            for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+            {
+                const FaustParameter &param = common_input::kFaustParameters[i];
+
+                if (! param.isOutput)
+                    continue;
+
+                displayMeter(param, kParametersInputStart + i);
+            }
+
+            ImGui::EndDisabled();
+
+            ImGui::EndGroup();
+        }
+
+        {
+            ImGui::SeparatorText("Output");
+            ImGui::BeginGroup();
+
+            for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+            {
+                const FaustParameter &param = common_output::kFaustParameters[i];
+
+                if (param.isOutput)
+                    continue;
+
+                displaySlider(param, kParametersOutputStart + i - kCommonIOParameters);
+            }
+
+            ImGui::BeginDisabled();
+
+            for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+            {
+                const FaustParameter &param = common_output::kFaustParameters[i];
+
+                if (! param.isOutput)
+                    continue;
+
+                displayMeter(param, kParametersOutputStart + i - kCommonIOParameters);
+            }
+
+            ImGui::EndDisabled();
+
+            ImGui::EndGroup();
+        }
+
+        bool hasOutputs = false;
+
+        {
+            ImGui::SeparatorText("Parameters");
+            ImGui::BeginGroup();
+
+            for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
+            {
+                const FaustParameter &param = kFaustParameters[i];
+
+                if (param.isOutput)
+                {
+                    hasOutputs = true;
+                    continue;
+                }
+
+                displaySlider(param, kParametersMainStart + i);
+            }
+
+            ImGui::EndGroup();
+        }
+
+        if (hasOutputs)
+        {
+            ImGui::SeparatorText("Meters / Outputs");
+            ImGui::BeginGroup();
+            ImGui::BeginDisabled();
+
+            for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
+            {
+                const FaustParameter &param = kFaustParameters[i];
+
+                if (! param.isOutput)
+                    continue;
+
+                displayMeter(param, kParametersMainStart + i);
+            }
+
+            ImGui::EndGroup();
+            ImGui::EndDisabled();
+        }
 
         ImGui::End();
+    }
+
+    inline void displaySlider(const FaustParameter &param, const uint32_t index)
+    {
+        float* const valueptr = &fParameterValues[index];
+
+        if (param.isBoolean)
+        {
+            bool bvalue = *valueptr > (param.max - param.min) * 0.5f;
+
+            if (ImGui::Checkbox(fParameterLabels[index].c_str(), &bvalue))
+            {
+                if (ImGui::IsItemActivated())
+                    editParameter(index, true);
+
+                *valueptr = bvalue ? param.max : param.min;
+                setParameterValue(index, *valueptr);
+            }
+        }
+        else
+        {
+            if (ImGui::SliderFloat(fParameterLabels[index].c_str(),
+                                   valueptr,
+                                   param.min,
+                                   param.max,
+                                   "%.3f",
+                                   param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0))
+            {
+                if (ImGui::IsItemActivated())
+                    editParameter(index, true);
+
+                setParameterValue(index, *valueptr);
+            }
+        }
+
+        if (ImGui::IsItemDeactivated())
+            editParameter(index, false);
+    }
+
+    inline void displayMeter(const FaustParameter &param, const uint32_t index)
+    {
+        ImGui::SliderFloat(fParameterLabels[index].c_str(),
+                           &fParameterValues[index],
+                           param.min,
+                           param.max,
+                           "%.3f",
+                           ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
     }
 
     // ----------------------------------------------------------------------------------------------------------------
