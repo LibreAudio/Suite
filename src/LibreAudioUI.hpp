@@ -68,6 +68,14 @@ protected:
 
         ImGui::Begin("LibreAudio", nullptr, flags);
 
+        if (ImGui::Button("Undo"))
+        {
+        }
+
+        if (ImGui::Button("Redo"))
+        {
+        }
+
         for (int i = 0; i < numFaustParameters; ++i)
         {
             const FaustParameter &param = kFaustParameters[i];
@@ -131,6 +139,19 @@ protected:
     }
 
     // ----------------------------------------------------------------------------------------------------------------
+
+    void setState(const char* const key, const char* const value)
+    {
+        if (std::strcmp(key, kStateKeys[kStateUndoRedo]) == 0)
+        {
+            return;
+        }
+
+        if (std::strncmp(key, LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX, std::strlen(LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX)) == 0)
+        {
+            return;
+        }
+    }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

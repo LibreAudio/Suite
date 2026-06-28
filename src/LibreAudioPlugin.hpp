@@ -72,7 +72,7 @@ class LibreAudioPlugin : public Plugin
 
 public:
     LibreAudioPlugin(const FaustParameters<numFaustParameters>& parameters)
-        : Plugin(kParameterCount, 0, 0),
+        : Plugin(kParameterCount, 0, kStateCount),
           kFaustParameters(parameters)
     {
         for (uint32_t i = 0; i < kCommonParameterCount; ++i)
@@ -252,6 +252,41 @@ private:
     }
 
    /**
+      Initialize the state @a index.
+      This function will be called once, shortly after the plugin is created.
+    */
+    void initState(const uint32_t index, State& state) final
+    {
+        state.hints = kStateIsBase64Blob | kStateIsOnlyForUI;
+        state.key = kStateKeys[index];
+
+        switch (static_cast<States>(index))
+        {
+        case kStateUndoRedo:
+            state.key = "undo_redo";
+            state.label = "Undo/Redo";
+        case kStateSnapshotA:
+            state.key = "snapshot_a";
+            state.label = "Snapshot A";
+            break;
+        case kStateSnapshotB:
+            state.key = "snapshot_b";
+            state.label = "Snapshot B";
+            break;
+        case kStateSnapshotC:
+            state.key = "snapshot_c";
+            state.label = "Snapshot C";
+            break;
+        case kStateSnapshotD:
+            state.key = "snapshot_d";
+            state.label = "Snapshot D";
+            break;
+        case kStateCount:
+            break;
+        }
+
+    }
+   /**
       Initialize the port group @a groupId.
       This function will be called once,
       shortly after the plugin is created and all audio ports and parameters have been enumerated.
@@ -339,6 +374,14 @@ private:
             fOutputDSP->set(common_output::kFaustParameterInput_ms_on, value);
             break;
         }
+    }
+
+   /**
+      Change an internal state @a key to @a value.
+    */
+    void setState(const char*, const char*) final
+    {
+        // all states in LA plugins are UI-only
     }
 
    /* -----------------------------------------------------------------------------------------------------------------

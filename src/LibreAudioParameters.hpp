@@ -42,6 +42,25 @@ enum Parameters {
     kParametersMainStart,
 };
 
+enum States {
+    kStateUndoRedo,
+    kStateSnapshotA,
+    kStateSnapshotB,
+    kStateSnapshotC,
+    kStateSnapshotD,
+    kStateCount,
+};
+
+#define LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "snapshot_"
+
+static constexpr const char* kStateKeys[kStateCount] = {
+    "undo_redo",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "a",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "b",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "c",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "d",
+};
+
 // --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO
