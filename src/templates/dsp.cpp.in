@@ -21,16 +21,10 @@
 {% endif %}
 {% endblock %}
 
-#pragma once
+#include "FaustDSP.hpp"
 
 #define FAUSTDR_BEGIN_NAMESPACE namespace {{id}} {
 #define FAUSTDR_END_NAMESPACE }
-
-{% block ImplementationIncludeHeader %}
-#include "FaustDSP.hpp"
-{% endblock %}
-{% block ImplementationIncludeExtra %}
-{% endblock %}
 
 // --------------------------------------------------------------------------------------------------------------------
 // faust generated code
@@ -97,6 +91,13 @@ inline float {{id}}::latency() const
 #endif
 
 #undef FIXME_LATENCY_CALL_DEFINED
+
+// --------------------------------------------------------------------------------------------------------------------
+
+FaustDSP* createDSP()
+{
+    return new {{id}};
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 

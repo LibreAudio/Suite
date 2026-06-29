@@ -8,10 +8,8 @@
 #include "extra/ValueSmoother.hpp"
 
 #include "FaustDSP.hpp"
-#include "LibreAudioParameters.hpp"
 
 #include <atomic>
-#include <vector>
 
 /* TODO
  * - convert common IO to C++
@@ -32,7 +30,7 @@ class LibreAudioPlugin : public Plugin
    #endif
 
 public:
-    LibreAudioPlugin(const std::vector<FaustParameter>& faustParameters);
+    LibreAudioPlugin();
     ~LibreAudioPlugin() override;
 
 protected:
@@ -115,10 +113,15 @@ protected:
     void sampleRateChanged(const double newSampleRate) final;
 
 private:
-    const std::vector<FaustParameter>& kFaustParameters;
-    const uint32_t kParameterCount;
+    static const std::vector<FaustParameter>& kFaustParameters;
 
-    float fCommonParameterValues[kCommonParameterCount];
+    // TODO convert common IO to C++
+    static const std::vector<FaustParameter>& kFaustParametersIn;
+    static const std::vector<FaustParameter>& kFaustParametersOut;
+
+    const uint32_t kParameterCount;
+    float* const fCommonParameterValues;
+
     LinearValueSmoother fGlobalDryValue;
     LinearValueSmoother fGlobalWetValue;
 

@@ -6,10 +6,7 @@
 
 #include "DistrhoUI.hpp"
 
-#include "LibreAudioParameters.hpp"
-
-#include "common_input-parameters.hpp"
-#include "common_output-parameters.hpp"
+#include "FaustDSP.hpp"
 
 #include <string>
 #include <vector>
@@ -23,7 +20,7 @@ START_NAMESPACE_DISTRHO
 class LibreAudioUI : public UI
 {
 public:
-    LibreAudioUI(const std::vector<FaustParameter>& parameters);
+    LibreAudioUI();
     ~LibreAudioUI() override;
 
 protected:
@@ -47,7 +44,10 @@ protected:
    void onImGuiDisplay() final;
 
 private:
-    const std::vector<FaustParameter>& kFaustParameters;
+    static const std::vector<FaustParameter>& kFaustParameters;
+    static const std::vector<FaustParameter>& kFaustParametersIn;
+    static const std::vector<FaustParameter>& kFaustParametersOut;
+
     const uint32_t kParameterCount;
     float* const fParameterValues;
     std::vector<std::string> fParameterLabels;

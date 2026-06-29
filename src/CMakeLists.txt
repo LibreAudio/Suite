@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET.hpp and $TARGET-parameters.hpp
+# function to generate $TARGET-dsp.cpp and $TARGET-parameters.{c,h}pp
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
@@ -15,12 +15,12 @@ function(las_generate_faust_cpp TARGET)
 
   add_custom_command(
     OUTPUT
-      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-dsp.cpp
     COMMAND
       ${FAUSTDR}
-      -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.hpp.in
+      -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.cpp.in
       -c ${TARGET}
-      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}.hpp
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-dsp.cpp
       -Did=${OUTPUT}
       ${VEC_ARGS}
       -X--class-name -X${OUTPUT}
@@ -28,10 +28,25 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
-      templates/dsp.hpp.in
+      templates/dsp.cpp.in
     VERBATIM
   )
 
+  add_custom_command(
+    OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.cpp
+    COMMAND
+      ${FAUSTDR}
+      -a ${CMAKE_SOURCE_DIR}/src/templates/parameters.cpp.in
+      -c ${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.cpp
+      -Did=${OUTPUT}
+      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
+    DEPENDS
+      dsp-faust/${TARGET}.dsp
+      templates/parameters.cpp.in
+    VERBATIM
+  )
   add_custom_command(
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.hpp
@@ -50,7 +65,7 @@ function(las_generate_faust_cpp TARGET)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET/config.h, $TARGET/plugin.cpp and $TARGET/ui.cpp
+# function to generate $TARGET/config.h
 # used for DPF plugins
 
 function(las_generate_faust_plugin TARGET)
@@ -78,38 +93,6 @@ function(las_generate_faust_plugin TARGET)
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
       dsp-faust/${TARGET}.dsp
       templates/config.h.in
-    VERBATIM
-  )
-  add_custom_command(
-    OUTPUT
-      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/plugin.cpp
-    COMMAND
-      ${FAUSTDR}
-      -a ${CMAKE_SOURCE_DIR}/src/templates/plugin.cpp.in
-      -c ${TARGET}
-      -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/plugin.cpp
-      -Did=${TARGET}
-      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
-    DEPENDS
-      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
-      dsp-faust/${TARGET}.dsp
-      templates/plugin.cpp.in
-    VERBATIM
-  )
-  add_custom_command(
-    OUTPUT
-      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ui.cpp
-    COMMAND
-      ${FAUSTDR}
-      -a ${CMAKE_SOURCE_DIR}/src/templates/ui.cpp.in
-      -c ${TARGET}
-      -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ui.cpp
-      -Did=${TARGET}
-      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
-    DEPENDS
-      ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
-      dsp-faust/${TARGET}.dsp
-      templates/ui.cpp.in
     VERBATIM
   )
 endfunction()
@@ -156,9 +139,11 @@ target_include_directories(las-definitions
 
 target_sources(las-definitions
   INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
 )
 
@@ -171,12 +156,13 @@ function(las_add_plugin LABEL)
   dpf_add_plugin(${TARGET}
     TARGETS
       clap lv2 vst3 jack
+    FILES_COMMON
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.cpp
     FILES_DSP
       LibreAudioPlugin.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/plugin.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
     FILES_UI
       LibreAudioUI.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/ui.cpp
       ../deps/DPF-Widgets/opengl/DearImGui.cpp
     RUNTIME_TESTING
   )
@@ -204,7 +190,6 @@ function(las_add_plugin LABEL)
 
   target_sources(${TARGET}
     PRIVATE
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
   )

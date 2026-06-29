@@ -6,10 +6,19 @@
 
 #include "extra/ScopedDenormalDisable.hpp"
 
-#include "common_input.hpp"
-#include "common_output.hpp"
+#include "LibreAudioParameters.hpp"
+
+// TODO convert common IO to C++
+namespace common_input {
+FaustDSP* createDSP();
+}
+namespace common_output {
+FaustDSP* createDSP();
+}
 
 #include <cassert>
+
+START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -17,13 +26,21 @@ static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
 // --------------------------------------------------------------------------------------------------------------------
 
-LibreAudioPlugin::LibreAudioPlugin(const std::vector<FaustParameter>& faustParameters)
-    : Plugin(kParametersMainStart  + faustParameters.size(), 0, kStateCount),
-      kFaustParameters(faustParameters),
-      kParameterCount(kParametersMainStart  + faustParameters.size()),
+const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParameters = getFaustParameters();
+
+// TODO convert common IO to C++
+const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParametersIn = common_input::getFaustParameters();
+const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParametersOut = common_output::getFaustParameters();
+
+// --------------------------------------------------------------------------------------------------------------------
+
+LibreAudioPlugin::LibreAudioPlugin()
+    : Plugin(kParametersMainStart  + kFaustParameters.size(), 0, kStateCount),
+      kParameterCount(kParametersMainStart  + kFaustParameters.size()),
+      fCommonParameterValues(new float[kCommonParameterCount]),
       fMainDSP(createDSP()),
-      fInputDSP(new common_input::common_input),
-      fOutputDSP(new common_output::common_output)
+      fInputDSP(common_input::createDSP()),
+      fOutputDSP(common_output::createDSP())
 {
     for (uint32_t i = 0; i < kCommonParameterCount; ++i)
     {
@@ -69,6 +86,7 @@ LibreAudioPlugin::~LibreAudioPlugin()
     delete fMainDSP;
     delete fInputDSP;
     delete fOutputDSP;
+    delete[] fCommonParameterValues;
     delete[] fInternalBuffer;
    #if DISTRHO_PLUGIN_WANT_LATENCY
     delete[] fLatencyBuffer[0];
@@ -148,12 +166,11 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
    #endif
     case kParametersInputStart ... kParametersInputEnd:
         parameter.groupId = kGroupInput;
-        initParameterFromFaust(parameter, common_input::kFaustParameters[index - kParametersInputStart]);
+        initParameterFromFaust(parameter, kFaustParametersIn[index - kParametersInputStart]);
         break;
     case kParametersOutputStart ... kParametersOutputEnd:
         parameter.groupId = kGroupOutput;
-        initParameterFromFaust(parameter,
-                               common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters]);
+        initParameterFromFaust(parameter, kFaustParametersOut[index - kParametersOutputStart + kCommonIOParameters]);
         break;
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount,);
@@ -466,3 +483,12 @@ bool LibreAudioPlugin::updateLatencyIfNeeded()
 #endif
 
 // --------------------------------------------------------------------------------------------------------------------
+
+Plugin* createPlugin()
+{
+    return new LibreAudioPlugin();
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+END_NAMESPACE_DISTRHO

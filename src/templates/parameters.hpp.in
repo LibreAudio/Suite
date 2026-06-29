@@ -53,26 +53,7 @@ static_assert(kNumFaustParametersActive + kNumFaustParametersPassive == kFaustPa
 
 #undef HIDDEN_PARAMS
 
-inline constexpr const std::array<FaustParameter, kFaustParameterCount> kFaustParameters = {
-{
-    {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
-    {
-        .label = "{{w.label}}",
-        .symbol = "{{w.symbol}}",
-        .tooltip = "{{w.tooltip}}",
-        .unit = "{{w.unit}}",
-        .init = {{w.init}},
-        .min = {{w.min}},
-        .max = {{w.max}},
-        .step = {{w.step}},
-        .isBoolean = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined else 'false' }},
-        .isInteger = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined or w.meta.integer else 'false' }},
-        .isLogarithmic = {{ 'true'  if w.scale == "log" else 'false' }},
-        .isOutput = {{ 'true' if w in passive else 'false' }},
-        .isTrigger = {{ 'true' if w.type == "button" or w.meta.trigger is defined else 'false' }},
-    },
-    {% endfor %}
-}};
+const std::vector<FaustParameter>& getFaustParameters();
 
 }
 

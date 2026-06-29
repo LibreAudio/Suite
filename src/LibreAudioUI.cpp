@@ -4,10 +4,25 @@
 
 #include "LibreAudioUI.hpp"
 
-LibreAudioUI::LibreAudioUI(const std::vector<FaustParameter>& parameters)
+#include "LibreAudioParameters.hpp"
+#include "common_input-parameters.hpp"
+#include "common_output-parameters.hpp"
+
+START_NAMESPACE_DISTRHO
+
+// --------------------------------------------------------------------------------------------------------------------
+
+const std::vector<FaustParameter>& LibreAudioUI::kFaustParameters = getFaustParameters();
+
+// TODO convert common IO to C++
+const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersIn = common_input::getFaustParameters();
+const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersOut = common_output::getFaustParameters();
+
+// --------------------------------------------------------------------------------------------------------------------
+
+LibreAudioUI::LibreAudioUI()
     : UI(),
-      kFaustParameters(parameters),
-      kParameterCount(kParametersMainStart  + parameters.size() + 2),
+      kParameterCount(kParametersMainStart  + kFaustParameters.size()),
       fParameterValues(new float[kParameterCount])
 {
     // set minimum size
@@ -20,7 +35,7 @@ LibreAudioUI::LibreAudioUI(const std::vector<FaustParameter>& parameters)
 
     for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
     {
-        const FaustParameter &param = common_input::kFaustParameters[i];
+        const FaustParameter &param = kFaustParametersIn[i];
 
         std::string& label = fParameterLabels[kParametersInputStart + i];
         label = param.label;
@@ -36,9 +51,9 @@ LibreAudioUI::LibreAudioUI(const std::vector<FaustParameter>& parameters)
         }
     }
 
-    for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+    for (uint32_t i = kCommonIOParameters, size = kFaustParametersOut.size(); i < size; ++i)
     {
-        const FaustParameter &param = common_output::kFaustParameters[i];
+        const FaustParameter &param = kFaustParametersOut[i];
 
         std::string& label = fParameterLabels[kParametersOutputStart + i - kCommonIOParameters];
         label = param.label;
@@ -176,7 +191,7 @@ void LibreAudioUI::onImGuiDisplay()
 
         for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
         {
-            const FaustParameter &param = common_input::kFaustParameters[i];
+            const FaustParameter &param = kFaustParametersIn[i];
 
             if (param.isOutput)
                 continue;
@@ -188,7 +203,7 @@ void LibreAudioUI::onImGuiDisplay()
 
         for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
         {
-            const FaustParameter &param = common_input::kFaustParameters[i];
+            const FaustParameter &param = kFaustParametersIn[i];
 
             if (! param.isOutput)
                 continue;
@@ -205,9 +220,9 @@ void LibreAudioUI::onImGuiDisplay()
         ImGui::SeparatorText("Output");
         ImGui::BeginGroup();
 
-        for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+        for (uint32_t i = kCommonIOParameters, size = kFaustParametersOut.size(); i < size; ++i)
         {
-            const FaustParameter &param = common_output::kFaustParameters[i];
+            const FaustParameter &param = kFaustParametersOut[i];
 
             if (param.isOutput)
                 continue;
@@ -217,9 +232,9 @@ void LibreAudioUI::onImGuiDisplay()
 
         ImGui::BeginDisabled();
 
-        for (uint32_t i = kCommonIOParameters, size = common_output::kFaustParameters.size(); i < size; ++i)
+        for (uint32_t i = kCommonIOParameters, size = kFaustParametersOut.size(); i < size; ++i)
         {
-            const FaustParameter &param = common_output::kFaustParameters[i];
+            const FaustParameter &param = kFaustParametersOut[i];
 
             if (! param.isOutput)
                 continue;
@@ -327,3 +342,12 @@ void LibreAudioUI::displayMeter(const FaustParameter &param, const uint32_t inde
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+
+UI* createUI()
+{
+    return new LibreAudioUI();
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+END_NAMESPACE_DISTRHO
