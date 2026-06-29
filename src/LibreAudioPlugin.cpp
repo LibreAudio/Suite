@@ -172,25 +172,20 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
     switch (static_cast<States>(index))
     {
     case kStateUndoRedo:
-        state.hints |= kStateIsBase64Blob;
         state.label = "Undo/Redo";
     case kStateSnapshot:
         state.label = "Snapshot";
         break;
     case kStateSnapshotValuesA:
-        state.hints |= kStateIsBase64Blob;
         state.label = "Snapshot Values A";
         break;
     case kStateSnapshotValuesB:
-        state.hints |= kStateIsBase64Blob;
         state.label = "Snapshot Values B";
         break;
     case kStateSnapshotValuesC:
-        state.hints |= kStateIsBase64Blob;
         state.label = "Snapshot Values C";
         break;
     case kStateSnapshotValuesD:
-        state.hints |= kStateIsBase64Blob;
         state.label = "Snapshot Values D";
         break;
     case kStateCount:

@@ -8,6 +8,8 @@
 
 #include "FaustDSP.hpp"
 
+#include "nlohmann/json_fwd.hpp"
+
 #include <string>
 #include <vector>
 
@@ -49,17 +51,16 @@ private:
     static const std::vector<FaustParameter>& kFaustParametersOut;
 
     static bool isParameterOutput(uint32_t index);
+    static void serializeParameterValues(nlohmann::json& j, const float* parameterValues);
+    static void unserializeParameterValues(const nlohmann::json& j, float* parameterValues);
 
     const uint32_t kParameterCount;
-    float* const fParameterValuesA;
-    float* const fParameterValuesB;
-    float* const fParameterValuesC;
-    float* const fParameterValuesD;
+    float* const fParameterValuesABCD[4];
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
 
     uint8_t fCurrentSnapshot = 'A';
-    float* fParameterValues = fParameterValuesA;
+    float* fParameterValues = fParameterValuesABCD[0];
 
     void displayMeter(const FaustParameter &param, uint32_t index);
     void displaySlider(const FaustParameter &param, uint32_t index);

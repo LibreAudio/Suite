@@ -22,13 +22,98 @@ START_NAMESPACE_DISTRHO
 
 const std::vector<FaustParameter>& LibreAudioUI::kFaustParameters = getFaustParameters();
 
+static constexpr bool isFaustParameterOutputOrTrigger(const FaustParameter& param)
+{
+    return param.isOutput || param.isTrigger;
+}
+
 bool LibreAudioUI::isParameterOutput(const uint32_t i)
 {
     return
-        i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
-        i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
-        i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
+        i >= kParametersMainStart ? isFaustParameterOutputOrTrigger(kFaustParameters[i - kParametersMainStart]) :
+        i >= kParametersOutputStart ? isFaustParameterOutputOrTrigger(kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters]) :
+        i >= kParametersInputStart ? isFaustParameterOutputOrTrigger(kFaustParametersIn[i - kParametersInputStart]) :
         false;
+}
+
+void LibreAudioUI::serializeParameterValues(nlohmann::json& j, const float* const parameterValues)
+{
+   #if LIBREAUDIO_WANT_DRYWET
+    j["dry_wet"] = parameterValues[kCommonParameterDryWet];
+   #endif
+
+    for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+    {
+        const FaustParameter &param = kFaustParametersIn[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        j[param.symbol] = parameterValues[kParametersInputStart + i];
+    }
+
+    for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
+    {
+        const FaustParameter &param = kFaustParametersOut[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        j[param.symbol] = parameterValues[kParametersOutputStart + i - kCommonIOParameters];
+    }
+
+    for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
+    {
+        const FaustParameter &param = kFaustParameters[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        j[param.symbol] = parameterValues[kParametersMainStart + i];
+    }
+}
+
+void LibreAudioUI::unserializeParameterValues(const nlohmann::json& j, float* const parameterValues)
+{
+   #if LIBREAUDIO_WANT_DRYWET
+    parameterValues[kCommonParameterDryWet] = j["dry_wet"];
+   #endif
+
+    for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+    {
+        const FaustParameter &param = kFaustParametersIn[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        try {
+            parameterValues[kParametersInputStart + i] = j.at(param.symbol).get<float>();
+        } DISTRHO_SAFE_EXCEPTION("Missing input property");
+    }
+
+    for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
+    {
+        const FaustParameter &param = kFaustParametersOut[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        try {
+            parameterValues[kParametersOutputStart + i - kCommonIOParameters] = j.at(param.symbol).get<float>();
+        } DISTRHO_SAFE_EXCEPTION("Missing output property");
+    }
+
+    for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
+    {
+        const FaustParameter &param = kFaustParameters[i];
+
+        if (isFaustParameterOutputOrTrigger(param))
+            continue;
+
+        try {
+            parameterValues[kParametersMainStart + i] = j.at(param.symbol).get<float>();
+        } DISTRHO_SAFE_EXCEPTION("Missing main property");
+    }
 }
 
 // TODO convert common IO to C++
@@ -40,12 +125,14 @@ const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersOut = common_ou
 LibreAudioUI::LibreAudioUI()
     : UI(),
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
-      fParameterValuesA(new float[kParameterCount]),
-      fParameterValuesB(new float[kParameterCount]),
-      fParameterValuesC(new float[kParameterCount]),
-      fParameterValuesD(new float[kParameterCount])
+      fParameterValuesABCD{
+          new float[kParameterCount],
+          new float[kParameterCount],
+          new float[kParameterCount],
+          new float[kParameterCount]
+      }
 {
-    initCommonParameterValuesToDefault(fParameterValuesA);
+    initCommonParameterValuesToDefault(fParameterValues);
 
     // set minimum size
     const double scaleFactor = getScaleFactor();
@@ -72,10 +159,10 @@ LibreAudioUI::LibreAudioUI()
             render += param.unit;
         }
 
-        fParameterValuesA[kParametersInputStart + i] = param.init;
+        fParameterValues[kParametersInputStart + i] = param.init;
     }
 
-    for (uint32_t i = kCommonIOParameters, size = kFaustParametersOut.size(); i < size; ++i)
+    for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
     {
         const FaustParameter &param = kFaustParametersOut[i];
 
@@ -92,7 +179,7 @@ LibreAudioUI::LibreAudioUI()
             render += param.unit;
         }
 
-        fParameterValuesA[kParametersOutputStart + i - kCommonIOParameters] = param.init;
+        fParameterValues[kParametersOutputStart + i - kCommonIOParameters] = param.init;
     }
 
     for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
@@ -112,20 +199,20 @@ LibreAudioUI::LibreAudioUI()
             render += param.unit;
         }
 
-        fParameterValuesA[kParametersMainStart + i] = param.init;
+        fParameterValues[kParametersMainStart + i] = param.init;
     }
 
-    std::memcpy(fParameterValuesB, fParameterValuesA, sizeof(float) * kParameterCount);
-    std::memcpy(fParameterValuesC, fParameterValuesA, sizeof(float) * kParameterCount);
-    std::memcpy(fParameterValuesD, fParameterValuesA, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesABCD[1], fParameterValues, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesABCD[2], fParameterValues, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesABCD[3], fParameterValues, sizeof(float) * kParameterCount);
 }
 
 LibreAudioUI::~LibreAudioUI()
 {
-    delete[] fParameterValuesA;
-    delete[] fParameterValuesB;
-    delete[] fParameterValuesC;
-    delete[] fParameterValuesD;
+    delete[] fParameterValuesABCD[0];
+    delete[] fParameterValuesABCD[1];
+    delete[] fParameterValuesABCD[2];
+    delete[] fParameterValuesABCD[3];
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -135,10 +222,10 @@ void LibreAudioUI::parameterChanged(const uint32_t index, const float value)
 {
     if (isParameterOutput(index))
     {
-        fParameterValuesA[index] = value;
-        fParameterValuesB[index] = value;
-        fParameterValuesC[index] = value;
-        fParameterValuesD[index] = value;
+        fParameterValuesABCD[0][index] = value;
+        fParameterValuesABCD[1][index] = value;
+        fParameterValuesABCD[2][index] = value;
+        fParameterValuesABCD[3][index] = value;
     }
     else
     {
@@ -165,29 +252,14 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         {
             const float* const previousValues = fParameterValues;
             fCurrentSnapshot = snapshot;
-
-            switch (snapshot)
-            {
-            case 'A':
-                fParameterValues = fParameterValuesA;
-                break;
-            case 'B':
-                fParameterValues = fParameterValuesB;
-                break;
-            case 'C':
-                fParameterValues = fParameterValuesC;
-                break;
-            case 'D':
-                fParameterValues = fParameterValuesD;
-                break;
-            }
+            fParameterValues = fParameterValuesABCD[snapshot - 'A'];
 
             snapshotValuesChanged(previousValues);
         }
         return;
     }
 
-    constexprstr size_t LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX_len =
+    constexprstr const size_t LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX_len =
         std::strlen(LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX);
 
     if (std::strncmp(key,
@@ -198,24 +270,18 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[0] != '\0',);
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[1] == '\0',);
 
-        const char snapshot = snapshotKey[0];
+        const uint8_t snapshot = snapshotKey[0];
         DISTRHO_SAFE_ASSERT_INT_RETURN(isValidSnapshot(snapshot), snapshot,);
 
         float* const previousValues = new float[kParameterCount];
 
-        for (uint32_t i = 0; i < kParameterCount; ++i)
-        {
-            const bool isOutput =
-                i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
-                i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
-                i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
-                false;
+        if (fCurrentSnapshot == snapshot)
+            std::memcpy(previousValues, fParameterValues, sizeof(float) * kParameterCount);
 
-            if (isOutput)
-                continue;
-
-            // TODO fill up fParameterValues
-        }
+        // nlohmann::json j;
+        // TODO json decode from string
+        // j << std::string(value);
+        // unserializeParameterValues(j, fParameterValuesABCD[snapshot - 'A']);
 
         if (fCurrentSnapshot == snapshot)
             snapshotValuesChanged(previousValues);
@@ -473,13 +539,7 @@ void LibreAudioUI::snapshotValuesChanged(const float* const previousValues)
         if (d_isEqual(previousValues[i], fParameterValues[i]))
             continue;
 
-        const bool isOutput =
-            i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
-            i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
-            i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
-            false;
-
-        if (isOutput)
+        if (isParameterOutput(i))
             continue;
 
         editParameter(i, true);
