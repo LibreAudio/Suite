@@ -35,4 +35,5 @@ find_program(FAUSTDR faustdr REQUIRED)
 
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
+add_subdirectory(deps/json)
 add_subdirectory(src)

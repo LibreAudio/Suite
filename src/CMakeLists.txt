@@ -188,6 +188,11 @@ function(las_add_plugin LABEL)
       las-definitions
   )
 
+  target_link_libraries(${TARGET}-ui
+    PUBLIC
+      nlohmann_json::nlohmann_json
+  )
+
   target_sources(${TARGET}
     PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp

@@ -42,23 +42,7 @@ LibreAudioPlugin::LibreAudioPlugin()
       fInputDSP(common_input::createDSP()),
       fOutputDSP(common_output::createDSP())
 {
-    for (uint32_t i = 0; i < kCommonParameterCount; ++i)
-    {
-        switch (static_cast<CommonParameters>(i))
-        {
-        case kCommonParameterBypass:
-        case kCommonParameterReset:
-            fCommonParameterValues[i] = 0.f;
-            break;
-       #if LIBREAUDIO_WANT_DRYWET
-        case kCommonParameterDryWet:
-            fCommonParameterValues[i] = 50.f;
-       #endif
-            break;
-        case kCommonParameterCount:
-            break;
-        }
-    }
+    initCommonParameterValuesToDefault(fCommonParameterValues);
 
     const double sampleRate = getSampleRate();
     const int iSampleRate = d_roundToIntPositive(sampleRate);
@@ -182,29 +166,32 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
 
 void LibreAudioPlugin::initState(const uint32_t index, State& state)
 {
-    state.hints = kStateIsBase64Blob | kStateIsOnlyForUI;
+    state.hints = kStateIsOnlyForUI;
     state.key = kStateKeys[index];
 
     switch (static_cast<States>(index))
     {
     case kStateUndoRedo:
-        state.key = "undo_redo";
+        state.hints |= kStateIsBase64Blob;
         state.label = "Undo/Redo";
-    case kStateSnapshotA:
-        state.key = "snapshot_a";
-        state.label = "Snapshot A";
+    case kStateSnapshot:
+        state.label = "Snapshot";
         break;
-    case kStateSnapshotB:
-        state.key = "snapshot_b";
-        state.label = "Snapshot B";
+    case kStateSnapshotValuesA:
+        state.hints |= kStateIsBase64Blob;
+        state.label = "Snapshot Values A";
         break;
-    case kStateSnapshotC:
-        state.key = "snapshot_c";
-        state.label = "Snapshot C";
+    case kStateSnapshotValuesB:
+        state.hints |= kStateIsBase64Blob;
+        state.label = "Snapshot Values B";
         break;
-    case kStateSnapshotD:
-        state.key = "snapshot_d";
-        state.label = "Snapshot D";
+    case kStateSnapshotValuesC:
+        state.hints |= kStateIsBase64Blob;
+        state.label = "Snapshot Values C";
+        break;
+    case kStateSnapshotValuesD:
+        state.hints |= kStateIsBase64Blob;
+        state.label = "Snapshot Values D";
         break;
     case kStateCount:
         break;

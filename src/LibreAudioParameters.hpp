@@ -15,7 +15,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-static constexpr const uint32_t kCommonIOParameters = 1;
+inline constexpr const uint32_t kCommonIOParameters = 1;
 
 enum CommonParameters {
     kCommonParameterBypass,
@@ -44,22 +44,50 @@ enum Parameters {
 
 enum States {
     kStateUndoRedo,
-    kStateSnapshotA,
-    kStateSnapshotB,
-    kStateSnapshotC,
-    kStateSnapshotD,
+    kStateSnapshot,
+    kStateSnapshotValuesA,
+    kStateSnapshotValuesB,
+    kStateSnapshotValuesC,
+    kStateSnapshotValuesD,
     kStateCount,
 };
 
-#define LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "snapshot_"
+#define LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "snapshot_values_"
 
-static constexpr const char* kStateKeys[kStateCount] = {
+inline constexpr const char* kStateKeys[kStateCount] = {
     "undo_redo",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "a",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "b",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "c",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX "d",
+    "snapshot",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "a",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "b",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "c",
+    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
 };
+
+inline constexpr bool isValidSnapshot(const uint8_t snapshot)
+{
+    return snapshot >= 'A' && snapshot <= 'D';
+}
+
+inline void initCommonParameterValuesToDefault(float values[kCommonParameterCount])
+{
+    for (uint32_t i = 0; i < kCommonParameterCount; ++i)
+    {
+        switch (static_cast<CommonParameters>(i))
+        {
+        case kCommonParameterBypass:
+        case kCommonParameterReset:
+            values[i] = 0.f;
+            break;
+       #if LIBREAUDIO_WANT_DRYWET
+        case kCommonParameterDryWet:
+            values[i] = 50.f;
+       #endif
+            break;
+        case kCommonParameterCount:
+            break;
+        }
+    }
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 

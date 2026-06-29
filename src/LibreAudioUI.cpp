@@ -8,11 +8,28 @@
 #include "common_input-parameters.hpp"
 #include "common_output-parameters.hpp"
 
+#include "nlohmann/json.hpp"
+
+#if defined(__GNUC__) && !defined(__clang__)
+#define constexprstr constexpr
+#else
+#define constexprstr
+#endif
+
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
 const std::vector<FaustParameter>& LibreAudioUI::kFaustParameters = getFaustParameters();
+
+bool LibreAudioUI::isParameterOutput(const uint32_t i)
+{
+    return
+        i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
+        i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
+        i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
+        false;
+}
 
 // TODO convert common IO to C++
 const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersIn = common_input::getFaustParameters();
@@ -23,8 +40,13 @@ const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersOut = common_ou
 LibreAudioUI::LibreAudioUI()
     : UI(),
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
-      fParameterValues(new float[kParameterCount])
+      fParameterValuesA(new float[kParameterCount]),
+      fParameterValuesB(new float[kParameterCount]),
+      fParameterValuesC(new float[kParameterCount]),
+      fParameterValuesD(new float[kParameterCount])
 {
+    initCommonParameterValuesToDefault(fParameterValuesA);
+
     // set minimum size
     const double scaleFactor = getScaleFactor();
     setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
@@ -49,6 +71,8 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
+
+        fParameterValuesA[kParametersInputStart + i] = param.init;
     }
 
     for (uint32_t i = kCommonIOParameters, size = kFaustParametersOut.size(); i < size; ++i)
@@ -67,6 +91,8 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
+
+        fParameterValuesA[kParametersOutputStart + i - kCommonIOParameters] = param.init;
     }
 
     for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
@@ -85,12 +111,21 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
+
+        fParameterValuesA[kParametersMainStart + i] = param.init;
     }
+
+    std::memcpy(fParameterValuesB, fParameterValuesA, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesC, fParameterValuesA, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesD, fParameterValuesA, sizeof(float) * kParameterCount);
 }
 
 LibreAudioUI::~LibreAudioUI()
 {
-    delete[] fParameterValues;
+    delete[] fParameterValuesA;
+    delete[] fParameterValuesB;
+    delete[] fParameterValuesC;
+    delete[] fParameterValuesD;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -98,7 +133,17 @@ LibreAudioUI::~LibreAudioUI()
 
 void LibreAudioUI::parameterChanged(const uint32_t index, const float value)
 {
-    fParameterValues[index] = value;
+    if (isParameterOutput(index))
+    {
+        fParameterValuesA[index] = value;
+        fParameterValuesB[index] = value;
+        fParameterValuesC[index] = value;
+        fParameterValuesD[index] = value;
+    }
+    else
+    {
+        fParameterValues[index] = value;
+    }
 }
 
 void LibreAudioUI::stateChanged(const char* const key, const char* const value)
@@ -108,8 +153,74 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         return;
     }
 
-    if (std::strncmp(key, LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX, std::strlen(LIBREAUDIO_STATE_KEY_SNAPSHOT_PREFIX)) == 0)
+    if (std::strcmp(key, kStateKeys[kStateSnapshot]) == 0)
     {
+        DISTRHO_SAFE_ASSERT_RETURN(value[0] != '\0',);
+        DISTRHO_SAFE_ASSERT_RETURN(value[1] == '\0',);
+
+        const uint8_t snapshot = value[0];
+        DISTRHO_SAFE_ASSERT_INT_RETURN(isValidSnapshot(snapshot), snapshot,);
+
+        if (fCurrentSnapshot != snapshot)
+        {
+            const float* const previousValues = fParameterValues;
+            fCurrentSnapshot = snapshot;
+
+            switch (snapshot)
+            {
+            case 'A':
+                fParameterValues = fParameterValuesA;
+                break;
+            case 'B':
+                fParameterValues = fParameterValuesB;
+                break;
+            case 'C':
+                fParameterValues = fParameterValuesC;
+                break;
+            case 'D':
+                fParameterValues = fParameterValuesD;
+                break;
+            }
+
+            snapshotValuesChanged(previousValues);
+        }
+        return;
+    }
+
+    constexprstr size_t LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX_len =
+        std::strlen(LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX);
+
+    if (std::strncmp(key,
+                     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX,
+                     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX_len) == 0)
+    {
+        const char* const snapshotKey = key + LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX_len;
+        DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[0] != '\0',);
+        DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[1] == '\0',);
+
+        const char snapshot = snapshotKey[0];
+        DISTRHO_SAFE_ASSERT_INT_RETURN(isValidSnapshot(snapshot), snapshot,);
+
+        float* const previousValues = new float[kParameterCount];
+
+        for (uint32_t i = 0; i < kParameterCount; ++i)
+        {
+            const bool isOutput =
+                i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
+                i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
+                i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
+                false;
+
+            if (isOutput)
+                continue;
+
+            // TODO fill up fParameterValues
+        }
+
+        if (fCurrentSnapshot == snapshot)
+            snapshotValuesChanged(previousValues);
+
+        delete[] previousValues;
         return;
     }
 }
@@ -132,6 +243,7 @@ void LibreAudioUI::onImGuiDisplay()
     {
         ImGui::SeparatorText("Undo / Redo");
         ImGui::BeginGroup();
+        ImGui::BeginDisabled();
 
         if (ImGui::Button("Undo"))
         {
@@ -143,6 +255,7 @@ void LibreAudioUI::onImGuiDisplay()
         {
         }
 
+        ImGui::EndDisabled();
         ImGui::EndGroup();
     }
 
@@ -150,9 +263,13 @@ void LibreAudioUI::onImGuiDisplay()
         ImGui::SeparatorText("Snapshots");
         ImGui::BeginGroup();
 
+        ImGui::BeginDisabled();
+
         if (ImGui::Button("X"))
         {
         }
+
+        ImGui::EndDisabled();
 
         ImGui::SameLine();
 
@@ -160,26 +277,34 @@ void LibreAudioUI::onImGuiDisplay()
 
         ImGui::SameLine();
 
-        if (ImGui::Button("A"))
+        if (fCurrentSnapshot == 'A' ? ImGui::SmallButton("A") :  ImGui::Button("A"))
         {
+            setState(kStateKeys[kStateSnapshot], "A");
+            stateChanged(kStateKeys[kStateSnapshot], "A");
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("B"))
+        if (fCurrentSnapshot == 'B' ? ImGui::SmallButton("B") :  ImGui::Button("B"))
         {
+            setState(kStateKeys[kStateSnapshot], "B");
+            stateChanged(kStateKeys[kStateSnapshot], "B");
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("C"))
+        if (fCurrentSnapshot == 'C' ? ImGui::SmallButton("C") :  ImGui::Button("C"))
         {
+            setState(kStateKeys[kStateSnapshot], "C");
+            stateChanged(kStateKeys[kStateSnapshot], "C");
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("D"))
+        if (fCurrentSnapshot == 'D' ? ImGui::SmallButton("D") :  ImGui::Button("D"))
         {
+            setState(kStateKeys[kStateSnapshot], "D");
+            stateChanged(kStateKeys[kStateSnapshot], "D");
         }
 
         ImGui::EndGroup();
@@ -339,6 +464,28 @@ void LibreAudioUI::displayMeter(const FaustParameter &param, const uint32_t inde
                        param.max,
                        fParameterRenders[index].c_str(),
                        ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
+}
+
+void LibreAudioUI::snapshotValuesChanged(const float* const previousValues)
+{
+    for (uint32_t i = 0; i < kParameterCount; ++i)
+    {
+        if (d_isEqual(previousValues[i], fParameterValues[i]))
+            continue;
+
+        const bool isOutput =
+            i >= kParametersMainStart ? kFaustParameters[i - kParametersMainStart].isOutput :
+            i >= kParametersOutputStart ? kFaustParametersOut[i - kParametersOutputStart + kCommonIOParameters].isOutput :
+            i >= kParametersInputStart ? kFaustParametersIn[i - kParametersInputStart].isOutput :
+            false;
+
+        if (isOutput)
+            continue;
+
+        editParameter(i, true);
+        setParameterValue(i, fParameterValues[i]);
+        editParameter(i, false);
+    }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

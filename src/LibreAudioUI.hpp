@@ -48,13 +48,22 @@ private:
     static const std::vector<FaustParameter>& kFaustParametersIn;
     static const std::vector<FaustParameter>& kFaustParametersOut;
 
+    static bool isParameterOutput(uint32_t index);
+
     const uint32_t kParameterCount;
-    float* const fParameterValues;
+    float* const fParameterValuesA;
+    float* const fParameterValuesB;
+    float* const fParameterValuesC;
+    float* const fParameterValuesD;
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
 
+    uint8_t fCurrentSnapshot = 'A';
+    float* fParameterValues = fParameterValuesA;
+
     void displayMeter(const FaustParameter &param, uint32_t index);
     void displaySlider(const FaustParameter &param, uint32_t index);
+    void snapshotValuesChanged(const float* previousValues);
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

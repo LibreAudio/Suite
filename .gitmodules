@@ -4,3 +4,6 @@
 [submodule "deps/DPF-Widgets"]
 	path = deps/DPF-Widgets
 	url = https://github.com/DISTRHO/DPF-Widgets.git
+[submodule "deps/json"]
+	path = deps/json
+	url = https://github.com/nlohmann/json.git
