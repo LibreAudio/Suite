@@ -172,8 +172,10 @@ function(las_add_plugin LABEL)
     TARGETS
       clap lv2 vst3 jack
     FILES_DSP
+      LibreAudioPlugin.cpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/plugin.cpp
     FILES_UI
+      LibreAudioUI.cpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/ui.cpp
       ../deps/DPF-Widgets/opengl/DearImGui.cpp
     RUNTIME_TESTING

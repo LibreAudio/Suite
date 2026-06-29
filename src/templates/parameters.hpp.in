@@ -21,7 +21,7 @@
 #pragma once
 
 {% block ImplementationIncludeHeader %}
-#include "FaustParameter.hpp"
+#include "FaustDSP.hpp"
 {% endblock %}
 {% block ImplementationIncludeExtra %}
 {% endblock %}

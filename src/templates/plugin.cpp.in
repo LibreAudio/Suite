@@ -26,12 +26,17 @@
 #include "{{id}}.hpp"
 #include "{{id}}-parameters.hpp"
 
+FaustDSP* createDSP()
+{
+    return new {{id}}::{{id}};
+}
+
 START_NAMESPACE_DISTRHO
 
 Plugin* createPlugin()
 {
     static const std::vector<FaustParameter> parameters(kFaustParameters.begin(), kFaustParameters.end());
-    return new LibreAudioPlugin(parameters, new {{id}});
+    return new LibreAudioPlugin(parameters);
 }
 
 END_NAMESPACE_DISTRHO
