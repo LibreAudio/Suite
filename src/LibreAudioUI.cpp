@@ -514,7 +514,7 @@ void LibreAudioUI::displayMeter(const FaustParameter& param, const uint32_t inde
 
 void LibreAudioUI::saveCurrentSnapshot()
 {
-    std::memcpy(fParameterValuesABCD[fCurrentSnapshot], fParameterValues, sizeof(float) * kNumSnapshots);
+    std::memcpy(fParameterValuesABCD[fCurrentSnapshot], fParameterValues, sizeof(float) * kParameterCount);
 
     std::string value = "{}";
     try {
