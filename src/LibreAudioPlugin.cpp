@@ -171,9 +171,7 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
 
     switch (static_cast<States>(index))
     {
-    case kStateUndoRedo:
-        state.label = "Undo/Redo";
-    case kStateSnapshot:
+    case kStateCurrentSnapshot:
         state.label = "Snapshot";
         break;
     case kStateSnapshotValuesA:

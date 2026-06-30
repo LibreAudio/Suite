@@ -43,8 +43,7 @@ enum Parameters {
 };
 
 enum States {
-    kStateUndoRedo,
-    kStateSnapshot,
+    kStateCurrentSnapshot,
     kStateSnapshotValuesA,
     kStateSnapshotValuesB,
     kStateSnapshotValuesC,
@@ -55,7 +54,6 @@ enum States {
 #define LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "snapshot_values_"
 
 inline constexpr const char* kStateKeys[kStateCount] = {
-    "undo_redo",
     "snapshot",
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "a",
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "b",
@@ -63,10 +61,7 @@ inline constexpr const char* kStateKeys[kStateCount] = {
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
 };
 
-inline constexpr bool isValidSnapshot(const uint8_t snapshot)
-{
-    return snapshot >= 'A' && snapshot <= 'D';
-}
+inline constexpr const uint8_t kNumSnapshots = 4;
 
 inline void initCommonParameterValuesToDefault(float values[kCommonParameterCount])
 {
