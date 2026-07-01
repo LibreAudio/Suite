@@ -6,7 +6,6 @@
 
 #include "DistrhoUI.hpp"
 #include "FaustParameters.hpp"
-#include "LibreAudioStates.hpp"
 #include "nlohmann/json_fwd.hpp"
 
 #include <string>
@@ -68,14 +67,15 @@ private:
 
     const uint32_t kParameterCount;
     float* const fParameterValues;
-    float* const fParameterValuesABCD[4];
-    UndoRedoActions fUndoRedoActions[4];
+    float** const fParameterValuesABCD;
+    UndoRedoActions* const fUndoRedoActions;
 
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
 
     uint8_t fCurrentSnapshot = 0;
     uint8_t fPreviousSnapshot = 0;
+    bool fCopyingSnapshot = false;
 
     uint32_t fLastMouseReleaseTime = 0;
 
@@ -83,6 +83,11 @@ private:
     void displaySlider(const FaustParameter &param, uint32_t index);
     void saveCurrentSnapshot();
     void snapshotButtonClicked(uint8_t snapshot);
+
+    bool canUndo() const;
+    bool canRedo() const;
+    void undoClicked();
+    void redoClicked();
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

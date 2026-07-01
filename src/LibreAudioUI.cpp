@@ -7,6 +7,7 @@
 #include "extra/Time.hpp"
 
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioStates.hpp"
 #include "common_input-parameters.hpp"
 #include "common_output-parameters.hpp"
 
@@ -132,12 +133,8 @@ LibreAudioUI::LibreAudioUI()
     : UI(),
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
       fParameterValues(new float[kParameterCount]),
-      fParameterValuesABCD{
-          new float[kParameterCount],
-          new float[kParameterCount],
-          new float[kParameterCount],
-          new float[kParameterCount]
-      }
+      fParameterValuesABCD(new float*[kNumSnapshots]),
+      fUndoRedoActions(new UndoRedoActions[kNumSnapshots])
 {
     initCommonParameterValuesToDefault(fParameterValues);
 
@@ -210,15 +207,20 @@ LibreAudioUI::LibreAudioUI()
     }
 
     for (uint8_t i = 0; i < kNumSnapshots; ++i)
+    {
+        fParameterValuesABCD[i] = new float[kParameterCount];
         std::memcpy(fParameterValuesABCD[i], fParameterValues, sizeof(float) * kParameterCount);
+    }
 }
 
 LibreAudioUI::~LibreAudioUI()
 {
-    delete[] fParameterValues;
-
     for (uint8_t i = 0; i < kNumSnapshots; ++i)
         delete[] fParameterValuesABCD[i];
+
+    delete[] fParameterValues;
+    delete[] fParameterValuesABCD;
+    delete[] fUndoRedoActions;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -280,35 +282,48 @@ void LibreAudioUI::onImGuiDisplay()
     ImGui::Begin("LibreAudio", nullptr, flags);
 
     {
+        const bool canUndo = LibreAudioUI::canUndo();
+        const bool canRedo = LibreAudioUI::canRedo();
+
         ImGui::SeparatorText("Undo / Redo");
         ImGui::BeginGroup();
-        ImGui::BeginDisabled();
+
+        if (! canUndo)
+            ImGui::BeginDisabled();
 
         if (ImGui::Button("Undo"))
-        {
-        }
+            undoClicked();
+
+        if (! canUndo)
+            ImGui::EndDisabled();
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Redo"))
-        {
-        }
+        if (! canRedo)
+            ImGui::BeginDisabled();
 
-        ImGui::EndDisabled();
+        if (ImGui::Button("Redo"))
+            redoClicked();
+
+        if (! canRedo)
+            ImGui::EndDisabled();
+
         ImGui::EndGroup();
     }
 
     {
+        const bool copyingSnapshot = fCopyingSnapshot;
+        const uint8_t currentSnapshot = fCurrentSnapshot;
+
         ImGui::SeparatorText("Snapshots");
         ImGui::BeginGroup();
 
-        ImGui::BeginDisabled();
+        ImGui::Spacing();
 
-        if (ImGui::Button("(COPY)"))
+        if (copyingSnapshot ? ImGui::SmallButton("(COPY)") : ImGui::Button("(COPY)"))
         {
+            fCopyingSnapshot = !copyingSnapshot;
         }
-
-        ImGui::EndDisabled();
 
         ImGui::SameLine();
 
@@ -316,23 +331,47 @@ void LibreAudioUI::onImGuiDisplay()
 
         ImGui::SameLine();
 
-        if (fCurrentSnapshot == 0 ? ImGui::SmallButton("A") :  ImGui::Button("A"))
+        if (copyingSnapshot && currentSnapshot == 0)
+            ImGui::BeginDisabled();
+
+        if (currentSnapshot == 0 ? ImGui::SmallButton("A") :  ImGui::Button("A"))
             snapshotButtonClicked(0);
 
+        if (copyingSnapshot && currentSnapshot == 0)
+            ImGui::EndDisabled();
+
         ImGui::SameLine();
 
-        if (fCurrentSnapshot == 1 ? ImGui::SmallButton("B") :  ImGui::Button("B"))
+        if (copyingSnapshot && currentSnapshot == 1)
+            ImGui::BeginDisabled();
+
+        if (currentSnapshot == 1 ? ImGui::SmallButton("B") :  ImGui::Button("B"))
             snapshotButtonClicked(1);
 
+        if (copyingSnapshot && currentSnapshot == 1)
+            ImGui::EndDisabled();
+
         ImGui::SameLine();
 
-        if (fCurrentSnapshot == 2 ? ImGui::SmallButton("C") :  ImGui::Button("C"))
+        if (copyingSnapshot && currentSnapshot == 2)
+            ImGui::BeginDisabled();
+
+        if (currentSnapshot == 2 ? ImGui::SmallButton("C") :  ImGui::Button("C"))
             snapshotButtonClicked(2);
 
+        if (copyingSnapshot && currentSnapshot == 2)
+            ImGui::EndDisabled();
+
         ImGui::SameLine();
 
-        if (fCurrentSnapshot == 3 ? ImGui::SmallButton("D") :  ImGui::Button("D"))
+        if (copyingSnapshot && currentSnapshot == 3)
+            ImGui::BeginDisabled();
+
+        if (currentSnapshot == 3 ? ImGui::SmallButton("D") :  ImGui::Button("D"))
             snapshotButtonClicked(3);
+
+        if (copyingSnapshot && currentSnapshot == 3)
+            ImGui::EndDisabled();
 
         ImGui::EndGroup();
     }
@@ -532,7 +571,28 @@ void LibreAudioUI::snapshotButtonClicked(uint8_t snapshot)
     if (fCurrentSnapshot == snapshot && fPreviousSnapshot == snapshot)
         return;
 
-    // set state of current snapshot before changing to new one
+    // special case for copy & pasting snapshot
+    if (fCopyingSnapshot)
+    {
+        fCopyingSnapshot = false;
+        DISTRHO_SAFE_ASSERT_RETURN(fCurrentSnapshot != snapshot,);
+
+        std::memcpy(fParameterValuesABCD[fCurrentSnapshot], fParameterValues, sizeof(float) * kParameterCount);
+        std::memcpy(fParameterValuesABCD[snapshot], fParameterValues, sizeof(float) * kParameterCount);
+
+        // set state of current snapshot (values) before changing to new one
+        saveCurrentSnapshot();
+
+        // set new snapshot (index)
+        fPreviousSnapshot = fCurrentSnapshot;
+        fCurrentSnapshot = snapshot;
+
+        // set state of new snapshot (values) too
+        saveCurrentSnapshot();
+        return;
+    }
+
+    // set state of current snapshot (values) before changing to new one
     saveCurrentSnapshot();
 
     // clicked new snapshot, load it
@@ -548,6 +608,7 @@ void LibreAudioUI::snapshotButtonClicked(uint8_t snapshot)
         snapshot = fCurrentSnapshot;
     }
 
+    // set state of active/current snapshot (index)
     const char snapshotStr[] = { static_cast<char>('A' + snapshot), '\0' };
     setState(kStateKeys[kStateCurrentSnapshot], snapshotStr);
 
@@ -565,6 +626,24 @@ void LibreAudioUI::snapshotButtonClicked(uint8_t snapshot)
         setParameterValue(i, fParameterValues[i]);
         editParameter(i, false);
     }
+}
+
+bool LibreAudioUI::canUndo() const
+{
+    return false;
+}
+
+bool LibreAudioUI::canRedo() const
+{
+    return false;
+}
+
+void LibreAudioUI::undoClicked()
+{
+}
+
+void LibreAudioUI::redoClicked()
+{
 }
 
 // --------------------------------------------------------------------------------------------------------------------
