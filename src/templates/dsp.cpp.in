@@ -21,7 +21,7 @@
 {% endif %}
 {% endblock %}
 
-#include "FaustDSP.hpp"
+#include "{{id}}-dsp.hpp"
 
 #define FAUSTDR_BEGIN_NAMESPACE namespace {{id}} {
 #define FAUSTDR_END_NAMESPACE }
@@ -35,7 +35,7 @@
     | replace('#include <math.h>\n', '')
     | replace('\n\t\n', '\n\n')
     | replace(' \n', '\n')
-    | replace('\t' + id + '() {', '\tfloat latency() const;\n\tfloat get(int) const;\n\tvoid set(int, float);\n\n\t' + id + '(){')
+    | replace('\t' + id + '() {', '\tfloat latency() const;\n\tfloat get(uint32_t) const;\n\tvoid set(uint32_t, float);\n\n\t' + id + '(){')
     | replace('\t', '    ')
     | replace(' FAUSTDR_PRIVATE', 'private')
     | replace(' FAUSTDR_PROTECTED', 'protected')
@@ -52,7 +52,7 @@ FAUSTDR_BEGIN_NAMESPACE
 // --------------------------------------------------------------------------------------------------------------------
 // custom extensions to faust generated code
 
-inline float {{id}}::get(int index) const
+inline float {{id}}::get(uint32_t index) const
 {
     switch (index) {
     {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
@@ -64,7 +64,7 @@ inline float {{id}}::get(int index) const
     }
 }
 
-inline void {{id}}::set(int index, float value)
+inline void {{id}}::set(uint32_t index, float value)
 {
     switch (index) {
     {% for w in active %}

@@ -7,9 +7,11 @@
 #include "DistrhoPlugin.hpp"
 #include "extra/ValueSmoother.hpp"
 
-#include "FaustDSP.hpp"
+#include "FaustParameters.hpp"
 
 #include <atomic>
+
+struct FaustDSP;
 
 /* TODO
  * - convert common IO to C++

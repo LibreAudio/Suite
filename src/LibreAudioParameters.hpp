@@ -42,27 +42,6 @@ enum Parameters {
     kParametersMainStart,
 };
 
-enum States {
-    kStateCurrentSnapshot,
-    kStateSnapshotValuesA,
-    kStateSnapshotValuesB,
-    kStateSnapshotValuesC,
-    kStateSnapshotValuesD,
-    kStateCount,
-};
-
-#define LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "snapshot_values_"
-
-inline constexpr const char* kStateKeys[kStateCount] = {
-    "snapshot",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "a",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "b",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "c",
-    LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
-};
-
-inline constexpr const uint8_t kNumSnapshots = 4;
-
 inline void initCommonParameterValuesToDefault(float values[kCommonParameterCount])
 {
     for (uint32_t i = 0; i < kCommonParameterCount; ++i)

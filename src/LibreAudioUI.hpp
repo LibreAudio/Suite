@@ -5,9 +5,8 @@
 #pragma once
 
 #include "DistrhoUI.hpp"
-
-#include "FaustDSP.hpp"
-
+#include "FaustParameters.hpp"
+#include "LibreAudioStates.hpp"
 #include "nlohmann/json_fwd.hpp"
 
 #include <string>
@@ -16,6 +15,16 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
+
+// --------------------------------------------------------------------------------------------------------------------
+
+struct UndoRedoParameter {
+    const char* symbol;
+    float value;
+};
+
+using UndoRedoAction = std::vector<UndoRedoParameter>;
+using UndoRedoActions = std::vector<UndoRedoAction>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -60,6 +69,8 @@ private:
     const uint32_t kParameterCount;
     float* const fParameterValues;
     float* const fParameterValuesABCD[4];
+    UndoRedoActions fUndoRedoActions[4];
+
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
 

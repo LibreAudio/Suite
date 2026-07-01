@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
-# function to generate $TARGET-dsp.cpp and $TARGET-parameters.{c,h}pp
+# function to generate $TARGET-dsp.{c,h}pp and $TARGET-parameters.{c,h}pp
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
@@ -34,6 +34,22 @@ function(las_generate_faust_cpp TARGET)
 
   add_custom_command(
     OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-dsp.hpp
+    COMMAND
+      ${FAUSTDR}
+      -a ${CMAKE_SOURCE_DIR}/src/templates/dsp.hpp.in
+      -c ${TARGET}
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-dsp.hpp
+      -Did=${OUTPUT}
+      ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
+    DEPENDS
+      dsp-faust/${TARGET}.dsp
+      templates/dsp.hpp.in
+    VERBATIM
+  )
+
+  add_custom_command(
+    OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.cpp
     COMMAND
       ${FAUSTDR}
@@ -47,6 +63,7 @@ function(las_generate_faust_cpp TARGET)
       templates/parameters.cpp.in
     VERBATIM
   )
+
   add_custom_command(
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT}-parameters.hpp
@@ -140,9 +157,11 @@ target_include_directories(las-definitions
 target_sources(las-definitions
   INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
 )
@@ -195,6 +214,7 @@ function(las_add_plugin LABEL)
 
   target_sources(${TARGET}
     PRIVATE
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
   )

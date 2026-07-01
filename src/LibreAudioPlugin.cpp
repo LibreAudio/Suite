@@ -7,14 +7,11 @@
 #include "extra/ScopedDenormalDisable.hpp"
 
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioStates.hpp"
 
 // TODO convert common IO to C++
-namespace common_input {
-FaustDSP* createDSP();
-}
-namespace common_output {
-FaustDSP* createDSP();
-}
+#include "common_input-dsp.hpp"
+#include "common_output-dsp.hpp"
 
 #include <cassert>
 
