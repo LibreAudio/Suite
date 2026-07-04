@@ -25,13 +25,14 @@ true_stereo = checkbox("true stereo[symbol:true_stereo]");
 dry         = hslider("dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
 wet         = hslider("wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
 drywet      = hslider("drywet [unit:%][symbol:drywet]",50,0,100,1) / 100;
-rate1       = hslider("rate1[unit:Hz][symbol:rate1]",  0.513, 0.05, 5.0,    0.001);  // primary LFO (Hz)
-rate2       = hslider("rate2[unit:Hz][symbol:rate2]",  0.863, 0.05, 5.0,    0.001);  // secondary LFO, mode II only (Hz)
+rate1       = hslider("rate1[unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001);  // primary LFO (Hz)
+rate2       = hslider("rate2[unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001);  // secondary LFO, mode II only (Hz)
 dctr        = hslider("dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1)  / 1000;
 ddepth      = hslider("ddepth [unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01) / 1000; // LFO rate detune between L/R instances (true stereo)
 detune      = hslider("detune [unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1)  / 100;
-hp_freq     = hslider("hp_freq [unit:Hz][symbol:hp_freq]",    20,    20,   2000,  1);
-lp_freq     = hslider("lp_freq [unit:Hz][symbol:lp_freq]",    20000, 200,  20000, 1);
+hp_freq     = hslider("hp_freq [unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1);
+lp_freq     = hslider("lp_freq [unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1);
+spread      = hslider("spread [unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0)  / 100; // stereo width: 0% mono, 100% unmodified, 200% double width
 
 MAXN = 1 << 17;    // delay buffer size in samples
 
@@ -106,11 +107,14 @@ with {
 
     wL_raw = select2(true_stereo, wL_12, select2(mode, wL_3, wL_4));
     wR_raw = select2(true_stereo, wR_12, select2(mode, wR_3, wR_4));
-    wL     = wL_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
-    wR     = wR_raw : fi.svf.hp(hp_freq,0.7) : fi.svf.lp(lp_freq,0.7);
+    wL     = wL_raw : fi.svf.hp(hp_freq,0.707) : fi.svf.lp(lp_freq,0.707);
+    wR     = wR_raw : fi.svf.hp(hp_freq,0.707) : fi.svf.lp(lp_freq,0.707);
     // outL   = L * dry + wL * wet;
     // outR   = R * dry + wR * wet;
-    outL   = wL * 0.5;
-    outR   = wR * 0.5;
+    // Stereo spread: mid/side widening applied to the wet signal
+    mid    = (wL + wR) * 0.25;
+    side   = (wL - wR) * 0.25;
+    outL   = mid + side * spread;
+    outR   = mid - side * spread;
 };
 
