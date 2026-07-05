@@ -134,7 +134,7 @@ LibreAudioUI::LibreAudioUI()
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
       fParameterValues(new float[kParameterCount]),
       fParameterValuesABCD(new float*[kNumSnapshots]),
-      fUndoRedoActions(new UndoRedoActions[kNumSnapshots])
+      fUndoRedo(this)
 {
     initCommonParameterValuesToDefault(fParameterValues);
 
@@ -220,7 +220,6 @@ LibreAudioUI::~LibreAudioUI()
 
     delete[] fParameterValues;
     delete[] fParameterValuesABCD;
-    delete[] fUndoRedoActions;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -282,8 +281,8 @@ void LibreAudioUI::onImGuiDisplay()
     ImGui::Begin("LibreAudio", nullptr, flags);
 
     {
-        const bool canUndo = LibreAudioUI::canUndo();
-        const bool canRedo = LibreAudioUI::canRedo();
+        const bool canUndo = fUndoRedo.canUndo();
+        const bool canRedo = fUndoRedo.canRedo();
 
         ImGui::SeparatorText("Undo / Redo");
         ImGui::BeginGroup();
@@ -292,7 +291,7 @@ void LibreAudioUI::onImGuiDisplay()
             ImGui::BeginDisabled();
 
         if (ImGui::Button("Undo"))
-            undoClicked();
+            fUndoRedo.undo();
 
         if (! canUndo)
             ImGui::EndDisabled();
@@ -303,7 +302,7 @@ void LibreAudioUI::onImGuiDisplay()
             ImGui::BeginDisabled();
 
         if (ImGui::Button("Redo"))
-            redoClicked();
+            fUndoRedo.redo();
 
         if (! canRedo)
             ImGui::EndDisabled();
@@ -502,43 +501,63 @@ void LibreAudioUI::uiIdle()
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------
+// Other Callbacks
+
+void LibreAudioUI::undoRedoParameterChanged(const uint32_t index, const float value)
+{
+    fParameterValues[index] = value;
+
+    editParameter(index, true);
+    setParameterValue(index, value);
+    editParameter(index, false);
+}
+
 // --------------------------------------------------------------------------------------------------------------------
 
 void LibreAudioUI::displaySlider(const FaustParameter& param, const uint32_t index)
 {
     float* const valueptr = fParameterValues + index;
+    float const oldvalue = *valueptr;
+    bool modified;
 
     if (param.isBoolean)
     {
         bool bvalue = *valueptr > (param.max - param.min) * 0.5f;
+        modified = ImGui::Checkbox(fParameterLabels[index].c_str(), &bvalue);
 
-        if (ImGui::Checkbox(fParameterLabels[index].c_str(), &bvalue))
-        {
-            if (ImGui::IsItemActivated())
-                editParameter(index, true);
-
+        if (modified)
             *valueptr = bvalue ? param.max : param.min;
-            setParameterValue(index, *valueptr);
-        }
     }
     else
     {
-        if (ImGui::SliderFloat(fParameterLabels[index].c_str(),
-                               valueptr,
-                               param.min,
-                               param.max,
-                               fParameterRenders[index].c_str(),
-                               param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0))
-        {
-            if (ImGui::IsItemActivated())
-                editParameter(index, true);
+        modified = ImGui::SliderFloat(fParameterLabels[index].c_str(),
+                                      valueptr,
+                                      param.min,
+                                      param.max,
+                                      fParameterRenders[index].c_str(),
+                                      param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0);
+    }
 
-            setParameterValue(index, *valueptr);
-        }
+    if (ImGui::IsItemActivated())
+    {
+        fUndoRedo.pushIfFirst({ index, oldvalue });
+
+        editParameter(index, true);
+    }
+
+    if (modified)
+    {
+        setParameterValue(index, *valueptr);
     }
 
     if (ImGui::IsItemDeactivated())
+    {
+        if (d_isNotEqual(fParameterValues[index], fParameterValuesABCD[fCurrentSnapshot][index]))
+            fUndoRedo.push({ index, fParameterValues[index] });
+
         editParameter(index, false);
+    }
 }
 
 void LibreAudioUI::displayMeter(const FaustParameter& param, const uint32_t index)
@@ -626,24 +645,6 @@ void LibreAudioUI::snapshotButtonClicked(uint8_t snapshot)
         setParameterValue(i, fParameterValues[i]);
         editParameter(i, false);
     }
-}
-
-bool LibreAudioUI::canUndo() const
-{
-    return false;
-}
-
-bool LibreAudioUI::canRedo() const
-{
-    return false;
-}
-
-void LibreAudioUI::undoClicked()
-{
-}
-
-void LibreAudioUI::redoClicked()
-{
 }
 
 // --------------------------------------------------------------------------------------------------------------------

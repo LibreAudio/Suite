@@ -156,6 +156,7 @@ target_include_directories(las-definitions
 
 target_sources(las-definitions
   INTERFACE
+    LibreAudioUndoRedo.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp

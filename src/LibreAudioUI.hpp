@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DistrhoUI.hpp"
+#include "LibreAudioUndoRedo.hpp"
 #include "FaustParameters.hpp"
 #include "nlohmann/json_fwd.hpp"
 
@@ -17,17 +18,8 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct UndoRedoParameter {
-    const char* symbol;
-    float value;
-};
-
-using UndoRedoAction = std::vector<UndoRedoParameter>;
-using UndoRedoActions = std::vector<UndoRedoAction>;
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioUI : public UI
+class LibreAudioUI : public UI,
+                     private LibreAudioUndoRedo::Callback
 {
 public:
     LibreAudioUI();
@@ -56,6 +48,11 @@ protected:
     bool onMouse(const MouseEvent& ev) final;
     void uiIdle() final;
 
+    // ----------------------------------------------------------------------------------------------------------------
+    // Other Callbacks
+
+    void undoRedoParameterChanged(uint32_t index, float value) final;
+
 private:
     static const std::vector<FaustParameter>& kFaustParameters;
     static const std::vector<FaustParameter>& kFaustParametersIn;
@@ -68,7 +65,8 @@ private:
     const uint32_t kParameterCount;
     float* const fParameterValues;
     float** const fParameterValuesABCD;
-    UndoRedoActions* const fUndoRedoActions;
+
+    LibreAudioUndoRedo fUndoRedo;
 
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
@@ -83,11 +81,6 @@ private:
     void displaySlider(const FaustParameter &param, uint32_t index);
     void saveCurrentSnapshot();
     void snapshotButtonClicked(uint8_t snapshot);
-
-    bool canUndo() const;
-    bool canRedo() const;
-    void undoClicked();
-    void redoClicked();
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };
