@@ -28,7 +28,7 @@ void LibreAudioUndoRedo::push(const Parameter& param)
     DISTRHO_SAFE_ASSERT_RETURN(fPosition != UINT32_MAX,)
 
     if (const uint32_t toErase = fActions.size() - fPosition - 1)
-        fActions.erase(fActions.cbegin() + toErase, fActions.end());
+        fActions.erase(fActions.cbegin() + toErase, fActions.cend());
 
     const std::vector<Parameter> action = { param };
     fActions.emplace_back(std::move(action));

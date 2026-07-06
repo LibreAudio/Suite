@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DistrhoUI.hpp"
+#include "LibreAudioSnapshots.hpp"
 #include "LibreAudioUndoRedo.hpp"
 #include "FaustParameters.hpp"
 #include "nlohmann/json_fwd.hpp"
@@ -19,11 +20,16 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioUI : public UI,
+                     private LibreAudioSnapshots::Callback,
                      private LibreAudioUndoRedo::Callback
 {
 public:
     LibreAudioUI();
     ~LibreAudioUI() override;
+
+    static const std::vector<FaustParameter>& kFaustParameters;
+    static const std::vector<FaustParameter>& kFaustParametersIn;
+    static const std::vector<FaustParameter>& kFaustParametersOut;
 
 protected:
     // ----------------------------------------------------------------------------------------------------------------
@@ -45,41 +51,38 @@ protected:
     */
     void onImGuiDisplay() final;
 
-    bool onMouse(const MouseEvent& ev) final;
+    // bool onMouse(const MouseEvent& ev) final;
     void uiIdle() final;
 
     // ----------------------------------------------------------------------------------------------------------------
     // Other Callbacks
 
+    void snapshotDataToSave(uint32_t snapshot, const float* parameterValues) final;
+    void snapshotParametersChanged(const float* parameterValues) final;
     void undoRedoParameterChanged(uint32_t index, float value) final;
 
 private:
-    static const std::vector<FaustParameter>& kFaustParameters;
-    static const std::vector<FaustParameter>& kFaustParametersIn;
-    static const std::vector<FaustParameter>& kFaustParametersOut;
-
     static bool isParameterOutputOrTrigger(uint32_t index);
     static void serializeParameterValues(nlohmann::json& j, const float* parameterValues);
-    static void unserializeParameterValues(const nlohmann::json& j, float* parameterValues);
+    void unserializeParameterValues(const nlohmann::json& j, float* parameterValues);
 
     const uint32_t kParameterCount;
     float* const fParameterValues;
-    float** const fParameterValuesABCD;
+    float* const fParameterValuesWhenActivated;
 
+    LibreAudioSnapshots fSnapshots;
     LibreAudioUndoRedo fUndoRedo;
 
     std::vector<std::string> fParameterLabels;
     std::vector<std::string> fParameterRenders;
 
-    uint8_t fCurrentSnapshot = 0;
-    uint8_t fPreviousSnapshot = 0;
     bool fCopyingSnapshot = false;
 
-    uint32_t fLastMouseReleaseTime = 0;
+    // uint32_t fLastMouseReleaseTime = 0;
 
     void displayMeter(const FaustParameter &param, uint32_t index);
     void displaySlider(const FaustParameter &param, uint32_t index);
-    void saveCurrentSnapshot();
+    // void saveCurrentSnapshot();
     void snapshotButtonClicked(uint8_t snapshot);
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)

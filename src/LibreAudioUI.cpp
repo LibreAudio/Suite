@@ -25,11 +25,6 @@ START_NAMESPACE_DISTRHO
 
 const std::vector<FaustParameter>& LibreAudioUI::kFaustParameters = getFaustParameters();
 
-static constexpr bool isFaustParameterOutputOrTrigger(const FaustParameter& param)
-{
-    return param.isOutput || param.isTrigger;
-}
-
 bool LibreAudioUI::isParameterOutputOrTrigger(const uint32_t i)
 {
     return
@@ -83,7 +78,11 @@ void LibreAudioUI::unserializeParameterValues(const nlohmann::json& j, float* co
     const nlohmann::json& jparameters = j.at("parameters");
 
    #if LIBREAUDIO_WANT_DRYWET
-    parameterValues[kCommonParameterDryWet] = jparameters.at("dry_wet").get<float>();
+    try {
+        parameterValues[kCommonParameterDryWet] = jparameters.at("dry_wet").get<float>();
+    } catch(...) {
+        parameterValues[kCommonParameterDryWet] = fParameterValues[kCommonParameterDryWet];
+    }
    #endif
 
     for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
@@ -95,7 +94,9 @@ void LibreAudioUI::unserializeParameterValues(const nlohmann::json& j, float* co
 
         try {
             parameterValues[kParametersInputStart + i] = jparameters.at(param.symbol).get<float>();
-        } DISTRHO_SAFE_EXCEPTION("Missing input property");
+        } catch(...) {
+            parameterValues[kParametersInputStart + i] = fParameterValues[kParametersInputStart + i];
+        }
     }
 
     for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
@@ -107,7 +108,9 @@ void LibreAudioUI::unserializeParameterValues(const nlohmann::json& j, float* co
 
         try {
             parameterValues[kParametersOutputStart + i - kCommonIOParameters] = jparameters.at(param.symbol).get<float>();
-        } DISTRHO_SAFE_EXCEPTION("Missing output property");
+        } catch(...) {
+            parameterValues[kParametersOutputStart + i - kCommonIOParameters] = fParameterValues[kParametersOutputStart + i - kCommonIOParameters];
+        }
     }
 
     for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
@@ -119,7 +122,9 @@ void LibreAudioUI::unserializeParameterValues(const nlohmann::json& j, float* co
 
         try {
             parameterValues[kParametersMainStart + i] = jparameters.at(param.symbol).get<float>();
-        } DISTRHO_SAFE_EXCEPTION("Missing main property");
+        } catch(...) {
+            parameterValues[kParametersMainStart + i] = fParameterValues[kParametersMainStart + i];
+        }
     }
 }
 
@@ -129,15 +134,34 @@ const std::vector<FaustParameter>& LibreAudioUI::kFaustParametersOut = common_ou
 
 // --------------------------------------------------------------------------------------------------------------------
 
+static float* createParameterValues(const uint32_t paramCount)
+{
+    float* const values = new float[paramCount];
+
+    initCommonParameterValuesToDefault(values);
+
+    for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
+        values[kParametersInputStart + i] = LibreAudioUI::kFaustParametersIn[i].init;
+
+    for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
+        values[kParametersOutputStart + i - kCommonIOParameters] = LibreAudioUI::kFaustParametersOut[i].init;
+
+    for (uint32_t i = 0, size = LibreAudioUI::kFaustParameters.size(); i < size; ++i)
+        values[kParametersMainStart + i] = LibreAudioUI::kFaustParameters[i].init;
+
+    return values;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
 LibreAudioUI::LibreAudioUI()
     : UI(),
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
-      fParameterValues(new float[kParameterCount]),
-      fParameterValuesABCD(new float*[kNumSnapshots]),
+      fParameterValues(createParameterValues(kParameterCount)),
+      fParameterValuesWhenActivated(new float[kParameterCount]),
+      fSnapshots(kNumSnapshots, kParameterCount, fParameterValues, this),
       fUndoRedo(this)
 {
-    initCommonParameterValuesToDefault(fParameterValues);
-
     // set minimum size
     const double scaleFactor = getScaleFactor();
     setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
@@ -162,8 +186,6 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
-
-        fParameterValues[kParametersInputStart + i] = param.init;
     }
 
     for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
@@ -182,8 +204,6 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
-
-        fParameterValues[kParametersOutputStart + i - kCommonIOParameters] = param.init;
     }
 
     for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
@@ -202,24 +222,15 @@ LibreAudioUI::LibreAudioUI()
             render += " ";
             render += param.unit;
         }
-
-        fParameterValues[kParametersMainStart + i] = param.init;
     }
 
-    for (uint8_t i = 0; i < kNumSnapshots; ++i)
-    {
-        fParameterValuesABCD[i] = new float[kParameterCount];
-        std::memcpy(fParameterValuesABCD[i], fParameterValues, sizeof(float) * kParameterCount);
-    }
+    std::memcpy(fParameterValuesWhenActivated, fParameterValues, sizeof(float) * kParameterCount);
 }
 
 LibreAudioUI::~LibreAudioUI()
 {
-    for (uint8_t i = 0; i < kNumSnapshots; ++i)
-        delete[] fParameterValuesABCD[i];
-
     delete[] fParameterValues;
-    delete[] fParameterValuesABCD;
+    delete[] fParameterValuesWhenActivated;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -228,6 +239,8 @@ LibreAudioUI::~LibreAudioUI()
 void LibreAudioUI::parameterChanged(const uint32_t index, const float value)
 {
     fParameterValues[index] = value;
+
+    fSnapshots.updateParameterValue(index, value);
 }
 
 void LibreAudioUI::stateChanged(const char* const key, const char* const value)
@@ -240,7 +253,7 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         const uint8_t snapshot = value[0] - 'A';
         DISTRHO_SAFE_ASSERT_INT_RETURN(snapshot < kNumSnapshots, snapshot,);
 
-        fCurrentSnapshot = fPreviousSnapshot = snapshot;
+        fSnapshots.clearCurrentAndPrevious(snapshot);
         return;
     }
 
@@ -258,9 +271,15 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         const uint8_t snapshot = snapshotKey[0] -'a';
         DISTRHO_SAFE_ASSERT_INT_RETURN(snapshot < kNumSnapshots, snapshot,);
 
+        float* const parameterValues = new float[kParameterCount];
+        std::memset(parameterValues, 0, sizeof(float) * kParameterCount);
+
         try {
-            unserializeParameterValues(nlohmann::json::parse(value), fParameterValuesABCD[snapshot]);
+            unserializeParameterValues(nlohmann::json::parse(value), parameterValues);
         } DISTRHO_SAFE_EXCEPTION("failed to unserialize snapshot");
+
+        fSnapshots.clearParameterValues(snapshot, parameterValues);
+        delete[] parameterValues;
         return;
     }
 }
@@ -312,7 +331,7 @@ void LibreAudioUI::onImGuiDisplay()
 
     {
         const bool copyingSnapshot = fCopyingSnapshot;
-        const uint8_t currentSnapshot = fCurrentSnapshot;
+        const uint8_t currentSnapshot = fSnapshots.getCurrent();
 
         ImGui::SeparatorText("Snapshots");
         ImGui::BeginGroup();
@@ -482,31 +501,62 @@ void LibreAudioUI::onImGuiDisplay()
     ImGui::End();
 }
 
-bool LibreAudioUI::onMouse(const MouseEvent& ev)
-{
-    if (ev.press)
-        fLastMouseReleaseTime = 0;
-    else
-        fLastMouseReleaseTime = d_gettime_ms() ?: 1;
-
-    return UI::onMouse(ev);
-}
+// bool LibreAudioUI::onMouse(const MouseEvent& ev)
+// {
+//     if (ev.press)
+//         fLastMouseReleaseTime = 0;
+//     else
+//         fLastMouseReleaseTime = d_gettime_ms() ?: 1;
+//
+//     return UI::onMouse(ev);
+// }
 
 void LibreAudioUI::uiIdle()
 {
-    if (fLastMouseReleaseTime != 0 && fLastMouseReleaseTime - d_gettime_ms() >= 250)
-    {
-        fLastMouseReleaseTime = 0;
-        saveCurrentSnapshot();
-    }
+    fSnapshots.idle();
+    // if (fLastMouseReleaseTime != 0 && fLastMouseReleaseTime - d_gettime_ms() >= 250)
+    // {
+    //     fLastMouseReleaseTime = 0;
+    //     saveCurrentSnapshot();
+    // }
 }
 
 // ----------------------------------------------------------------------------------------------------------------
 // Other Callbacks
 
+void LibreAudioUI::snapshotDataToSave(const uint32_t snapshot, const float* const parameterValues)
+{
+    std::string value = "{}";
+    try {
+        nlohmann::json j;
+        serializeParameterValues(j, parameterValues);
+        value = j.dump(-1, ' ', true, nlohmann::json::error_handler_t::replace);
+    } DISTRHO_SAFE_EXCEPTION("failed to serialize snapshot");
+
+    setState(kStateKeys[kStateSnapshotValuesA + snapshot], value.c_str());
+}
+
+void LibreAudioUI::snapshotParametersChanged(const float* const parameterValues)
+{
+    for (uint32_t i = 0; i < kParameterCount; ++i)
+    {
+        if (isParameterOutputOrTrigger(i))
+            continue;
+        if (d_isEqual(fParameterValues[i], parameterValues[i]))
+            continue;
+
+        fParameterValues[i] = parameterValues[i];
+
+        editParameter(i, true);
+        setParameterValue(i, fParameterValues[i]);
+        editParameter(i, false);
+    }
+}
+
 void LibreAudioUI::undoRedoParameterChanged(const uint32_t index, const float value)
 {
     fParameterValues[index] = value;
+    fSnapshots.updateParameterValue(index, value);
 
     editParameter(index, true);
     setParameterValue(index, value);
@@ -541,20 +591,23 @@ void LibreAudioUI::displaySlider(const FaustParameter& param, const uint32_t ind
 
     if (ImGui::IsItemActivated())
     {
-        fUndoRedo.pushIfFirst({ index, oldvalue });
-
+        fParameterValuesWhenActivated[index] = oldvalue;
         editParameter(index, true);
     }
 
     if (modified)
     {
         setParameterValue(index, *valueptr);
+        fSnapshots.updateParameterValue(index, *valueptr);
     }
 
     if (ImGui::IsItemDeactivated())
     {
-        if (d_isNotEqual(fParameterValues[index], fParameterValuesABCD[fCurrentSnapshot][index]))
+        if (d_isNotEqual(fParameterValues[index], fParameterValuesWhenActivated[index]))
+        {
+            fUndoRedo.pushIfFirst({ index, fParameterValuesWhenActivated[index] });
             fUndoRedo.push({ index, fParameterValues[index] });
+        }
 
         editParameter(index, false);
     }
@@ -570,81 +623,31 @@ void LibreAudioUI::displayMeter(const FaustParameter& param, const uint32_t inde
                        ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
 }
 
-void LibreAudioUI::saveCurrentSnapshot()
-{
-    std::memcpy(fParameterValuesABCD[fCurrentSnapshot], fParameterValues, sizeof(float) * kParameterCount);
-
-    std::string value = "{}";
-    try {
-        nlohmann::json j;
-        serializeParameterValues(j, fParameterValues);
-        value = j.dump(-1, ' ', true, nlohmann::json::error_handler_t::replace);
-    } DISTRHO_SAFE_EXCEPTION("failed to serialize snapshot");
-
-    setState(kStateKeys[kStateSnapshotValuesA + fCurrentSnapshot], value.c_str());
-}
-
 void LibreAudioUI::snapshotButtonClicked(uint8_t snapshot)
 {
     // nothing to do if current snapshot clicked and there is no previous
-    if (fCurrentSnapshot == snapshot && fPreviousSnapshot == snapshot)
+    if (fSnapshots.getCurrent() == snapshot && fSnapshots.getPrevious() == snapshot)
         return;
 
     // special case for copy & pasting snapshot
     if (fCopyingSnapshot)
     {
         fCopyingSnapshot = false;
-        DISTRHO_SAFE_ASSERT_RETURN(fCurrentSnapshot != snapshot,);
-
-        std::memcpy(fParameterValuesABCD[fCurrentSnapshot], fParameterValues, sizeof(float) * kParameterCount);
-        std::memcpy(fParameterValuesABCD[snapshot], fParameterValues, sizeof(float) * kParameterCount);
-
-        // set state of current snapshot (values) before changing to new one
-        saveCurrentSnapshot();
-
-        // set new snapshot (index)
-        fPreviousSnapshot = fCurrentSnapshot;
-        fCurrentSnapshot = snapshot;
-
-        // set state of new snapshot (values) too
-        saveCurrentSnapshot();
+        fSnapshots.copyTo(snapshot);
         return;
     }
 
-    // set state of current snapshot (values) before changing to new one
-    saveCurrentSnapshot();
-
     // clicked new snapshot, load it
-    if (fCurrentSnapshot != snapshot)
-    {
-        fPreviousSnapshot = fCurrentSnapshot;
-        fCurrentSnapshot = snapshot;
-    }
+    if (fSnapshots.getCurrent() != snapshot)
+        fSnapshots.load(snapshot);
+
     // clicked current snapshot, load previous one
     else
-    {
-        std::swap(fPreviousSnapshot, fCurrentSnapshot);
-        snapshot = fCurrentSnapshot;
-    }
+        fSnapshots.load(fSnapshots.getPrevious());
 
     // set state of active/current snapshot (index)
     const char snapshotStr[] = { static_cast<char>('A' + snapshot), '\0' };
     setState(kStateKeys[kStateCurrentSnapshot], snapshotStr);
-
-    const float* const snapshotValues = fParameterValuesABCD[snapshot];
-    for (uint32_t i = 0; i < kParameterCount; ++i)
-    {
-        if (isParameterOutputOrTrigger(i))
-            continue;
-        if (d_isEqual(fParameterValues[i], snapshotValues[i]))
-            continue;
-
-        fParameterValues[i] = snapshotValues[i];
-
-        editParameter(i, true);
-        setParameterValue(i, fParameterValues[i]);
-        editParameter(i, false);
-    }
 }
 
 // --------------------------------------------------------------------------------------------------------------------

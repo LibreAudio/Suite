@@ -29,6 +29,11 @@ struct FaustParameter
     bool isTrigger : 1;
 };
 
+inline constexpr bool isFaustParameterOutputOrTrigger(const FaustParameter& param)
+{
+    return param.isOutput || param.isTrigger;
+}
+
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
