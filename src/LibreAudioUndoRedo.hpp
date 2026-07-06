@@ -25,10 +25,22 @@ struct LibreAudioUndoRedo {
 
     using Action = std::vector<Parameter>;
 
+    struct Actions {
+        std::vector<Action> data;
+        uint32_t position = UINT32_MAX;
+    };
+
     LibreAudioUndoRedo(Callback* const callback);
 
     bool canUndo() const noexcept;
     bool canRedo() const noexcept;
+
+    void clear();
+
+    inline const Actions& getActions() const noexcept
+    {
+        return fActions;
+    }
 
     void push(const Parameter& param);
     void pushIfFirst(const Parameter& param);
@@ -36,10 +48,11 @@ struct LibreAudioUndoRedo {
     void undo();
     void redo();
 
+    void swapActions(Actions&& actions);
+
 private:
     Callback* const fCallback;
-    std::vector<Action> fActions;
-    uint32_t fPosition = UINT32_MAX;
+    Actions fActions;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

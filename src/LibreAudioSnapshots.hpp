@@ -4,24 +4,33 @@
 
 #pragma once
 
-#include "DistrhoDetails.hpp"
+#include "LibreAudioUndoRedo.hpp"
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct LibreAudioSnapshots {
+struct LibreAudioSnapshots : private LibreAudioUndoRedo::Callback {
     struct Callback {
         virtual ~Callback() = default;
-        virtual void snapshotDataToSave(uint32_t snapshot, const float* parameterValues) = 0;
+        virtual void snapshotDataToSave(uint32_t snapshot,
+                                        const float* parameterValues,
+                                        const LibreAudioUndoRedo::Actions& undoRedoActions) = 0;
+        virtual void snapshotParameterChanged(uint32_t parameterIndex, float parameterValue) = 0;
         virtual void snapshotParametersChanged(const float* parameterValues) = 0;
     };
 
     LibreAudioSnapshots(uint32_t snapshotCount,
                         uint32_t parameterCount,
                         const float* parameterValues,
-                        Callback* const callback);
+                        Callback* callback);
     ~LibreAudioSnapshots();
+
+    bool canUndo() const noexcept;
+    bool canRedo() const noexcept;
+
+    void undo();
+    void redo();
 
     inline uint32_t getCurrent() const noexcept
     {
@@ -35,13 +44,15 @@ struct LibreAudioSnapshots {
 
     void idle();
 
-    void clearCurrentAndPrevious(uint32_t snapshot);
-    void clearParameterValues(uint32_t snapshot, const float* parameterValues);
-
     void copyTo(uint32_t snapshot);
     void load(uint32_t snapshot);
 
-    void updateParameterValue(uint32_t parameterIndex, float parameterValue) noexcept;
+    void restoreCurrentAndPrevious(uint32_t snapshot);
+    void restoreSnapshotData(uint32_t snapshot,
+                             const float* parameterValues,
+                             LibreAudioUndoRedo::Actions&& undoRedoActions);
+
+    void updateParameterValue(uint32_t parameterIndex, float parameterValue, float parameterValueOnDragStart) noexcept;
 
 private:
     Callback* const fCallback;
@@ -50,9 +61,11 @@ private:
     uint32_t fCurrent = 0;
     uint32_t fPrevious = fCurrent;
     float** const fParameterValues;
+    LibreAudioUndoRedo** const fUndoRedos;
     bool* const fUpdated;
 
     void triggerSave(uint32_t snapshot);
+    void undoRedoParameterChanged(uint32_t index, float value) final;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

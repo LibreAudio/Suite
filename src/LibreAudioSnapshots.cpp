@@ -17,21 +17,47 @@ LibreAudioSnapshots::LibreAudioSnapshots(const uint32_t snapshotCount,
       fSnapshotCount(snapshotCount),
       fCurrent(0),
       fParameterValues(new float*[snapshotCount]),
+      fUndoRedos(new LibreAudioUndoRedo*[snapshotCount]),
       fUpdated(new bool[snapshotCount])
 {
     for (uint32_t i = 0; i < fSnapshotCount; ++i)
     {
         fParameterValues[i] = new float[parameterCount];
         std::memcpy(fParameterValues[i], parameterValues, sizeof(float) * parameterCount);
+        fUndoRedos[i] = new LibreAudioUndoRedo(this);
     }
 }
 
 LibreAudioSnapshots::~LibreAudioSnapshots()
 {
     for (uint32_t i = 0; i < fSnapshotCount; ++i)
+    {
         delete[] fParameterValues[i];
+        delete[] fUndoRedos[i];
+    }
     delete[] fParameterValues;
+    delete[] fUndoRedos;
     delete[] fUpdated;
+}
+
+bool LibreAudioSnapshots::canUndo() const noexcept
+{
+    return fUndoRedos[fCurrent]->canUndo();
+}
+
+bool LibreAudioSnapshots::canRedo() const noexcept
+{
+    return fUndoRedos[fCurrent]->canRedo();
+}
+
+void LibreAudioSnapshots::undo()
+{
+    fUndoRedos[fCurrent]->undo();
+}
+
+void LibreAudioSnapshots::redo()
+{
+    fUndoRedos[fCurrent]->redo();
 }
 
 void LibreAudioSnapshots::idle()
@@ -41,16 +67,6 @@ void LibreAudioSnapshots::idle()
         if (fUpdated[i])
             triggerSave(i);
     }
-}
-
-void LibreAudioSnapshots::clearCurrentAndPrevious(const uint32_t snapshot)
-{
-    fCurrent = fPrevious = snapshot;
-}
-
-void LibreAudioSnapshots::clearParameterValues(const uint32_t snapshot, const float* const parameterValues)
-{
-    std::memcpy(fParameterValues[snapshot], parameterValues, sizeof(float) * fParameterCount);
 }
 
 void LibreAudioSnapshots::copyTo(const uint32_t snapshot)
@@ -77,21 +93,54 @@ void LibreAudioSnapshots::load(const uint32_t snapshot)
     fCallback->snapshotParametersChanged(fParameterValues[snapshot]);
 }
 
-void LibreAudioSnapshots::updateParameterValue(const uint32_t parameterIndex, const float parameterValue) noexcept
+void LibreAudioSnapshots::restoreCurrentAndPrevious(const uint32_t snapshot)
+{
+    fCurrent = fPrevious = snapshot;
+}
+
+void LibreAudioSnapshots::restoreSnapshotData(const uint32_t snapshot,
+                                              const float* const parameterValues,
+                                              LibreAudioUndoRedo::Actions&& undoRedoActions)
+{
+    std::memcpy(fParameterValues[snapshot], parameterValues, sizeof(float) * fParameterCount);
+
+    fUndoRedos[snapshot]->swapActions(std::move(undoRedoActions));
+}
+
+void LibreAudioSnapshots::updateParameterValue(const uint32_t parameterIndex,
+                                               const float parameterValue,
+                                               const float parameterValueOnDragStart) noexcept
 {
     DISTRHO_SAFE_ASSERT_RETURN(parameterIndex < fParameterCount,);
 
-    if (d_isEqual(fParameterValues[fCurrent][parameterIndex], parameterValue))
-        return;
+    if (d_isNotEqual(parameterValueOnDragStart, parameterValue))
+    {
+        fUndoRedos[fCurrent]->pushIfFirst({ parameterIndex, parameterValueOnDragStart });
+        fUndoRedos[fCurrent]->push({ parameterIndex, parameterValue });
+    }
 
-    fParameterValues[fCurrent][parameterIndex] = parameterValue;
-    fUpdated[fCurrent] = true;
+    if (d_isNotEqual(fParameterValues[fCurrent][parameterIndex], parameterValue))
+    {
+        fParameterValues[fCurrent][parameterIndex] = parameterValue;
+        fUpdated[fCurrent] = true;
+    }
 }
 
 void LibreAudioSnapshots::triggerSave(const uint32_t snapshot)
 {
     fUpdated[snapshot] = false;
-    fCallback->snapshotDataToSave(snapshot, fParameterValues[snapshot]);
+    fCallback->snapshotDataToSave(snapshot, fParameterValues[snapshot], fUndoRedos[fCurrent]->getActions());
+}
+
+void LibreAudioSnapshots::undoRedoParameterChanged(const uint32_t index, const float value)
+{
+    if (d_isNotEqual(fParameterValues[fCurrent][index], value))
+    {
+        fParameterValues[fCurrent][index] = value;
+        fUpdated[fCurrent] = true;
+    }
+
+    fCallback->snapshotParameterChanged(index, value);
 }
 
 // --------------------------------------------------------------------------------------------------------------------

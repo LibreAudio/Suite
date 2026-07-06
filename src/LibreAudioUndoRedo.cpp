@@ -15,43 +15,49 @@ LibreAudioUndoRedo::LibreAudioUndoRedo(Callback* const callback)
 
 bool LibreAudioUndoRedo::canUndo() const noexcept
 {
-    return !fActions.empty() && fPosition != UINT32_MAX && fPosition != 0;
+    return !fActions.data.empty() && fActions.position != UINT32_MAX && fActions.position != 0;
 }
 
 bool LibreAudioUndoRedo::canRedo() const noexcept
 {
-    return !fActions.empty() && fPosition < fActions.size() - 1;
+    return !fActions.data.empty() && fActions.position < fActions.data.size() - 1;
+}
+
+void LibreAudioUndoRedo::clear()
+{
+    fActions.data.clear();
+    fActions.position = UINT32_MAX;
 }
 
 void LibreAudioUndoRedo::push(const Parameter& param)
 {
-    DISTRHO_SAFE_ASSERT_RETURN(fPosition != UINT32_MAX,)
+    DISTRHO_SAFE_ASSERT_RETURN(fActions.position != UINT32_MAX,)
 
-    if (const uint32_t toErase = fActions.size() - fPosition - 1)
-        fActions.erase(fActions.cbegin() + toErase, fActions.cend());
+    if (const uint32_t toErase = fActions.data.size() - fActions.position - 1)
+        fActions.data.erase(fActions.data.cbegin() + toErase, fActions.data.cend());
 
     const std::vector<Parameter> action = { param };
-    fActions.emplace_back(std::move(action));
-    fPosition = fActions.size() - 1;
+    fActions.data.emplace_back(std::move(action));
+    fActions.position = fActions.data.size() - 1;
 }
 
 void LibreAudioUndoRedo::pushIfFirst(const Parameter& param)
 {
-    if (fPosition != UINT32_MAX || ! fActions.empty())
+    if (fActions.position != UINT32_MAX || ! fActions.data.empty())
         return;
 
     const std::vector<Parameter> action = { param };
-    fActions.emplace_back(std::move(action));
-    fPosition = 0;
+    fActions.data.emplace_back(std::move(action));
+    fActions.position = 0;
 }
 
 void LibreAudioUndoRedo::undo()
 {
     DISTRHO_SAFE_ASSERT_RETURN(canUndo(),);
 
-    --fPosition;
+    --fActions.position;
 
-    for (const Parameter& param : fActions[fPosition])
+    for (const Parameter& param : fActions.data[fActions.position])
         fCallback->undoRedoParameterChanged(param.index, param.value);
 }
 
@@ -59,10 +65,15 @@ void LibreAudioUndoRedo::redo()
 {
     DISTRHO_SAFE_ASSERT_RETURN(canRedo(),);
 
-    ++fPosition;
+    ++fActions.position;
 
-    for (const Parameter& param : fActions[fPosition])
+    for (const Parameter& param : fActions.data[fActions.position])
         fCallback->undoRedoParameterChanged(param.index, param.value);
+}
+
+void LibreAudioUndoRedo::swapActions(Actions&& actions)
+{
+    fActions = actions;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
