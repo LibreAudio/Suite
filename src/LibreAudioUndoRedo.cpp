@@ -13,14 +13,19 @@ LibreAudioUndoRedo::LibreAudioUndoRedo(Callback* const callback)
 {
 }
 
-bool LibreAudioUndoRedo::canUndo() const noexcept
+inline bool LibreAudioUndoRedo::canUndo() const noexcept
 {
-    return !fActions.data.empty() && fActions.position != UINT32_MAX && fActions.position != 0;
+    return !isEmpty() && fActions.position != 0;
 }
 
-bool LibreAudioUndoRedo::canRedo() const noexcept
+inline bool LibreAudioUndoRedo::canRedo() const noexcept
 {
-    return !fActions.data.empty() && fActions.position < fActions.data.size() - 1;
+    return !isEmpty() && fActions.position < fActions.data.size() - 1;
+}
+
+inline bool LibreAudioUndoRedo::isEmpty() const noexcept
+{
+    return fActions.data.empty() || fActions.position == UINT32_MAX;
 }
 
 void LibreAudioUndoRedo::clear()
@@ -34,7 +39,7 @@ void LibreAudioUndoRedo::push(const Parameter& param)
     DISTRHO_SAFE_ASSERT_RETURN(fActions.position != UINT32_MAX,)
 
     if (const uint32_t toErase = fActions.data.size() - fActions.position - 1)
-        fActions.data.erase(fActions.data.cbegin() + toErase, fActions.data.cend());
+        fActions.data.erase(fActions.data.cend() - toErase, fActions.data.cend());
 
     const std::vector<Parameter> action = { param };
     fActions.data.emplace_back(std::move(action));

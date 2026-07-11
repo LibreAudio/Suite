@@ -34,6 +34,7 @@ struct LibreAudioUndoRedo {
 
     bool canUndo() const noexcept;
     bool canRedo() const noexcept;
+    bool isEmpty() const noexcept;
 
     void clear();
 

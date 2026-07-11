@@ -20,11 +20,12 @@ LibreAudioSnapshots::LibreAudioSnapshots(const uint32_t snapshotCount,
       fUndoRedos(new LibreAudioUndoRedo*[snapshotCount]),
       fUpdated(new bool[snapshotCount])
 {
-    for (uint32_t i = 0; i < fSnapshotCount; ++i)
+    for (uint32_t i = 0; i < snapshotCount; ++i)
     {
         fParameterValues[i] = new float[parameterCount];
         std::memcpy(fParameterValues[i], parameterValues, sizeof(float) * parameterCount);
         fUndoRedos[i] = new LibreAudioUndoRedo(this);
+        fUpdated[i] = false;
     }
 }
 
@@ -33,7 +34,7 @@ LibreAudioSnapshots::~LibreAudioSnapshots()
     for (uint32_t i = 0; i < fSnapshotCount; ++i)
     {
         delete[] fParameterValues[i];
-        delete[] fUndoRedos[i];
+        delete fUndoRedos[i];
     }
     delete[] fParameterValues;
     delete[] fUndoRedos;

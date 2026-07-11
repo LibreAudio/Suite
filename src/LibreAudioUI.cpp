@@ -105,7 +105,6 @@ LibreAudioUI::LibreAudioUI()
       fParameterValues(createParameterValues(kParameterCount)),
       fParameterValuesWhenActivated(new float[kParameterCount]),
       fSnapshots(kNumSnapshots, kParameterCount, fParameterValues, this)
-      // fUndoRedo(this)
 {
     // set minimum size
     const double scaleFactor = getScaleFactor();
