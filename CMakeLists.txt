@@ -25,7 +25,7 @@ find_program(FAUSTDR faustdr REQUIRED)
 set(COMMON_FLAGS "-ffast-math")
 
 # invalidate possible -fno-finite-math-only from user environment
-set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only")
+set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only -Wno-nan-infinity-disabled")
 
 # use a custom namespace for all DPF things
 set(COMMON_FLAGS "${COMMON_FLAGS} -DDISTRHO_NAMESPACE=LibreAudioSuiteDISTRHO")
@@ -48,39 +48,36 @@ if("${C_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 #######################################################################################################################
-# debug flags
+# strip flags
 
-set(DEBUG_FLAGS "-O0")
-set(DEBUG_FLAGS "${DEBUG_FLAGS} -g")
-set(DEBUG_FLAGS "${DEBUG_FLAGS} -DDEBUG=1")
+# split sections to help reduce binary size
+set(STRIP_FLAGS "-fdata-sections -ffunction-sections")
 
-#######################################################################################################################
-# release flags
-
-set(RELEASE_FLAGS "-O3")
-set(RELEASE_FLAGS "${RELEASE_FLAGS} -DNDEBUG=1")
-set(RELEASE_FLAGS "${RELEASE_FLAGS}  -fdata-sections -ffunction-sections")
-# set(RELEASE_FLAGS "${RELEASE_FLAGS} -fsingle-precision-constant")
+# strip symbols
 if("${C_COMPILER_ID}" STREQUAL "AppleClang")
-  set(RELEASE_FLAGS "${RELEASE_FLAGS} -Wl,-dead_strip,-dead_strip_dylibs,-x")
+  set(STRIP_FLAGS "${RELEASE_FLAGS} -Wl,-dead_strip,-dead_strip_dylibs,-x")
 elseif("${C_COMPILER_ID}" STREQUAL "GNU")
-  set(RELEASE_FLAGS "${RELEASE_FLAGS} -Wl,-O1,--as-needed,--gc-sections,--strip-all")
+  set(STRIP_FLAGS "${RELEASE_FLAGS} -Wl,--as-needed,--gc-sections,--strip-all")
 endif()
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+#######################################################################################################################
+# setup flags according to build type
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Release" OR "${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
   set(CMAKE_C_VISIBILITY_PRESET hidden)
   set(CMAKE_CXX_VISIBILITY_PRESET hidden)
   set(CMAKE_VISIBILITY_INLINES_HIDDEN TRUE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RELEASE_FLAGS} ${COMMON_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RELEASE_FLAGS} ${COMMON_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} ${STRIP_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} ${STRIP_FLAGS}")
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DEBUG_FLAGS} ${COMMON_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DEBUG_FLAGS} ${COMMON_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
 endif()
 
 #######################################################################################################################
 # setup dependencies
 
+add_subdirectory(deps)
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
 add_subdirectory(deps/json)
