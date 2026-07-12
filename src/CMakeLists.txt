@@ -120,94 +120,6 @@ endfunction()
 las_generate_faust_cpp(common/input)
 las_generate_faust_cpp(common/output)
 
-add_library(las-definitions INTERFACE)
-
-set_target_properties(las-definitions
-  PROPERTIES
-    INTERPROCEDURAL_OPTIMIZATION OFF
-    POSITION_INDEPENDENT_CODE ON
-)
-
-if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
-  target_compile_options(las-definitions
-    INTERFACE
-      -mtune=generic -msse -msse2 -mfpmath=sse
-  )
-elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv[3-9][a-z]*)$")
-  target_compile_options(las-definitions
-    INTERFACE
-      -mfpu=neon-vfpv4 -mfloat-abi=hard
-  )
-endif()
-
-target_compile_definitions(las-definitions
-  INTERFACE
-    IMGUI_DISABLE_DEBUG_TOOLS
-    IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
-    IMGUI_DISABLE_DEMO_WINDOWS
-    VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
-    VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
-    VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
-    $<$<BOOL:${LIBREAUDIO_BLOCK_SIZE}>:LIBREAUDIO_BLOCK_SIZE=${LIBREAUDIO_BLOCK_SIZE}>
-)
-
-target_include_directories(las-definitions
-  INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}
-    .
-)
-
-target_sources(las-definitions
-  INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
-)
-
-# ---------------------------------------------------------------------------------------------------------------------
-
-add_library(las-definitions-dsp INTERFACE)
-
-target_compile_definitions(las-definitions-dsp
-  INTERFACE
-    $<$<BOOL:${LIBREAUDIO_BLOCK_SIZE}>:LIBREAUDIO_BLOCK_SIZE=${LIBREAUDIO_BLOCK_SIZE}>
-)
-
-target_sources(las-definitions
-  INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
-)
-
-# ---------------------------------------------------------------------------------------------------------------------
-
-add_library(las-definitions-ui INTERFACE)
-
-target_compile_definitions(las-definitions-ui
-  INTERFACE
-    IMGUI_DISABLE_DEBUG_TOOLS
-    IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
-    IMGUI_DISABLE_DEMO_WINDOWS
-)
-
-target_include_directories(las-definitions-ui
-  INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ../deps/DPF-Widgets/generic
-    ../deps/DPF-Widgets/opengl
-    .
-)
-
-target_sources(las-definitions-ui
-  INTERFACE
-    ../deps/DPF-Widgets/opengl/DearImGui.cpp
-    LibreAudioSnapshots.cpp
-    LibreAudioUndoRedo.cpp
-)
-
 # ---------------------------------------------------------------------------------------------------------------------
 # rnnoise library
 
@@ -272,7 +184,7 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
   set_source_files_properties(../deps/rnnoise/src/x86/nnet_sse4_1.c
     PROPERTIES
       COMPILE_FLAGS
-        -msse4.1
+        "-msse4.1"
   )
 endif()
 
@@ -288,58 +200,79 @@ function(las_add_plugin LABEL)
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 
+  list(APPEND EXTRA_UI_LIBS nlohmann_json::nlohmann_json)
+
   dpf_add_plugin(${TARGET}
     TARGETS
       clap lv2 vst3 jack
     FILES_COMMON
+      ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
     FILES_DSP
       LibreAudioPlugin.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
     FILES_UI
       LibreAudioUI.cpp
+      LibreAudioSnapshots.cpp
+      LibreAudioUndoRedo.cpp
+      ../deps/DPF-Widgets/opengl/DearImGui.cpp
     RUNTIME_TESTING
   )
 
   las_generate_faust_cpp(${LABEL})
   las_generate_faust_plugin(${LABEL})
 
+  set_target_properties(${TARGET}
+    PROPERTIES
+      INTERPROCEDURAL_OPTIMIZATION OFF
+      POSITION_INDEPENDENT_CODE ON
+  )
+
   target_compile_definitions(${TARGET}
     PUBLIC
-      DISTRHO_NAMESPACE=${LABEL}
       DISTRHO_PLUGIN_CLAP_ID="org.libreaudio.${LABEL}"
       DISTRHO_PLUGIN_LABEL="${LABEL}"
       DISTRHO_PLUGIN_URI="https://libreaudio.org/plugins/${LABEL}"
+      IMGUI_DISABLE_DEBUG_TOOLS
+      IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
+      IMGUI_DISABLE_DEMO_WINDOWS
+      VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
+      VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
+      VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
+      $<$<BOOL:${LIBREAUDIO_BLOCK_SIZE}>:LIBREAUDIO_BLOCK_SIZE=${LIBREAUDIO_BLOCK_SIZE}>
   )
 
   target_include_directories(${TARGET}
     PUBLIC
+      ${CMAKE_CURRENT_BINARY_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}
-  )
-
-  target_link_libraries(${TARGET}
-    PUBLIC
-      las-definitions
+      .
   )
 
   target_link_libraries(${TARGET}-dsp
     PUBLIC
-      las-definitions-dsp
       ${EXTRA_DSP_LIBS}
+  )
+
+  target_include_directories(${TARGET}-ui
+    PUBLIC
+      ../deps/DPF-Widgets/generic
+      ../deps/DPF-Widgets/opengl
   )
 
   target_link_libraries(${TARGET}-ui
     PUBLIC
-      las-definitions-ui
-      nlohmann_json::nlohmann_json
       ${EXTRA_UI_LIBS}
-  )
-
-  target_sources(${TARGET}
-    PRIVATE
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
   )
 endfunction()
 

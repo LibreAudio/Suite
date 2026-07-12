@@ -12,17 +12,50 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
+#######################################################################################################################
+# check for dependencies
+
+find_program(FAUST faust REQUIRED)
+find_program(FAUSTDR faustdr REQUIRED)
+
+#######################################################################################################################
+# common flags
+
+# enable fast-math for all builds
 set(COMMON_FLAGS "-ffast-math")
+
 # invalidate possible -fno-finite-math-only from user environment
 set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only")
 
-if("${C_COMPILER_ID}" STREQUAL "GNU")
-  set(COMMON_FLAGS "${COMMON_FLAGS} -fno-gnu-unique -Wl,--no-undefined")
+# use a custom namespace for all DPF things
+set(COMMON_FLAGS "${COMMON_FLAGS} -DDISTRHO_NAMESPACE=LibreAudioSuiteDISTRHO")
+set(COMMON_FLAGS "${COMMON_FLAGS} -DDGL_NAMESPACE=LibreAudioSuiteDGL")
+
+# base tuning, SSE2 or NEON required
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+  set(COMMON_FLAGS "${COMMON_FLAGS} -mtune=generic -msse -msse2 -mfpmath=sse")
+elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv[3-9][a-z]*)$")
+  set(COMMON_FLAGS "${COMMON_FLAGS} -mfpu=neon-vfpv4 -mfloat-abi=hard")
 endif()
+
+# GCC specific flags
+if("${C_COMPILER_ID}" STREQUAL "GNU")
+  # do not keep GNU-specific symbols around, preventing dlclose() from working properly
+  set(COMMON_FLAGS "${COMMON_FLAGS} -fno-gnu-unique")
+
+  # always report undefined symbols
+  set(COMMON_FLAGS "${COMMON_FLAGS} -Wl,--no-undefined")
+endif()
+
+#######################################################################################################################
+# debug flags
 
 set(DEBUG_FLAGS "-O0")
 set(DEBUG_FLAGS "${DEBUG_FLAGS} -g")
 set(DEBUG_FLAGS "${DEBUG_FLAGS} -DDEBUG=1")
+
+#######################################################################################################################
+# release flags
 
 set(RELEASE_FLAGS "-O3")
 set(RELEASE_FLAGS "${RELEASE_FLAGS} -DNDEBUG=1")
@@ -45,10 +78,12 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DEBUG_FLAGS} ${COMMON_FLAGS}")
 endif()
 
-find_program(FAUST faust REQUIRED)
-find_program(FAUSTDR faustdr REQUIRED)
+#######################################################################################################################
+# setup dependencies
 
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
 add_subdirectory(deps/json)
+
+# main source folder
 add_subdirectory(src)

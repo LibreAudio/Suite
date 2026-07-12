@@ -13,17 +13,17 @@ LibreAudioUndoRedo::LibreAudioUndoRedo(Callback* const callback)
 {
 }
 
-inline bool LibreAudioUndoRedo::canUndo() const noexcept
+bool LibreAudioUndoRedo::canUndo() const noexcept
 {
     return !isEmpty() && fActions.position != 0;
 }
 
-inline bool LibreAudioUndoRedo::canRedo() const noexcept
+bool LibreAudioUndoRedo::canRedo() const noexcept
 {
     return !isEmpty() && fActions.position < fActions.data.size() - 1;
 }
 
-inline bool LibreAudioUndoRedo::isEmpty() const noexcept
+bool LibreAudioUndoRedo::isEmpty() const noexcept
 {
     return fActions.data.empty() || fActions.position == UINT32_MAX;
 }

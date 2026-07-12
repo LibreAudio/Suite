@@ -116,3 +116,17 @@ FAUSTDR_END_NAMESPACE
 #undef exp10
 #endif
 
+// --------------------------------------------------------------------------------------------------------------------
+
+{% if not id.startswith("common_") %}
+
+START_NAMESPACE_DISTRHO
+
+FaustDSP* createDSP()
+{
+    return new {{id}}::{{id}};
+}
+
+END_NAMESPACE_DISTRHO
+
+{% endif %}

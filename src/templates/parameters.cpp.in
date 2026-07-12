@@ -56,3 +56,18 @@ const std::vector<FaustParameter>& getFaustParameters()
 // --------------------------------------------------------------------------------------------------------------------
 
 }
+
+// --------------------------------------------------------------------------------------------------------------------
+
+{% if not id.startswith("common_") %}
+
+START_NAMESPACE_DISTRHO
+
+const std::vector<FaustParameter>& getFaustParameters()
+{
+    return {{id}}::getFaustParameters();
+}
+
+END_NAMESPACE_DISTRHO
+
+{% endif %}
