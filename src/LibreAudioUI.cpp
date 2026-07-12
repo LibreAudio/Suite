@@ -219,7 +219,7 @@ void LibreAudioUI::stateChanged(const char* const key, const char* const value)
         // d_stdout("loading snapshot %u | %s", snapshot, value);
 
         float* const parameterValues = new float[kParameterCount];
-        std::memset(parameterValues, 0, sizeof(float) * kParameterCount);
+        std::memcpy(parameterValues, fParameterValues, sizeof(float) * kParameterCount);
 
         nlohmann::json j;
 

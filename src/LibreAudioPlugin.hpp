@@ -11,6 +11,10 @@
 
 #include <atomic>
 
+#if LIBREAUDIO_WANT_SPEECH_DETECTION
+#include "LibreAudioSpeechDetection.hpp"
+#endif
+
 struct FaustDSP;
 
 /* TODO
@@ -126,6 +130,10 @@ private:
 
     LinearValueSmoother fGlobalDryValue;
     LinearValueSmoother fGlobalWetValue;
+
+   #if LIBREAUDIO_WANT_SPEECH_DETECTION
+    LibreAudioSpeechDetection<2> fSpeechDetection;
+   #endif
 
     float* const fInternalBuffer = new float[kInternalBlockSize * 4];
     float* fCycleBuffer1[2] = {

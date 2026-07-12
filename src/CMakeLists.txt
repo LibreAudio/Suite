@@ -124,14 +124,19 @@ add_library(las-definitions INTERFACE)
 
 set_target_properties(las-definitions
   PROPERTIES
-    INTERPROCEDURAL_OPTIMIZATION TRUE
+    INTERPROCEDURAL_OPTIMIZATION OFF
     POSITION_INDEPENDENT_CODE ON
 )
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Release" AND NOT WIN32)
-  set_target_properties(las-definitions
-    PROPERTIES
-      INTERPROCEDURAL_OPTIMIZATION TRUE
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+  target_compile_options(las-definitions
+    INTERFACE
+      -mtune=generic -msse -msse2 -mfpmath=sse
+  )
+elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv[3-9][a-z]*)$")
+  target_compile_options(las-definitions
+    INTERFACE
+      -mfpu=neon-vfpv4 -mfloat-abi=hard
   )
 endif()
 
@@ -149,30 +154,138 @@ target_compile_definitions(las-definitions
 target_include_directories(las-definitions
   INTERFACE
     ${CMAKE_CURRENT_BINARY_DIR}
-    ../deps/DPF-Widgets/generic
-    ../deps/DPF-Widgets/opengl
     .
 )
 
 target_sources(las-definitions
   INTERFACE
-    LibreAudioSnapshots.cpp
-    LibreAudioUndoRedo.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
-    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
 )
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+add_library(las-definitions-dsp INTERFACE)
+
+target_compile_definitions(las-definitions-dsp
+  INTERFACE
+    $<$<BOOL:${LIBREAUDIO_BLOCK_SIZE}>:LIBREAUDIO_BLOCK_SIZE=${LIBREAUDIO_BLOCK_SIZE}>
+)
+
+target_sources(las-definitions
+  INTERFACE
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+add_library(las-definitions-ui INTERFACE)
+
+target_compile_definitions(las-definitions-ui
+  INTERFACE
+    IMGUI_DISABLE_DEBUG_TOOLS
+    IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
+    IMGUI_DISABLE_DEMO_WINDOWS
+)
+
+target_include_directories(las-definitions-ui
+  INTERFACE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ../deps/DPF-Widgets/generic
+    ../deps/DPF-Widgets/opengl
+    .
+)
+
+target_sources(las-definitions-ui
+  INTERFACE
+    LibreAudioSnapshots.cpp
+    LibreAudioUndoRedo.cpp
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# rnnoise library
+
+add_library(las-rnnoise STATIC)
+
+set_target_properties(las-rnnoise
+  PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_definitions(las-rnnoise
+  PRIVATE
+    DISABLE_DEBUG_FLOAT
+    FLOAT_APPROX
+    RNNOISE_EXPORT=
+)
+
+target_include_directories(las-rnnoise
+  PRIVATE
+    ../deps/rnnoise/src
+    ../deps/rnnoise-model-data
+  PUBLIC
+    ../deps/rnnoise/include
+)
+
+target_sources(las-rnnoise
+  PRIVATE
+    ../deps/rnnoise/src/celt_lpc.c
+    ../deps/rnnoise/src/denoise.c
+    ../deps/rnnoise/src/kiss_fft.c
+    ../deps/rnnoise/src/nnet.c
+    ../deps/rnnoise/src/nnet_default.c
+    ../deps/rnnoise/src/parse_lpcnet_weights.c
+    ../deps/rnnoise/src/pitch.c
+    ../deps/rnnoise/src/rnn.c
+    ../deps/rnnoise/src/rnnoise_tables.c
+    ../deps/rnnoise-model-data/rnnoise_data.c
+)
+
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+  target_compile_definitions(las-rnnoise
+    PRIVATE
+      CPU_INFO_BY_ASM
+      RNN_ENABLE_X86_RTCD
+  )
+
+  target_sources(las-rnnoise
+    PRIVATE
+      ../deps/rnnoise/src/x86/nnet_avx2.c
+      ../deps/rnnoise/src/x86/nnet_sse4_1.c
+      ../deps/rnnoise/src/x86/x86cpu.c
+      ../deps/rnnoise/src/x86/x86_dnn_map.c
+  )
+
+  set_source_files_properties(../deps/rnnoise/src/x86/nnet_avx2.c
+    PROPERTIES
+      COMPILE_FLAGS
+        "-mavx -mfma -mavx2"
+  )
+
+  set_source_files_properties(../deps/rnnoise/src/x86/nnet_sse4_1.c
+    PROPERTIES
+      COMPILE_FLAGS
+        -msse4.1
+  )
+endif()
 
 # ---------------------------------------------------------------------------------------------------------------------
 # function to setup a DPF plugin
 
 function(las_add_plugin LABEL)
   set(TARGET "la-${LABEL}")
+
+  set(EXTRA_DSP_LIBS)
+  set(EXTRA_UI_LIBS)
+  if("${LABEL}" STREQUAL "leveler")
+    list(APPEND EXTRA_DSP_LIBS las-rnnoise)
+  endif()
 
   dpf_add_plugin(${TARGET}
     TARGETS
@@ -209,9 +322,17 @@ function(las_add_plugin LABEL)
       las-definitions
   )
 
+  target_link_libraries(${TARGET}-dsp
+    PUBLIC
+      las-definitions-dsp
+      ${EXTRA_DSP_LIBS}
+  )
+
   target_link_libraries(${TARGET}-ui
     PUBLIC
+      las-definitions-ui
       nlohmann_json::nlohmann_json
+      ${EXTRA_UI_LIBS}
   )
 
   target_sources(${TARGET}

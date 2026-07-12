@@ -91,6 +91,10 @@ static void initParameterFromFaust(Parameter& parameter, const FaustParameter& f
         parameter.hints |= kParameterIsOutput;
     if (faustParameter.isTrigger)
         parameter.hints |= kParameterIsTrigger;
+   #if LIBREAUDIO_WANT_SPEECH_DETECTION
+    if (std::strcmp(faustParameter.symbol, "vad_ext") == 0)
+        parameter.hints = kParameterIsOutput | kParameterIsHidden;
+   #endif
 
     parameter.name = faustParameter.label;
     parameter.symbol = faustParameter.symbol;
@@ -296,6 +300,10 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         fLatencyReadPos = -fLastKnownLatency;
         fLatencyWritePos = 0;
        #endif
+
+       #if LIBREAUDIO_WANT_SPEECH_DETECTION
+        fSpeechDetection.reset();
+       #endif
     }
 
     float dry, wet;
@@ -320,11 +328,15 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         {
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 fLatencyBuffer[c][latencyWritePos] = inputs[c][i + j];
-            // fCycleBuffer1[c][j];
 
             if (++latencyWritePos == LIBREAUDIO_MAX_LATENCY_SAMPLES)
                 latencyWritePos = 0;
         }
+       #endif
+
+       #if LIBREAUDIO_WANT_SPEECH_DETECTION
+        const float vad = fSpeechDetection.process(fCycleBuffer1, cycleFrames);
+        fMainDSP->set(kFaustParameterVad_ext, vad);
        #endif
 
         fInputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);

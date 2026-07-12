@@ -7,3 +7,6 @@
 [submodule "deps/json"]
 	path = deps/json
 	url = https://github.com/nlohmann/json.git
+[submodule "deps/rnnoise"]
+	path = deps/rnnoise
+	url = https://github.com/falkTX/rnnoise.git
