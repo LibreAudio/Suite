@@ -8,6 +8,8 @@ declare license "GPL-3.0-or-later";
 declare name "Upward Compressor";
 declare unique_id "LAuc";
 
+declare drywet "true";
+
 // numerb of channels
 Nch = 2;
 

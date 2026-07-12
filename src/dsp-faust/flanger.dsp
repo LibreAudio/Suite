@@ -19,7 +19,7 @@ with{
     del_group(x) = flanger_group(hgroup("[2] Delay Controls", x));
     lvl_group(x) = flanger_group(hgroup("[3]", x));
 
-    invert = ctl_group(checkbox("[1] Invert Flange Sum"));
+    invert = 0; //ctl_group(checkbox("[1] Invert Flange Sum"));
 
     // FIXME: This should be an amplitude-response display:
     flangeview = lfor(freq) + lfol(freq) : meter_group(hbargraph("[2] Flange LFO ", -1.5,+1.5));
@@ -32,6 +32,7 @@ with{
     flanger_stereo(x,y) = attach(x,flangeview),y :
         (_*2,_*2) :
         pf.flanger_stereo(dmax,curdel1,curdel2,depth,fb,invert) :
+        par(i,2, fi.svf.hp(hp_freq,0.707) : fi.svf.lp(lp_freq,0.707)) :
         *(levelComp),*(levelComp) :
         stereoWidth(width);
 
@@ -41,7 +42,7 @@ with{
     dmax = 2048;
     dflange = 0.001 * ma.SR * del_group(hslider("[1] Flange Delay [unit:ms] [style:knob] [symbol:delay]", 10, 0, 20, 0.001));
     odflange = 0.001 * ma.SR * del_group(hslider("[2] Delay Offset [unit:ms] [style:knob] [symbol:delay_offset]", 1, 0, 20, 0.001));
-    freq   = ctl_group(hslider("[1] Speed [unit:Hz] [style:knob] [symbol:speed]", 0.5, 0, 10, 0.01));
+    freq   = ctl_group(hslider("[1] Speed [unit:Hz] [style:knob] [symbol:speed]", 0.5, 0.01, 5, 0.0001));
     depth  = ctl_group(hslider("[2] Depth [style:knob] [symbol:depth]", 0.5, 0, 1, 0.001));
     fb     = ctl_group(hslider("[3] Feedback [style:knob] [symbol:feedback]", 0, -0.999, 0.999, 0.001));
     width  = ctl_group(hslider("[4] Stereo Width [unit:%] [style:knob] [symbol:stereo_width]", 100, 0, 200, 1)) / 100;
@@ -50,4 +51,7 @@ with{
     drywet  = lvl_group(hslider("dry/wet [unit:%] [symbol:drywet]", 50, 0, 100, 1)) / 100;
     curdel1 = odflange+dflange*(1 + lfol(freq))/2;
     curdel2 = odflange+dflange*(1 + lfor(freq))/2;
+    hp_freq     = hslider("hp_freq [unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1);
+    lp_freq     = hslider("lp_freq [unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1);
+
 };
