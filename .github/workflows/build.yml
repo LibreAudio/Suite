@@ -20,6 +20,7 @@ jobs:
           rm *.deb
       - uses: actions/checkout@v6
         with:
+          lfs: true
           submodules: recursive
       - uses: distrho/dpf-cmake-action@v1
         with:
@@ -37,6 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          lfs: true
           submodules: recursive
       - uses: distrho/dpf-cmake-action@v1
         with:
@@ -53,6 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          lfs: true
           submodules: recursive
       - uses: distrho/dpf-cmake-action@v1
         with:
@@ -65,6 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          lfs: true
           submodules: recursive
       - uses: distrho/dpf-cmake-action@v1
         with:
