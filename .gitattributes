@@ -1,2 +1,1 @@
-deps/rnnoise-model-data/rnnoise_data.c filter=lfs diff=lfs merge=lfs -text
-deps/rnnoise-model-data/rnnoise_data.h filter=lfs diff=lfs merge=lfs -text
+deps/rnnoise-model-data/* filter=lfs diff=lfs merge=lfs -text
