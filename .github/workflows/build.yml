@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:24.04
     steps:
-      - name: Install git
-        run: |
-          apt-get update -qq && apt-get install -yqq --no-install-recommends ca-certificates curl git openssl
-          curl -sLO https://launchpad.net/~kxstudio-debian/+archive/ubuntu/toolchain/+files/git_2.34.1-1ubuntu1~bpo20.04.1~ppa1_amd64.deb
-          curl -sLO https://launchpad.net/~kxstudio-debian/+archive/ubuntu/toolchain/+files/git-man_2.34.1-1ubuntu1~bpo20.04.1~ppa1_all.deb
-          dpkg -i *.deb
-          rm *.deb
+      # - name: Install git
+      #   run: |
+      #     apt-get update -qq && apt-get install -yqq --no-install-recommends ca-certificates curl git openssl
+      #     curl -sLO https://launchpad.net/~kxstudio-debian/+archive/ubuntu/toolchain/+files/git_2.34.1-1ubuntu1~bpo20.04.1~ppa1_amd64.deb
+      #     curl -sLO https://launchpad.net/~kxstudio-debian/+archive/ubuntu/toolchain/+files/git-man_2.34.1-1ubuntu1~bpo20.04.1~ppa1_all.deb
+      #     dpkg -i *.deb
+      #     rm *.deb
       - uses: actions/checkout@v6
         with:
           lfs: true
@@ -28,7 +28,6 @@ jobs:
           extraargs: -DFAUSTDR="~/.local/bin/faustdr"
           dpf_path: ./deps/DPF
           faust: true
-          lto: true
 
   macos:
     strategy:
@@ -45,7 +44,6 @@ jobs:
           target: ${{ matrix.target }}
           dpf_path: ./deps/DPF
           faust: true
-          lto: true
 
   windows:
     strategy:
