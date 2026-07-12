@@ -203,6 +203,7 @@ target_include_directories(las-definitions-ui
 
 target_sources(las-definitions-ui
   INTERFACE
+    ../deps/DPF-Widgets/opengl/DearImGui.cpp
     LibreAudioSnapshots.cpp
     LibreAudioUndoRedo.cpp
 )
@@ -297,7 +298,6 @@ function(las_add_plugin LABEL)
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
     FILES_UI
       LibreAudioUI.cpp
-      ../deps/DPF-Widgets/opengl/DearImGui.cpp
     RUNTIME_TESTING
   )
 
