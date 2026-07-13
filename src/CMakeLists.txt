@@ -133,6 +133,12 @@ function(las_add_plugin LABEL)
   endif()
   # list(APPEND EXTRA_UI_LIBS )
 
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/${LABEL}/ui.cpp)
+    set(UI_FILE "custom/${LABEL}/ui.cpp")
+  else()
+    set(UI_FILE "LibreAudioUI.cpp")
+  endif()
+
   dpf_add_plugin(${TARGET}
     TARGETS
       clap lv2 vst3 jack
@@ -153,10 +159,10 @@ function(las_add_plugin LABEL)
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
     FILES_UI
-      LibreAudioUI.cpp
       LibreAudioBaseUI.cpp
       LibreAudioSnapshots.cpp
       LibreAudioUndoRedo.cpp
+      ${UI_FILE}
     RUNTIME_TESTING
   )
 
@@ -185,6 +191,7 @@ function(las_add_plugin LABEL)
     PUBLIC
       ${CMAKE_CURRENT_BINARY_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}
+      custom/${LABEL}
       .
   )
 

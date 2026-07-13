@@ -2,12 +2,7 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#pragma once
-
 #include "LibreAudioBaseUI.hpp"
-
-#include <string>
-#include <vector>
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -18,31 +13,47 @@ START_NAMESPACE_DISTRHO
 class LibreAudioUI : public LibreAudioBaseUI
 {
 public:
-    LibreAudioUI();
-    ~LibreAudioUI() override;
+    LibreAudioUI()
+        : LibreAudioBaseUI()
+    {
+    }
+
+    ~LibreAudioUI() override
+    {
+    }
 
 protected:
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks
 
-   /**
-      ImGui specific onDisplay function.
-    */
-    void onImGuiDisplay() final;
-
-    // bool onMouse(const MouseEvent& ev) final;
+    void onNanoDisplay() final
+    {
+        beginPath();
+        rect(0, 0, getWidth(), getHeight());
+        fillColor(fColors.background);
+        fill();
+        strokeColor(fColors.border);
+        strokeWidth(fScaleFactor * 2);
+        stroke();
+    }
 
 private:
-    std::vector<std::string> fParameterLabels;
-    std::vector<std::string> fParameterRenders;
+    double fScaleFactor = getScaleFactor();
 
-    // uint32_t fLastMouseReleaseTime = 0;
-
-    void displayMeter(const FaustParameter& param, uint32_t index);
-    void displaySlider(const FaustParameter& param, uint32_t index);
+    const struct {
+        Color background = Color::fromHTML("#28282d");
+        Color border = Color::fromHTML("#3a3a42");
+    } fColors;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+UI* createUI()
+{
+    return new LibreAudioUI();
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 
