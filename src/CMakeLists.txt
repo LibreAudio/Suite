@@ -154,6 +154,7 @@ function(las_add_plugin LABEL)
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
     FILES_UI
       LibreAudioUI.cpp
+      LibreAudioBaseUI.cpp
       LibreAudioSnapshots.cpp
       LibreAudioUndoRedo.cpp
     RUNTIME_TESTING
