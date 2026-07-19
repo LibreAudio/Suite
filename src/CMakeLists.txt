@@ -115,10 +115,43 @@ function(las_generate_faust_plugin TARGET)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------
+# function to generate resources
+# used for DPF plugins
+
+function(las_generate_resources)
+  file(GLOB
+    LIBREAUDIO_RESOURCES
+      CONFIGURE_DEPENDS
+        ../resources/fonts/*.ttf
+        ../resources/images/*.png
+  )
+
+  string(REPLACE ";" "\\;" LIBREAUDIO_RESOURCES_ESC "${LIBREAUDIO_RESOURCES}")
+
+  add_custom_command(
+    OUTPUT
+      ${CMAKE_CURRENT_BINARY_DIR}/las-resources.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
+    COMMAND ${CMAKE_COMMAND}
+      -D INPUT_FILES=${LIBREAUDIO_RESOURCES_ESC}
+      -D OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
+      -D VERSION=${CMAKE_PROJECT_VERSION}
+      -P ${CMAKE_SOURCE_DIR}/src/cmake/res2c.cmake
+    DEPENDS
+      ${LIBREAUDIO_RESOURCES}
+      ${CMAKE_SOURCE_DIR}/src/cmake/res2c.cmake
+    VERBATIM
+  )
+
+  add_library(las-resources STATIC ${CMAKE_CURRENT_BINARY_DIR}/las-resources.cpp)
+endfunction()
+
+# ---------------------------------------------------------------------------------------------------------------------
 # common definitions between all plugins
 
 las_generate_faust_cpp(common/input)
 las_generate_faust_cpp(common/output)
+las_generate_resources()
 
 # ---------------------------------------------------------------------------------------------------------------------
 # function to setup a DPF plugin
@@ -163,6 +196,7 @@ function(las_add_plugin LABEL)
       LibreAudioSnapshots.cpp
       LibreAudioUndoRedo.cpp
       ${UI_FILE}
+      ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
     RUNTIME_TESTING
   )
 
@@ -203,6 +237,7 @@ function(las_add_plugin LABEL)
   target_link_libraries(${TARGET}-ui
     PUBLIC
       las-imgui
+      las-resources
       nlohmann_json::nlohmann_json
       ${EXTRA_UI_LIBS}
   )
