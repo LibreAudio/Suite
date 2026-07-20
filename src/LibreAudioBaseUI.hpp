@@ -21,7 +21,6 @@ public:
     LibreAudioBaseUI();
     ~LibreAudioBaseUI() override;
 
-protected:
     // ----------------------------------------------------------------------------------------------------------------
     // static metadata
 
@@ -45,20 +44,6 @@ protected:
     void undo() { fSnapshots.undo(); }
     void redo() { fSnapshots.redo(); }
 
-    // ----------------------------------------------------------------------------------------------------------------
-    // DSP/Plugin Callbacks
-
-   /**
-      A parameter has changed on the plugin side.@n
-      This is called by the host to inform the UI about parameter changes.
-    */
-    void parameterChanged(const uint32_t index, const float value) final;
-
-    void stateChanged(const char* key, const char* value) final;
-
-    // ----------------------------------------------------------------------------------------------------------------
-    // Widget Callbacks
-
     void parameterControlPressed(uint32_t index);
     void parameterControlReleased(uint32_t index);
     void parameterControlModified(uint32_t index, float value);
@@ -73,6 +58,37 @@ protected:
 
     void snapshotButtonClicked(SnapshotButton button);
 
+private:
+    // ----------------------------------------------------------------------------------------------------------------
+    // private data
+
+    float* const fParameterValues;
+    float* const fParameterValuesWhenActivated;
+
+    LibreAudioSnapshots fSnapshots;
+    bool fCopyingSnapshot = false;
+
+public:
+    // ----------------------------------------------------------------------------------------------------------------
+    // shared data
+
+    const float* const fParameterValuesRef;
+
+protected:
+    // ----------------------------------------------------------------------------------------------------------------
+    // DSP/Plugin Callbacks
+
+   /**
+      A parameter has changed on the plugin side.@n
+      This is called by the host to inform the UI about parameter changes.
+    */
+    void parameterChanged(const uint32_t index, const float value) final;
+
+    void stateChanged(const char* key, const char* value) final;
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // Widget Callbacks
+
     void uiIdle() override;
 
 private:
@@ -84,21 +100,6 @@ private:
                             const LibreAudioUndoRedo::Actions& undoRedoActions) final;
     void snapshotParameterChanged(uint32_t parameterIndex, float parameterValue) final;
     void snapshotParametersChanged(const float* parameterValues) final;
-
-    // ----------------------------------------------------------------------------------------------------------------
-    // private data
-
-    float* const fParameterValues;
-    float* const fParameterValuesWhenActivated;
-
-    LibreAudioSnapshots fSnapshots;
-    bool fCopyingSnapshot = false;
-
-protected:
-    // ----------------------------------------------------------------------------------------------------------------
-    // shared data
-
-    const float* const fParameterValuesRef;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioBaseUI)
 };
