@@ -137,6 +137,16 @@ public:
     LibreAudioPluginName(NanoSubWidget* const parent)
         : LibreAudioWidget(parent)
     {
+        if (fName.startsWith("LA "))
+        {
+            if (char* const name = fName.getAndReleaseBuffer())
+            {
+                fName = name + 3;
+                std::free(name);
+            }
+        }
+
+        fName.toUpper();
     }
 
 protected:
@@ -147,8 +157,11 @@ protected:
         fillColor(gColors.ink2);
         fontSize(Metrics::fontSize * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "CHORUS");
+        textBox(0.f, getHeight() * 0.5f, getWidth(), fName);
     }
+
+private:
+    String fName { DISTRHO_PLUGIN_NAME };
 };
 
 class LibreAudioPresetWidget : public LibreAudioWidget
