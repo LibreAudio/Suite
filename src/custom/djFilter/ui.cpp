@@ -73,6 +73,8 @@ enum WidgetIds {
     kWidgetSnapshotB,
     kWidgetSnapshotC,
     kWidgetSnapshotD,
+    kWidgetEasy,
+    kWidgetExpert,
 };
 
 struct Metrics {
@@ -89,6 +91,7 @@ struct Metrics {
         static constexpr const uint margin = 0;
         static constexpr const uint marginLeft = margin + 7;
         static constexpr const uint marginRight = margin + 14;
+        static constexpr const uint smallImageSize = 14;
         struct Logo {
             static constexpr const uint imageSize = 34;
         };
@@ -103,17 +106,16 @@ struct Metrics {
                 static constexpr const uint width = 40;
                 static constexpr const uint padding = 12;
                 static constexpr const uint margin = 0;
-                static constexpr const uint imageSize = 14;
             };
             struct Snapshots {
                 static constexpr const uint width = 104;
                 static constexpr const uint padding = 10;
                 static constexpr const uint margin = 0;
-                static constexpr const uint imageSize = 14;
             };
             struct EasyExpert {
                 static constexpr const uint width = 92;
                 static constexpr const uint padding = 10;
+                static constexpr const uint margin = 0;
             };
             struct Menu {
                 static constexpr const uint width = 45;
@@ -230,7 +232,6 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint imageSize>
 class LibreAudioImageButton : public LibreAudioWidget,
                               public ButtonEventHandler
 {
@@ -257,7 +258,7 @@ protected:
 
     void onNanoDisplay() final
     {
-        const double size = imageSize * fScaleFactor;
+        const double size = Metrics::TopBar::smallImageSize * fScaleFactor;
         const uint width = getWidth();
         const uint height = getHeight();
 
@@ -289,7 +290,6 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint imageSize>
 class LibreAudioImageCheckBox : public LibreAudioWidget,
                                 public ButtonEventHandler
 {
@@ -324,7 +324,7 @@ protected:
 
     void onNanoDisplay() final
     {
-        const double size = imageSize * fScaleFactor;
+        const double size = Metrics::TopBar::smallImageSize * fScaleFactor;
         const uint width = getWidth();
         const uint height = getHeight();
 
@@ -389,7 +389,6 @@ protected:
 
     void onNanoDisplay() final
     {
-        const double size = Metrics::TopBar::Cluster::UndoRedo::imageSize * fScaleFactor;
         const uint width = getWidth();
         const uint height = getHeight();
 
@@ -424,13 +423,11 @@ private:
 class LibreAudioUndoRedoWidget : public LibreAudioWidget
 {
 public:
-    using ImageButton = LibreAudioImageButton<Metrics::TopBar::Cluster::UndoRedo::imageSize>;
-
     LibreAudioUndoRedoWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
-        fUndoButton = new ImageButton(this, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN);
-        fRedoButton = new ImageButton(this, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN);
+        fUndoButton = new LibreAudioImageButton(this, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN);
+        fRedoButton = new LibreAudioImageButton(this, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN);
 
         fUndoButton->setCallback(callback);
         fRedoButton->setCallback(callback);
@@ -459,7 +456,7 @@ protected:
 
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::padding * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::margin * fScaleFactor);
-        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::imageSize * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
 
         fLayout.setAbsolutePos(ev.pos.getX(),
                                ev.pos.getY() + (getHeight() - buttonSize) / 2,
@@ -473,7 +470,7 @@ protected:
 
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::padding * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::margin * fScaleFactor);
-        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::imageSize * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
 
         fUndoButton->setSize(buttonSize, buttonSize);
         fRedoButton->setSize(buttonSize, buttonSize);
@@ -487,8 +484,8 @@ protected:
 
 private:
     HorizontalLayout fLayout;
-    ScopedPointer<ImageButton> fUndoButton;
-    ScopedPointer<ImageButton> fRedoButton;
+    ScopedPointer<LibreAudioImageButton> fUndoButton;
+    ScopedPointer<LibreAudioImageButton> fRedoButton;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -496,16 +493,14 @@ private:
 class LibreAudioSnapshotsWidget : public LibreAudioWidget
 {
 public:
-    using ImageCheckBox = LibreAudioImageCheckBox<Metrics::TopBar::Cluster::Snapshots::imageSize>;
-
     LibreAudioSnapshotsWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
-        fButtonCopy = new ImageCheckBox(this,
-                                        IMAGES_X_PNG_DATA,
-                                        IMAGES_X_PNG_LEN,
-                                        IMAGES_COPY_PNG_DATA,
-                                        IMAGES_COPY_PNG_LEN);
+        fButtonCopy = new LibreAudioImageCheckBox(this,
+                                                  IMAGES_X_PNG_DATA,
+                                                  IMAGES_X_PNG_LEN,
+                                                  IMAGES_COPY_PNG_DATA,
+                                                  IMAGES_COPY_PNG_LEN);
         fButtonA = new LibreAudioTextButton(this, "A");
         fButtonB = new LibreAudioTextButton(this, "B");
         fButtonC = new LibreAudioTextButton(this, "C");
@@ -555,7 +550,7 @@ protected:
 
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
-        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::imageSize * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
 
         fLayout.setAbsolutePos(ev.pos.getX(),
                                ev.pos.getY() + (getHeight() - buttonSize) / 2,
@@ -569,7 +564,7 @@ protected:
 
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
-        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::imageSize * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
 
         fButtonCopy->setSize(buttonSize, buttonSize);
         fButtonA->setSize(buttonSize, buttonSize);
@@ -586,7 +581,7 @@ protected:
 
 private:
     HorizontalLayout fLayout;
-    ScopedPointer<ImageCheckBox> fButtonCopy;
+    ScopedPointer<LibreAudioImageCheckBox> fButtonCopy;
     ScopedPointer<LibreAudioTextButton> fButtonA;
     ScopedPointer<LibreAudioTextButton> fButtonB;
     ScopedPointer<LibreAudioTextButton> fButtonC;
@@ -598,24 +593,78 @@ private:
 class LibreAudioEasyExpertWidget : public LibreAudioWidget
 {
 public:
-    LibreAudioEasyExpertWidget(NanoSubWidget* const parent)
+    LibreAudioEasyExpertWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
+        fButtonEasy = new LibreAudioTextButton(this, "EASY");
+        fButtonExpert = new LibreAudioTextButton(this, "EXPERT");
+
+        fButtonEasy->setCallback(callback);
+        fButtonExpert->setCallback(callback);
+
+        fButtonEasy->setCheckable(true);
+        fButtonExpert->setCheckable(true);
+
+        fButtonEasy->setId(kWidgetEasy);
+        fButtonExpert->setId(kWidgetExpert);
+
+        fLayout.widgets.push_back({ fButtonEasy, Fixed });
+        fLayout.widgets.push_back({ fButtonExpert, Fixed });
+
+        // start with easy mode selected
+        fButtonEasy->setChecked(true, false);
+    }
+
+    void update(const bool expertMode)
+    {
+        fButtonEasy->setChecked(!expertMode, false);
+        fButtonExpert->setChecked(expertMode, false);
     }
 
 protected:
     void onNanoDisplay() final
     {
-        fontSize(Metrics::fontSize * fScaleFactor);
-
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(0.1f, 0.2f, 0.2f);
-        fill();
-        fillColor(1.f, 1.f, 1.f);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "Easy / Expert");
     }
+
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        LibreAudioWidget::onPositionChanged(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::EasyExpert::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::EasyExpert::margin * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
+
+        fLayout.setAbsolutePos(ev.pos.getX(),
+                               ev.pos.getY() + (getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        LibreAudioWidget::onResize(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::EasyExpert::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::EasyExpert::margin * fScaleFactor);
+        const uint buttonWidth = d_roundToUnsignedInt(
+            (Metrics::TopBar::Cluster::EasyExpert::width / 2 - Metrics::TopBar::Cluster::EasyExpert::margin - Metrics::TopBar::Cluster::EasyExpert::padding / 2)
+            * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
+
+        fButtonEasy->setSize(buttonWidth, buttonSize);
+        fButtonExpert->setSize(buttonWidth, buttonSize);
+
+        fLayout.setWidth(ev.size.getWidth(), padding, margin);
+        fLayout.setAbsolutePos(getAbsoluteX(),
+                               getAbsoluteY() + (ev.size.getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+private:
+    HorizontalLayout fLayout;
+    ScopedPointer<LibreAudioTextButton> fButtonEasy;
+    ScopedPointer<LibreAudioTextButton> fButtonExpert;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -654,7 +703,7 @@ public:
         fPreset = new LibreAudioPresetWidget(this);
         fUndoRedo = new LibreAudioUndoRedoWidget(this, callback);
         fSnapshots = new LibreAudioSnapshotsWidget(this, callback);
-        fEasyExpert = new LibreAudioEasyExpertWidget(this);
+        fEasyExpert = new LibreAudioEasyExpertWidget(this, callback);
         fMenu = new LibreAudioMenuWidget(this);
 
         fLayout.widgets.push_back({ fPreset, Expanding });
@@ -664,10 +713,15 @@ public:
         fLayout.widgets.push_back({ fMenu, Fixed });
     }
 
-    void update(const bool canUndo, const bool canRedo, const bool isCopyingSnapshot, const uint8_t currentSnapshot)
+    void update(const bool canUndo,
+                const bool canRedo,
+                const bool isCopyingSnapshot,
+                const uint8_t currentSnapshot,
+                const bool expertMode)
     {
         fUndoRedo->update(canUndo, canRedo);
         fSnapshots->update(isCopyingSnapshot, currentSnapshot);
+        fEasyExpert->update(expertMode);
     }
 
 protected:
@@ -729,9 +783,13 @@ public:
         fLayout.widgets.push_back({ fCluster, Fixed });
     }
 
-    void update(const bool canUndo, const bool canRedo, const bool isCopyingSnapshot, const uint8_t currentSnapshot)
+    void update(const bool canUndo,
+                const bool canRedo,
+                const bool isCopyingSnapshot,
+                const uint8_t currentSnapshot,
+                const bool expertMode)
     {
-        fCluster->update(canUndo, canRedo, isCopyingSnapshot, currentSnapshot);
+        fCluster->update(canUndo, canRedo, isCopyingSnapshot, currentSnapshot, expertMode);
     }
 
 protected:
@@ -1152,6 +1210,12 @@ protected:
             if (static_cast<LibreAudioTextButton*>(widget)->isChecked())
                 snapshotButtonClicked(kSnapshotButtonD);
             break;
+        case kWidgetEasy:
+            fExpertMode = false;
+            break;
+        case kWidgetExpert:
+            fExpertMode = true;
+            break;
         }
     }
 
@@ -1176,7 +1240,7 @@ protected:
     {
         LibreAudioBaseUI::uiIdle();
 
-        fTopBar->update(canUndo(), canRedo(), isCopyingSnapshot(), getCurrentSnapshot());
+        fTopBar->update(canUndo(), canRedo(), isCopyingSnapshot(), getCurrentSnapshot(), fExpertMode);
     }
 
     void uiScaleFactorChanged(const double scaleFactor) final
@@ -1187,6 +1251,7 @@ protected:
 
 private:
     double fScaleFactor = getScaleFactor();
+    bool fExpertMode = false;
 
     VerticalLayout fLayout;
     ScopedPointer<LibreAudioTopBar> fTopBar;
