@@ -78,17 +78,21 @@ struct Metrics {
             static constexpr const uint padding = 60;
             static constexpr const uint margin = 0;
             struct UndoRedo {
+                static constexpr const uint width = 40;
                 static constexpr const uint padding = 12;
                 static constexpr const uint margin = 0;
                 static constexpr const uint imageSize = 14;
             };
             struct Snapshots {
+                static constexpr const uint width = 104;
                 static constexpr const uint padding = 10;
             };
             struct EasyExpert {
+                static constexpr const uint width = 92;
                 static constexpr const uint padding = 10;
             };
             struct Menu {
+                static constexpr const uint width = 45;
                 static constexpr const uint padding = 9;
             };
         };
@@ -451,10 +455,10 @@ protected:
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::margin * fScaleFactor);
 
         fPreset->setHeight(height);
-        fUndoRedo->setSize(40, height);
-        fSnapshots->setSize(104, height);
-        fEasyExpert->setSize(92, height);
-        fMenu->setSize(45, height);
+        fUndoRedo->setSize(d_roundToUnsignedInt(Metrics::TopBar::Cluster::UndoRedo::width * fScaleFactor), height);
+        fSnapshots->setSize(d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::width * fScaleFactor), height);
+        fEasyExpert->setSize(d_roundToUnsignedInt(Metrics::TopBar::Cluster::EasyExpert::width * fScaleFactor), height);
+        fMenu->setSize(d_roundToUnsignedInt(Metrics::TopBar::Cluster::Menu::width * fScaleFactor), height);
 
         fLayout.setWidth(ev.size.getWidth(), padding, margin);
         fLayout.setAbsolutePos(getAbsoluteX(), getAbsoluteY(), padding, margin);
@@ -621,36 +625,6 @@ protected:
             | ImGuiWindowFlags_NoCollapse;
 
         ImGui::Begin("LibreAudio", nullptr, flags);
-
-        {
-            const bool canUndo = fUI->canUndo();
-            const bool canRedo = fUI->canRedo();
-
-            ImGui::SeparatorText("Undo / Redo");
-            ImGui::BeginGroup();
-
-            if (! canUndo)
-                ImGui::BeginDisabled();
-
-            if (ImGui::Button("Undo"))
-                fUI->undo();
-
-            if (! canUndo)
-                ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            if (! canRedo)
-                ImGui::BeginDisabled();
-
-            if (ImGui::Button("Redo"))
-                fUI->redo();
-
-            if (! canRedo)
-                ImGui::EndDisabled();
-
-            ImGui::EndGroup();
-        }
 
         {
             const bool copyingSnapshot = fUI->isCopyingSnapshot();
@@ -974,8 +948,6 @@ protected:
 
     void buttonClicked(SubWidget* const widget, int) final
     {
-        d_stdout("buttonClicked %p %d", widget, widget->getId());
-
         switch (widget->getId())
         {
         case kWidgetUndo:
