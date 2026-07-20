@@ -40,6 +40,28 @@ static const struct Colors {
     Color bg3 = Color::fromHTML("#303036");
     Color line = Color::fromHTML("#2a2a30");
     Color line2 = Color::fromHTML("#3b3b44");
+
+    const Color& get(const bool isEnabled, const bool isChecked, const bool isHover) const
+    {
+        if (! isEnabled)
+            return ink3;
+        if (isChecked)
+            return ink;
+        if (isHover)
+            return acc;
+        return ink2;
+    }
+
+    const Color& get(const ButtonEventHandler* const button) const
+    {
+        if (! button->isEnabled())
+            return ink3;
+        if (button->isChecked())
+            return ink;
+        if (button->isHovered())
+            return acc;
+        return ink2;
+    }
 } gColors;
 
 enum WidgetIds {
@@ -86,6 +108,8 @@ struct Metrics {
             struct Snapshots {
                 static constexpr const uint width = 104;
                 static constexpr const uint padding = 10;
+                static constexpr const uint margin = 0;
+                static constexpr const uint imageSize = 14;
             };
             struct EasyExpert {
                 static constexpr const uint width = 92;
@@ -206,11 +230,12 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioUndoRedoButton : public LibreAudioWidget,
-                                 public ButtonEventHandler
+template<uint imageSize>
+class LibreAudioImageButton : public LibreAudioWidget,
+                              public ButtonEventHandler
 {
 public:
-    LibreAudioUndoRedoButton(NanoSubWidget* const parent, const uchar* const data, const uint dataSize)
+    LibreAudioImageButton(NanoSubWidget* const parent, const uchar* const data, const uint dataSize)
         : LibreAudioWidget(parent),
           ButtonEventHandler(this),
           fImage(createImageFromMemory(data, dataSize, IMAGE_GENERATE_MIPMAPS)) {}
@@ -232,11 +257,11 @@ protected:
 
     void onNanoDisplay() final
     {
-        const double size = Metrics::TopBar::Cluster::UndoRedo::imageSize * fScaleFactor;
+        const double size = imageSize * fScaleFactor;
         const uint width = getWidth();
         const uint height = getHeight();
 
-        globalTint(isEnabled() ? (getState() & kButtonStateHover ? gColors.acc : gColors.ink2) : gColors.ink3);
+        globalTint(gColors.get(this));
 
         beginPath();
         rect(0, 0, width, height);
@@ -262,14 +287,76 @@ private:
     NanoImage fImage;
 };
 
+// --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioTextButton : public LibreAudioWidget,
+                             public ButtonEventHandler
+{
+public:
+    LibreAudioTextButton(NanoSubWidget* const parent, const char text[])
+        : LibreAudioWidget(parent),
+          ButtonEventHandler(this),
+          fText(text) {}
+
+protected:
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (mouseEvent(ev))
+            return true;
+        return LibreAudioWidget::onMouse(ev);
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (motionEvent(ev))
+            return true;
+        return LibreAudioWidget::onMotion(ev);
+    }
+
+    void onNanoDisplay() final
+    {
+        const double size = Metrics::TopBar::Cluster::UndoRedo::imageSize * fScaleFactor;
+        const uint width = getWidth();
+        const uint height = getHeight();
+
+        beginPath();
+        rect(0, 0, width, height);
+        fillColor(gColors.get(this));
+        fontSize(Metrics::fontSize * fScaleFactor);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        textBox(0.f, getHeight() * 0.5f, getWidth(), fText);
+    }
+
+    void stateChanged(const State state, const State oldState) final
+    {
+        if ((state & kButtonStateHover) != 0)
+        {
+            if ((oldState & kButtonStateHover) == 0)
+                getWindow().setCursor(kMouseCursorHand);
+        }
+        else
+        {
+            if ((oldState & kButtonStateHover) != 0)
+                getWindow().setCursor(kMouseCursorArrow);
+        }
+    }
+
+private:
+    const char* const fText;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 class LibreAudioUndoRedoWidget : public LibreAudioWidget
 {
 public:
+    using ImageButton = LibreAudioImageButton<Metrics::TopBar::Cluster::UndoRedo::imageSize>;
+
     LibreAudioUndoRedoWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
-        fUndoButton = new LibreAudioUndoRedoButton(this, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN);
-        fRedoButton = new LibreAudioUndoRedoButton(this, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN);
+        fUndoButton = new ImageButton(this, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN);
+        fRedoButton = new ImageButton(this, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN);
 
         fUndoButton->setCallback(callback);
         fRedoButton->setCallback(callback);
@@ -326,8 +413,8 @@ protected:
 
 private:
     HorizontalLayout fLayout;
-    ScopedPointer<LibreAudioUndoRedoButton> fUndoButton;
-    ScopedPointer<LibreAudioUndoRedoButton> fRedoButton;
+    ScopedPointer<ImageButton> fUndoButton;
+    ScopedPointer<ImageButton> fRedoButton;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -335,24 +422,98 @@ private:
 class LibreAudioSnapshotsWidget : public LibreAudioWidget
 {
 public:
-    LibreAudioSnapshotsWidget(NanoSubWidget* const parent)
+    using ImageButton = LibreAudioImageButton<Metrics::TopBar::Cluster::UndoRedo::imageSize>;
+
+    LibreAudioSnapshotsWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
+        fButtonCopy = new ImageButton(this, IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN);
+        fButtonA = new LibreAudioTextButton(this, "A");
+        fButtonB = new LibreAudioTextButton(this, "B");
+        fButtonC = new LibreAudioTextButton(this, "C");
+        fButtonD = new LibreAudioTextButton(this, "D");
+
+        fButtonCopy->setCallback(callback);
+        fButtonA->setCallback(callback);
+        fButtonB->setCallback(callback);
+        fButtonC->setCallback(callback);
+        fButtonD->setCallback(callback);
+
+        fButtonCopy->setCheckable(true);
+        fButtonA->setCheckable(true);
+        fButtonB->setCheckable(true);
+        fButtonC->setCheckable(true);
+        fButtonD->setCheckable(true);
+
+        fButtonCopy->setId(kWidgetSnapshotCopy);
+        fButtonA->setId(kWidgetSnapshotA);
+        fButtonB->setId(kWidgetSnapshotB);
+        fButtonC->setId(kWidgetSnapshotC);
+        fButtonD->setId(kWidgetSnapshotD);
+
+        fLayout.widgets.push_back({ fButtonCopy, Fixed });
+        fLayout.widgets.push_back({ fButtonA, Fixed });
+        fLayout.widgets.push_back({ fButtonB, Fixed });
+        fLayout.widgets.push_back({ fButtonC, Fixed });
+        fLayout.widgets.push_back({ fButtonD, Fixed });
+    }
+
+    void update(const bool isCopyingSnapshot, const uint8_t currentSnapshot)
+    {
+        fButtonCopy->setChecked(isCopyingSnapshot, false);
+        fButtonA->setChecked(currentSnapshot == 0, false);
+        fButtonB->setChecked(currentSnapshot == 1, false);
+        fButtonC->setChecked(currentSnapshot == 2, false);
+        fButtonD->setChecked(currentSnapshot == 3, false);
     }
 
 protected:
     void onNanoDisplay() final
     {
-        fontSize(Metrics::fontSize * fScaleFactor);
-
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(0.2f, 0.2f, 0.2f);
-        fill();
-        fillColor(1.f, 1.f, 1.f);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "Snapshots");
     }
+
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        LibreAudioWidget::onPositionChanged(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::imageSize * fScaleFactor);
+
+        fLayout.setAbsolutePos(ev.pos.getX(),
+                               ev.pos.getY() + (getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        LibreAudioWidget::onResize(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::imageSize * fScaleFactor);
+
+        fButtonCopy->setSize(buttonSize, buttonSize);
+        fButtonA->setSize(buttonSize, buttonSize);
+        fButtonB->setSize(buttonSize, buttonSize);
+        fButtonC->setSize(buttonSize, buttonSize);
+        fButtonD->setSize(buttonSize, buttonSize);
+
+        fLayout.setWidth(ev.size.getWidth(), padding, margin);
+        fLayout.setAbsolutePos(getAbsoluteX(),
+                               getAbsoluteY() + (ev.size.getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+private:
+    HorizontalLayout fLayout;
+    ScopedPointer<ImageButton> fButtonCopy;
+    ScopedPointer<LibreAudioTextButton> fButtonA;
+    ScopedPointer<LibreAudioTextButton> fButtonB;
+    ScopedPointer<LibreAudioTextButton> fButtonC;
+    ScopedPointer<LibreAudioTextButton> fButtonD;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -415,7 +576,7 @@ public:
     {
         fPreset = new LibreAudioPresetWidget(this);
         fUndoRedo = new LibreAudioUndoRedoWidget(this, callback);
-        fSnapshots = new LibreAudioSnapshotsWidget(this);
+        fSnapshots = new LibreAudioSnapshotsWidget(this, callback);
         fEasyExpert = new LibreAudioEasyExpertWidget(this);
         fMenu = new LibreAudioMenuWidget(this);
 
@@ -426,9 +587,10 @@ public:
         fLayout.widgets.push_back({ fMenu, Fixed });
     }
 
-    void update(const bool canUndo, const bool canRedo)
+    void update(const bool canUndo, const bool canRedo, const bool isCopyingSnapshot, const uint8_t currentSnapshot)
     {
         fUndoRedo->update(canUndo, canRedo);
+        fSnapshots->update(isCopyingSnapshot, currentSnapshot);
     }
 
 protected:
@@ -490,9 +652,9 @@ public:
         fLayout.widgets.push_back({ fCluster, Fixed });
     }
 
-    void update(const bool canUndo, const bool canRedo)
+    void update(const bool canUndo, const bool canRedo, const bool isCopyingSnapshot, const uint8_t currentSnapshot)
     {
-        fCluster->update(canUndo, canRedo);
+        fCluster->update(canUndo, canRedo, isCopyingSnapshot, currentSnapshot);
     }
 
 protected:
@@ -625,69 +787,6 @@ protected:
             | ImGuiWindowFlags_NoCollapse;
 
         ImGui::Begin("LibreAudio", nullptr, flags);
-
-        {
-            const bool copyingSnapshot = fUI->isCopyingSnapshot();
-            const uint8_t currentSnapshot = fUI->getCurrentSnapshot();
-
-            ImGui::SeparatorText("Snapshots");
-            ImGui::BeginGroup();
-
-            ImGui::Spacing();
-
-            if (copyingSnapshot ? ImGui::SmallButton("(COPY)") : ImGui::Button("(COPY)"))
-                fUI->snapshotButtonClicked(LibreAudioBaseUI::kSnapshotButtonCopy);
-
-            ImGui::SameLine();
-
-            ImGui::Spacing();
-
-            ImGui::SameLine();
-
-            if (copyingSnapshot && currentSnapshot == 0)
-                ImGui::BeginDisabled();
-
-            if (currentSnapshot == 0 ? ImGui::SmallButton("A") :  ImGui::Button("A"))
-                fUI->snapshotButtonClicked(LibreAudioBaseUI::kSnapshotButtonA);
-
-            if (copyingSnapshot && currentSnapshot == 0)
-                ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            if (copyingSnapshot && currentSnapshot == 1)
-                ImGui::BeginDisabled();
-
-            if (currentSnapshot == 1 ? ImGui::SmallButton("B") :  ImGui::Button("B"))
-                fUI->snapshotButtonClicked(LibreAudioBaseUI::kSnapshotButtonB);
-
-            if (copyingSnapshot && currentSnapshot == 1)
-                ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            if (copyingSnapshot && currentSnapshot == 2)
-                ImGui::BeginDisabled();
-
-            if (currentSnapshot == 2 ? ImGui::SmallButton("C") :  ImGui::Button("C"))
-                fUI->snapshotButtonClicked(LibreAudioBaseUI::kSnapshotButtonC);
-
-            if (copyingSnapshot && currentSnapshot == 2)
-                ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            if (copyingSnapshot && currentSnapshot == 3)
-                ImGui::BeginDisabled();
-
-            if (currentSnapshot == 3 ? ImGui::SmallButton("D") :  ImGui::Button("D"))
-                fUI->snapshotButtonClicked(LibreAudioBaseUI::kSnapshotButtonD);
-
-            if (copyingSnapshot && currentSnapshot == 3)
-                ImGui::EndDisabled();
-
-            ImGui::EndGroup();
-        }
 
         {
             ImGui::SeparatorText("Input");
@@ -956,6 +1055,26 @@ protected:
         case kWidgetRedo:
             redo();
             break;
+        case kWidgetSnapshotCopy:
+            // if (static_cast<LibreAudioSnapshotsWidget::ImageButton*>(widget)->isChecked())
+            snapshotButtonClicked(kSnapshotButtonCopy);
+            break;
+        case kWidgetSnapshotA:
+            if (static_cast<LibreAudioTextButton*>(widget)->isChecked())
+                snapshotButtonClicked(kSnapshotButtonA);
+            break;
+        case kWidgetSnapshotB:
+            if (static_cast<LibreAudioTextButton*>(widget)->isChecked())
+                snapshotButtonClicked(kSnapshotButtonB);
+            break;
+        case kWidgetSnapshotC:
+            if (static_cast<LibreAudioTextButton*>(widget)->isChecked())
+                snapshotButtonClicked(kSnapshotButtonC);
+            break;
+        case kWidgetSnapshotD:
+            if (static_cast<LibreAudioTextButton*>(widget)->isChecked())
+                snapshotButtonClicked(kSnapshotButtonD);
+            break;
         }
     }
 
@@ -980,7 +1099,7 @@ protected:
     {
         LibreAudioBaseUI::uiIdle();
 
-        fTopBar->update(canUndo(), canRedo());
+        fTopBar->update(canUndo(), canRedo(), isCopyingSnapshot(), getCurrentSnapshot());
     }
 
     void uiScaleFactorChanged(const double scaleFactor) final
