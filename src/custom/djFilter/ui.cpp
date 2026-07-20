@@ -289,6 +289,80 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<uint imageSize>
+class LibreAudioImageCheckBox : public LibreAudioWidget,
+                                public ButtonEventHandler
+{
+public:
+    LibreAudioImageCheckBox(NanoSubWidget* const parent,
+                            const uchar* const dataOn,
+                            const uint dataOnSize,
+                            const uchar* const dataOff,
+                            const uint dataOffSize)
+        : LibreAudioWidget(parent),
+          ButtonEventHandler(this),
+          fImageOn(createImageFromMemory(dataOn, dataOnSize, IMAGE_GENERATE_MIPMAPS)),
+          fImageOff(createImageFromMemory(dataOff, dataOffSize, IMAGE_GENERATE_MIPMAPS))
+    {
+        setCheckable(true);
+    }
+
+protected:
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (mouseEvent(ev))
+            return true;
+        return LibreAudioWidget::onMouse(ev);
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (motionEvent(ev))
+            return true;
+        return LibreAudioWidget::onMotion(ev);
+    }
+
+    void onNanoDisplay() final
+    {
+        const double size = imageSize * fScaleFactor;
+        const uint width = getWidth();
+        const uint height = getHeight();
+
+        globalTint(gColors.get(this));
+
+        beginPath();
+        rect(0, 0, width, height);
+        fillPaint(imagePattern((width - size) * 0.5,
+                               (height - size) * 0.5,
+                               size,
+                               size,
+                               0.f,
+                               isChecked() ? fImageOn : fImageOff,
+                               1.f));
+        fill();
+    }
+
+    void stateChanged(const State state, const State oldState) final
+    {
+        if ((state & kButtonStateHover) != 0)
+        {
+            if ((oldState & kButtonStateHover) == 0)
+                getWindow().setCursor(kMouseCursorHand);
+        }
+        else
+        {
+            if ((oldState & kButtonStateHover) != 0)
+                getWindow().setCursor(kMouseCursorArrow);
+        }
+    }
+
+private:
+    NanoImage fImageOn;
+    NanoImage fImageOff;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 class LibreAudioTextButton : public LibreAudioWidget,
                              public ButtonEventHandler
 {
@@ -422,12 +496,16 @@ private:
 class LibreAudioSnapshotsWidget : public LibreAudioWidget
 {
 public:
-    using ImageButton = LibreAudioImageButton<Metrics::TopBar::Cluster::UndoRedo::imageSize>;
+    using ImageCheckBox = LibreAudioImageCheckBox<Metrics::TopBar::Cluster::Snapshots::imageSize>;
 
     LibreAudioSnapshotsWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
-        fButtonCopy = new ImageButton(this, IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN);
+        fButtonCopy = new ImageCheckBox(this,
+                                        IMAGES_X_PNG_DATA,
+                                        IMAGES_X_PNG_LEN,
+                                        IMAGES_COPY_PNG_DATA,
+                                        IMAGES_COPY_PNG_LEN);
         fButtonA = new LibreAudioTextButton(this, "A");
         fButtonB = new LibreAudioTextButton(this, "B");
         fButtonC = new LibreAudioTextButton(this, "C");
@@ -439,7 +517,6 @@ public:
         fButtonC->setCallback(callback);
         fButtonD->setCallback(callback);
 
-        fButtonCopy->setCheckable(true);
         fButtonA->setCheckable(true);
         fButtonB->setCheckable(true);
         fButtonC->setCheckable(true);
@@ -509,7 +586,7 @@ protected:
 
 private:
     HorizontalLayout fLayout;
-    ScopedPointer<ImageButton> fButtonCopy;
+    ScopedPointer<ImageCheckBox> fButtonCopy;
     ScopedPointer<LibreAudioTextButton> fButtonA;
     ScopedPointer<LibreAudioTextButton> fButtonB;
     ScopedPointer<LibreAudioTextButton> fButtonC;
