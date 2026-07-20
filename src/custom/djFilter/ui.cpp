@@ -2,6 +2,9 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// FIXME remove this, helper for IDE
+#include "config-custom.h"
+
 #include "LibreAudioBaseUI.hpp"
 
 #include "Layout.hpp"
@@ -415,7 +418,7 @@ protected:
 
     void onPositionChanged(const PositionChangedEvent& ev) final
     {
-        NanoSubWidget::onPositionChanged(ev);
+        LibreAudioWidget::onPositionChanged(ev);
 
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::padding * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::margin * fScaleFactor);
@@ -424,7 +427,7 @@ protected:
 
     void onResize(const ResizeEvent& ev) final
     {
-        NanoSubWidget::onResize(ev);
+        LibreAudioWidget::onResize(ev);
 
         const uint height = ev.size.getHeight();
 
@@ -488,7 +491,7 @@ protected:
 
     void onPositionChanged(const PositionChangedEvent& ev) final
     {
-        NanoSubWidget::onPositionChanged(ev);
+        LibreAudioWidget::onPositionChanged(ev);
 
         const uint margin = d_roundToUnsignedInt(Metrics::TopBar::margin * fScaleFactor);
         const uint padding = d_roundToUnsignedInt(Metrics::TopBar::padding * fScaleFactor);
@@ -524,11 +527,11 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioQuickParamTest : public ImGuiSubWidget
+class LibreAudioQuickParamTest : public ImGuiTopLevelWidget
 {
 public:
-    LibreAudioQuickParamTest(SubWidget* const parent)
-        : ImGuiSubWidget(parent)
+    explicit LibreAudioQuickParamTest(TopLevelWidget* const parent)
+        : ImGuiTopLevelWidget(parent->getWindow())
     {
     }
 
@@ -538,21 +541,7 @@ protected:
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(getWidth(), getHeight()));
 
-        constexpr int flags = ImGuiWindowFlags_NoSavedSettings
-                            | ImGuiWindowFlags_NoTitleBar
-                            | ImGuiWindowFlags_NoResize
-                            | ImGuiWindowFlags_NoCollapse;
-
-        ImGui::Begin("LibreAudio", nullptr, flags);
-
-        {
-            ImGui::SeparatorText("Undo / Redo");
-            ImGui::BeginGroup();
-
-            ImGui::EndGroup();
-        }
-
-        ImGui::End();
+        ImGui::ShowAboutWindow();
     }
 
 private:
@@ -569,8 +558,7 @@ public:
     LibreAudioMainArea(NanoTopLevelWidget* const parent)
         : LibreAudioWidget(parent)
     {
-        fTest = new LibreAudioQuickParamTest(this);
-        fTest->setSize(getSize());
+        // fTest->setSize(getSize());
     }
 
 protected:
@@ -587,15 +575,19 @@ protected:
         textBox(0.f, getHeight() * 0.5f, getWidth(), "This is the main area");
     }
 
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        LibreAudioWidget::onPositionChanged(ev);
+
+        // fTest->setAbsolutePos(ev.pos);
+    }
+
     void onResize(const ResizeEvent& ev) final
     {
         LibreAudioWidget::onResize(ev);
 
-        fTest->setSize(ev.size);
+        // fTest->setSize(ev.size);
     }
-
-private:
-    ScopedPointer<LibreAudioQuickParamTest> fTest;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -650,6 +642,8 @@ public:
         fTopBar = new LibreAudioTopBar(this, this);
         fMainArea = new LibreAudioMainArea(this);
         fBottomBar = new LibreAudioBottomBar(this);
+
+        fTest = new LibreAudioQuickParamTest(this);
 
         fLayout.widgets.push_back({ fTopBar, Fixed });
         fLayout.widgets.push_back({ fMainArea, Expanding });
@@ -708,6 +702,7 @@ private:
     ScopedPointer<LibreAudioTopBar> fTopBar;
     ScopedPointer<LibreAudioMainArea> fMainArea;
     ScopedPointer<LibreAudioBottomBar> fBottomBar;
+    ScopedPointer<LibreAudioQuickParamTest> fTest;
 
     void adjustSize()
     {
@@ -723,6 +718,8 @@ private:
         fLayout.setHeight(height, padding, margin);
 
         fLayout.setAbsolutePos(0, 0, padding, margin);
+
+        fTest->setSize(fMainArea->getSize());
     }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)

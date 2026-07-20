@@ -17,7 +17,7 @@ target_compile_definitions(las-imgui
   INTERFACE
     IMGUI_DISABLE_DEBUG_TOOLS
     IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
-    IMGUI_DISABLE_DEMO_WINDOWS
+    # IMGUI_DISABLE_DEMO_WINDOWS
 )
 
 target_include_directories(las-imgui
