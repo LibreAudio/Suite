@@ -42,6 +42,17 @@ static const struct Colors {
     Color line2 = Color::fromHTML("#3b3b44");
 } gColors;
 
+enum WidgetIds {
+    kWidgetIdStart = 1000,
+    kWidgetUndo,
+    kWidgetRedo,
+    kWidgetSnapshotCopy,
+    kWidgetSnapshotA,
+    kWidgetSnapshotB,
+    kWidgetSnapshotC,
+    kWidgetSnapshotD,
+};
+
 struct Metrics {
     static constexpr const uint fontSize = 20;
 
@@ -258,6 +269,9 @@ public:
 
         fUndoButton->setCallback(callback);
         fRedoButton->setCallback(callback);
+
+        fUndoButton->setId(kWidgetUndo);
+        fRedoButton->setId(kWidgetRedo);
 
         fLayout.widgets.push_back({ fUndoButton, Fixed });
         fLayout.widgets.push_back({ fRedoButton, Fixed });
@@ -961,6 +975,16 @@ protected:
     void buttonClicked(SubWidget* const widget, int) final
     {
         d_stdout("buttonClicked %p %d", widget, widget->getId());
+
+        switch (widget->getId())
+        {
+        case kWidgetUndo:
+            undo();
+            break;
+        case kWidgetRedo:
+            redo();
+            break;
+        }
     }
 
     void onNanoDisplay() final

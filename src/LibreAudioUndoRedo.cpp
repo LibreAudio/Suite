@@ -34,26 +34,43 @@ void LibreAudioUndoRedo::clear()
     fActions.position = UINT32_MAX;
 }
 
-void LibreAudioUndoRedo::push(const Parameter& param)
+void LibreAudioUndoRedo::push(const uint32_t index, const float initValue, const float newValue)
 {
-    DISTRHO_SAFE_ASSERT_RETURN(fActions.position != UINT32_MAX,)
+    if (fActions.position != UINT32_MAX)
+    {
+        if (const uint32_t toErase = fActions.data.size() - fActions.position - 1)
+            fActions.data.erase(fActions.data.cend() - toErase, fActions.data.cend());
+    }
 
-    if (const uint32_t toErase = fActions.data.size() - fActions.position - 1)
-        fActions.data.erase(fActions.data.cend() - toErase, fActions.data.cend());
+    if (fActions.data.empty())
+    {
+        const Parameter param = { index, initValue };
+        const std::vector<Parameter> action = { param };
+        fActions.data.emplace_back(std::move(action));
+    }
+    else
+    {
+        bool backHasIndex = false;
+        for (const Parameter& param : fActions.data.back())
+        {
+            if (param.index == index)
+            {
+                backHasIndex = true;
+                break;
+            }
+        }
 
+        if (! backHasIndex)
+        {
+            const Parameter param = { index, initValue };
+            fActions.data.back().emplace_back(std::move(param));
+        }
+    }
+
+    const Parameter param = { index, newValue };
     const std::vector<Parameter> action = { param };
     fActions.data.emplace_back(std::move(action));
     fActions.position = fActions.data.size() - 1;
-}
-
-void LibreAudioUndoRedo::pushIfFirst(const Parameter& param)
-{
-    if (fActions.position != UINT32_MAX || ! fActions.data.empty())
-        return;
-
-    const std::vector<Parameter> action = { param };
-    fActions.data.emplace_back(std::move(action));
-    fActions.position = 0;
 }
 
 void LibreAudioUndoRedo::undo()

@@ -25,7 +25,8 @@ find_program(FAUSTDR faustdr REQUIRED)
 set(COMMON_FLAGS "-ffast-math")
 
 # invalidate possible -fno-finite-math-only from user environment
-set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only -Wno-nan-infinity-disabled")
+set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only")
+# FIXME which compilers support -Wno-nan-infinity-disabled ?
 
 # use a custom namespace for all DPF things
 set(COMMON_FLAGS "${COMMON_FLAGS} -DDISTRHO_NAMESPACE=LibreAudioSuiteDISTRHO")

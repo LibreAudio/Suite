@@ -115,10 +115,7 @@ void LibreAudioSnapshots::updateParameterValue(const uint32_t parameterIndex,
     DISTRHO_SAFE_ASSERT_RETURN(parameterIndex < fParameterCount,);
 
     if (d_isNotEqual(parameterValueOnDragStart, parameterValue))
-    {
-        fUndoRedos[fCurrent]->pushIfFirst({ parameterIndex, parameterValueOnDragStart });
-        fUndoRedos[fCurrent]->push({ parameterIndex, parameterValue });
-    }
+        fUndoRedos[fCurrent]->push(parameterIndex, parameterValueOnDragStart, parameterValue);
 
     if (d_isNotEqual(fParameterValues[fCurrent][parameterIndex], parameterValue))
     {

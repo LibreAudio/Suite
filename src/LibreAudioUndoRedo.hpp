@@ -43,8 +43,7 @@ struct LibreAudioUndoRedo {
         return fActions;
     }
 
-    void push(const Parameter& param);
-    void pushIfFirst(const Parameter& param);
+    void push(uint32_t index, float initValue, float newValue);
 
     void undo();
     void redo();

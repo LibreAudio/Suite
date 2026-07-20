@@ -414,10 +414,10 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
             }
         }
 
-        value = j.dump(-1, ' ', true, nlohmann::json::error_handler_t::replace);
+        value = j.dump(1, '\t', true, nlohmann::json::error_handler_t::replace);
     } DISTRHO_SAFE_EXCEPTION("failed to serialize snapshot");
 
-    // d_stdout("saving snapshot %u | %s", snapshot, value.c_str());
+    d_stdout("saving snapshot %u | %s", snapshot, value.c_str());
 
     setState(kStateKeys[kStateSnapshotValuesA + snapshot], value.c_str());
 }
