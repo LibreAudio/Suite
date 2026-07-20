@@ -75,6 +75,8 @@ enum WidgetIds {
     kWidgetSnapshotD,
     kWidgetEasy,
     kWidgetExpert,
+    kWidgetMenu,
+    kWidgetPower,
 };
 
 struct Metrics {
@@ -242,6 +244,11 @@ public:
           fImage(createImageFromMemory(data, dataSize, IMAGE_GENERATE_MIPMAPS)) {}
 
 protected:
+    virtual const Color& getColor() const
+    {
+        return gColors.get(this);
+    }
+
     bool onMouse(const Widget::MouseEvent& ev) final
     {
         if (mouseEvent(ev))
@@ -262,7 +269,7 @@ protected:
         const uint width = getWidth();
         const uint height = getHeight();
 
-        globalTint(gColors.get(this));
+        globalTint(getColor());
 
         beginPath();
         rect(0, 0, width, height);
@@ -308,6 +315,11 @@ public:
     }
 
 protected:
+    virtual const Color& getColor() const
+    {
+        return gColors.get(this);
+    }
+
     bool onMouse(const Widget::MouseEvent& ev) final
     {
         if (mouseEvent(ev))
@@ -328,7 +340,7 @@ protected:
         const uint width = getWidth();
         const uint height = getHeight();
 
-        globalTint(gColors.get(this));
+        globalTint(getColor());
 
         beginPath();
         rect(0, 0, width, height);
@@ -373,6 +385,11 @@ public:
           fText(text) {}
 
 protected:
+    virtual const Color& getColor() const
+    {
+        return gColors.get(this);
+    }
+
     bool onMouse(const Widget::MouseEvent& ev) final
     {
         if (mouseEvent(ev))
@@ -394,7 +411,7 @@ protected:
 
         beginPath();
         rect(0, 0, width, height);
-        fillColor(gColors.get(this));
+        fillColor(getColor());
         fontSize(Metrics::fontSize * fScaleFactor);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         textBox(0.f, getHeight() * 0.5f, getWidth(), fText);
@@ -610,9 +627,6 @@ public:
 
         fLayout.widgets.push_back({ fButtonEasy, Fixed });
         fLayout.widgets.push_back({ fButtonExpert, Fixed });
-
-        // start with easy mode selected
-        fButtonEasy->setChecked(true, false);
     }
 
     void update(const bool expertMode)
@@ -669,27 +683,97 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class LibreAudioPowerButton : public LibreAudioImageButton
+{
+public:
+    LibreAudioPowerButton(NanoSubWidget* const parent)
+        : LibreAudioImageButton(parent, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN)
+    {
+    }
+
+protected:
+    const Color& getColor() const override
+    {
+        if (! isEnabled())
+            return gColors.ink3;
+        if (isChecked())
+            return fOffColor;
+        // if (isHovered())
+        //     return gColors.acc;
+        return gColors.ink2;
+    }
+
+private:
+    const Color fOffColor = Color::fromHTML("#ff5d5d");
+};
+
 class LibreAudioMenuWidget : public LibreAudioWidget
 {
 public:
-    LibreAudioMenuWidget(NanoSubWidget* const parent)
+    LibreAudioMenuWidget(NanoSubWidget* const parent, ButtonEventHandler::Callback* const callback)
         : LibreAudioWidget(parent)
     {
+        fButtonMenu = new LibreAudioImageButton(this, IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN);
+        fButtonPower = new LibreAudioPowerButton(this);
+
+        fButtonMenu->setCallback(callback);
+        fButtonPower->setCallback(callback);
+
+        fButtonPower->setCheckable(true);
+
+        fButtonMenu->setId(kWidgetMenu);
+        fButtonPower->setId(kWidgetPower);
+
+        fLayout.widgets.push_back({ fButtonMenu, Fixed });
+        fLayout.widgets.push_back({ fButtonPower, Fixed });
+    }
+
+    void update(const bool enabled)
+    {
+        fButtonPower->setChecked(enabled, false);
     }
 
 protected:
     void onNanoDisplay() final
     {
-        fontSize(Metrics::fontSize * fScaleFactor);
-
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(0.2f, 0.2f, 0.2f);
-        fill();
-        fillColor(1.f, 1.f, 1.f);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "= (I)");
     }
+
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        LibreAudioWidget::onPositionChanged(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
+
+        fLayout.setAbsolutePos(ev.pos.getX(),
+                               ev.pos.getY() + (getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        LibreAudioWidget::onResize(ev);
+
+        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::padding * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::Cluster::Snapshots::margin * fScaleFactor);
+        const uint buttonSize = d_roundToUnsignedInt(Metrics::TopBar::smallImageSize * fScaleFactor);
+
+        fButtonMenu->setSize(buttonSize, buttonSize);
+        fButtonPower->setSize(buttonSize, buttonSize);
+
+        fLayout.setWidth(ev.size.getWidth(), padding, margin);
+        fLayout.setAbsolutePos(getAbsoluteX(),
+                               getAbsoluteY() + (ev.size.getHeight() - buttonSize) / 2,
+                               padding,
+                               margin);
+    }
+
+private:
+    HorizontalLayout fLayout;
+    ScopedPointer<LibreAudioImageButton> fButtonMenu;
+    ScopedPointer<LibreAudioPowerButton> fButtonPower;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -704,7 +788,7 @@ public:
         fUndoRedo = new LibreAudioUndoRedoWidget(this, callback);
         fSnapshots = new LibreAudioSnapshotsWidget(this, callback);
         fEasyExpert = new LibreAudioEasyExpertWidget(this, callback);
-        fMenu = new LibreAudioMenuWidget(this);
+        fMenu = new LibreAudioMenuWidget(this, callback);
 
         fLayout.widgets.push_back({ fPreset, Expanding });
         fLayout.widgets.push_back({ fUndoRedo, Fixed });
@@ -717,11 +801,13 @@ public:
                 const bool canRedo,
                 const bool isCopyingSnapshot,
                 const uint8_t currentSnapshot,
-                const bool expertMode)
+                const bool expertMode,
+                const bool enabled)
     {
         fUndoRedo->update(canUndo, canRedo);
         fSnapshots->update(isCopyingSnapshot, currentSnapshot);
         fEasyExpert->update(expertMode);
+        fMenu->update(enabled);
     }
 
 protected:
@@ -787,23 +873,15 @@ public:
                 const bool canRedo,
                 const bool isCopyingSnapshot,
                 const uint8_t currentSnapshot,
-                const bool expertMode)
+                const bool expertMode,
+                const bool enabled)
     {
-        fCluster->update(canUndo, canRedo, isCopyingSnapshot, currentSnapshot, expertMode);
+        fCluster->update(canUndo, canRedo, isCopyingSnapshot, currentSnapshot, expertMode, enabled);
     }
 
 protected:
     void onNanoDisplay() final
     {
-        // fontSize(Metrics::fontSize * fScaleFactor);
-
-        // beginPath();
-        // rect(0, 0, getWidth(), getHeight());
-        // fillColor(0.0f, 0.1f, 0.1f);
-        // fill();
-        // fillColor(1.f, 1.f, 1.f);
-        // textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        // textBox(0.f, getHeight() * 0.5f, getWidth(), "This is the top bar");
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) final
@@ -1216,6 +1294,14 @@ protected:
         case kWidgetExpert:
             fExpertMode = true;
             break;
+        case kWidgetMenu:
+            break;
+        case kWidgetPower:
+            parameterControlPressed(kCommonParameterBypass);
+            parameterControlModified(kCommonParameterBypass,
+                                     static_cast<LibreAudioPowerButton*>(widget)->isChecked() ? 1.f : 0.f);
+            parameterControlReleased(kCommonParameterBypass);
+            break;
         }
     }
 
@@ -1240,7 +1326,12 @@ protected:
     {
         LibreAudioBaseUI::uiIdle();
 
-        fTopBar->update(canUndo(), canRedo(), isCopyingSnapshot(), getCurrentSnapshot(), fExpertMode);
+        fTopBar->update(canUndo(),
+                        canRedo(),
+                        isCopyingSnapshot(),
+                        getCurrentSnapshot(),
+                        fExpertMode,
+                        d_isNotZero(fParameterValuesRef[kCommonParameterBypass]));
     }
 
     void uiScaleFactorChanged(const double scaleFactor) final

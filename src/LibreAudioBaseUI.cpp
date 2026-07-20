@@ -130,8 +130,16 @@ void LibreAudioBaseUI::parameterChanged(const uint32_t index, const float value)
 {
     fParameterValues[index] = value;
 
-    if (! isParameterOutputOrTrigger(index))
-        fSnapshots.updateParameterValue(index, value, value);
+    switch (index)
+    {
+    case kCommonParameterBypass:
+    case kCommonParameterReset:
+        return;
+    default:
+        if (! isParameterOutputOrTrigger(index))
+            fSnapshots.updateParameterValue(index, value, value);
+        break;
+    }
 }
 
 void LibreAudioBaseUI::stateChanged(const char* const key, const char* const value)
@@ -279,13 +287,33 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 
 void LibreAudioBaseUI::parameterControlPressed(const uint32_t index)
 {
-    fParameterValuesWhenActivated[index] = fParameterValues[index];
+    switch (index)
+    {
+    case kCommonParameterReset:
+        return;
+    case kCommonParameterBypass:
+        break;
+    default:
+        fParameterValuesWhenActivated[index] = fParameterValues[index];
+        break;
+    }
+
     editParameter(index, true);
 }
 
 void LibreAudioBaseUI::parameterControlReleased(const uint32_t index)
 {
-    fSnapshots.updateParameterValue(index, fParameterValues[index], fParameterValuesWhenActivated[index]);
+    switch (index)
+    {
+    case kCommonParameterReset:
+        return;
+    case kCommonParameterBypass:
+        break;
+    default:
+        fSnapshots.updateParameterValue(index, fParameterValues[index], fParameterValuesWhenActivated[index]);
+        break;
+    }
+
     editParameter(index, false);
 }
 
