@@ -1,0 +1,196 @@
+declare author "Klaus Scheuermann";
+declare description "";
+declare license "GPL-3.0-or-later";
+declare name "Doubler";
+declare unique_id "LAdb";
+
+import("stdfaust.lib");
+
+//======================= Mode & global controls =======================
+
+// mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT (Tape)':0;'1/3 Doubler':1}]", 1, 0, 1, 1);
+mode = checkbox("[0]ADT / 1/3 Doubler[symbol:mode]");
+mix  = hslider("[1]Mix[symbol:mix]", 0.5, 0, 1, 0.01);
+
+// Mix law: dry holds unity over the lower half and fades out above center,
+// wet fades in over the lower half and holds unity above. Center is both at
+// full level — the loudest point — rather than the -6 dB each a plain
+// linear crossfade would give.
+mixDry = min(1, 2 - 2 * mix);
+mixWet = min(1, 2 * mix);
+
+//======================= High Frequency Limiter =======================
+// Feeds the wet path only — the dry half of the dry/wet mix always passes
+// through untouched, so this can never dull the original signal.
+//
+// Level-independent: splits the input into a low ("body") band and a
+// high band, then compares their envelopes as a ratio (dB difference)
+// instead of the high band's absolute level. A quiet "s" in a quiet
+// passage still spikes that ratio, so detection doesn't depend on overall
+// loudness the way a plain high-band compressor does.
+
+// One macro control drives all four parameters. To retune the feel, edit
+// the endpoint pairs below: the first value is what the parameter is at
+// Intensity 0%, the second at 100%, interpolated linearly in between.
+// Nothing else needs touching.
+hfLimSplitAt0  = 5000;  hfLimSplitAt100  = 4500;  // Hz   - crossover; lower reaches further down into the "sh" range
+hfLimThreshAt0 =   -2;  hfLimThreshAt100 =   -14; // dB   - how far the high band must stick out before it counts
+hfLimRatioAt0  =    2;  hfLimRatioAt100  =     8; //      - how hard the excess is squeezed
+hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total reduction; 0 at the bottom makes 0% a true bypass
+
+lerp(a, b, t) = a + (b - a) * t;
+
+hflim_amount = hgroup("[2]High Frequency Limiter", hslider("[0]HFlim Intensity[unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
+hflim_meter  = hgroup("[2]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", -30, 0));
+
+hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
+hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
+hflim_ratio  = lerp(hfLimRatioAt0,  hfLimRatioAt100,  hflim_amount);
+hflim_range  = lerp(hfLimRangeAt0,  hfLimRangeAt100,  hflim_amount);
+
+hfLimit(x) = (low + high * gr) : attach(_, (0 - reductionDb) : hflim_meter)
+with {
+    low  = fi.lowpass(4, hflim_split, x);
+    high = x - low; // complementary split: low+high reconstructs x exactly at unity gain
+
+    hiDb  = high : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
+    refDb = low  : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
+
+    // dB the high band sticks out above the body band, relative to normal
+    // voice spectral tilt; only the excess over threshold is limited
+    diff   = hiDb - refDb;
+    excess = max(0, diff - hflim_thresh);
+
+    reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range);
+    gr = ba.db2linear(0 - reductionDb);
+};
+
+//======================= Wet EQ =======================
+// Shapes the double only, never the dry — the usual move is to roll off
+// lows and top so the double sits behind the lead instead of thickening
+// it, plus one band to duck or lift whatever frequency the double
+// exaggerates. Applies in every mode.
+
+eq_hpHz = hgroup("[5]Wet EQ", hslider("[0]High Pass[unit:Hz][symbol:eq_hp]", 20, 20, 2000, 1));
+eq_lpHz = hgroup("[5]Wet EQ", hslider("[1]Low Pass[unit:Hz][symbol:eq_lp]", 20000, 1000, 20000, 1));
+eq_freq = hgroup("[5]Wet EQ", hslider("[2]Band Freq[unit:Hz][symbol:eq_freq]", 2000, 100, 12000, 1));
+eq_gain = hgroup("[5]Wet EQ", hslider("[3]Band Gain[unit:dB][symbol:eq_gain]", 0, -18, 18, 0.1));
+eq_q    = hgroup("[5]Wet EQ", hslider("[4]Band Q[symbol:eq_q]", 1, 0.2, 8, 0.01));
+
+wetEq = fi.highpass(2, eq_hpHz)
+      : fi.lowpass(2, eq_lpHz)
+      : fi.peak_eq_cq(eq_gain, eq_freq, eq_q);
+
+//======================= Mode 1: ADT (tape-style) =======================
+// Delayed voice, delay time wobbled by a slow LFO to emulate varispeed
+// "wow" from a second tape machine (Abbey Road ADT). The 2nd Voice switch
+// adds a second machine: longer-delayed, with a slower and unrelated wow
+// rate so the two never lock into one audible wobble.
+//
+// Stereo placement is Pan with one voice (where the double sits) and Width
+// with two (how far apart they sit); the unused one is simply ignored.
+
+adt_2voice  = hgroup("[3]ADT", checkbox("[0]ADT 2nd Voice[symbol:adt_2voice]"));
+adt_delayMs = hgroup("[3]ADT", hslider("[1]ADT Delay[unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1));
+adt_rateHz  = hgroup("[3]ADT", hslider("[2]ADT Wow Rate[unit:Hz][symbol:adt_wow_rate]", 0.6, 0.05, 5, 0.01));
+adt_depthMs = hgroup("[3]ADT", hslider("[3]ADT Wow Depth[unit:ms][symbol:adt_wow_depth]", 2.5, 0, 10, 0.1));
+adt_pan     = hgroup("[3]ADT", hslider("[4]ADT Pan[symbol:adt_pan]", 0, -1, 1, 0.01));
+adt_width   = hgroup("[3]ADT", hslider("[5]ADT Width[symbol:adt_width]", 1, 0, 1, 0.01));
+
+// second machine, derived from the single-voice settings
+adt_delay2  = adt_delayMs * 1.6 + 4;
+adt_rate2   = adt_rateHz * 0.73;
+
+adt_voice(delayMs, rateHz, x) = x : de.fdelay(maxDel, delaySamp)
+with {
+    maxDel    = 65536;
+    baseDelay = delayMs * ma.SR / 1000;
+    depthSamp = adt_depthMs * ma.SR / 1000;
+    delaySamp = max(1, baseDelay + os.osc(rateHz) * depthSamp);
+};
+
+// constant-power pan, p in 0..1 (0 = hard left, 0.5 = center, 1 = hard right)
+panL(p) = cos(p * ma.PI / 2);
+panR(p) = sin(p * ma.PI / 2);
+
+// dry = untouched input, src = limiter output the voices are built from
+adt_mode(dry, src) = outL, outR
+with {
+    voiceA = src : adt_voice(adt_delayMs, adt_rateHz);
+    voiceB = src : adt_voice(adt_delay2,  adt_rate2);
+
+    // one voice: pan places it. 0 = centered (classic mono ADT),
+    // -1/+1 = hard left/right, dry stays centered so the double
+    // reads as stereo spread.
+    p     = 0.5 + adt_pan * 0.5;
+    oneL  = voiceA * panL(p);
+    oneR  = voiceA * panR(p);
+
+    // two voices: width spreads them to mirrored positions, 0 stacks them
+    // centered. Halved so the pair sits at the same loudness as one voice.
+    pA    = 0.5 - adt_width * 0.5;
+    pB    = 0.5 + adt_width * 0.5;
+    twoL  = (voiceA * panL(pA) + voiceB * panL(pB)) * 0.5;
+    twoR  = (voiceA * panR(pA) + voiceB * panR(pB)) * 0.5;
+
+    // select before the EQ so it stays one instance per channel either way
+    wetL = select2(adt_2voice, oneL, twoL) : wetEq;
+    wetR = select2(adt_2voice, oneR, twoR) : wetEq;
+
+    outL = dry * mixDry + wetL * mixWet;
+    outR = dry * mixDry + wetR * mixWet;
+};
+
+//======================= Mode 2: 1/3 pitch-shift doubler =======================
+// Two detuned, independently-delayed voices panned apart, each with its
+// own slow random ("humanized") wander in pitch and level so they don't
+// read as a static chorus but as two separate takes.
+
+db_delayMs  = hgroup("[4]1/3 Doubler", hslider("[0]DOUBLER Base Delay[unit:ms][symbol:base_delay]", 20, 5, 50, 0.1));
+db_detune   = hgroup("[4]1/3 Doubler", hslider("[1]DOUBLER Detune[unit:cents][symbol:detune]", 14, 0, 40, 0.1));
+db_wanderHz = hgroup("[4]1/3 Doubler", hslider("[2]DOUBLER Wander Rate[unit:Hz][symbol:wander_rate]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = hgroup("[4]1/3 Doubler", hslider("[3]DOUBLER Wander Depth[unit:cents][symbol:wander_depth]", 6, 0, 25, 0.1));
+db_width    = hgroup("[4]1/3 Doubler", hslider("[4]DOUBLER Width[symbol:doubler_width]", 1, 0, 1, 0.01));
+
+db_voice(centsShift, delayMs, wanderFreq, x) = out
+with {
+    maxDel         = 65536;
+    winSamp        = 0.03 * ma.SR;
+    xfadeSamp      = winSamp * 0.25;
+    ampWanderFreq  = wanderFreq * 1.7;
+    ampWanderDepth = 0.08;
+
+    wanderCents = no.lfnoise(wanderFreq) * db_wanderCt;
+    shiftSemi   = (centsShift + wanderCents) / 100;
+    delaySamp   = delayMs * ma.SR / 1000;
+    ampMod      = 1 + no.lfnoise(ampWanderFreq) * ampWanderDepth;
+
+    out = x : ef.transpose(winSamp, xfadeSamp, shiftSemi) : de.fdelay(maxDel, delaySamp) : *(ampMod);
+};
+
+// dry = untouched input, src = limiter output the voices are built from
+db_mode(dry, src) = outL, outR
+with {
+    voiceA = src : db_voice(0 - db_detune, db_delayMs,           db_wanderHz);
+    voiceB = src : db_voice(db_detune,     db_delayMs * 1.15 + 3, db_wanderHz * 1.21);
+
+    pA = 0.5 - db_width * 0.5;
+    pB = 0.5 + db_width * 0.5;
+
+    wetL = voiceA * panL(pA) + voiceB * panL(pB) : wetEq;
+    wetR = voiceA * panR(pA) + voiceB * panR(pB) : wetEq;
+
+    // two voices summed into each channel: halve to keep loudness in
+    // line with the single-voice ADT mode at the same mix setting.
+    outL = dry * mixDry + wetL * mixWet * 0.5;
+    outR = dry * mixDry + wetR * mixWet * 0.5;
+};
+
+//======================= Mode select =======================
+
+// The limiter sits on the wet feed only: each mode gets the untouched sum
+// as its dry, and the limited sum as the source its voices are built from.
+process = _,_ :> _*0.5 <: (_, hfLimit) <: (adt_mode, db_mode) : selectOut
+with {
+    selectOut(aL, aR, bL, bR) = select2(mode, aL, bL), select2(mode, aR, bR);
+};
