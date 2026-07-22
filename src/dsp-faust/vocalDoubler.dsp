@@ -1,8 +1,8 @@
 declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
-declare name "Doubler";
-declare unique_id "LAdb";
+declare name "Vocal Doubler";
+declare unique_id "LAvd";
 
 import("stdfaust.lib");
 
