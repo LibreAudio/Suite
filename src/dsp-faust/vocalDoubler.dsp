@@ -10,14 +10,18 @@ import("stdfaust.lib");
 
 // mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT (Tape)':0;'1/3 Doubler':1}]", 1, 0, 1, 1);
 mode = checkbox("[0]ADT / 1/3 Doubler[symbol:mode]");
-mix  = hslider("[1]Mix[symbol:mix]", 0.5, 0, 1, 0.01);
 
-// Mix law: dry holds unity over the lower half and fades out above center,
-// wet fades in over the lower half and holds unity above. Center is both at
-// full level — the loudest point — rather than the -6 dB each a plain
-// linear crossfade would give.
-mixDry = min(1, 2 - 2 * mix);
-mixWet = min(1, 2 * mix);
+// Independent dry and wet volume faders in dB. The bottom of the range is
+// treated as -inf (true silence) rather than the ~-84 dB a raw db2linear
+// would give, so pulling a fader all the way down fully mutes that path.
+faderMinDb = -70;
+faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
+
+dryDb = hslider("[1]Dry[unit:dB][symbol:dry_level]",  0, faderMinDb, 12, 0.1);
+wetDb = hslider("[2]Wet[unit:dB][symbol:wet_level]",  0, faderMinDb, 12, 0.1);
+
+mixDry = faderGain(dryDb);
+mixWet = faderGain(wetDb);
 
 //======================= High Frequency Limiter =======================
 // Feeds the wet path only — the dry half of the dry/wet mix always passes
