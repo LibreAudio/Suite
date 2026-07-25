@@ -44,6 +44,9 @@ if("${C_COMPILER_ID}" STREQUAL "GNU")
   # do not keep GNU-specific symbols around, preventing dlclose() from working properly
   set(COMMON_FLAGS "${COMMON_FLAGS} -fno-gnu-unique")
 
+  # keep math in single-precision where relevant/possible
+  set(COMMON_FLAGS "${COMMON_FLAGS} -fsingle-precision-constant")
+
   # always report undefined symbols
   set(COMMON_FLAGS "${COMMON_FLAGS} -Wl,--no-undefined")
 endif()
