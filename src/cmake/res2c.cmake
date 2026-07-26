@@ -16,7 +16,11 @@ foreach(INPUT_FILE ${INPUT_FILES})
   string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," INPUT_FILE_HEX "${INPUT_FILE_HEX}")
 
   # generate C-compatible symbol based on input name
-  string(REGEX REPLACE "^(.*)/resources/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
+  if("${INPUT_FILE}" MATCHES "^.*/resources/.*$")
+    string(REGEX REPLACE "^(.*)/resources/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
+  else()
+    string(REGEX REPLACE "^(.*)/src/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
+  endif()
   string(MAKE_C_IDENTIFIER "${INPUT_SYMBOL}" INPUT_SYMBOL)
   string(TOUPPER "${INPUT_SYMBOL}" INPUT_SYMBOL)
 

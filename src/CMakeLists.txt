@@ -123,6 +123,7 @@ function(las_generate_resources)
   file(GLOB
     LIBREAUDIO_RESOURCES
       CONFIGURE_DEPENDS
+        custom/chorus/index.html
         ../resources/fonts/*.ttf
         ../resources/images/*.png
   )
@@ -160,12 +161,16 @@ las_generate_resources()
 function(las_add_plugin LABEL)
   set(TARGET "la-${LABEL}")
 
+  set(EXTRA_ARGS)
   set(EXTRA_DSP_LIBS)
   set(EXTRA_UI_LIBS)
-  if("${LABEL}" STREQUAL "leveler")
+  if("${LABEL}" STREQUAL "chorus")
+    list(APPEND EXTRA_ARGS USE_WEB_VIEW)
+    list(APPEND EXTRA_UI_LIBS bittyhttp::interface)
+    list(APPEND EXTRA_UI_LIBS $<$<BOOL:${WIN32}>:winmm>)
+  elseif("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
-  # list(APPEND EXTRA_UI_LIBS )
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/${LABEL}/ui.cpp)
     set(UI_FILE "custom/${LABEL}/ui.cpp")
@@ -199,6 +204,7 @@ function(las_add_plugin LABEL)
       ${UI_FILE}
       ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
     RUNTIME_TESTING
+    ${EXTRA_ARGS}
   )
 
   las_generate_faust_cpp(${LABEL})

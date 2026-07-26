@@ -82,6 +82,7 @@ endif()
 # setup dependencies
 
 add_subdirectory(deps)
+add_subdirectory(deps/BittyHTTP)
 add_subdirectory(deps/DPF)
 # add_subdirectory(deps/DPF-Widgets)
 add_subdirectory(deps/json)

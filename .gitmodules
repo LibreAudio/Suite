@@ -10,3 +10,6 @@
 [submodule "deps/rnnoise"]
 	path = deps/rnnoise
 	url = https://github.com/falkTX/rnnoise.git
+[submodule "deps/BittyHTTP"]
+	path = deps/BittyHTTP
+	url = https://github.com/falkTX/BittyHTTP.git
