@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "src/DistrhoDefines.h"
-
-#include <cstdint>
+#include "DistrhoUtils.hpp"
 
 #ifdef _WIN32
 #define RESTRICT __restrict

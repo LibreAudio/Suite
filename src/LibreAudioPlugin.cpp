@@ -336,7 +336,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
        #if LIBREAUDIO_WANT_SPEECH_DETECTION
         const float vad = fSpeechDetection.process(fCycleBuffer1, cycleFrames);
-        fMainDSP->set(kFaustParameterVad_ext, vad);
+        fMainDSP->set(leveler::kFaustParameterVad_ext, vad);
        #endif
 
         fInputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);

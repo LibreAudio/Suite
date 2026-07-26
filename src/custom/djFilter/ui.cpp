@@ -19,50 +19,24 @@
 #include <string>
 #include <vector>
 
+#include "ui/colors.hpp"
+#include "ui/metrics.hpp"
+#include "ui/widgets.hpp"
+
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-static const struct Colors {
-    Color background = Color::fromHTML("#28282d");
-    Color outline = Color::fromHTML("#3a3a42");
+static constexpr const char kStringInitPreset[] = "Init Preset \\/";
+static constexpr const char kStringShortName[] = DISTRHO_PLUGIN_SHORTNAME;
 
-    Color ink = Color::fromHTML("#f2f2f4");
-    Color ink2 = Color::fromHTML("#b7b9bf");
-    Color ink3 = Color::fromHTML("#74767e");
-    Color acc = Color::fromHTML("#c5d9ff");
+using LibreAudioLogo = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+using LibreAudioPluginName = LibreAudioTextWidget<kStringShortName, true>;
+using LibreAudioPresetWidget = LibreAudioTextWidget<kStringInitPreset>;
 
-    Color bg0 = Color::fromHTML("#161618");
-    Color bg1 = Color::fromHTML("#1c1c20");
-    Color bg2 = Color::fromHTML("#26262b");
-    Color bg3 = Color::fromHTML("#303036");
-    Color line = Color::fromHTML("#2a2a30");
-    Color line2 = Color::fromHTML("#3b3b44");
-
-    const Color& get(const bool isEnabled, const bool isChecked, const bool isHover) const
-    {
-        if (! isEnabled)
-            return ink3;
-        if (isChecked)
-            return ink;
-        if (isHover)
-            return acc;
-        return ink2;
-    }
-
-    const Color& get(const ButtonEventHandler* const button) const
-    {
-        if (! button->isEnabled())
-            return ink3;
-        if (button->isChecked())
-            return ink;
-        if (button->isHovered())
-            return acc;
-        return ink2;
-    }
-} gColors;
+// --------------------------------------------------------------------------------------------------------------------
 
 enum WidgetIds {
     kWidgetIdStart = 1000,
@@ -77,159 +51,6 @@ enum WidgetIds {
     kWidgetExpert,
     kWidgetMenu,
     kWidgetPower,
-};
-
-struct Metrics {
-    static constexpr const uint fontSize = 20;
-
-    struct Window {
-        static constexpr const uint padding = 0;
-        static constexpr const uint margin = 0;
-    };
-
-    struct TopBar {
-        static constexpr const uint height = 46;
-        static constexpr const uint padding = 10;
-        static constexpr const uint margin = 0;
-        static constexpr const uint marginLeft = margin + 7;
-        static constexpr const uint marginRight = margin + 14;
-        static constexpr const uint smallImageSize = 14;
-        struct Logo {
-            static constexpr const uint imageSize = 34;
-        };
-        struct PluginName {
-        //     static constexpr const uint size = 34;
-        };
-        struct Cluster {
-            static constexpr const uint width = 610;
-            static constexpr const uint padding = 60;
-            static constexpr const uint margin = 0;
-            struct UndoRedo {
-                static constexpr const uint width = 40;
-                static constexpr const uint padding = 12;
-                static constexpr const uint margin = 0;
-            };
-            struct Snapshots {
-                static constexpr const uint width = 104;
-                static constexpr const uint padding = 10;
-                static constexpr const uint margin = 0;
-            };
-            struct EasyExpert {
-                static constexpr const uint width = 92;
-                static constexpr const uint padding = 10;
-                static constexpr const uint margin = 0;
-            };
-            struct Menu {
-                static constexpr const uint width = 45;
-                static constexpr const uint padding = 9;
-            };
-        };
-    };
-
-    struct BottomBar {
-        static constexpr const uint height = 46;
-    };
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioWidget : public NanoSubWidget
-{
-public:
-    LibreAudioWidget(NanoTopLevelWidget* const parent)
-        : NanoSubWidget(parent),
-          fScaleFactor(parent->getScaleFactor())
-    {
-    }
-
-    LibreAudioWidget(NanoSubWidget* const parent)
-        : NanoSubWidget(parent),
-          fScaleFactor(parent->getTopLevelWidget()->getScaleFactor())
-    {
-    }
-
-protected:
-    double fScaleFactor;
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioLogo : public LibreAudioWidget
-{
-public:
-    LibreAudioLogo(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent) {}
-
-protected:
-    void onNanoDisplay() final
-    {
-        const double size = Metrics::TopBar::Logo::imageSize * fScaleFactor;
-        const uint width = getWidth();
-        const uint height = getHeight();
-
-        beginPath();
-        rect(0, 0, width, height);
-        fillPaint(imagePattern((width - size) * 0.5, (height - size) * 0.5, size, size, 0.f, fImage, 1.f));
-        fill();
-    }
-
-private:
-    NanoImage fImage { createImageFromMemory(IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN, IMAGE_GENERATE_MIPMAPS) };
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioPluginName : public LibreAudioWidget
-{
-public:
-    LibreAudioPluginName(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent)
-    {
-        if (fName.startsWith("LA "))
-        {
-            if (char* const name = fName.getAndReleaseBuffer())
-            {
-                fName = name + 3;
-                std::free(name);
-            }
-        }
-
-        fName.toUpper();
-    }
-
-protected:
-    void onNanoDisplay() final
-    {
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(gColors.ink2);
-        fontSize(Metrics::fontSize * fScaleFactor);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), fName);
-    }
-
-private:
-    String fName { DISTRHO_PLUGIN_NAME };
-};
-
-class LibreAudioPresetWidget : public LibreAudioWidget
-{
-public:
-    LibreAudioPresetWidget(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent)
-    {
-    }
-
-protected:
-    void onNanoDisplay() final
-    {
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(gColors.ink2);
-        fontSize(Metrics::fontSize * fScaleFactor);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "Init Preset \\/");
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

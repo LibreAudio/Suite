@@ -31,11 +31,15 @@ enum FaustParameterList {
 
 }
 
+#define DISTRHO_PLUGIN_CLAP_ID "org.libreaudio.{{id}}"
 #define DISTRHO_PLUGIN_DESCRIPTION "{{meta.description}}"
+#define DISTRHO_PLUGIN_LABEL "{{id}}"
 #define DISTRHO_PLUGIN_NAME "LA {{name}}"
 #define DISTRHO_PLUGIN_NUM_INPUTS {{inputs}}
 #define DISTRHO_PLUGIN_NUM_OUTPUTS {{outputs}}
+#define DISTRHO_PLUGIN_SHORTNAME "{{name}}"
 #define DISTRHO_PLUGIN_UNIQUE_ID {{meta.unique_id}}
+#define DISTRHO_PLUGIN_URI "https://libreaudio.org/plugins/{{id}}"
 {% for w in passive if w.symbol == "latency_samples" %}
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
 #define LIBREAUDIO_MAX_LATENCY_SAMPLES {{w.max|int}}

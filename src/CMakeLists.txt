@@ -105,6 +105,7 @@ function(las_generate_faust_plugin TARGET)
       -c ${TARGET}
       -l c
       -o ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/config.h
+      -Did=${TARGET}
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
@@ -211,9 +212,6 @@ function(las_add_plugin LABEL)
 
   target_compile_definitions(${TARGET}
     PUBLIC
-      DISTRHO_PLUGIN_CLAP_ID="org.libreaudio.${LABEL}"
-      DISTRHO_PLUGIN_LABEL="${LABEL}"
-      DISTRHO_PLUGIN_URI="https://libreaudio.org/plugins/${LABEL}"
       JSON_NO_IO
       VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
       VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}

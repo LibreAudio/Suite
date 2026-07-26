@@ -6,6 +6,11 @@
 
 #include "config.h"
 
+inline constexpr const char* const _constexpr_DISTRHO_PLUGIN_NAME = DISTRHO_PLUGIN_NAME;
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[0] == 'L', "Name does not start with 'LA '");
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[1] == 'A', "Name does not start with 'LA '");
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[2] == ' ', "Name does not start with 'LA '");
+
 #if defined(__has_include) && __has_include("config-custom.h")
 #include "config-custom.h"
 #endif

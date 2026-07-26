@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "src/DistrhoDefines.h"
+#include "DistrhoUtils.hpp"
 
-#include <cstdint>
 #include <vector>
 
 // --------------------------------------------------------------------------------------------------------------------
