@@ -17,6 +17,7 @@
 #include "las-resources.h"
 
 #include "Window.hpp"
+#include "extra/Runner.hpp"
 #include "extra/Time.hpp"
 
 #include <cerrno>
@@ -127,7 +128,8 @@ void webserver_close(WebServer* const webServer)
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioUI : public LibreAudioBaseUI
+class LibreAudioUI : public LibreAudioBaseUI,
+                     private Runner
 {
 public:
     LibreAudioUI()
@@ -142,6 +144,7 @@ public:
             return;
         }
 
+        startRunner(10);
         d_stdout("WebServer started with port: %d", webserver_port(webServer));
 
         WebViewOptions options;
@@ -157,6 +160,7 @@ public:
 
         if (! getWindow().createWebView("http://127.0.0.1:8887/", options))
         {
+            stopRunner();
             d_stderr2("Failed to create WebView");
             return;
         }
@@ -164,6 +168,8 @@ public:
 
     ~LibreAudioUI() override
     {
+        stopRunner();
+
         if (webServer != nullptr)
             webserver_close(webServer);
     }
@@ -175,17 +181,18 @@ protected:
     void uiIdle() final
     {
         LibreAudioBaseUI::uiIdle();
-
-        if (webServer != nullptr && ! webserver_idle(webServer))
-        {
-            webserver_close(webServer);
-            webServer = nullptr;
-        }
     }
 
 private:
     WebServer* webServer = webserver_init();
     // bool webviewStarted = false;
+
+    bool run() final
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(webServer != nullptr, false);
+
+        return webserver_idle(webServer);
+    }
 
     void webViewMessageCallback(char* msg)
     {
