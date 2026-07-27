@@ -12,7 +12,7 @@
 #include "Layout.hpp"
 
 // temp stuff
-#include "DearImGui.hpp"
+// #include "DearImGui.hpp"
 
 #include "las-resources.h"
 
@@ -743,272 +743,22 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioQuickParamTest : public ImGuiSubWidget
-{
-public:
-    explicit LibreAudioQuickParamTest(Widget* const parent, LibreAudioBaseUI* const ui)
-        : ImGuiSubWidget(parent),
-          fUI(ui)
-    {
-        // caching strings for display
-        fParameterLabels.resize(fUI->kParameterCount);
-        fParameterRenders.resize(fUI->kParameterCount);
-
-        for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
-        {
-            const FaustParameter& param = LibreAudioBaseUI::kFaustParametersIn[i];
-
-            std::string& label = fParameterLabels[kParametersInputStart + i];
-            label = param.label;
-            label += "##";
-            label += param.symbol;
-
-            std::string& render = fParameterRenders[kParametersInputStart + i];
-            render = param.isInteger ? "%d" : "%.2f";
-            if (param.unit != nullptr)
-            {
-                render += " ";
-                render += param.unit;
-            }
-        }
-
-        for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
-        {
-            const FaustParameter& param = LibreAudioBaseUI::kFaustParametersOut[i];
-
-            std::string& label = fParameterLabels[kParametersOutputStart + i - kCommonIOParameters];
-            label = param.label;
-            label += "##";
-            label += param.symbol;
-
-            std::string& render = fParameterRenders[kParametersOutputStart + i - kCommonIOParameters];
-            render = param.isInteger ? "%d" : "%.2f";
-            if (param.unit != nullptr)
-            {
-                render += " ";
-                render += param.unit;
-            }
-        }
-
-        for (uint32_t i = 0, size = LibreAudioBaseUI::kFaustParameters.size(); i < size; ++i)
-        {
-            const FaustParameter& param = LibreAudioBaseUI::kFaustParameters[i];
-
-            std::string& label = fParameterLabels[kParametersMainStart + i];
-            label = param.label;
-            label += "##";
-            label += param.symbol;
-
-            std::string& render = fParameterRenders[kParametersMainStart + i];
-            render = param.isInteger ? "%d" : "%.2f";
-            if (param.unit != nullptr)
-            {
-                render += " ";
-                render += param.unit;
-            }
-        }
-    }
-
-protected:
-    void onImGuiDisplay() final
-    {
-        ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2(getWidth(), getHeight()));
-
-        constexpr int flags = ImGuiWindowFlags_NoSavedSettings
-            | ImGuiWindowFlags_NoTitleBar
-            | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_NoCollapse;
-
-        ImGui::Begin("LibreAudio", nullptr, flags);
-
-        {
-            ImGui::SeparatorText("Input");
-            ImGui::BeginGroup();
-
-            for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParametersIn[i];
-
-                if (param.isOutput)
-                    continue;
-
-                displaySlider(param, kParametersInputStart + i);
-            }
-
-            ImGui::BeginDisabled();
-
-            for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParametersIn[i];
-
-                if (! param.isOutput)
-                    continue;
-
-                displayMeter(param, kParametersInputStart + i);
-            }
-
-            ImGui::EndDisabled();
-
-            ImGui::EndGroup();
-        }
-
-        {
-            ImGui::SeparatorText("Output");
-            ImGui::BeginGroup();
-
-            for (uint32_t i = kCommonIOParameters, size = LibreAudioBaseUI::kFaustParametersOut.size(); i < size; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParametersOut[i];
-
-                if (param.isOutput)
-                    continue;
-
-                displaySlider(param, kParametersOutputStart + i - kCommonIOParameters);
-            }
-
-            ImGui::BeginDisabled();
-
-            for (uint32_t i = kCommonIOParameters, size = LibreAudioBaseUI::kFaustParametersOut.size(); i < size; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParametersOut[i];
-
-                if (! param.isOutput)
-                    continue;
-
-                displayMeter(param, kParametersOutputStart + i - kCommonIOParameters);
-            }
-
-            ImGui::EndDisabled();
-
-            ImGui::EndGroup();
-        }
-
-        bool hasOutputs = false;
-
-        {
-            ImGui::SeparatorText("Parameters");
-            ImGui::BeginGroup();
-
-            for (uint32_t i = 0, size = LibreAudioBaseUI::kFaustParameters.size(); i < size; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParameters[i];
-
-                if (param.isOutput)
-                {
-                    hasOutputs = true;
-                    continue;
-                }
-
-                displaySlider(param, kParametersMainStart + i);
-            }
-
-            ImGui::EndGroup();
-        }
-
-        if (hasOutputs)
-        {
-            ImGui::SeparatorText("Meters / Outputs");
-            ImGui::BeginGroup();
-            ImGui::BeginDisabled();
-
-            for (uint32_t i = 0, size = LibreAudioBaseUI::kFaustParameters.size(); i < size; ++i)
-            {
-                const FaustParameter& param = LibreAudioBaseUI::kFaustParameters[i];
-
-                if (! param.isOutput)
-                    continue;
-
-                displayMeter(param, kParametersMainStart + i);
-            }
-
-            ImGui::EndGroup();
-            ImGui::EndDisabled();
-        }
-
-        ImGui::End();
-    }
-
-private:
-    std::vector<std::string> fParameterLabels;
-    std::vector<std::string> fParameterRenders;
-    LibreAudioBaseUI* const fUI;
-
-    void displaySlider(const FaustParameter& param, const uint32_t index)
-    {
-        float value = fUI->fParameterValuesRef[index];
-        bool modified;
-
-        if (param.isBoolean)
-        {
-            bool bvalue = value > (param.max - param.min) * 0.5f;
-            modified = ImGui::Checkbox(fParameterLabels[index].c_str(), &bvalue);
-
-            if (modified)
-                value = bvalue ? param.max : param.min;
-        }
-        else
-        {
-            modified = ImGui::SliderFloat(fParameterLabels[index].c_str(),
-                                          &value,
-                                          param.min,
-                                          param.max,
-                                          fParameterRenders[index].c_str(),
-                                          param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0);
-        }
-
-        if (ImGui::IsItemActivated())
-            fUI->parameterControlPressed(index);
-
-        if (modified)
-            fUI->parameterControlModified(index, value);
-
-        if (ImGui::IsItemDeactivated())
-            fUI->parameterControlReleased(index);
-    }
-
-    void displayMeter(const FaustParameter& param, const uint32_t index)
-    {
-        float value = fUI->fParameterValuesRef[index];
-        ImGui::SliderFloat(fParameterLabels[index].c_str(),
-                           &value,
-                           param.min,
-                           param.max,
-                           fParameterRenders[index].c_str(),
-                           ImGuiSliderFlags_NoInput | (param.isLogarithmic ? ImGuiSliderFlags_Logarithmic : 0x0));
-    }
-};
-
 class LibreAudioMainArea : public LibreAudioWidget
 {
 public:
     LibreAudioMainArea(NanoTopLevelWidget* const parent, LibreAudioBaseUI* const ui)
         : LibreAudioWidget(parent)
     {
-        fTest = new LibreAudioQuickParamTest(parent, ui);
     }
 
 protected:
     void onNanoDisplay() final
     {
+        beginPath();
+        rect(0, 0, getWidth(), getHeight());
+        fillColor(0.f, 0.1f, 0.1f);
+        fill();
     }
-
-    void onPositionChanged(const PositionChangedEvent& ev) final
-    {
-        LibreAudioWidget::onPositionChanged(ev);
-
-        fTest->setAbsolutePos(ev.pos);
-    }
-
-    void onResize(const ResizeEvent& ev) final
-    {
-        LibreAudioWidget::onResize(ev);
-
-        fTest->setSize(ev.size);
-    }
-
-private:
-    ScopedPointer<LibreAudioQuickParamTest> fTest;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

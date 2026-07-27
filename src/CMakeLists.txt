@@ -164,48 +164,79 @@ function(las_add_plugin LABEL)
   set(EXTRA_ARGS)
   set(EXTRA_DSP_LIBS)
   set(EXTRA_UI_LIBS)
-  if("${LABEL}" STREQUAL "chorus")
-    list(APPEND EXTRA_ARGS USE_WEB_VIEW)
-    list(APPEND EXTRA_UI_LIBS bittyhttp::interface)
-    list(APPEND EXTRA_UI_LIBS $<$<BOOL:${WIN32}>:winmm>)
-  elseif("${LABEL}" STREQUAL "leveler")
+  # if("${LABEL}" STREQUAL "chorus")
+  #   list(APPEND EXTRA_ARGS USE_WEB_VIEW)
+  #   list(APPEND EXTRA_UI_LIBS bittyhttp::interface)
+  #   list(APPEND EXTRA_UI_LIBS $<$<BOOL:${WIN32}>:winmm>)
+  # else
+  if("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/${LABEL}/ui.cpp)
     set(UI_FILE "custom/${LABEL}/ui.cpp")
-  else()
-    set(UI_FILE "LibreAudioUI.cpp")
-  endif()
 
-  dpf_add_plugin(${TARGET}
-    TARGETS
-      clap lv2 vst3 jack
-    FILES_COMMON
-      ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
-    FILES_DSP
-      LibreAudioPlugin.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
-      ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
-    FILES_UI
-      LibreAudioBaseUI.cpp
-      LibreAudioSnapshots.cpp
-      LibreAudioUndoRedo.cpp
-      ${UI_FILE}
-      ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
-    RUNTIME_TESTING
-    ${EXTRA_ARGS}
-  )
+    dpf_add_plugin(${TARGET}
+      TARGETS
+        clap lv2 vst3 jack
+      FILES_COMMON
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
+      FILES_DSP
+        LibreAudioPlugin.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
+      FILES_UI
+        LibreAudioBaseUI.cpp
+        LibreAudioSnapshots.cpp
+        LibreAudioUndoRedo.cpp
+        ${UI_FILE}
+        ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
+      RUNTIME_TESTING
+      ${EXTRA_ARGS}
+    )
+
+    target_link_libraries(${TARGET}-ui
+      PUBLIC
+        # las-imgui
+        las-resources
+        nlohmann_json::nlohmann_json
+        ${EXTRA_UI_LIBS}
+    )
+  else()
+    # set(UI_FILE "LibreAudioUI.cpp")
+    dpf_add_plugin(${TARGET}
+      TARGETS
+        clap lv2 vst3 jack
+      FILES_COMMON
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
+      FILES_DSP
+        LibreAudioPlugin.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_input-dsp.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/common_output-dsp.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
+      RUNTIME_TESTING
+      ${EXTRA_ARGS}
+    )
+  endif()
 
   las_generate_faust_cpp(${LABEL})
   las_generate_faust_plugin(${LABEL})
@@ -236,14 +267,6 @@ function(las_add_plugin LABEL)
   target_link_libraries(${TARGET}-dsp
     PUBLIC
       ${EXTRA_DSP_LIBS}
-  )
-
-  target_link_libraries(${TARGET}-ui
-    PUBLIC
-      las-imgui
-      las-resources
-      nlohmann_json::nlohmann_json
-      ${EXTRA_UI_LIBS}
   )
 endfunction()
 
