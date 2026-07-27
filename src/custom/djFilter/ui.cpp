@@ -813,7 +813,7 @@ protected:
 
         tracePts(h1, 100, ph1);
 
-        strokeWidth(3.f);
+        strokeWidth(3.f * fScaleFactor);
 
         beginPath();
         moveTo(pts[0].x, pts[0].y);
