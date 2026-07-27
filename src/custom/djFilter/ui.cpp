@@ -779,7 +779,7 @@ protected:
     {
         for (int i = 0; i < std::size(pts); i++) {
             float t = (float)i / (std::size(pts) - 1);
-            float y = /*baseY(t)*/ getHeight() * 0.5f - (amp * std::sin(2.f * M_PIf * (t * hz * WIN - ph))) * fScaleFactor;
+            float y = /*baseY(t)*/ getHeight() * 0.5f - (amp * std::sin(2.f * M_PI * (t * hz * WIN - ph))) * fScaleFactor;
             // y = std::max(-40.f, std::min(h + 40, y));
             pts[i] = { t * getWidth(), y };
         }
