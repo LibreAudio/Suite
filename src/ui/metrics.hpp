@@ -42,7 +42,7 @@ struct Metrics {
                 static constexpr const uint margin = 0;
             };
             struct EasyExpert {
-                static constexpr const uint width = 92;
+                static constexpr const uint width = 94;
                 static constexpr const uint padding = 10;
                 static constexpr const uint margin = 0;
             };

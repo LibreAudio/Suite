@@ -777,7 +777,7 @@ protected:
 
     float ra() const
     {
-        return 1.0 - (double)std::rand() / RAND_MAX * 0.1;
+        return 1.0 - (double)std::rand() / RAND_MAX * 0;
     }
 
     void tracePts(float hz, float amp, float ph)
