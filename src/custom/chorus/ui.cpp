@@ -16,6 +16,7 @@
 
 #include "las-resources.h"
 
+#include "Color.hpp"
 #include "Window.hpp"
 #include "extra/Runner.hpp"
 #include "extra/Time.hpp"
@@ -152,13 +153,13 @@ public:
             static_cast<LibreAudioUI*>(arg)->webViewMessageCallback(msg);
         };
         options.callbackPtr = this;
-        options.backgroundColor = 0x222222ff;
+        options.backgroundColor = 0xffff00ff;
        // #ifndef NDEBUG
         options.developerToolsEnabled = true;
        // #endif
         options.initialJS = "RunningFromDPF = true;";
 
-        if (! getWindow().createWebView("http://127.0.0.1:8887/", options))
+        if (! getWindow().createWebView("http://127.0.0.1:8888/", options))
         {
             stopRunner();
             d_stderr2("Failed to create WebView");
@@ -177,6 +178,14 @@ public:
 protected:
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks
+
+    void onDisplay() final
+    {
+        const GraphicsContext& g(getGraphicsContext());
+
+        Color(1.f, 0.f, 0.f).setFor(g);
+        Rectangle<uint>(0, 0, getSize()).draw(g);
+    }
 
     void uiIdle() final
     {
