@@ -25,6 +25,8 @@
 #include "ui/metrics.hpp"
 #include "ui/widgets.hpp"
 
+#include "src/nanovg/nanovg.h"
+
 // --------------------------------------------------------------------------------------------------------------------
 
 START_NAMESPACE_DISTRHO
@@ -37,6 +39,229 @@ static constexpr const char kStringShortName[] = DISTRHO_PLUGIN_SHORTNAME;
 using LibreAudioLogo = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
 using LibreAudioPluginName = LibreAudioTextWidget<kStringShortName, true>;
 using LibreAudioPresetWidget = LibreAudioTextWidget<kStringInitPreset>;
+
+// TEST
+
+/* ---- palette (from :root) ---------------------------------------------- */
+#define TOP_ACC   nvgRGB(0xbe, 0xf1, 0xff)   /* --top-acc  : filter accent   */
+#define TOP_CLICK nvgRGB(0xda, 0xc1, 0xf3)   /* --top-click: reverb accent   */
+#define INK_3     nvgRGB(0x8c, 0x8e, 0x96)   /* deactivated text             */
+
+typedef struct TopBarState {
+    const char *name;         /* plugin wordmark, e.g. "CHORUS"              */
+    const char *presetLabel;  /* current preset name                        */
+    int expert;               /* 0 = Easy view, 1 = Expert view             */
+    int bypass;               /* power cell lit when bypassed               */
+    int prefsOpen;            /* menu (hamburger) active                    */
+    int presetOpen;          /* preset caret flipped                        */
+    int font;                 /* nvgCreateFont handle (UI font)             */
+} TopBarState;
+
+/* ---- pill body: rounded rect, top-light gradient, inset edges ---------- */
+static void pill_bg(NVGcontext *vg, float x, float y, float w, float h) {
+    float r = 8.0f;
+    NVGpaint g = nvgLinearGradient(vg, x, y, x, y + h,
+                                   nvgRGBA(255, 255, 255, 18),   /* .07 */
+                                   nvgRGBA(255, 255, 255, 5));   /* .02 */
+    nvgBeginPath(vg);
+    nvgRoundedRect(vg, x, y, w, h, r);
+    nvgFillPaint(vg, g);
+    nvgFill(vg);
+    /* inset hairline (approximates the layered inset box-shadows) */
+    nvgBeginPath(vg);
+    nvgRoundedRect(vg, x + 0.5f, y + 0.5f, w - 1.0f, h - 1.0f, r - 0.5f);
+    nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 13));
+    nvgStrokeWidth(vg, 1.0f);
+    nvgStroke(vg);
+    /* top light edge */
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, x + r, y + 0.75f);
+    nvgLineTo(vg, x + w - r, y + 0.75f);
+    nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 36));
+    nvgStrokeWidth(vg, 1.0f);
+    nvgStroke(vg);
+}
+
+/* centred text cell; returns advance width used */
+static float cell_text(NVGcontext *vg, float x, float cy, const char *s,
+                       float px, NVGcolor col, int font, float pad) {
+    nvgFontFaceId(vg, font);
+    nvgFontSize(vg, px);
+    nvgFillColor(vg, col);
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+    float b[4];
+    nvgTextBounds(vg, 0, 0, s, NULL, b);
+    float tw = b[2] - b[0];
+    nvgText(vg, x + pad, cy, s, NULL);
+    return tw + pad * 2.0f;
+}
+
+/* ---- logo monogram (LA), 100-space paths scaled to `size` -------------- */
+static void draw_logo(NVGcontext *vg, float x, float y, float size, NVGcolor col) {
+    float s = size / 100.0f;
+    nvgSave(vg);
+    nvgTranslate(vg, x, y);
+    nvgScale(vg, s, s);
+    nvgStrokeColor(vg, col);
+    nvgLineCap(vg, NVG_BUTT);
+    nvgLineJoin(vg, NVG_MITER);
+    nvgMiterLimit(vg, 2.2f);
+    /* L */
+    nvgStrokeWidth(vg, 12.5f);
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, 30, 24); nvgLineTo(vg, 30, 72); nvgLineTo(vg, 58, 72);
+    nvgStroke(vg);
+    /* A outer */
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, 61, 73); nvgLineTo(vg, 73.5f, 25); nvgLineTo(vg, 86, 73);
+    nvgStroke(vg);
+    /* A crossbar */
+    nvgStrokeWidth(vg, 11.0f);
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, 65, 56); nvgLineTo(vg, 82, 56);
+    nvgStroke(vg);
+    nvgRestore(vg);
+}
+
+/* ---- glyphs ------------------------------------------------------------- */
+static void draw_chevron(NVGcontext *vg, float cx, float cy, float s, int left, NVGcolor col) {
+    float d = left ? -1.0f : 1.0f;
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, cx - d * s * 0.5f, cy - s);
+    nvgLineTo(vg, cx + d * s * 0.5f, cy);
+    nvgLineTo(vg, cx - d * s * 0.5f, cy + s);
+    nvgStrokeColor(vg, col);
+    nvgStrokeWidth(vg, 1.6f);
+    nvgLineCap(vg, NVG_ROUND);
+    nvgLineJoin(vg, NVG_ROUND);
+    nvgStroke(vg);
+}
+static void draw_caret(NVGcontext *vg, float cx, float cy, float s, int flipped, NVGcolor col) {
+    float d = flipped ? -1.0f : 1.0f;
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, cx - s, cy - d * s * 0.6f);
+    nvgLineTo(vg, cx + s, cy - d * s * 0.6f);
+    nvgLineTo(vg, cx,     cy + d * s * 0.6f);
+    nvgClosePath(vg);
+    nvgFillColor(vg, col);
+    nvgFill(vg);
+}
+static void draw_hamburger(NVGcontext *vg, float x, float y, NVGcolor col) {
+    nvgStrokeColor(vg, col);
+    nvgStrokeWidth(vg, 1.6f);
+    nvgLineCap(vg, NVG_ROUND);
+    for (int i = 0; i < 3; i++) {
+        float ly = y + 4.0f + i * 3.5f;
+        nvgBeginPath(vg);
+        nvgMoveTo(vg, x + 2.5f, ly);
+        nvgLineTo(vg, x + 12.5f, ly);
+        nvgStroke(vg);
+    }
+}
+/* power symbol: broken ring + top stem */
+static void draw_power(NVGcontext *vg, float cx, float cy, float r, NVGcolor col) {
+    nvgBeginPath(vg);
+    nvgArc(vg, cx, cy, r, -1.30f, -1.30f - (2.0f * 3.14159265f - 0.90f), NVG_CW);
+    nvgStrokeColor(vg, col);
+    nvgStrokeWidth(vg, 1.6f);
+    nvgLineCap(vg, NVG_ROUND);
+    nvgStroke(vg);
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, cx, cy - r - 1.0f);
+    nvgLineTo(vg, cx, cy - 1.0f);
+    nvgStroke(vg);
+}
+
+/* Measure a preset/pill label width for right-alignment; small helper. */
+static float text_w(NVGcontext *vg, const char *s, float px, int font) {
+    nvgFontFaceId(vg, font); nvgFontSize(vg, px);
+    float b[4]; nvgTextBounds(vg, 0, 0, s, NULL, b);
+    return b[2] - b[0];
+}
+
+/*
+ * Draw the whole bar. (bx, by) is the top-left of the bar content box, bw its
+ * width. Bar height is fixed by the tallest element (30px pills). Pixel-exact
+ * to the source at 1x; wrap in nvgScale for HiDPI.
+ */
+void draw_topbar(NVGcontext *vg, float bx, float by, float bw, TopBarState st) {
+    const float PILL_H = 30.0f, CELL_H = 26.0f;
+    const float cy = by + PILL_H * 0.5f;
+    int font = st.font;
+
+    /* ---- left: logo + wordmark ---- */
+    draw_logo(vg, bx, by, 30.0f, TOP_ACC);
+    float wordX = bx + 30.0f + 10.0f;
+    nvgFontFaceId(vg, font);
+    nvgFontSize(vg, 14.0f);
+    nvgFillColor(vg, TOP_ACC);
+    nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+    nvgTextLetterSpacing(vg, 0.7f);   /* ~.05em on 14px */
+    char up[64]; int n = 0;
+    for (const char *p = st.name; *p && n < 63; p++)
+        up[n++] = (*p >= 'a' && *p <= 'z') ? (char)(*p - 32) : *p;
+    up[n] = 0;
+    nvgText(vg, wordX, cy, up, NULL);
+    nvgTextLetterSpacing(vg, 0.0f);
+
+    /* ---- right cluster: measure, then lay out left->right ---- */
+    const float GAP = 12.0f, PAD = 2.0f;
+    float presetW = 180.0f;
+    float navW    = PAD * 2 + 34.0f * 2;              /* undo + redo cells    */
+    float slotEasyW = text_w(vg, "EASY", 13, font);
+    float slotExpW  = text_w(vg, "EXPERT", 13, font);
+    float slotsW  = PAD * 2 + (slotEasyW + 18) + (slotExpW + 18); /* 9px pad/side */
+    float sysW    = PAD * 2 + 34.0f + 34.0f;          /* menu + power         */
+
+    float total = slotsW + GAP + sysW;
+    if (st.expert) total += presetW + GAP + navW + GAP;
+
+    float x = bx + bw - total;   /* right-aligned cluster start */
+
+    /* preset pill (expert) */
+    if (st.expert) {
+        pill_bg(vg, x, by, presetW, PILL_H);
+        nvgFontFaceId(vg, font); nvgFontSize(vg, 14);
+        nvgFillColor(vg, st.presetOpen ? TOP_CLICK : TOP_ACC);
+        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        nvgText(vg, x + 12, cy, st.presetLabel ? st.presetLabel : "Init", NULL);
+        draw_caret(vg, x + presetW - 14, cy, 3.5f, st.presetOpen, st.presetOpen ? TOP_CLICK : TOP_ACC);
+        x += presetW + GAP;
+
+        /* undo / redo */
+        pill_bg(vg, x, by, navW, PILL_H);
+        draw_chevron(vg, x + PAD + 17, cy, 4, 1, TOP_ACC);
+        draw_chevron(vg, x + PAD + 34 + 17, cy, 4, 0, TOP_ACC);
+        x += navW + GAP;
+    }
+
+    /* Easy | Expert */
+    pill_bg(vg, x, by, slotsW, PILL_H);
+    {
+        float cellY = by + (PILL_H - CELL_H) * 0.5f;
+        float ex = x + PAD;
+        float ew = slotEasyW + 18;
+        int easyOn = !st.expert && !st.prefsOpen && !st.presetOpen;
+        int expOn  =  st.expert && !st.prefsOpen && !st.presetOpen;
+        NVGcolor deact = (st.prefsOpen || st.presetOpen) ? INK_3 : TOP_ACC;
+        /* selected cell underline */
+        if (easyOn) { nvgBeginPath(vg); nvgMoveTo(vg, ex + 9, cellY + CELL_H - 4); nvgLineTo(vg, ex + ew - 9, cellY + CELL_H - 4); nvgStrokeColor(vg, TOP_ACC); nvgStrokeWidth(vg, 1.5f); nvgStroke(vg); }
+        nvgFontFaceId(vg, font); nvgFontSize(vg, 13); nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+        nvgFillColor(vg, easyOn ? TOP_ACC : deact);
+        nvgText(vg, ex + ew * 0.5f, cy, "Easy", NULL);
+        ex += ew;
+        float ew2 = slotExpW + 18;
+        if (expOn) { nvgBeginPath(vg); nvgMoveTo(vg, ex + 9, cellY + CELL_H - 4); nvgLineTo(vg, ex + ew2 - 9, cellY + CELL_H - 4); nvgStrokeColor(vg, TOP_ACC); nvgStrokeWidth(vg, 1.5f); nvgStroke(vg); }
+        nvgFillColor(vg, expOn ? TOP_ACC : deact);
+        nvgText(vg, ex + ew2 * 0.5f, cy, "Expert", NULL);
+    }
+    x += slotsW + GAP;
+
+    /* menu | power */
+    pill_bg(vg, x, by, sysW, PILL_H);
+    draw_hamburger(vg, x + PAD + 17 - 7.5f, by + (PILL_H - 15) * 0.5f, st.prefsOpen ? TOP_CLICK : TOP_ACC);
+    draw_power(vg, x + PAD + 34 + 17, cy, 6.5f, st.bypass ? nvgRGB(0xff, 0x6b, 0x6b) : TOP_ACC);
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -690,6 +915,11 @@ public:
         fLayout.widgets.push_back({ fLogo, Fixed });
         fLayout.widgets.push_back({ fPluginName, Expanding });
         fLayout.widgets.push_back({ fCluster, Fixed });
+
+        // TEST
+        fLogo->hide();
+        fPluginName->hide();
+        fCluster->hide();
     }
 
     void update(const bool canUndo,
@@ -703,8 +933,16 @@ public:
     }
 
 protected:
+    TopBarState tb = { .name="CHORUS", .presetLabel="Wide Shimmer",
+                       .expert=1, .bypass=0, .prefsOpen=0, .presetOpen=0,
+                       .font=0 };
+
     void onNanoDisplay() final
     {
+        save();
+        scale(fScaleFactor, fScaleFactor);
+        draw_topbar(getContext(), 12, 12, getWidth() / fScaleFactor - 24, tb);
+        restore();
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) final
