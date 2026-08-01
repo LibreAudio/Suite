@@ -21,6 +21,11 @@ public:
           fScaleFactor(parent->getTopLevelWidget()->getScaleFactor()) {}
 
 protected:
+    void onNanoDisplay() override
+    {
+    }
+
+protected:
     double fScaleFactor;
 };
 
@@ -70,30 +75,33 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const char string[], bool uppercase = false>
-class LibreAudioTextWidget : public LibreAudioWidget
+class LibreAudioPluginName : public LibreAudioWidget
 {
 public:
-    LibreAudioTextWidget(NanoSubWidget* const parent)
+    LibreAudioPluginName(NanoSubWidget* const parent)
         : LibreAudioWidget(parent)
     {
-        if constexpr (uppercase)
-            fText.toUpper();
+        fText.toUpper();
+
+        Rectangle<float> bounds;
+        textAlign(0);
+        textLetterSpacing(Metrics::TopBar::PluginName::letterSpacing * fScaleFactor);
+        textBounds(0, 0, fText, nullptr, bounds);
+        setWidth(bounds.getWidth());
     }
 
 protected:
     void onNanoDisplay() final
     {
-        beginPath();
-        rect(0, 0, getWidth(), getHeight());
-        fillColor(gColors.ink2);
+        fillColor(Colors::acc);
         fontSize(Metrics::fontSize * fScaleFactor);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), fText);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        textLetterSpacing(Metrics::TopBar::PluginName::letterSpacing * fScaleFactor);
+        text(getWidth() * 0.5f, getHeight() * 0.5f, fText);
     }
 
 private:
-    String fText { string };
+    String fText { DISTRHO_PLUGIN_SHORTNAME };
 };
 
 // --------------------------------------------------------------------------------------------------------------------
