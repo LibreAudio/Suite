@@ -1,5 +1,5 @@
 declare author "Klaus Scheuermann";
-declare description "";
+declare description "Libre Audio Vocal Doubler";
 declare license "GPL-3.0-or-later";
 declare name "Vocal Doubler";
 declare unique_id "LAvd";
@@ -75,11 +75,11 @@ with {
 // it, plus one band to duck or lift whatever frequency the double
 // exaggerates. Applies in every mode.
 
-eq_hpHz = hgroup("[5]Wet EQ", hslider("[0]High Pass[unit:Hz][symbol:eq_hp]", 20, 20, 2000, 1));
-eq_lpHz = hgroup("[5]Wet EQ", hslider("[1]Low Pass[unit:Hz][symbol:eq_lp]", 20000, 1000, 20000, 1));
-eq_freq = hgroup("[5]Wet EQ", hslider("[2]Band Freq[unit:Hz][symbol:eq_freq]", 2000, 100, 12000, 1));
-eq_gain = hgroup("[5]Wet EQ", hslider("[3]Band Gain[unit:dB][symbol:eq_gain]", 0, -18, 18, 0.1));
-eq_q    = hgroup("[5]Wet EQ", hslider("[4]Band Q[symbol:eq_q]", 1, 0.2, 8, 0.01));
+eq_hpHz = hgroup("[5]Wet EQ", hslider("[0]High Pass[unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
+eq_lpHz = hgroup("[5]Wet EQ", hslider("[1]Low Pass[unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
+eq_freq = 5000; //hgroup("[5]Wet EQ", hslider("[2]Presence Freq[unit:Hz][symbol:presence_freq]", 2000, 100, 12000, 1));
+eq_gain = hgroup("[5]Wet EQ", hslider("[3]Prensence[unit:dB][symbol:presence]", 0, -12, 12, 0.1));
+eq_q    = 0.28; //hgroup("[5]Wet EQ", hslider("[4]Presence Q[symbol:presence_q]", 1, 0.2, 8, 0.01));
 
 wetEq = fi.highpass(2, eq_hpHz)
       : fi.lowpass(2, eq_lpHz)
@@ -150,10 +150,10 @@ with {
 // own slow random ("humanized") wander in pitch and level so they don't
 // read as a static chorus but as two separate takes.
 
-db_delayMs  = hgroup("[4]1/3 Doubler", hslider("[0]DOUBLER Base Delay[unit:ms][symbol:base_delay]", 20, 5, 50, 0.1));
-db_detune   = hgroup("[4]1/3 Doubler", hslider("[1]DOUBLER Detune[unit:cents][symbol:detune]", 14, 0, 40, 0.1));
-db_wanderHz = hgroup("[4]1/3 Doubler", hslider("[2]DOUBLER Wander Rate[unit:Hz][symbol:wander_rate]", 0.25, 0.02, 2, 0.01));
-db_wanderCt = hgroup("[4]1/3 Doubler", hslider("[3]DOUBLER Wander Depth[unit:cents][symbol:wander_depth]", 6, 0, 25, 0.1));
+db_delayMs  = hgroup("[4]1/3 Doubler", hslider("[0]DOUBLER Base Delay[unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1));
+db_detune   = hgroup("[4]1/3 Doubler", hslider("[1]DOUBLER Detune[unit:cents][symbol:doubler_detune]", 14, 0, 40, 0.1));
+db_wanderHz = hgroup("[4]1/3 Doubler", hslider("[2]DOUBLER Wander Rate[unit:Hz][symbol:doubler_wander_rate]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = hgroup("[4]1/3 Doubler", hslider("[3]DOUBLER Wander Depth[unit:cents][symbol:doubler_wander_depth]", 6, 0, 25, 0.1));
 db_width    = hgroup("[4]1/3 Doubler", hslider("[4]DOUBLER Width[symbol:doubler_width]", 1, 0, 1, 0.01));
 
 db_voice(centsShift, delayMs, wanderFreq, x) = out
