@@ -51,12 +51,12 @@ public:
     explicit LibreAudioBaseWidget(LibreAudioBaseWidget<NanoSubWidget>* const parent)
         : BaseWidget(parent),
           fInterface(parent->fInterface),
-          fScaleFactor(parent->getTopLevelWidget()->getScaleFactor()) {}
+          fScaleFactor(parent->fScaleFactor) {}
 
     explicit LibreAudioBaseWidget(LibreAudioBaseWidget<NanoTopLevelWidget>* const parent)
         : BaseWidget(parent),
           fInterface(parent->fInterface),
-          fScaleFactor(parent->getScaleFactor()) {}
+          fScaleFactor(parent->fScaleFactor) {}
 
     explicit LibreAudioBaseWidget(Window& windowToMapTo, LibreAudioUIWidgetInterface* const iface)
         : BaseWidget(windowToMapTo),
@@ -64,9 +64,8 @@ public:
           fScaleFactor(windowToMapTo.getScaleFactor()) {}
 
     // FIXME make protected
+// protected:
     LibreAudioUIWidgetInterface* const fInterface;
-
-protected:
     float fScaleFactor;
 };
 
