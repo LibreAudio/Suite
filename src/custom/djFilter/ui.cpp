@@ -16,13 +16,10 @@
 // temp stuff
 // #include "DearImGui.hpp"
 
-#include "las-resources.h"
-
 #include <string>
 #include <vector>
 
-#include "ui/colors.hpp"
-#include "ui/metrics.hpp"
+#include "ui/reference.hpp"
 #include "ui/widgets.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -31,166 +28,36 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using LibreAudioLogo = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
-
-// --------------------------------------------------------------------------------------------------------------------
-
-enum WidgetIds {
-    kWidgetIdStart = 1000,
-    kWidgetUndo,
-    kWidgetRedo,
-    kWidgetSnapshotCopy,
-    kWidgetSnapshotA,
-    kWidgetSnapshotB,
-    kWidgetSnapshotC,
-    kWidgetSnapshotD,
-    kWidgetEasy,
-    kWidgetExpert,
-    kWidgetMenu,
-    kWidgetPower,
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioTopBar : public LibreAudioWidget
+class LibreAudioTopBar : public LibreAudioContainer<LibreAudioReference::TopBar>
 {
+    std::unique_ptr<LibreAudioTopBarLogoWidget> fLogo = createWidget<LibreAudioTopBarLogoWidget>();
+    std::unique_ptr<LibreAudioTopBarNameWidget> fPluginName = createWidget<LibreAudioTopBarNameWidget>();
+    std::unique_ptr<LibreAudioWidget> fSpacer = createSpacer();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fUndoRedoGroup = createWidget<LibreAudioTopBarUndoRedoGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fSnapshotsGroup = createWidget<LibreAudioTopBarSnapshotsGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fEasyExpertGroup = createWidget<LibreAudioTopBarEasyExpertGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fMenuPowerGroup = createWidget<LibreAudioTopBarMenuPowerGroupWidget>();
+
 public:
     LibreAudioTopBar(NanoTopLevelWidget* const parent)
-        : LibreAudioWidget(parent)
+        : LibreAudioContainer(parent)
     {
-        setHeight(d_roundToUnsignedInt(Metrics::TopBar::height * fScaleFactor));
-
-        fLogo = new LibreAudioLogo(this);
-        fPluginName = new LibreAudioPluginName(this);
-        fSpacer = new LibreAudioWidget(this);
-
-        fLayout.widgets.push_back({ fLogo, Fixed });
-        fLayout.widgets.push_back({ fPluginName, Fixed });
-        fLayout.widgets.push_back({ fSpacer, Expanding });
-    }
-
-protected:
-    void onNanoDisplay() final
-    {
-        fillColor(1.f, 1.f, 1.f);
-        fontSize(26.f * fScaleFactor);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "This is the top bar");
-
-        if constexpr (Metrics::TopBar::border != 0)
-        {
-            strokeColor(Colors::border);
-            strokeWidth(Metrics::TopBar::border * 2 * fScaleFactor);
-            stroke();
-        }
-    }
-
-    void onPositionChanged(const PositionChangedEvent& ev) final
-    {
-        LibreAudioWidget::onPositionChanged(ev);
-
-        const uint border = d_roundToUnsignedInt(Metrics::TopBar::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::padding * fScaleFactor);
-        fLayout.setAbsolutePos(ev.pos.getX(), ev.pos.getY(), padding, border + margin);
-    }
-
-    void onResize(const ResizeEvent& ev) final
-    {
-        LibreAudioWidget::onResize(ev);
-
-        const uint border = d_roundToUnsignedInt(Metrics::TopBar::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(Metrics::TopBar::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(Metrics::TopBar::padding * fScaleFactor);
-        fLayout.align(getAbsoluteX(), getAbsoluteY(), getWidth(), getHeight(), padding, border + margin);
-    }
-
-private:
-    HorizontalLayout fLayout;
-    ScopedPointer<LibreAudioLogo> fLogo;
-    ScopedPointer<LibreAudioPluginName> fPluginName;
-    ScopedPointer<LibreAudioWidget> fSpacer;
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioMeters : public LibreAudioWidget
-{
-public:
-    LibreAudioMeters(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent)
-    {
-        setWidth(26 * fScaleFactor);
-    }
-
-protected:
-    void onNanoDisplay() final
-    {
-        beginPath();
-        roundedRect(0, 0, getWidth(), getHeight(), 7 * fScaleFactor);
-        fillColor(Colors::accGlow);
-        fill();
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioMainArea : public LibreAudioWidget
+class LibreAudioMainArea : public LibreAudioContainer<LibreAudioReference::MainArea>
 {
+    std::unique_ptr<LibreAudioMeter> fMetersIn = createWidget<LibreAudioMeter>();
+    std::unique_ptr<LibreAudioStage> fSpacer = createWidget<LibreAudioStage, Expanding>();
+    std::unique_ptr<LibreAudioMeter> fMetersOut = createWidget<LibreAudioMeter>();
+
 public:
     LibreAudioMainArea(NanoTopLevelWidget* const parent)
-        : LibreAudioWidget(parent)
+        : LibreAudioContainer(parent)
     {
-        fMetersIn = new LibreAudioMeters(this);
-        fSpacer = new LibreAudioWidget(this);
-        fMetersOut = new LibreAudioMeters(this);
-
-        fLayout.widgets.push_back({ fMetersIn, Fixed });
-        fLayout.widgets.push_back({ fSpacer, Expanding });
-        fLayout.widgets.push_back({ fMetersOut, Fixed });
     }
-
-protected:
-    void onNanoDisplay() final
-    {
-        fontSize(26.f * fScaleFactor);
-        fillColor(1.f, 1.f, 1.f);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textBox(0.f, getHeight() * 0.5f, getWidth(), "This is the main area");
-
-        if constexpr (Metrics::MainArea::border != 0)
-        {
-            strokeColor(Colors::border);
-            strokeWidth(Metrics::MainArea::border * 2 * fScaleFactor);
-            stroke();
-        }
-    }
-
-    void onPositionChanged(const PositionChangedEvent& ev) final
-    {
-        LibreAudioWidget::onPositionChanged(ev);
-
-        const uint border = d_roundToUnsignedInt(Metrics::MainArea::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(Metrics::MainArea::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(Metrics::MainArea::padding * fScaleFactor);
-        fLayout.setAbsolutePos(ev.pos.getX(), ev.pos.getY(), padding, border + margin);
-    }
-
-    void onResize(const ResizeEvent& ev) final
-    {
-        LibreAudioWidget::onResize(ev);
-
-        const uint border = d_roundToUnsignedInt(Metrics::MainArea::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(Metrics::MainArea::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(Metrics::MainArea::padding * fScaleFactor);
-        fLayout.align(getAbsoluteX(), getAbsoluteY(), getWidth(), getHeight(), padding, border + margin);
-    }
-
-private:
-    HorizontalLayout fLayout;
-    ScopedPointer<LibreAudioMeters> fMetersIn;
-    ScopedPointer<LibreAudioWidget> fSpacer;
-    ScopedPointer<LibreAudioMeters> fMetersOut;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -198,6 +65,8 @@ private:
 class LibreAudioUI : public LibreAudioBaseUI,
                      private ButtonEventHandler::Callback
 {
+    using R = LibreAudioReference::Window;
+
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
@@ -212,13 +81,13 @@ public:
                              false);
         fontFace("Saira Semi Condensed (Regular)");
 
-        fTopBar = new LibreAudioTopBar(this);
-        fMainArea = new LibreAudioMainArea(this);
+        fTopBar = createWidget<LibreAudioTopBar>();
+        fMainArea = createWidget<LibreAudioMainArea, Expanding>();
 
-        fLayout.widgets.push_back({ fTopBar, Fixed });
-        fLayout.widgets.push_back({ fMainArea, Expanding });
-
-        adjustSize();
+        // force initial resize after creating all widgets
+        ResizeEvent ev;
+        ev.size = getSize();
+        LibreAudioUI::onResize(ev);
     }
 
     ~LibreAudioUI() override
@@ -276,30 +145,6 @@ protected:
         }
     }
 
-    void onNanoDisplay() final
-    {
-        const float w = getWidth();
-        const float h = getHeight();
-
-        beginPath();
-        rect(0, 0, w, h);
-        fillPaint(linearGradient(0, 0, 0, h, Colors::backgroundGradientStart, Colors::backgroundGradientStop));
-        fill();
-
-        if constexpr (Metrics::Window::border != 0)
-        {
-            strokeColor(Colors::border);
-            strokeWidth(Metrics::Window::border * 2 * fScaleFactor);
-            stroke();
-        }
-    }
-
-    void onResize(const ResizeEvent& ev) final
-    {
-        UI::onResize(ev);
-        adjustSize();
-    }
-
     void uiIdle() final
     {
         LibreAudioBaseUI::uiIdle();
@@ -317,24 +162,15 @@ protected:
     void uiScaleFactorChanged(const double scaleFactor) final
     {
         fScaleFactor = scaleFactor;
-        adjustSize();
+        // TODO
     }
 
 private:
     double fScaleFactor = getScaleFactor();
-    bool fExpertMode = false;
+    // bool fExpertMode = false;
 
-    VerticalLayout fLayout;
-    ScopedPointer<LibreAudioTopBar> fTopBar;
-    ScopedPointer<LibreAudioMainArea> fMainArea;
-
-    void adjustSize()
-    {
-        const uint border = d_roundToUnsignedInt(Metrics::Window::border * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(Metrics::Window::padding * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(Metrics::Window::margin * fScaleFactor);
-        fLayout.align(0, 0, getWidth(), getHeight(), padding, border + margin);
-    }
+    std::unique_ptr<LibreAudioTopBar> fTopBar;
+    std::unique_ptr<LibreAudioMainArea> fMainArea;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

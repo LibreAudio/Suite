@@ -4,108 +4,191 @@
 
 #pragma once
 
-#include "NanoVG.hpp"
+#include "widgets/button.hpp"
+#include "widgets/button-group.hpp"
+#include "widgets/meter.hpp"
+#include "widgets/stage.hpp"
+#include "widgets/top-bar-name.hpp"
+
+#include "las-resources.h"
+
+START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
-// base widget class
 
-class LibreAudioWidget : public NanoSubWidget
-{
-public:
-    LibreAudioWidget(NanoTopLevelWidget* const parent)
-        : NanoSubWidget(parent),
-          fScaleFactor(parent->getScaleFactor()) {}
-
-    LibreAudioWidget(NanoSubWidget* const parent)
-        : NanoSubWidget(parent),
-          fScaleFactor(parent->getTopLevelWidget()->getScaleFactor()) {}
-
-protected:
-    void onNanoDisplay() override
-    {
-    }
-
-protected:
-    double fScaleFactor;
+enum WidgetIds {
+    kWidgetIdStart = 1000,
+    kWidgetUndo,
+    kWidgetRedo,
+    kWidgetSnapshotCopy,
+    kWidgetSnapshotA,
+    kWidgetSnapshotB,
+    kWidgetSnapshotC,
+    kWidgetSnapshotD,
+    kWidgetEasy,
+    kWidgetExpert,
+    kWidgetMenu,
+    kWidgetPower,
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// base widget classes
 
-template<const uchar* imageData, uint imageDataSize, uint imageScale = 2>
-class LibreAudioImageWidget : public LibreAudioWidget
+using LibreAudioTopBarLogoWidget = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+
+class LibreAudioTopBarUndoRedoGroupWidget : public LibreAudioButtonGroupWidget,
+                                            private ButtonEventHandler::Callback
 {
+    std::unique_ptr<LibreAudioButtonWidget> fUndo = addButton<LibreAudioImageButtonWidget<IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fRedo = addButton<LibreAudioImageButtonWidget<IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN>>();
+
 public:
-    LibreAudioImageWidget(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent)
+    explicit LibreAudioTopBarUndoRedoGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioButtonGroupWidget(parent)
     {
-        updateImageSize();
-        setSize(fImageWidth, fImageHeight);
-    }
+        done(this);
 
-protected:
-    void onNanoDisplay() final
-    {
-        const uint width = getWidth();
-        const uint height = getHeight();
+        fUndo->setId(kWidgetUndo);
+        fRedo->setId(kWidgetRedo);
 
-        beginPath();
-        rect(0, 0, width, height);
-        fillPaint(imagePattern((width - fImageWidth) * 0.5,
-                               (height - fImageHeight) * 0.5,
-                               fImageWidth,
-                               fImageHeight,
-                               0.f,
-                               fImage,
-                               1.f));
-        fill();
+        // no undo/redo by default
+        fUndo->setEnabled(false);
+        fRedo->setEnabled(false);
     }
 
 private:
-    const NanoImage fImage { createImageFromMemory(imageData, imageDataSize, IMAGE_GENERATE_MIPMAPS) };
-    double fImageWidth;
-    double fImageHeight;
-
-    void updateImageSize()
+    void buttonClicked(SubWidget* const widget, int) final
     {
-        fImageWidth = fImage.getWidth() * fScaleFactor / imageScale;
-        fImageHeight = fImage.getHeight() * fScaleFactor / imageScale;
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioPluginName : public LibreAudioWidget
+class LibreAudioTopBarSnapshotsGroupWidget : public LibreAudioButtonGroupWidget,
+                                             private ButtonEventHandler::Callback
 {
+    static constexpr const char kTextA[] = "A";
+    static constexpr const char kTextB[] = "B";
+    static constexpr const char kTextC[] = "C";
+    static constexpr const char kTextD[] = "D";
+    std::unique_ptr<LibreAudioButtonWidget> fCopy = addButton<LibreAudioImageButtonWidget<IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fA = addButton<LibreAudioTextButtonWidget<kTextA>>();
+    std::unique_ptr<LibreAudioButtonWidget> fB = addButton<LibreAudioTextButtonWidget<kTextB>>();
+    std::unique_ptr<LibreAudioButtonWidget> fC = addButton<LibreAudioTextButtonWidget<kTextC>>();
+    std::unique_ptr<LibreAudioButtonWidget> fD = addButton<LibreAudioTextButtonWidget<kTextD>>();
+
+    // snapshot A checked by default
+    char fCurrentSnapshot = 'A';
+    char fLastSnapshot = fCurrentSnapshot;
+
 public:
-    LibreAudioPluginName(NanoSubWidget* const parent)
-        : LibreAudioWidget(parent)
+    explicit LibreAudioTopBarSnapshotsGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioButtonGroupWidget(parent)
     {
-        std::memcpy(fName, DISTRHO_PLUGIN_NAME + 2, sizeof(DISTRHO_PLUGIN_NAME) - 2);
-        fName[sizeof(DISTRHO_PLUGIN_NAME) - 3] = '\0';
+        fA->setWidth(fCopy->getWidth());
+        fB->setWidth(fCopy->getWidth());
+        fC->setWidth(fCopy->getWidth());
+        fD->setWidth(fCopy->getWidth());
+        done(this);
 
-        for (uint i = 0; i < sizeof(DISTRHO_PLUGIN_NAME) - 2; ++i)
-            fName[i] = std::toupper(fName[i]);
+        fCopy->setId(kWidgetSnapshotCopy);
+        fA->setId(kWidgetSnapshotA);
+        fB->setId(kWidgetSnapshotB);
+        fC->setId(kWidgetSnapshotC);
+        fD->setId(kWidgetSnapshotD);
 
-        Rectangle<float> bounds;
-        textAlign(0);
-        textLetterSpacing(Metrics::TopBar::PluginName::letterSpacing * fScaleFactor);
-        textBounds(0, 0, fName, nullptr, bounds);
-        setWidth(bounds.getWidth());
-    }
-
-protected:
-    void onNanoDisplay() final
-    {
-        fillColor(Colors::acc);
-        fontSize(Metrics::fontSize * fScaleFactor);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textLetterSpacing(Metrics::TopBar::PluginName::letterSpacing * fScaleFactor);
-        text(getWidth() * 0.5f, getHeight() * 0.5f, fName);
+        fA->setChecked(fCurrentSnapshot == 'A', false);
+        fB->setChecked(fCurrentSnapshot == 'B', false);
+        fC->setChecked(fCurrentSnapshot == 'C', false);
+        fD->setChecked(fCurrentSnapshot == 'D', false);
     }
 
 private:
-    char fName[sizeof(DISTRHO_PLUGIN_NAME) - 2];
+    void buttonClicked(SubWidget* const widget, int) final
+    {
+        if (widget->getId() == kWidgetSnapshotCopy)
+        {
+            // TODO some other stuff
+            return;
+        }
+
+        if (static_cast<LibreAudioButtonWidget*>(widget)->isChecked())
+        {
+            fLastSnapshot = fCurrentSnapshot;
+            fCurrentSnapshot = 'A' + (widget->getId() - kWidgetSnapshotA);
+        }
+        else
+        {
+            if (fCurrentSnapshot == fLastSnapshot)
+                return;
+            fCurrentSnapshot = fLastSnapshot;
+        }
+
+        fA->setChecked(fCurrentSnapshot == 'A', false);
+        fB->setChecked(fCurrentSnapshot == 'B', false);
+        fC->setChecked(fCurrentSnapshot == 'C', false);
+        fD->setChecked(fCurrentSnapshot == 'D', false);
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioTopBarEasyExpertGroupWidget : public LibreAudioButtonGroupWidget,
+                                              private ButtonEventHandler::Callback
+{
+    static constexpr const char kTextEasy[] = "Easy";
+    static constexpr const char kTextExpert[] = "Expert";
+    std::unique_ptr<LibreAudioButtonWidget> fEasy = addButton<LibreAudioTextButtonWidget<kTextEasy>>();
+    std::unique_ptr<LibreAudioButtonWidget> fExpert = addButton<LibreAudioTextButtonWidget<kTextExpert>>();
+
+    // easy mode checked by default
+    bool fEasyMode = true;
+
+public:
+    explicit LibreAudioTopBarEasyExpertGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioButtonGroupWidget(parent)
+    {
+        done(this);
+
+        fEasy->setChecked(fEasyMode, false);
+        fExpert->setChecked(!fEasyMode, false);
+
+        fEasy->setId(kWidgetEasy);
+        fExpert->setId(kWidgetExpert);
+    }
+
+private:
+    void buttonClicked(SubWidget*, int) final
+    {
+        fEasyMode = !fEasyMode;
+        fEasy->setChecked(fEasyMode, false);
+        fExpert->setChecked(!fEasyMode, false);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioTopBarMenuPowerGroupWidget : public LibreAudioButtonGroupWidget,
+                                             private ButtonEventHandler::Callback
+{
+    std::unique_ptr<LibreAudioButtonWidget> fMenu = addButton<LibreAudioImageButtonWidget<IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fPower = addButton<LibreAudioImageButtonWidget<IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN>>();
+
+public:
+    explicit LibreAudioTopBarMenuPowerGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioButtonGroupWidget(parent)
+    {
+        done(this);
+
+        fMenu->setId(kWidgetMenu);
+        fPower->setId(kWidgetPower);
+    }
+
+private:
+    void buttonClicked(SubWidget* const widget, int) final
+    {
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+END_NAMESPACE_DISTRHO
