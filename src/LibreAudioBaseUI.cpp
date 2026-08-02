@@ -50,10 +50,9 @@ LibreAudioBaseUI::LibreAudioBaseUI()
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
       fParameterValues(createParameterValues(kParameterCount)),
       fParameterValuesWhenActivated(new float[kParameterCount]),
-      fSnapshots(kNumSnapshots, kParameterCount, fParameterValues, this),
-      fParameterValuesRef(fParameterValues)
+      fSnapshots(kNumSnapshots, kParameterCount, fParameterValues, this)
 {
-    std::memcpy(fParameterValuesWhenActivated, fParameterValuesRef, sizeof(float) * kParameterCount);
+    std::memcpy(fParameterValuesWhenActivated, fParameterValues, sizeof(float) * kParameterCount);
 
     // set minimum size
     const double scaleFactor = getScaleFactor();

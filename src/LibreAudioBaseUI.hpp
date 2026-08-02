@@ -31,36 +31,37 @@ public:
 
     static bool isParameterOutputOrTrigger(uint32_t index);
 
+protected:
     // ----------------------------------------------------------------------------------------------------------------
-    // protected data
+    // UI Widget Interface
 
-    const uint32_t kParameterCount;
+    uint32_t getParameterCount() const noexcept final { return kParameterCount; }
+    float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
 
-    bool canUndo() const { return fSnapshots.canUndo(); }
-    bool canRedo() const { return fSnapshots.canRedo(); }
-    bool isCopyingSnapshot() const { return fCopyingSnapshot; }
-    uint8_t getCurrentSnapshot() const { return fSnapshots.getCurrent(); }
+    bool canUndo() const noexcept final { return fSnapshots.canUndo(); }
+    bool canRedo() const noexcept final { return fSnapshots.canRedo(); }
+    bool isCopyingSnapshot() const noexcept final { return fCopyingSnapshot; }
+    uint8_t getCurrentSnapshot() const noexcept final { return fSnapshots.getCurrent(); }
 
-    void undo() { fSnapshots.undo(); }
-    void redo() { fSnapshots.redo(); }
+    void undo() final { fSnapshots.undo(); }
+    void redo() final { fSnapshots.redo(); }
 
-    void parameterControlPressed(uint32_t index);
-    void parameterControlReleased(uint32_t index);
-    void parameterControlModified(uint32_t index, float value);
+    void parameterControlPressed(uint32_t index) final;
+    void parameterControlReleased(uint32_t index) final;
+    void parameterControlModified(uint32_t index, float value) final;
 
-    enum SnapshotButton {
-        kSnapshotButtonCopy,
-        kSnapshotButtonA,
-        kSnapshotButtonB,
-        kSnapshotButtonC,
-        kSnapshotButtonD,
-    };
+    void snapshotButtonClicked(SnapshotButton button) final;
 
-    void snapshotButtonClicked(SnapshotButton button);
+    // ----------------------------------------------------------------------------------------------------------------
+    // Widget Callbacks
+
+    void uiIdle() override;
 
 private:
     // ----------------------------------------------------------------------------------------------------------------
     // private data
+
+    const uint32_t kParameterCount;
 
     float* const fParameterValues;
     float* const fParameterValuesWhenActivated;
@@ -68,13 +69,6 @@ private:
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
 
-public:
-    // ----------------------------------------------------------------------------------------------------------------
-    // shared data
-
-    const float* const fParameterValuesRef;
-
-protected:
     // ----------------------------------------------------------------------------------------------------------------
     // DSP/Plugin Callbacks
 
@@ -86,12 +80,6 @@ protected:
 
     void stateChanged(const char* key, const char* value) final;
 
-    // ----------------------------------------------------------------------------------------------------------------
-    // Widget Callbacks
-
-    void uiIdle() override;
-
-private:
     // ----------------------------------------------------------------------------------------------------------------
     // Other Callbacks
 

@@ -39,7 +39,7 @@ class LibreAudioTopBar : public LibreAudioContainer<LibreAudioReference::TopBar>
     std::unique_ptr<LibreAudioButtonGroupWidget> fMenuPowerGroup = createWidget<LibreAudioTopBarMenuPowerGroupWidget>();
 
 public:
-    LibreAudioTopBar(NanoTopLevelWidget* const parent)
+    LibreAudioTopBar(LibreAudioTopLevelWidget* const parent)
         : LibreAudioContainer(parent)
     {
     }
@@ -54,7 +54,7 @@ class LibreAudioMainArea : public LibreAudioContainer<LibreAudioReference::MainA
     std::unique_ptr<LibreAudioMeter> fMetersOut = createWidget<LibreAudioMeter>();
 
 public:
-    LibreAudioMainArea(NanoTopLevelWidget* const parent)
+    LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)
         : LibreAudioContainer(parent)
     {
     }

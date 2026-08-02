@@ -20,29 +20,32 @@ enum LibreAudioOrientation {
     kVertical,
 };
 
+class EmptyClass {};
+
 template<class R, LibreAudioOrientation orientation = kHorizontal, class BaseWidget = LibreAudioWidget>
 class LibreAudioContainer : public BaseWidget,
-                            public std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>
+                            public std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>,
+                            public std::conditional_t<std::is_same_v<BaseWidget, LibreAudioTopLevelWidget>, LibreAudioUIWidgetInterface, EmptyClass>
 {
 public:
     using Layout = std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>;
     using PositionChangedEvent = typename BaseWidget::PositionChangedEvent;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
 
-    explicit LibreAudioContainer(NanoSubWidget* const parent)
+    explicit LibreAudioContainer(LibreAudioWidget* const parent)
         : BaseWidget(parent)
     {
         _initSize();
     }
 
-    explicit LibreAudioContainer(NanoTopLevelWidget* const parent)
+    explicit LibreAudioContainer(LibreAudioTopLevelWidget* const parent)
         : BaseWidget(parent)
     {
         _initSize();
     }
 
     explicit LibreAudioContainer(Window& windowToMapTo)
-        : BaseWidget(windowToMapTo)
+        : BaseWidget(windowToMapTo, this)
     {
         // initial size set by DPF UI class
     }
