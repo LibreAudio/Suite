@@ -37,7 +37,7 @@ public:
 private:
     void onNanoDisplay() final
     {
-        fillColor(LibreAudioColors::acc);
+        fillColor(R::color);
         fontSize(R::fontSize * fScaleFactor);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         textLetterSpacing(R::letterSpacing * fScaleFactor);
