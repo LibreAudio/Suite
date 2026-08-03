@@ -458,7 +458,7 @@ void main()
         // glViewport(0, 0, width, height);
         // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const GLfloat resolution[2] = { width, height };
+        const GLfloat resolution[2] = { (float)width, (float)height };
         glUniform2fv(gl3.iResolution, 1, resolution);
 
         const float time = getApp().getTime();
