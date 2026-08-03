@@ -17,6 +17,9 @@ public:
     explicit LibreAudioEmptyWidget(LibreAudioWidget* const parent)
         : LibreAudioWidget(parent) {}
 
+    explicit LibreAudioEmptyWidget(LibreAudioTopLevelWidget* const parent)
+        : LibreAudioWidget(parent) {}
+
 private:
     void onNanoDisplay() final
     {
