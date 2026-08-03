@@ -60,13 +60,6 @@ public:
     {
     }
 
-private:
-    void onNanoDisplay() final
-    {
-        const float w = getWidth();
-        const float h = getHeight();
-        d_stdout("LibreAudioMainArea size %f %f", w, h);
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

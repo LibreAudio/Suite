@@ -20,15 +20,20 @@ class LibreAudioKnobWidget : public LibreAudioWidget,
 public:
     explicit LibreAudioKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)
         : LibreAudioWidget(parent),
-          KnobEventHandler(this)
+          KnobEventHandler(this),
+          fParameter(parameter)
     {
         setId(id);
+        setName(parameter.label);
         setDefault(parameter.init);
         setRange(parameter.min, parameter.max);
         setStep(parameter.step);
         setUsingLogScale(parameter.isLogarithmic);
         setValue(parameter.init, false);
     }
+
+protected:
+    const FaustParameter& fParameter;
 
 private:
     void knobDragStarted(SubWidget* const widget) final

@@ -32,7 +32,6 @@ private:
     {
         const float w = getWidth();
         const float h = getHeight();
-        d_stdout("stage size %f %f", w, h);
 
         // ------------------------------------------------------------------------------------------------------------
         // draw background and border

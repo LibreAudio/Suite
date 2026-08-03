@@ -31,7 +31,6 @@ private:
     {
         const float w = getWidth();
         const float h = getHeight();
-        d_stdout("knob size %f %f", w, h);
 
         // ------------------------------------------------------------------------------------------------------------
         // draw background
@@ -48,6 +47,24 @@ private:
             fillColor(R::backgroundColor);
             fill();
         }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // draw text, TESTING
+
+        fillColor(R::foregroundColor);
+        fontSize(R::fontSize * fScaleFactor);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+
+        char text[64];
+        std::snprintf(text,
+                      sizeof(text),
+                      "%.10s\n%.1f%s%s",
+                      fParameter.label,
+                      getValue(),
+                      *fParameter.unit != '\0' ? " " : "",
+                      fParameter.unit);
+
+        textBox(0, h * 0.33f, w, text);
     }
 };
 

@@ -131,21 +131,20 @@ struct LibreAudioReference {
 
         struct Knob {
             static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
-            static constexpr const Color deactivatedColor = Colors::ink3;
-            static constexpr const Color foregroundColor = Colors::acc;
-            static constexpr const uint border = 1;
+            static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
+            static constexpr const uint border = 3;
             static constexpr const uint borderRadius = 6;
-            static constexpr const uint fontSize = 0;
+            static constexpr const uint fontSize = 16;
             static constexpr const uint height = 58;
             static constexpr const uint margin = 0;
             static constexpr const uint width = 58;
         };
 
         struct KnobGroup {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0x00 };
+            static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
             static constexpr const uint border = 0;
-            static constexpr const uint borderRadius = 6;
+            static constexpr const uint borderRadius = 0;
             static constexpr const uint height = 0;
             static constexpr const uint padding = 0;
             static constexpr const uint margin = Common::margin;
