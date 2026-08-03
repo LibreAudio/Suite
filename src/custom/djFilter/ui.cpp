@@ -515,9 +515,9 @@ class LibreAudioUI : public LibreAudioBaseUI,
 {
     using R = LibreAudioReference::Window;
 
-    std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
+    // std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
     // std::unique_ptr<TopTest> fTopTest = { new TopTest(this, this) };
-    TopTest* const fTopTest = new TopTest(this, this);
+    // TopTest* const fTopTest = new TopTest(this, this);
 
 public:
     LibreAudioUI()
