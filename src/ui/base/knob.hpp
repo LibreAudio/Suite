@@ -42,6 +42,7 @@ protected:
 private:
     void idleCallback() final
     {
+        // NOTE this only triggers updates if the value doesnt match
         setValue(fInterface->getParameterValue(getId()));
     }
 

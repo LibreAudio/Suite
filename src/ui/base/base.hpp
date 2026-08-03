@@ -63,6 +63,14 @@ public:
           fInterface(iface),
           fScaleFactor(windowToMapTo.getScaleFactor()) {}
 
+    // void addIdleCallback(IdleCallback* const callback)
+    // {
+    //     if constexpr (std::is_same_v<BaseWidget, NanoSubWidget>)
+    //         BaseWidget::getWindow().addIdleCallback(callback);
+    //     else
+    //         addIdleCallback(callback);
+    // }
+
     // FIXME make protected
 // protected:
     LibreAudioUIWidgetInterface* const fInterface;

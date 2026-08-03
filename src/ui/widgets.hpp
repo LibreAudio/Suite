@@ -40,7 +40,8 @@ using LibreAudioTopBarLogoWidget = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMA
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioTopBarUndoRedoGroupWidget : public LibreAudioButtonGroupWidget,
-                                            private ButtonEventHandler::Callback
+                                            private ButtonEventHandler::Callback,
+                                            private IdleCallback
 {
     std::unique_ptr<LibreAudioButtonWidget> fUndo = addButton<LibreAudioImageButtonWidget<IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>>();
     std::unique_ptr<LibreAudioButtonWidget> fRedo = addButton<LibreAudioImageButtonWidget<IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN>>();
@@ -57,11 +58,28 @@ public:
         // no undo/redo by default
         fUndo->setEnabled(false);
         fRedo->setEnabled(false);
+
+        getTopLevelWidget()->addIdleCallback(this);
     }
 
 private:
     void buttonClicked(SubWidget* const widget, int) final
     {
+        switch (widget->getId())
+        {
+        case kWidgetUndo:
+            fInterface->undo();
+            break;
+        case kWidgetRedo:
+            fInterface->redo();
+            break;
+        }
+    }
+
+    void idleCallback() final
+    {
+        fUndo->setEnabled(fInterface->canUndo());
+        fRedo->setEnabled(fInterface->canRedo());
     }
 };
 
@@ -93,6 +111,12 @@ public:
         fC->setWidth(fCopy->getWidth());
         fD->setWidth(fCopy->getWidth());
         done(this);
+
+        fCopy->setCheckable(true);
+        fA->setCheckable(true);
+        fB->setCheckable(true);
+        fC->setCheckable(true);
+        fD->setCheckable(true);
 
         fCopy->setId(kWidgetSnapshotCopy);
         fA->setId(kWidgetSnapshotA);
@@ -153,6 +177,9 @@ public:
     {
         done(this);
 
+        fEasy->setCheckable(true);
+        fExpert->setCheckable(true);
+
         fEasy->setChecked(fEasyMode, false);
         fExpert->setChecked(!fEasyMode, false);
 
@@ -174,7 +201,8 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioTopBarMenuPowerGroupWidget : public LibreAudioButtonGroupWidget,
-                                             private ButtonEventHandler::Callback
+                                             private ButtonEventHandler::Callback,
+                                             private IdleCallback
 {
     std::unique_ptr<LibreAudioButtonWidget> fMenu = addButton<LibreAudioImageButtonWidget<IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN>>();
     std::unique_ptr<LibreAudioButtonWidget> fPower = addButton<LibreAudioImageButtonWidget<IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN>>();
@@ -185,13 +213,36 @@ public:
     {
         done(this);
 
+        fMenu->setCheckable(true);
+        fPower->setCheckable(true);
+
         fMenu->setId(kWidgetMenu);
         fPower->setId(kWidgetPower);
+
+        getTopLevelWidget()->addIdleCallback(this);
     }
 
 private:
     void buttonClicked(SubWidget* const widget, int) final
     {
+        switch (widget->getId())
+        {
+        case kWidgetMenu:
+            // TODO
+            break;
+        case kWidgetPower:
+            fInterface->parameterControlPressed(kCommonParameterBypass);
+            fInterface->parameterControlModified(
+                kCommonParameterBypass, static_cast<LibreAudioButtonWidget*>(widget)->isChecked() ? 1.f : 0.f);
+            fInterface->parameterControlReleased(kCommonParameterBypass);
+            break;
+        }
+    }
+
+    void idleCallback() final
+    {
+        // NOTE this only triggers updates if the value doesnt match
+        fPower->setChecked(d_isNotZero(fInterface->getParameterValue(kCommonParameterBypass)), true);
     }
 };
 

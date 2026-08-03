@@ -64,7 +64,6 @@ protected:
     std::unique_ptr<LibreAudioButtonWidget> addButton()
     {
         std::unique_ptr<LibreAudioButtonWidget> widget { new B(this) };
-        widget->setCheckable(true);
         widgets.push_back({ widget.get(), Fixed });
         return widget;
     }
