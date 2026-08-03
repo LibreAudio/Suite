@@ -37,7 +37,7 @@ public:
 
         addSpacer();
 
-        for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters; ++i)
+        for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
         {
             const FaustParameter& parameter = parameters[i];
             if (parameter.isOutput) {
