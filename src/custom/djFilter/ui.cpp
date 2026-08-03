@@ -76,7 +76,6 @@ public:
 #version 150 core
 
 // DPF
-varying vec2 _dpf_var_vtex;
 uniform float iBeat;
 uniform vec4 iPeaks;
 uniform vec2 iMouse;
@@ -361,13 +360,10 @@ void main()
 
         static constexpr const char* const vertexTest = R"(
 #version 150 core
-attribute vec4 pos;
-attribute vec2 tex;
-varying vec2 _dpf_var_vtex;
+in vec4 pos;
 void main()
 {
     gl_Position = vec4(pos.x, pos.y, 0.0f, 1.0f);
-    _dpf_var_vtex = tex;
 }
         )";
 
