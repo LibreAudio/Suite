@@ -86,7 +86,8 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioTopBarSnapshotsGroupWidget : public LibreAudioButtonGroupWidget,
-                                             private ButtonEventHandler::Callback
+                                             private ButtonEventHandler::Callback,
+                                             private IdleCallback
 {
     static constexpr const char kTextA[] = "A";
     static constexpr const char kTextB[] = "B";
@@ -97,10 +98,6 @@ class LibreAudioTopBarSnapshotsGroupWidget : public LibreAudioButtonGroupWidget,
     std::unique_ptr<LibreAudioButtonWidget> fB = addButton<LibreAudioTextButtonWidget<kTextB>>();
     std::unique_ptr<LibreAudioButtonWidget> fC = addButton<LibreAudioTextButtonWidget<kTextC>>();
     std::unique_ptr<LibreAudioButtonWidget> fD = addButton<LibreAudioTextButtonWidget<kTextD>>();
-
-    // snapshot A checked by default
-    char fCurrentSnapshot = 'A';
-    char fLastSnapshot = fCurrentSnapshot;
 
 public:
     explicit LibreAudioTopBarSnapshotsGroupWidget(LibreAudioWidget* const parent)
@@ -124,37 +121,48 @@ public:
         fC->setId(kWidgetSnapshotC);
         fD->setId(kWidgetSnapshotD);
 
-        fA->setChecked(fCurrentSnapshot == 'A', false);
-        fB->setChecked(fCurrentSnapshot == 'B', false);
-        fC->setChecked(fCurrentSnapshot == 'C', false);
-        fD->setChecked(fCurrentSnapshot == 'D', false);
+        getTopLevelWidget()->addIdleCallback(this);
     }
 
 private:
     void buttonClicked(SubWidget* const widget, int) final
     {
-        if (widget->getId() == kWidgetSnapshotCopy)
+        switch (widget->getId())
         {
-            // TODO some other stuff
-            return;
+        case kWidgetSnapshotCopy:
+            fInterface->snapshotButtonClicked(LibreAudioUIWidgetInterface::kSnapshotButtonCopy);
+            break;
+        case kWidgetSnapshotA:
+            fInterface->snapshotButtonClicked(LibreAudioUIWidgetInterface::kSnapshotButtonA);
+            break;
+        case kWidgetSnapshotB:
+            fInterface->snapshotButtonClicked(LibreAudioUIWidgetInterface::kSnapshotButtonB);
+            break;
+        case kWidgetSnapshotC:
+            fInterface->snapshotButtonClicked(LibreAudioUIWidgetInterface::kSnapshotButtonC);
+            break;
+        case kWidgetSnapshotD:
+            fInterface->snapshotButtonClicked(LibreAudioUIWidgetInterface::kSnapshotButtonD);
+            break;
         }
 
-        if (static_cast<LibreAudioButtonWidget*>(widget)->isChecked())
-        {
-            fLastSnapshot = fCurrentSnapshot;
-            fCurrentSnapshot = 'A' + (widget->getId() - kWidgetSnapshotA);
-        }
-        else
-        {
-            if (fCurrentSnapshot == fLastSnapshot)
-                return;
-            fCurrentSnapshot = fLastSnapshot;
-        }
+        update();
+    }
 
-        fA->setChecked(fCurrentSnapshot == 'A', false);
-        fB->setChecked(fCurrentSnapshot == 'B', false);
-        fC->setChecked(fCurrentSnapshot == 'C', false);
-        fD->setChecked(fCurrentSnapshot == 'D', false);
+    void idleCallback() final
+    {
+        update();
+    }
+
+    void update()
+    {
+        fCopy->setChecked(fInterface->isCopyingSnapshot(), false);
+
+        const uint8_t snapshot = fInterface->getCurrentSnapshot();
+        fA->setChecked(snapshot == 0, false);
+        fB->setChecked(snapshot == 1, false);
+        fC->setChecked(snapshot == 2, false);
+        fD->setChecked(snapshot == 3, false);
     }
 };
 

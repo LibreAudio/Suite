@@ -35,7 +35,6 @@ protected:
     // ----------------------------------------------------------------------------------------------------------------
     // UI Widget Interface
 
-    uint32_t getParameterCount() const noexcept final { return kParameterCount; }
     float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
 
     bool canUndo() const noexcept final { return fSnapshots.canUndo(); }

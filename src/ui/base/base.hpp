@@ -23,7 +23,6 @@ public:
 
     virtual ~LibreAudioUIWidgetInterface() = default;
 
-    virtual uint32_t getParameterCount() const noexcept = 0;
     virtual float getParameterValue(const uint32_t index) const noexcept = 0;
 
     virtual bool canUndo() const noexcept = 0;
