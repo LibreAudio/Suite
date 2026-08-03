@@ -532,7 +532,7 @@ public:
                              false);
         fontFace("Saira Semi Condensed (Regular)");
 
-#if 0
+#if 1
         fTopBar = createWidget<LibreAudioTopBar>();
         fMainArea = createWidget<LibreAudioMainArea, Expanding>();
 #else
@@ -543,7 +543,7 @@ public:
         Layout::widgets.push_back({ fMainArea.get(), Expanding });
 #endif
 
-        fShaderTest->setSize(getSize());
+        // fShaderTest->setSize(getSize());
 
         // force initial resize after creating all widgets
         ResizeEvent ev;
