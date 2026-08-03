@@ -68,6 +68,7 @@ public:
         parent->addIdleCallback(this);
 
         static constexpr const char* const fragmentTest = R"(
+#version 110
 // DPF
 // uniform float iBeat;
 // uniform vec4 iPeaks;
@@ -352,10 +353,11 @@ void main()
         )";
 
         static constexpr const char* const vertexTest = R"(
+#version 110
 attribute vec4 pos;
 void main()
 {
-    gl_Position = vec4(pos.x, pos.y, 0.0f, 1.0f);
+    gl_Position = vec4(pos.x, pos.y, 0.0, 1.0);
 }
         )";
 
@@ -446,7 +448,7 @@ void main()
         // glViewport(0, 0, width, height);
         // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const GLfloat resolution[2] = { (float)width, (float)height };
+        const GLfloat resolution[2] = { (float)getWindow().getWidth(), (float)getWindow().getHeight() };
         glUniform2fv(gl3.iResolution, 1, resolution);
 
         const float time = getApp().getTime();
@@ -508,7 +510,7 @@ class LibreAudioUI : public LibreAudioBaseUI
 {
     using R = LibreAudioReference::Window;
 
-    // std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
+    std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
     // std::unique_ptr<TopTest> fTopTest = { new TopTest(this, this) };
     // TopTest* const fTopTest = new TopTest(this, this);
 
@@ -537,7 +539,8 @@ public:
         Layout::widgets.push_back({ fMainArea.get(), Expanding });
 #endif
 
-        // fShaderTest->setSize(getSize());
+        // fShaderTest->setSize(getWidth()/4, getHeight()/4);
+        fShaderTest->setSize(getSize());
 
         // force initial resize after creating all widgets
         ResizeEvent ev;
