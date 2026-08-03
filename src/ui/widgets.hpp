@@ -162,6 +162,8 @@ private:
         fEasyMode = !fEasyMode;
         fEasy->setChecked(fEasyMode, false);
         fExpert->setChecked(!fEasyMode, false);
+
+        // fInterface->
     }
 };
 
