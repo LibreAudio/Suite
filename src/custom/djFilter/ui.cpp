@@ -73,6 +73,8 @@ public:
         parent->addIdleCallback(this);
 
         static constexpr const char* const fragmentTest = R"(
+#version 150 core
+
 // DPF
 varying vec2 _dpf_var_vtex;
 uniform float iBeat;
@@ -358,6 +360,7 @@ void main()
         )";
 
         static constexpr const char* const vertexTest = R"(
+#version 150 core
 attribute vec4 pos;
 attribute vec2 tex;
 varying vec2 _dpf_var_vtex;
