@@ -50,14 +50,22 @@ public:
 
 class LibreAudioMainArea : public LibreAudioContainer<LibreAudioReference::MainArea>
 {
-    std::unique_ptr<LibreAudioMeter> fMetersIn = createWidget<LibreAudioMeter>();
-    std::unique_ptr<LibreAudioStage> fSpacer = createWidget<LibreAudioStage, Expanding>();
-    std::unique_ptr<LibreAudioMeter> fMetersOut = createWidget<LibreAudioMeter>();
+    std::unique_ptr<LibreAudioMeterWidget> fMetersIn = createWidget<LibreAudioMeterWidget>();
+    std::unique_ptr<LibreAudioStageWidget> fStage = createWidget<LibreAudioStageWidget, Expanding>();
+    std::unique_ptr<LibreAudioMeterWidget> fMetersOut = createWidget<LibreAudioMeterWidget>();
 
 public:
     LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)
         : LibreAudioContainer(parent)
     {
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        const float w = getWidth();
+        const float h = getHeight();
+        d_stdout("LibreAudioMainArea size %f %f", w, h);
     }
 };
 

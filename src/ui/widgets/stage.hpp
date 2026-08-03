@@ -4,21 +4,27 @@
 
 #pragma once
 
-#include "../base/widgets.hpp"
-#include "../reference.hpp"
+#include "../base/color.hpp"
+#include "knob-group.hpp"
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioStage final : public LibreAudioWidget
+class LibreAudioStageWidget final : public LibreAudioContainer<LibreAudioReference::Stage, kVertical>
 {
     using R = LibreAudioReference::Stage;
 
+    static constexpr const float kTopAreaColor[] = { 1.f, 0.f, 0.f, 0.5f };
+    std::unique_ptr<LibreAudioWidget> fTopArea = createWidget<LibreAudioColorWidget<kTopAreaColor>>();
+    std::unique_ptr<LibreAudioWidget> fSpacer = createSpacer();
+    std::unique_ptr<LibreAudioExpertKnobsGroupWidget> fExpertKnobs = createWidget<LibreAudioExpertKnobsGroupWidget>();
+
 public:
-    LibreAudioStage(LibreAudioWidget* const parent)
-        : LibreAudioWidget(parent)
+    LibreAudioStageWidget(LibreAudioWidget* const parent)
+        : LibreAudioContainer(parent)
     {
+        fTopArea->setHeight(30 * fScaleFactor);
     }
 
 private:
@@ -26,6 +32,7 @@ private:
     {
         const float w = getWidth();
         const float h = getHeight();
+        d_stdout("stage size %f %f", w, h);
 
         // ------------------------------------------------------------------------------------------------------------
         // draw background and border

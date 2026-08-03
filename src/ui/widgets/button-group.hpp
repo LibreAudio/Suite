@@ -28,7 +28,7 @@ public:
 
     void done(ButtonEventHandler::Callback* const callback)
     {
-        const uint border = R::padding * fScaleFactor;
+        const uint border = R::border * fScaleFactor;
         const uint margin = R::margin * fScaleFactor;
         const uint padding = R::padding * fScaleFactor;
 

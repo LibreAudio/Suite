@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include "../base/widgets.hpp"
+#include "../base/base.hpp"
 #include "../reference.hpp"
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioMeter final : public LibreAudioWidget
+class LibreAudioMeterWidget final : public LibreAudioWidget
 {
     using R = LibreAudioReference::Meter;
 
 public:
-    LibreAudioMeter(LibreAudioWidget* const parent)
+    LibreAudioMeterWidget(LibreAudioWidget* const parent)
         : LibreAudioWidget(parent)
     {
         if constexpr (R::width != 0)

@@ -6,6 +6,8 @@
 
 #include "widgets/button.hpp"
 #include "widgets/button-group.hpp"
+#include "widgets/knob.hpp"
+#include "widgets/knob-group.hpp"
 #include "widgets/meter.hpp"
 #include "widgets/stage.hpp"
 #include "widgets/top-bar-name.hpp"
@@ -34,6 +36,8 @@ enum WidgetIds {
 // --------------------------------------------------------------------------------------------------------------------
 
 using LibreAudioTopBarLogoWidget = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+
+// --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioTopBarUndoRedoGroupWidget : public LibreAudioButtonGroupWidget,
                                             private ButtonEventHandler::Callback

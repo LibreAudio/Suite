@@ -5,6 +5,8 @@
 #pragma once
 
 #include "button.hpp"
+#include "color.hpp"
 #include "container.hpp"
 #include "empty.hpp"
 #include "image.hpp"
+#include "knob.hpp"
