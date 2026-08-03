@@ -15,7 +15,8 @@ START_NAMESPACE_DISTRHO
 
 class LibreAudioKnobWidget : public LibreAudioWidget,
                              public KnobEventHandler,
-                             private KnobEventHandler::Callback
+                             private KnobEventHandler::Callback,
+                             private IdleCallback
 {
 public:
     explicit LibreAudioKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)
@@ -25,17 +26,25 @@ public:
     {
         setId(id);
         setName(parameter.label);
+        setCallback(this);
         setDefault(parameter.init);
         setRange(parameter.min, parameter.max);
         setStep(parameter.step);
         setUsingLogScale(parameter.isLogarithmic);
         setValue(parameter.init, false);
+
+        getTopLevelWidget()->addIdleCallback(this);
     }
 
 protected:
     const FaustParameter& fParameter;
 
 private:
+    void idleCallback() final
+    {
+        setValue(fInterface->getParameterValue(getId()));
+    }
+
     void knobDragStarted(SubWidget* const widget) final
     {
         fInterface->parameterControlPressed(widget->getId());

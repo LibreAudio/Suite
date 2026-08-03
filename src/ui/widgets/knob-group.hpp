@@ -37,7 +37,10 @@ public:
 
         for (uint32_t i = 0, count = parameters.size(); i < count; ++i)
         {
-            std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameters[i], idOffset + i) };
+            const FaustParameter& parameter = parameters[i];
+            if (parameter.isOutput)
+                continue;
+            std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
             widgets.push_back({ widget.get(), Fixed });
             fKnobs.emplace_back(std::move(widget));
             addSpacer();
