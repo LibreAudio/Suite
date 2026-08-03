@@ -176,8 +176,6 @@ function(las_add_plugin LABEL)
     set(UI_FILE "custom/${LABEL}/ui.cpp")
 
     dpf_add_plugin(${TARGET}
-      UI_TYPE
-        opengl3
       TARGETS
         clap lv2 vst3 jack
       FILES_COMMON

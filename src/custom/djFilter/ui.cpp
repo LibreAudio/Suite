@@ -73,18 +73,16 @@ public:
         parent->addIdleCallback(this);
 
         static constexpr const char* const fragmentTest = R"(
-#version 150 core
-
 // DPF
-uniform float iBeat;
-uniform vec4 iPeaks;
-uniform vec2 iMouse;
+// uniform float iBeat;
+// uniform vec4 iPeaks;
+// uniform vec2 iMouse;
 uniform vec2 iResolution;
-uniform vec2 iChannel0;
+// uniform vec2 iChannel0;
 uniform float iTime;
 
 vec2 fragCoord = gl_FragCoord.xy;
-out vec4 fragColor;
+// out vec4 fragColor;
 // END DPF
 #define HUE 0.0
 #define EVOLUTION_SPEED 0.050
@@ -352,15 +350,14 @@ void main()
     color = 1.0 - exp(-color);
     color = pow(max(color, vec3(0.0)), vec3(0.94));
     color += (hash21(fragCoord) - 0.5) / 255.0;
-    fragColor = vec4(clamp(color, 0.0, 1.0), 0.75);
+    gl_FragColor = vec4(clamp(color, 0.0, 1.0), 0.75);
     // fragColor = vec4(0.0, 0.0, 1.0, 0.1);
 }
 
         )";
 
         static constexpr const char* const vertexTest = R"(
-#version 150 core
-in vec4 pos;
+attribute vec4 pos;
 void main()
 {
     gl_Position = vec4(pos.x, pos.y, 0.0f, 1.0f);
