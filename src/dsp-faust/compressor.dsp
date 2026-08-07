@@ -16,11 +16,12 @@ import("stdfaust.lib");
 // number of channels. The mid/side path below assumes exactly 2.
 Nch = 2;
 
-// Inputs 1-2 are the audio, inputs 3-4 the external sidechain, so this DSP is
-// 4-in / 2-out. Note src/DistrhoPluginInfo.h currently #errors on anything but
-// 2 inputs, and config.h.in takes DISTRHO_PLUGIN_NUM_INPUTS straight from this
-// count, so the DPF side needs the guard relaxed and a sidechain port group
-// before this builds as a plugin.
+// The compressor engine takes 4 inputs: 1-2 audio, 3-4 external sidechain.
+// src/DistrhoPluginInfo.h #errors on anything but 2 inputs, and config.h.in
+// takes DISTRHO_PLUGIN_NUM_INPUTS straight from this DSP's input count, so
+// until the DPF side grows a sidechain port group `process` presents 2 inputs
+// and feeds the engine's sidechain pair from a copy of the audio. See the
+// bottom of the file for the one-line change that opens the real inputs.
 
 maxGR = -60; // meter floor, also the widest Range setting
 
@@ -45,7 +46,7 @@ threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold]
 
 ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio]
       [tooltip: dB in per dB out above the threshold. 1 = no compression]",
-                          4, 1, 100, 0.01));
+                          4, 1, 20, 0.01));
 
 // slope = the fraction of every dB of overshoot that gets removed
 slope = 1 - 1 / max(1, ratio);
@@ -72,7 +73,7 @@ attack = env_group(vslider("[0]Attack[unit:ms][scale:log][symbol:attack]
       [tooltip: How fast the gain moves toward a deeper reduction. Read as a
        1/e time constant at Attack Curve +1, or as the time to cover 20 dB at
        Attack Curve 0 and below]",
-                           10, 0.01, 500, 0.01)) * 0.001;
+                           10, 0.01, 100, 0.01)) * 0.001;
 
 attackCurve = env_group(vslider("[1]Attack Curve[symbol:attack_curve]
       [tooltip: Shape of the attack ramp. +1 = exponential, analog-style: quick
@@ -83,13 +84,13 @@ attackCurve = env_group(vslider("[1]Attack Curve[symbol:attack_curve]
 hold = env_group(vslider("[2]Hold[unit:ms][symbol:hold]
       [tooltip: How long the gain reduction is frozen at its deepest point
        before release is allowed to start]",
-                         0, 0, 1000, 0.1)) * 0.001;
+                         0, 0, 100, 0.1)) * 0.001;
 
 release = env_group(vslider("[3]Release[unit:ms][scale:log][symbol:release]
       [tooltip: How fast the gain moves back up toward a lighter reduction. Read
        as a 1/e time constant at Release Curve +1, or as the time to cover 20 dB
        at Release Curve 0 and below]",
-                            150, 1, 3000, 0.1)) * 0.001;
+                            150, 1, 2000, 0.1)) * 0.001;
 
 releaseCurve = env_group(vslider("[4]Release Curve[symbol:release_curve]
       [tooltip: Shape of the release ramp. +1 = exponential, analog-style: lets
@@ -162,9 +163,10 @@ msOn = det_group(checkbox("[4]Mid / Side[symbol:mid_side]
 
 scMix = sc_group(vslider("[0]SC Mix[unit:%][symbol:sc_mix]
       [tooltip: Crossfades the detector between the plugin's own audio (0%) and
-       the external sidechain on inputs 3-4 (100%). At 0% the external inputs
-       are ignored entirely, so a host that leaves them unconnected behaves
-       exactly as if there were no sidechain]",
+       the external sidechain (100%). While the sidechain pair is fed from a
+       copy of the audio it does little beyond bypassing Feedback, but the
+       parameter is here so the layout does not change once the real inputs
+       are wired up]",
                          0, 0, 100, 1)) / 100;
 
 scHp = sc_group(vslider("[1]SC High Pass[unit:Hz][scale:log][symbol:sc_hp]
@@ -383,10 +385,10 @@ msEnc(l, r) = select2(msOn, l, (l + r) * 0.5),
 msDec(m, s) = select2(msOn, m, m + s),
               select2(msOn, s, m - s);
 
-//======================= process =======================
-// 1-2 audio, 3-4 external sidechain. Both pairs go through the same mid/side
-// encode, so with M/S engaged the side band is detected against the
-// sidechain's side band rather than against its mid.
+//======================= compressor engine =======================
+// 2*Nch in, Nch out: 1-2 audio, 3-4 external sidechain. Both pairs go through
+// the same mid/side encode, so with M/S engaged the side band is detected
+// against the sidechain's side band rather than against its mid.
 //
 // The detector reads the signal undelayed while the audio goes through the
 // lookahead delay, which is the whole point: by the time a transient reaches
@@ -394,12 +396,23 @@ msDec(m, s) = select2(msOn, m, m + s),
 // delayed either, and needs no delay line of its own - it is only ever looked
 // at, never heard.
 
-process = si.bus(2 * Nch)
-        :  (msEnc, msEnc)
-        <: (grComputeN,
-            (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)), par(i, Nch, !)))
-        :  ro.interleave(Nch, 2)
-        :  par(i, Nch, applyGain(i))
-        :  msDec;
+compressorSC = si.bus(2 * Nch)
+             :  (msEnc, msEnc)
+             <: (grComputeN,
+                 (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)), par(i, Nch, !)))
+             :  ro.interleave(Nch, 2)
+             :  par(i, Nch, applyGain(i))
+             :  msDec;
 
 applyGain(i, grDb, x) = x * (grDb : chanMeter(i) : ba.db2linear);
+
+//======================= process =======================
+// Temporary 2-in front end. `_,_ <: si.bus(4)` fans out as [L, R, L, R], so
+// the engine's sidechain pair receives a copy of the audio and the plugin
+// still reports the 2 inputs src/DistrhoPluginInfo.h insists on. Every
+// sidechain path stays live and testable; only the source is stubbed.
+//
+// To open the real inputs once DPF has a sidechain port group, replace the
+// body below with `compressorSC`.
+
+process = si.bus(Nch) <: compressorSC;
