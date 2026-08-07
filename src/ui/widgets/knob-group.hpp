@@ -15,7 +15,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class KnobWidget = LibreAudioSmallKnobWidget>
-class LibreAudioKnobGroupWidget : public LibreAudioContainer<LibreAudioReference::Widgets::KnobGroup>
+class LibreAudioKnobGroupWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::KnobGroup>
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
@@ -26,7 +26,7 @@ public:
     explicit LibreAudioKnobGroupWidget(LibreAudioWidget* const parent,
                                        const std::vector<FaustParameter>& parameters,
                                        const uint32_t idOffset = 0)
-        : LibreAudioContainer(parent)
+        : LibreAudioContainerSubWidget(parent)
     {
         DISTRHO_SAFE_ASSERT_RETURN(!parameters.empty(),);
 

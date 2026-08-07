@@ -3,18 +3,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // NOTE this is the file that gets imported by DPF in a custom include
-// to keep build times reasonable only include the necessary files for a LibreAudioArea widget
+// to keep build times reasonable we only include the necessary files for a LibreAudioArea widget
 
 #pragma once
 
-#include "base/container.hpp"
-#include "reference.hpp"
+#include "TopLevelWidget.hpp"
+#include "base/interface.hpp"
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using LibreAudioUIWidget = LibreAudioContainer<LibreAudioReference::Window, kVertical, LibreAudioTopLevelWidget>;
+class LibreAudioUIWidget : public TopLevelWidget,
+                           public LibreAudioUIWidgetInterface
+{
+public:
+    explicit LibreAudioUIWidget(Window& window)
+        : TopLevelWidget(window) {}
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

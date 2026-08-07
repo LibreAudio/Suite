@@ -23,7 +23,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioTopBar : public LibreAudioContainer<LibreAudioReference::TopBar>
+class LibreAudioTopBar : public LibreAudioContainerSubWidget<LibreAudioReference::TopBar>
 {
     std::unique_ptr<LibreAudioTopBarLogoWidget> fLogo = createWidget<LibreAudioTopBarLogoWidget>();
     std::unique_ptr<LibreAudioTopBarNameWidget> fPluginName = createWidget<LibreAudioTopBarNameWidget>();
@@ -35,14 +35,14 @@ class LibreAudioTopBar : public LibreAudioContainer<LibreAudioReference::TopBar>
 
 public:
     LibreAudioTopBar(LibreAudioTopLevelWidget* const parent)
-        : LibreAudioContainer(parent)
+        : LibreAudioContainerSubWidget(parent)
     {
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioMainArea : public LibreAudioContainer<LibreAudioReference::MainArea>
+class LibreAudioMainArea : public LibreAudioContainerSubWidget<LibreAudioReference::MainArea>
 {
     std::unique_ptr<LibreAudioMeterWidget> fMetersIn = createWidget<LibreAudioMeterWidget>();
     std::unique_ptr<LibreAudioStageWidget> fStage = createWidget<LibreAudioStageWidget, Expanding>();
@@ -50,19 +50,20 @@ class LibreAudioMainArea : public LibreAudioContainer<LibreAudioReference::MainA
 
 public:
     LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)
-        : LibreAudioContainer(parent)
+        : LibreAudioContainerSubWidget(parent)
     {
     }
-
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// TopLevelWidget
 class ShaderTest : public SubWidget,
                    public IdleCallback
 {
 public:
-    explicit ShaderTest(LibreAudioTopLevelWidget* const parent)
+    // explicit ShaderTest(Window& window)
+    explicit ShaderTest(TopLevelWidget* const parent)
         : SubWidget(parent)
     {
         parent->addIdleCallback(this);
@@ -489,34 +490,16 @@ private:
     } gl3;
 };
 
-class TopTest : public LibreAudioTopLevelWidget
-{
-public:
-    TopTest(LibreAudioTopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
-        : LibreAudioTopLevelWidget(parent->getWindow(), iface)
-    {
-        createFontFromMemory("Saira Semi Condensed (Regular)",
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_DATA,
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_LEN,
-                             false);
-    }
-
-    void onNanoDisplay() final
-    {
-    }
-};
-
-class LibreAudioUI : public LibreAudioBaseUI
+class LibreAudioRootWidget : public LibreAudioContainerRootWidget<LibreAudioReference::Window, kVertical>
 {
     using R = LibreAudioReference::Window;
 
-    std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
-    // std::unique_ptr<TopTest> fTopTest = { new TopTest(this, this) };
-    // TopTest* const fTopTest = new TopTest(this, this);
+    std::unique_ptr<LibreAudioTopBar> fTopBar;
+    std::unique_ptr<LibreAudioMainArea> fMainArea;
 
 public:
-    LibreAudioUI()
-        : LibreAudioBaseUI()
+    LibreAudioRootWidget(Window& window, LibreAudioUIWidgetInterface* const iface)
+        : LibreAudioContainerRootWidget(window, iface)
     {
         createFontFromMemory("Saira Semi Condensed (Regular)",
                              FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_DATA,
@@ -528,24 +511,26 @@ public:
                              false);
         fontFace("Saira Semi Condensed (Regular)");
 
-#if 1
         fTopBar = createWidget<LibreAudioTopBar>();
         fMainArea = createWidget<LibreAudioMainArea, Expanding>();
-#else
-        fTopBar = std::make_unique<LibreAudioTopBar>(fTopTest);
-        fMainArea = std::make_unique<LibreAudioMainArea>(fTopTest);
 
-        Layout::widgets.push_back({ fTopBar.get(), Fixed });
-        Layout::widgets.push_back({ fMainArea.get(), Expanding });
-#endif
-
-        // fShaderTest->setSize(getWidth()/4, getHeight()/4);
-        fShaderTest->setSize(getSize());
-
-        // force initial resize after creating all widgets
+        // fake a resize after creating all widgets, to move everything into place
         ResizeEvent ev;
         ev.size = getSize();
-        LibreAudioUI::onResize(ev);
+        LibreAudioRootWidget::onResize(ev);
+    }
+};
+
+class LibreAudioUI : public LibreAudioBaseUI
+{
+    std::unique_ptr<ShaderTest> fShaderTest { new ShaderTest(this) };
+    std::unique_ptr<LibreAudioRootWidget> fRoot { new LibreAudioRootWidget(getWindow(), this) };
+
+public:
+    LibreAudioUI()
+        : LibreAudioBaseUI()
+    {
+        fShaderTest->setSize(getSize());
     }
 
     ~LibreAudioUI() override
@@ -558,16 +543,9 @@ protected:
 
     void uiScaleFactorChanged(const double scaleFactor) final
     {
-        fScaleFactor = scaleFactor;
+        // fScaleFactor = scaleFactor;
         // TODO
     }
-
-private:
-    double fScaleFactor = getScaleFactor();
-    // bool fExpertMode = false;
-
-    std::unique_ptr<LibreAudioTopBar> fTopBar;
-    std::unique_ptr<LibreAudioMainArea> fMainArea;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

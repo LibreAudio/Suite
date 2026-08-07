@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "button.hpp"
+#include "../base/button.hpp"
+#include "../base/container.hpp"
 #include "Layout.hpp"
 
 #include <memory>
@@ -14,7 +15,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioButtonGroupWidget : public LibreAudioContainer<LibreAudioReference::Widgets::ButtonGroup>
+class LibreAudioButtonGroupWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::ButtonGroup>
 {
     using R = LibreAudioReference::Widgets::ButtonGroup;
     // using LibreAudioButtonWidget::Corner kCornerLeft = LibreAudioButtonWidget::kCornerLeft;
@@ -22,7 +23,7 @@ class LibreAudioButtonGroupWidget : public LibreAudioContainer<LibreAudioReferen
 
 public:
     explicit LibreAudioButtonGroupWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainer(parent)
+        : LibreAudioContainerSubWidget(parent)
     {
     }
 

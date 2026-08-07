@@ -11,7 +11,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioStageWidget final : public LibreAudioContainer<LibreAudioReference::Stage, kVertical>
+class LibreAudioStageWidget final : public LibreAudioContainerSubWidget<LibreAudioReference::Stage, kVertical>
 {
     using R = LibreAudioReference::Stage;
 
@@ -22,7 +22,7 @@ class LibreAudioStageWidget final : public LibreAudioContainer<LibreAudioReferen
 
 public:
     LibreAudioStageWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainer(parent)
+        : LibreAudioContainerSubWidget(parent)
     {
         fTopArea->setHeight(30 * fScaleFactor);
     }
