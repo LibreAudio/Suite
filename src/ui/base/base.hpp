@@ -45,7 +45,7 @@ protected:
     float fScaleFactor;
 
     friend class LibreAudioBaseWidget<NanoSubWidget>;
-    friend class LibreAudioBaseWidget<NanoTopLevelWidget>;
+    // friend class LibreAudioBaseWidget<NanoTopLevelWidget>;
 };
 
 using LibreAudioWidget = LibreAudioBaseWidget<NanoSubWidget> ;

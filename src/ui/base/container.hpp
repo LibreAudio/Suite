@@ -74,14 +74,7 @@ protected:
 
         BaseWidget::beginPath();
 
-        if constexpr (std::is_same_v<BaseWidget, LibreAudioTopLevelWidget>)
-        {
-            // BaseWidget::rect(0, 0, w, h);
-            // BaseWidget::fillPaint(
-            //     BaseWidget::linearGradient(0, 0, 0, h, R::backgroundGradientStart, R::backgroundGradientStop));
-            // BaseWidget::fill();
-        }
-        else
+        if constexpr (std::is_same_v<BaseWidget, LibreAudioWidget>)
         {
             if constexpr (R::borderRadius != 0)
                 BaseWidget::roundedRect(0, 0, w, h, R::borderRadius * this->fScaleFactor);
