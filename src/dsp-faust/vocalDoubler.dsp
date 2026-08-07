@@ -8,8 +8,7 @@ import("stdfaust.lib");
 
 //======================= Mode & global controls =======================
 
-// mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT (Tape)':0;'1/3 Doubler':1}]", 1, 0, 1, 1);
-mode = checkbox("[0]ADT / 1/3 Doubler[symbol:mode]");
+mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT (Tape)':0;'1/3 Doubler':1;'Take':2}]", 0, 0, 2, 1);
 
 // Independent dry and wet volume faders in dB. The bottom of the range is
 // treated as -inf (true silence) rather than the ~-84 dB a raw db2linear
@@ -45,14 +44,14 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total red
 lerp(a, b, t) = a + (b - a) * t;
 
 hflim_amount = hgroup("[2]High Frequency Limiter", hslider("[0]HFlim Intensity[unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
-hflim_meter  = hgroup("[2]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", -30, 0));
+hflim_meter  = hgroup("[2]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
 hflim_ratio  = lerp(hfLimRatioAt0,  hfLimRatioAt100,  hflim_amount);
 hflim_range  = lerp(hfLimRangeAt0,  hfLimRangeAt100,  hflim_amount);
 
-hfLimit(x) = (low + high * gr) : attach(_, (0 - reductionDb) : hflim_meter)
+hfLimit(x) = (low + high * gr) : attach(_, (reductionDb) : hflim_meter)
 with {
     low  = fi.lowpass(4, hflim_split, x);
     high = x - low; // complementary split: low+high reconstructs x exactly at unity gain
@@ -75,10 +74,10 @@ with {
 // it, plus one band to duck or lift whatever frequency the double
 // exaggerates. Applies in every mode.
 
-eq_hpHz = hgroup("[5]Wet EQ", hslider("[0]High Pass[unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
-eq_lpHz = hgroup("[5]Wet EQ", hslider("[1]Low Pass[unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
+eq_hpHz = hgroup("[9]Wet EQ", hslider("[0]High Pass[unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
+eq_lpHz = hgroup("[9]Wet EQ", hslider("[1]Low Pass[unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
 eq_freq = 5000; //hgroup("[5]Wet EQ", hslider("[2]Presence Freq[unit:Hz][symbol:presence_freq]", 2000, 100, 12000, 1));
-eq_gain = hgroup("[5]Wet EQ", hslider("[3]Prensence[unit:dB][symbol:presence]", 0, -12, 12, 0.1));
+eq_gain = hgroup("[9]Wet EQ", hslider("[3]Prensence[unit:dB][symbol:presence]", 0, -12, 12, 0.1));
 eq_q    = 0.28; //hgroup("[5]Wet EQ", hslider("[4]Presence Q[symbol:presence_q]", 1, 0.2, 8, 0.01));
 
 wetEq = fi.highpass(2, eq_hpHz)
@@ -190,11 +189,179 @@ with {
     outR = dry * mixDry + wetR * mixWet * 0.5;
 };
 
+//======================= Mode 3: Take (human double) =======================
+// Where the other two modes give the double a *constant* offset, this one
+// re-rolls timing, tuning and level at every syllable onset and holds them
+// until the next one. Offsets stay put within a phrase and differ between
+// phrases, which is how a real second pass differs from the first — the
+// thing continuous wander can't imitate. A small formant offset on top
+// makes each voice read as a different throat rather than the same voice
+// detuned.
+
+tk_baseMs   = hgroup("[6]Take", hslider("[0]TAKE Base Delay[unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1));
+tk_timingMs = hgroup("[6]Take", hslider("[1]TAKE Timing Variation[unit:ms][symbol:take_timing]", 15, 0, 40, 0.1));
+tk_pitchCt  = hgroup("[6]Take", hslider("[2]TAKE Pitch Variation[unit:cents][symbol:take_pitch]", 10, 0, 30, 0.1));
+tk_charact  = hgroup("[6]Take", hslider("[3]TAKE Character[unit:%][symbol:take_character]", 40, 0, 100, 1)) / 100;
+tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
+tk_width    = hgroup("[6]Take", hslider("[5]TAKE Width[symbol:take_width]", 1, 0, 1, 0.01));
+
+// Onset detection watches the consonant band rather than overall level: a
+// syllable in legato singing barely moves the total envelope, but its
+// consonant lands hard above 5 kHz — the same region the HF limiter splits
+// at, for the same reason. Measured on synthetic material, a 5 kHz corner separates
+// real articulation from a sustained vibrato note by ~1.75x, where 1.5 kHz
+// only managed 1.12x.
+tkOnsetHP    = 5000;
+tkOnsetRatio = lerp(2.6, 1.15, tk_sens);
+tkOnsetFloor = ba.db2linear(-50);
+tkRefractory = 0.12 * ma.SR;
+
+tk_onset(x) = raw * (cnt' >= tkRefractory)
+with {
+    hf   = x : fi.highpass(2, tkOnsetHP);
+    env  = hf : an.amp_follower_ar(0.0005, 0.030);
+    // The reference chases env instead of being followed independently off
+    // the input. That matters: with two independent followers a low
+    // threshold leaves the comparator latched high forever and the rising
+    // edge never fires again, so sensitivity behaves non-monotonically.
+    // Chasing guarantees env/ref settles back to 1 on any steady signal, so
+    // the comparator can only exceed the ratio on an actual attack.
+    ref  = env : an.amp_follower_ar(0.150, 0.300);
+    live = x  : an.amp_follower_ar(0.005, 0.100);
+
+    over = (env > ref * tkOnsetRatio) * (live > tkOnsetFloor);
+    raw  = over > over';
+
+    // Refractory window, so one syllable can't re-roll the voices twice
+    // mid-word. The counter resets on the *accepted* trigger, not on every
+    // raw edge — resetting on raw edges lets a dense burst starve the gate
+    // and never let anything through at all.
+    cnt  = advance ~ _;
+    advance(c) = select2(raw * (c >= tkRefractory), min(tkRefractory, c + 1), 1);
+};
+
+// Cheap formant offset: notch each formant region and put it back a few
+// percent away. peak_eq at +L and -L is an exact reciprocal (the numerator
+// and denominator coefficients simply swap), so at ratio 1 the cut and the
+// boost land on the same frequency and cancel — Character at 0% measures
+// ~-90 dBFS residual, i.e. transparent up to single-precision rounding
+// through the six biquads.
+tkFormantBand(f, r) = fi.peak_eq_cq(0 - g, f, q) : fi.peak_eq_cq(g, f * r, q)
+with {
+    q = 1.2;
+    g = 5; // dB
+};
+
+// rough neutral-vowel F1/F2/F3
+tkFormant(r) = tkFormantBand(700, r) : tkFormantBand(1220, r) : tkFormantBand(2600, r);
+
+tkThroatA = 1 + tk_charact * 0.10;
+tkThroatB = 1 - tk_charact * 0.09;
+
+// A delay line's read position can only be moved while nothing is coming
+// out of it. Two ways of moving it that both fail, measured on a steady
+// 220 Hz tone:
+//
+//   * gliding the delay time IS varispeed — swinging 30 ms of delay across
+//     a 25 ms glide moves the read pointer faster than real time, and bent
+//     the tone by -957..+577 cents. This was the audible "fast speed
+//     up/down".
+//   * crossfading between two taps fails the same way in kind, because
+//     blending two coherent copies rotates the resultant phase, and a
+//     moving phase is a frequency deviation. A 12 ms crossfade still bent
+//     3-4 consecutive periods by up to 600 cents; stretching it to 200 ms
+//     only got to +/-150 cents and added a -20 dB comb notch on the way.
+//
+// So instead the voice is ducked to silence for a few ms at each onset,
+// the delay jumps inside that window, and the voice returns at its new
+// timing. Steady-state pitch error is then +/-0.02 cents, and all that is
+// left is a single splice period at the edge of the gap, softened by the
+// ramp. The duck lands at the *dry* onset, while the double is still
+// playing the previous syllable's tail — its own new attack is a base
+// delay away and arrives after the gap has closed.
+
+// linear ramp toward the target at a fixed slope (one-pole tails would
+// never reach hard zero, and the delay may only move at hard zero)
+tkRamp(step) = loop ~ _
+with {
+    loop(prev, target) = prev + max(0 - step, min(step, target - prev));
+};
+
+tkDuckRampMs = 8;
+// Keep the gap shorter than the base delay so it closes before the
+// double's own attack lands; short base delays get a shorter duck.
+tkDuckMs(baseMs) = max(4, min(14, baseMs * 0.55));
+
+// rnd is the *unheld* noise stream — it is sampled inside the gap
+tk_retime(trig, rnd, baseMs, x) = tap * g
+with {
+    maxDel = 65536;
+    down   = trig : ba.peakholder(tkDuckMs(baseMs) * ma.SR / 1000);
+    g      = (1 - down) : tkRamp(1000 / (tkDuckRampMs * ma.SR));
+
+    // While g is hard zero the delay is free to move; it freezes the moment
+    // audio comes back, so the jump itself is never heard. Held value
+    // starts at 0, i.e. plain baseMs, until the first onset re-rolls it.
+    d   = max(1, (baseMs + (rnd : ba.sAndH(g <= 0)) * tk_timingMs) * ma.SR / 1000);
+    tap = x : de.fdelay(maxDel, d);
+};
+
+// rndTime is raw noise (latched per tap inside tk_retime); rTune/rLevel are
+// the per-onset held values, each in -1..1
+tk_voice(trig, rndTime, rTune, rLevel, throat, delayMs, x) = out
+with {
+    winSamp   = 0.03 * ma.SR;
+    xfadeSamp = winSamp * 0.25;
+
+    // Pitch and level may glide — changing the transposition ratio just
+    // moves the pitch itself, so this reads as a short scoop into the new
+    // note rather than as an artifact. Only the delay line can't be moved.
+    glide     = si.smooth(ba.tau2pole(0.025));
+    shiftSemi = rTune * tk_pitchCt / 100 : glide;
+    ampMod    = ba.db2linear(rLevel * 1.5) : glide;
+
+    out = x : ef.transpose(winSamp, xfadeSamp, shiftSemi)
+            : tk_retime(trig, rndTime, delayMs)
+            : tkFormant(throat)
+            : *(ampMod);
+};
+
+// dry = untouched input, src = limiter output the voices are built from
+tk_mode(dry, src) = outL, outR
+with {
+    // one shared trigger: both takes react to the same syllable, but each
+    // draws its own offsets from a decorrelated noise stream
+    trig    = tk_onset(src);
+    hold(n) = no.noises(6, n) : ba.sAndH(trig);
+
+    // Voice B re-times 35 ms after voice A rather than at the same instant,
+    // so the two duck windows never overlap and the double is never fully
+    // absent — at worst it drops to one voice for a few ms.
+    trigB = trig : de.delay(32768, int(0.035 * ma.SR));
+
+    // staggered base delays so the two aren't coherent before the first
+    // onset has re-rolled anything
+    voiceA = src : tk_voice(trig,  no.noises(6, 0), hold(1), hold(2), tkThroatA, tk_baseMs);
+    voiceB = src : tk_voice(trigB, no.noises(6, 3), hold(4), hold(5), tkThroatB, tk_baseMs * 1.2 + 4);
+
+    pA = 0.5 - tk_width * 0.5;
+    pB = 0.5 + tk_width * 0.5;
+
+    wetL = voiceA * panL(pA) + voiceB * panL(pB) : wetEq;
+    wetR = voiceA * panR(pA) + voiceB * panR(pB) : wetEq;
+
+    // two voices summed into each channel: halve to match the single-voice
+    // ADT mode at the same mix setting, as in 1/3 Doubler
+    outL = dry * mixDry + wetL * mixWet * 0.5;
+    outR = dry * mixDry + wetR * mixWet * 0.5;
+};
+
 //======================= Mode select =======================
 
 // The limiter sits on the wet feed only: each mode gets the untouched sum
 // as its dry, and the limited sum as the source its voices are built from.
-process = _,_ :> _*0.5 <: (_, hfLimit) <: (adt_mode, db_mode) : selectOut
+process = _,_ :> _*0.5 <: (_, hfLimit) <: (adt_mode, db_mode, tk_mode) : selectOut
 with {
-    selectOut(aL, aR, bL, bR) = select2(mode, aL, bL), select2(mode, aR, bR);
+    selectOut(aL, aR, bL, bR, cL, cR) =
+        select3(mode, aL, bL, cL), select3(mode, aR, bR, cR);
 };

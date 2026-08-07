@@ -8,40 +8,121 @@ declare unique_id "LAcs";
 
 import("stdfaust.lib");
 
-// Roland Juno-60 Stereo Chorus
+// Roland Juno-60 Stereo Chorus / Roland SDD-320 Dimension D / string ensemble
 //
 // Emulates the MN3009 BBD (256-stage bucket-brigade) chorus circuit.
 //
-// Chorus I:  single LFO at ~0.513 Hz — warm, subtle stereo widening
-// Chorus II: two LFOs (~0.513 + 0.863 Hz) summed — richer, shimmering
+// Chorus I:   single LFO at ~0.513 Hz — warm, subtle stereo widening
+// Chorus II:  two LFOs (~0.513 + 0.863 Hz) summed — richer, shimmering
+// Chorus I+II: both switches engaged. On the hardware this puts the two
+//   rate-setting networks in parallel, so the LFO jumps to ~9.75 Hz while
+//   the modulation depth drops to roughly a fifth — the fast, "seasick"
+//   wobble the Juno is known for, rather than a deeper version of II.
+//
+// Dimension D: Roland SDD-320, driven by its own four-button switch (dim).
+//   Different topology from the Juno modes: one modulated copy is sent
+//   anti-phase to L and R, so the wet signal sits entirely in the side
+//   channel — very wide, no audible pitch wobble, and it cancels exactly
+//   on a mono sum. The four buttons step modulation depth and chorus
+//   amount together, 1 being barely-there widening and 4 the full effect.
+//   Delay, rate and depth are fixed to the hardware, so dctr, rate1, rate2
+//   and ddepth all do nothing in this mode, and neither does spread — the
+//   wet is already pure side. The dim switch does nothing outside it.
+//
+// Ensemble: the string-machine chorus of the ARP/Solina lineage. Three BBD
+//   lines driven by one three-phase LFO network 120 degrees apart, panned
+//   left / right / centre. The LFO is a slow sweep with a fast shimmer summed
+//   on top — that pairing is what makes an ensemble sound like several
+//   detuned players rather than one doubled source, and it sweeps far wider
+//   than either Juno mode: 23 cents per tap against 17. Its constants are
+//   fixed to the machine as well, so dctr, ddepth, rate1 and rate2 are all
+//   dead here too; spread stays live, since unlike Dimension D there is real
+//   mid content to widen.
 //
 // Stereo spread: L and R receive opposite-polarity LFO modulation so
 // the pitch drifts up on one side while it drifts down on the other,
 // matching the Juno-60 circuit topology.
 
 // --- UI ---
-mode        = nentry("mode[style:radio{'I':0;'II':1}][symbol:mode]", 0, 0, 1, 1) : int;
-true_stereo = checkbox("true stereo[symbol:true_stereo]");
-dry         = hslider("dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
-wet         = hslider("wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1) : ba.db2linear;
-drywet      = hslider("drywet [unit:%][symbol:drywet]",50,0,100,1) / 100;
-rate1       = hslider("rate1[unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001);  // primary LFO (Hz)
-rate2       = hslider("rate2[unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001);  // secondary LFO, mode II only (Hz)
-dctr        = hslider("dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1)  / 1000;
-ddepth      = hslider("ddepth [unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01) / 1000; // LFO rate detune between L/R instances (true stereo)
-detune      = hslider("detune [unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1)  / 100;
-hp_freq     = hslider("hp_freq [unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1);
-lp_freq     = hslider("lp_freq [unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1);
-spread      = hslider("spread [unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0)  / 100; // stereo width: 0% mono, 100% unmodified, 200% double width
+// Five sections side by side, each stacked vertically. The plugin's own GUI
+// lays its knobs out itself and ignores this; the grouping drives the generic
+// Faust UIs and, via the [n] prefixes, the order of the generated parameter
+// list — which is why the sections follow the signal flow rather than the
+// alphabetical order Faust falls back to for an ungrouped DSP.
+
+/* Grey-out list — which controls actually reach the output, per mode.
+   Verified by measurement, not by reading: '.' means the rendered output is
+   bit-identical with the control at either end of its range, so the UI can
+   disable it there with no audible consequence.
+
+                    I    II   I+II  Dim D  Ens
+      dim           .    .    .     o      .
+      rate1         o    o    o     .      .
+      rate2         .    o    o     .      .
+      dctr          o    o    o     .      .
+      ddepth        o    o    o     .      .
+      spread        o    o    o     .      o
+      hp_freq       o    o    o     o      o
+      lp_freq       o    o    o     o      o
+      drywet        o    o    o     o      o
+      true stereo   o    o    o     o      o
+
+      detune        true stereo only — inert in every mode with it off
+
+   Dimension D and Ensemble are fixed-constant machine emulations, which is
+   why the whole Delay section and most of the LFO section go dead in them.
+   spread survives in Ensemble but not Dimension D: the latter's wet signal
+   is already pure side, so widening has nothing to act on.
+   detune is the one control whose condition is not the mode at all — it only
+   ever reaches the true-stereo signal paths.
+*/
+
+sections(x) = hgroup("Chorus", x);
+uiMode(x)   = sections(vgroup("[0]Mode",  x));
+uiLFO(x)    = sections(vgroup("[1]LFO",   x));
+uiDelay(x)  = sections(vgroup("[2]Delay", x));
+uiTone(x)   = sections(vgroup("[3]Tone",  x));
+uiMix(x)    = sections(vgroup("[4]Mix",   x));
+
+mode        = uiMode(nentry("[0]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
+dim         = uiMode(nentry("[1]dim[style:radio{'1':0;'2':1;'3':2;'4':3}][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
+true_stereo = uiMode(checkbox("[2]true stereo[symbol:true_stereo]"));
+
+rate1       = uiLFO(hslider("[0]rate1[unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
+rate2       = uiLFO(hslider("[1]rate2[unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
+detune      = uiLFO(hslider("[2]detune [unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
+
+dctr        = uiDelay(hslider("[0]dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1))  / 1000;
+ddepth      = uiDelay(hslider("[1]ddepth [unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01)) / 1000;
+
+hp_freq     = uiTone(hslider("[0]hp_freq [unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1));
+lp_freq     = uiTone(hslider("[1]lp_freq [unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1));
+
+drywet      = uiMix(hslider("[0]drywet [unit:%][symbol:drywet]",50,0,100,1)) / 100;
+spread      = uiMix(hslider("[1]spread [unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
+// currently unused — the explicit dry/wet mix in chorus() is commented out below
+dry         = uiMix(hslider("[2]dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
+wet         = uiMix(hslider("[3]wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
 
 MAXN = 1 << 17;    // delay buffer size in samples
 
 // Delay time in samples, clamped to >= 1
 samp(t) = max(1.0, t * float(ma.SR));
 
+// Both switches down: the rate networks end up in parallel, so the LFO
+// frequencies add and the whole circuit speeds up dramatically while the
+// swept depth shrinks. Scaled off the two rate controls so they stay live
+// in this mode; with the stock rates this lands at ~9.75 Hz.
+BOTH_RATE_SCALE  = 7.087;   // (0.513 + 0.863) * 7.087 ~= 9.75 Hz
+BOTH_DEPTH_SCALE = 0.2;
+
+rateB   = min(20.0, (rate1 + rate2) * BOTH_RATE_SCALE);
+ddepthB = ddepth * BOTH_DEPTH_SCALE;
+
 // --- LFOs ---
 lfo1 = os.osc(rate1);
 lfo2 = os.osc(rate2);
+lfoB = os.osc(rateB);
 
 // Chorus I: single LFO, L/R polarity inverted for stereo spread
 dtI_L = samp(dctr + lfo1 * ddepth);
@@ -53,6 +134,10 @@ dtI_R = samp(dctr - lfo1 * ddepth);
 dtII_L = samp(dctr + ( lfo1 + lfo2) * ddepth * 0.5);
 dtII_R = samp(dctr + (-lfo1 + lfo2) * ddepth * 0.5);
 
+// Chorus I+II: single fast LFO, shallow, opposite polarity per channel
+dtB_L = samp(dctr + lfoB * ddepthB);
+dtB_R = samp(dctr - lfoB * ddepthB);
+
 // True stereo: two detuned instances, one per channel
 // Instance A processes L (rates detuned down), instance B processes R (rates detuned up)
 // Their stereo outputs are summed back to a stereo pair
@@ -60,16 +145,81 @@ lfo1_a = os.osc(rate1 * (1 - detune));
 lfo1_b = os.osc(rate1 * (1 + detune));
 lfo2_a = os.osc(rate2 * (1 - detune));
 lfo2_b = os.osc(rate2 * (1 + detune));
+lfoB_a = os.osc(rateB * (1 - detune));
+lfoB_b = os.osc(rateB * (1 + detune));
 
-dtIII_LL = samp(dctr + lfo1_a * ddepth);
-dtIII_LR = samp(dctr - lfo1_a * ddepth);
-dtIII_RL = samp(dctr + lfo1_b * ddepth);
-dtIII_RR = samp(dctr - lfo1_b * ddepth);
+tsI_LL = samp(dctr + lfo1_a * ddepth);
+tsI_LR = samp(dctr - lfo1_a * ddepth);
+tsI_RL = samp(dctr + lfo1_b * ddepth);
+tsI_RR = samp(dctr - lfo1_b * ddepth);
 
-dtIV_LL = samp(dctr + ( lfo1_a + lfo2_a) * ddepth * 0.5);
-dtIV_LR = samp(dctr + (-lfo1_a + lfo2_a) * ddepth * 0.5);
-dtIV_RL = samp(dctr + ( lfo1_b + lfo2_b) * ddepth * 0.5);
-dtIV_RR = samp(dctr + (-lfo1_b + lfo2_b) * ddepth * 0.5);
+tsII_LL = samp(dctr + ( lfo1_a + lfo2_a) * ddepth * 0.5);
+tsII_LR = samp(dctr + (-lfo1_a + lfo2_a) * ddepth * 0.5);
+tsII_RL = samp(dctr + ( lfo1_b + lfo2_b) * ddepth * 0.5);
+tsII_RR = samp(dctr + (-lfo1_b + lfo2_b) * ddepth * 0.5);
+
+tsB_LL = samp(dctr + lfoB_a * ddepthB);
+tsB_LR = samp(dctr - lfoB_a * ddepthB);
+tsB_RL = samp(dctr + lfoB_b * ddepthB);
+tsB_RR = samp(dctr - lfoB_b * ddepthB);
+
+// --- Dimension D ---
+// Delay, rate and depth are all fixed to the hardware rather than taken from
+// the Juno controls: the SDD-320 has none of those knobs, only the four
+// buttons, which step depth and chorus amount together. dctr, rate1, rate2
+// and ddepth therefore do nothing in this mode, leaving it entirely
+// self-contained.
+//
+// The sweep is far shallower than the Juno's. Measured on a 1 kHz tone the
+// four buttons give a peak pitch deviation of 1.1 / 2.2 / 3.3 / 4.4 cents,
+// against 17 cents for Chorus I at its defaults — that gap is what keeps
+// the mode free of audible wobble.
+DIM_DELAY      = 0.005;    // s, fixed delay centre (1024-stage BBD, ~100 kHz clock)
+DIM_RATE       = 0.5;      // Hz, fixed LFO, same for all four buttons
+DIM_DEPTH_BASE = 0.0002;   // 0.2 ms peak deviation on button 1
+DIM_DEPTH_STEP = 0.0002;   // +0.2 ms per button, up to 0.8 ms on button 4
+
+ddepthD  = DIM_DEPTH_BASE + dim * DIM_DEPTH_STEP;
+dimMix   = 1; // (all dim 1-4 result in same volume. Old line: dimMix = 0.4 + dim * 0.2;  // 40 / 60 / 80 / 100 %
+
+lfoD   = os.osc(DIM_RATE);
+lfoD_a = os.osc(DIM_RATE * (1 - detune));
+lfoD_b = os.osc(DIM_RATE * (1 + detune));
+
+// True stereo gives each input channel its own BBD, the pair modulated in
+// opposite phase as on the hardware and detuned against each other by the
+// shared detune control. Both feed the same anti-phase output stage, so the
+// mono cancellation survives either way.
+dtD   = samp(DIM_DELAY + lfoD * ddepthD);
+tsD_L = samp(DIM_DELAY + lfoD_a * ddepthD);
+tsD_R = samp(DIM_DELAY - lfoD_b * ddepthD);
+
+// --- Ensemble ---
+// String-machine ensemble (ARP/Solina lineage): three BBD lines fed from one
+// three-phase LFO network, 120 degrees apart. The LFO is a slow sweep plus a
+// fast shimmer summed together — that pairing is what separates an ensemble
+// from a chorus, and why it sounds like several detuned players rather than
+// one doubled source.
+//
+// Like Dimension D this is a machine with no front-panel controls, so its
+// constants are fixed here and dctr, ddepth, rate1 and rate2 do nothing.
+ENS_DELAY      = 0.005;    // s, delay centre
+ENS_RATE_SLOW  = 0.6;      // Hz, the slow sweep
+ENS_RATE_FAST  = 6.0;      // Hz, the shimmer riding on top
+ENS_DEPTH_SLOW = 0.0015;   // s peak, ~10 cents on its own
+ENS_DEPTH_FAST = 0.0002;   // s peak, ~13 cents on its own
+ENS_GAIN       = 1.03;     // level-matches the three summed taps to the Juno modes
+
+// Tap j of 3. detune pulls the two outer taps apart in true stereo, which
+// breaks the exact 120-degree lock and widens the swirl; with it off the three
+// phases stay locked, as on the hardware. The sign follows the tap's
+// destination — outer taps opposite, centre tap untouched — so the two output
+// channels stay level-matched.
+ensK(j)   = 1 + ba.take(j + 1, (-1.0, 1.0, 0.0)) * detune * true_stereo;
+ensPh(j)  = j * 2.0 * ma.PI / 3.0;
+ensMod(j) = os.oscp(ENS_RATE_SLOW * ensK(j), ensPh(j)) * ENS_DEPTH_SLOW
+          + os.oscp(ENS_RATE_FAST * ensK(j), ensPh(j)) * ENS_DEPTH_FAST;
+ensDt(j)  = samp(ENS_DELAY + ensMod(j));
 
 dryWetMixerUnity(dw, X) = _,_ <: (*(dG),*(dG)), (X : *(wG),*(wG)) :> _,_
 with { dG = min(1.0, 2.0*(1.0-dw)); wG = min(1.0, 2.0*dw); };
@@ -82,39 +232,68 @@ process = dryWetMixer3dB(drywet, chorus);
 
 chorus(L, R) = outL, outR
 with {
-    // Modes I/II: sum to mono, single delay pair
-    mono   = L + R;
-    dtL_12 = select2(mode, dtI_L, dtII_L);
-    dtR_12 = select2(mode, dtI_R, dtII_R);
-    wL_12  = de.fdelay(MAXN, dtL_12, mono);
-    wR_12  = de.fdelay(MAXN, dtR_12, mono);
+    mono    = L + R;
+    juno    = mode < 3;
+    dimD    = mode == 3;
+    jmode   = min(mode, 2);   // clamp so the Juno selects stay in range
 
-    // True stereo, mode I
-    wLL_3  = de.fdelay(MAXN, dtIII_LL, L);
-    wLR_3  = de.fdelay(MAXN, dtIII_LR, L);
-    wRL_3  = de.fdelay(MAXN, dtIII_RL, R);
-    wRR_3  = de.fdelay(MAXN, dtIII_RR, R);
-    wL_3   = wLL_3 + wRL_3;
-    wR_3   = wLR_3 + wRR_3;
+    // --- Juno modes I / II / I+II ---
+    // Mono path: single delay pair, delay time picked per mode
+    dtL_m   = select3(jmode, dtI_L, dtII_L, dtB_L);
+    dtR_m   = select3(jmode, dtI_R, dtII_R, dtB_R);
+    wL_m    = de.fdelay(MAXN, dtL_m, mono);
+    wR_m    = de.fdelay(MAXN, dtR_m, mono);
 
-    // True stereo, mode II
-    wLL_4  = de.fdelay(MAXN, dtIV_LL, L);
-    wLR_4  = de.fdelay(MAXN, dtIV_LR, L);
-    wRL_4  = de.fdelay(MAXN, dtIV_RL, R);
-    wRR_4  = de.fdelay(MAXN, dtIV_RR, R);
-    wL_4   = wLL_4 + wRL_4;
-    wR_4   = wLR_4 + wRR_4;
+    // True stereo path: same topology in every mode, so select the delay
+    // times first and run a single set of four delay lines
+    dt_LL   = select3(jmode, tsI_LL, tsII_LL, tsB_LL);
+    dt_LR   = select3(jmode, tsI_LR, tsII_LR, tsB_LR);
+    dt_RL   = select3(jmode, tsI_RL, tsII_RL, tsB_RL);
+    dt_RR   = select3(jmode, tsI_RR, tsII_RR, tsB_RR);
+    wL_ts   = de.fdelay(MAXN, dt_LL, L) + de.fdelay(MAXN, dt_RL, R);
+    wR_ts   = de.fdelay(MAXN, dt_LR, L) + de.fdelay(MAXN, dt_RR, R);
 
-    wL_raw = select2(true_stereo, wL_12, select2(mode, wL_3, wL_4));
-    wR_raw = select2(true_stereo, wR_12, select2(mode, wR_3, wR_4));
+    wL_juno = select2(true_stereo, wL_m, wL_ts);
+    wR_juno = select2(true_stereo, wR_m, wR_ts);
+
+    // --- Dimension D ---
+    // A single modulated copy sent anti-phase to L and R, so the wet ends
+    // up purely in the side channel and cancels exactly on a mono sum.
+    // Mono path takes the summed input, true stereo takes one BBD per
+    // channel; both feed the same amount of signal into the output stage.
+    wD_m    = de.fdelay(MAXN, dtD, mono);
+    wD_ts   = de.fdelay(MAXN, tsD_L, L) + de.fdelay(MAXN, tsD_R, R);
+    wD      = select2(true_stereo, wD_m, wD_ts) * dimMix;
+
+    wL_dim  = wD;
+    wR_dim  = 0.0 - wD;
+
+    // --- Ensemble ---
+    // Three taps panned left / right / centre. In true stereo the outer taps
+    // take one input channel each and the centre tap the sum, which keeps the
+    // line count at three either way.
+    ensIn0  = select2(true_stereo, mono, L);
+    ensIn1  = select2(true_stereo, mono, R);
+    e0      = de.fdelay(MAXN, ensDt(0), ensIn0);
+    e1      = de.fdelay(MAXN, ensDt(1), ensIn1);
+    e2      = de.fdelay(MAXN, ensDt(2), mono);
+    wL_ens  = (e0 + e2 * 0.5) * ENS_GAIN;
+    wR_ens  = (e1 + e2 * 0.5) * ENS_GAIN;
+
+    wL_raw = select2(juno, select2(dimD, wL_ens, wL_dim), wL_juno);
+    wR_raw = select2(juno, select2(dimD, wR_ens, wR_dim), wR_juno);
     wL     = wL_raw : fi.svf.hp(hp_freq,0.707) : fi.svf.lp(lp_freq,0.707);
     wR     = wR_raw : fi.svf.hp(hp_freq,0.707) : fi.svf.lp(lp_freq,0.707);
     // outL   = L * dry + wL * wet;
     // outR   = R * dry + wR * wet;
-    // Stereo spread: mid/side widening applied to the wet signal
+    // Stereo spread: mid/side widening applied to the wet signal.
+    // Dimension D puts its whole wet signal in the side channel, so spread
+    // would not widen it — it would just ride its level, and mute it at 0%.
+    // Pinned to unity there; every other mode has real mid content to widen.
+    spread_eff = select2(dimD, spread, 1.0);
     mid    = (wL + wR) * 0.25;
     side   = (wL - wR) * 0.25;
-    outL   = mid + side * spread;
-    outR   = mid - side * spread;
+    outL   = mid + side * spread_eff;
+    outR   = mid - side * spread_eff;
 };
 
