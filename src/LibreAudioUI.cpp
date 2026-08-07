@@ -143,9 +143,15 @@ protected:
         fill();
     }
 
-    void onResize(const ResizeEvent& ev) override
+    // void onResize(const ResizeEvent& ev) override
+    // {
+    //     LibreAudioBaseUI::onResize(ev);
+    //     updateShaderPosition();
+    // }
+
+    void uiIdle() final
     {
-        LibreAudioBaseUI::onResize(ev);
+        // FIXME
         updateShaderPosition();
     }
 
