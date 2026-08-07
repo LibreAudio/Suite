@@ -16,6 +16,12 @@ import("stdfaust.lib");
 // number of channels. The mid/side path below assumes exactly 2.
 Nch = 2;
 
+// Inputs 1-2 are the audio, inputs 3-4 the external sidechain, so this DSP is
+// 4-in / 2-out. Note src/DistrhoPluginInfo.h currently #errors on anything but
+// 2 inputs, and config.h.in takes DISTRHO_PLUGIN_NUM_INPUTS straight from this
+// count, so the DPF side needs the guard relaxed and a sidechain port group
+// before this builds as a plugin.
+
 maxGR = -60; // meter floor, also the widest Range setting
 
 maxLookaheadSamples = 19200; // 100 ms at 192 kHz
@@ -151,25 +157,32 @@ msOn = det_group(checkbox("[4]Mid / Side[symbol:mid_side]
        Note the common Input and Output sections already carry a global
        mid/side switch that wraps every plugin the same way]"));
 
-//---- sidechain filter ----
+//---- sidechain source and filter ----
 // Shapes what the detector hears, never the audio.
 
-scHp = sc_group(vslider("[0]SC High Pass[unit:Hz][scale:log][symbol:sc_hp]
+scMix = sc_group(vslider("[0]SC Mix[unit:%][symbol:sc_mix]
+      [tooltip: Crossfades the detector between the plugin's own audio (0%) and
+       the external sidechain on inputs 3-4 (100%). At 0% the external inputs
+       are ignored entirely, so a host that leaves them unconnected behaves
+       exactly as if there were no sidechain]",
+                         0, 0, 100, 1)) / 100;
+
+scHp = sc_group(vslider("[1]SC High Pass[unit:Hz][scale:log][symbol:sc_hp]
       [tooltip: Keeps bass out of the detector so kick and low end stop driving
        the whole gain envelope. 20 Hz = effectively off]",
                         20, 20, 500, 1));
 
-scLp = sc_group(vslider("[1]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp]
+scLp = sc_group(vslider("[2]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp]
       [tooltip: Keeps air and hiss out of the detector. 20 kHz = effectively off]",
                         20000, 1000, 20000, 1));
 
-scTilt = sc_group(vslider("[2]SC Tilt[unit:dB][symbol:sc_tilt]
+scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt]
       [tooltip: Broad weighting of the detector across the spectrum, pivoting at
        SC Freq. Positive makes it hear highs, so it reacts to sibilance and
        cymbals; negative makes it hear the low end]",
                           0, -12, 12, 0.1));
 
-scFreq = sc_group(vslider("[3]SC Freq[unit:Hz][scale:log][symbol:sc_freq]
+scFreq = sc_group(vslider("[4]SC Freq[unit:Hz][scale:log][symbol:sc_freq]
       [tooltip: Pivot frequency of SC Tilt]",
                           1000, 100, 8000, 1));
 
@@ -330,16 +343,28 @@ with {
 //
 // Linking happens on the gain computer's *target*, before the ballistics,
 // so linked channels share one envelope instead of two envelopes racing.
+//
+// Takes 2*Nch inputs - the audio, then the external sidechain - and returns
+// Nch gain reductions in dB. ro.interleave(Nch,3) turns the loop's
+// [gr.., audio.., sc..] into one (gr, audio, sc) triple per channel.
 
 grComputeN = loop ~ si.bus(Nch)
 with {
-    loop = ro.interleave(Nch, 2)
+    loop = ro.interleave(Nch, 3)
          : par(i, Nch, detTarget)
          : linkN(Nch, link)
          : par(i, Nch, ballistics);
 
-    detTarget(grPrev, x) = x * ba.db2linear(grPrev * feedback)
-                         : scFilter : levelDb : gainComputer : rangeLimit;
+    // SC Mix crossfades in the signal domain, ahead of the filter, so there is
+    // only one filter instance per channel and a blend of two different
+    // sources reads as their sum - which is what mixing a key into the program
+    // should do. Only the internal side carries the feedback gain; the external
+    // input is not the compressor's own output, so it is never fed back.
+    detTarget(grPrev, x, sc) = it.interpolate_linear(scMix, internal, sc)
+                             : scFilter : levelDb : gainComputer : rangeLimit
+    with {
+        internal = x * ba.db2linear(grPrev * feedback);
+    };
 };
 
 // crossfade each channel's own reduction against the deepest one of the set
@@ -359,13 +384,20 @@ msDec(m, s) = select2(msOn, m, m + s),
               select2(msOn, s, m - s);
 
 //======================= process =======================
+// 1-2 audio, 3-4 external sidechain. Both pairs go through the same mid/side
+// encode, so with M/S engaged the side band is detected against the
+// sidechain's side band rather than against its mid.
+//
 // The detector reads the signal undelayed while the audio goes through the
 // lookahead delay, which is the whole point: by the time a transient reaches
-// the multiplier its gain reduction is already in place.
+// the multiplier its gain reduction is already in place. The sidechain is not
+// delayed either, and needs no delay line of its own - it is only ever looked
+// at, never heard.
 
-process = si.bus(Nch)
-        :  msEnc
-        <: (grComputeN, par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)))
+process = si.bus(2 * Nch)
+        :  (msEnc, msEnc)
+        <: (grComputeN,
+            (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)), par(i, Nch, !)))
         :  ro.interleave(Nch, 2)
         :  par(i, Nch, applyGain(i))
         :  msDec;
