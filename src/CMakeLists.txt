@@ -126,6 +126,8 @@ function(las_generate_resources)
         custom/chorus/index.html
         ../resources/fonts/*.ttf
         ../resources/images/*.png
+        ../resources/shaders/*.frag
+        ../resources/shaders/*.vert
   )
 
   string(REPLACE ";" "\\;" LIBREAUDIO_RESOURCES_ESC "${LIBREAUDIO_RESOURCES}")

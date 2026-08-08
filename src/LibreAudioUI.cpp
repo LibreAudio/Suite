@@ -122,6 +122,7 @@ public:
         : LibreAudioBaseUI()
     {
         updateShaderPosition();
+        // fShaderTest->setSize(getSize());
     }
 
     ~LibreAudioUI() override
@@ -143,11 +144,11 @@ protected:
         fill();
     }
 
-    // void onResize(const ResizeEvent& ev) override
-    // {
-    //     LibreAudioBaseUI::onResize(ev);
-    //     updateShaderPosition();
-    // }
+    void onResize(const ResizeEvent& ev) override
+    {
+        LibreAudioBaseUI::onResize(ev);
+        updateShaderPosition();
+    }
 
     void uiIdle() final
     {
@@ -166,6 +167,8 @@ private:
     {
         fShaderTest->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
         fShaderTest->setSize(fRoot->getStageAreaSize());
+        fShaderTest->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
+        // fShaderTest->setSize(getSize());
     }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
