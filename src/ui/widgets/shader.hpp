@@ -8,6 +8,8 @@
 #include "SubWidget.hpp"
 #include "TopLevelWidget.hpp"
 
+#include "extra/ValueSmoother.hpp"
+
 #include "las-resources.h"
 
 START_NAMESPACE_DISTRHO
@@ -112,6 +114,12 @@ public:
         gl3.dpfBounds = glGetAttribLocation(program, "_dpf_bounds");
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
+
+        fMouseX.setSampleRate(1.0 / 0.008);
+        fMouseX.setTimeConstant(0.5);
+
+        fMouseY.setSampleRate(1.0 / 0.008);
+        fMouseY.setTimeConstant(0.5);
     }
 
     void setBorderRadius(const float borderRadius) noexcept
@@ -138,7 +146,7 @@ private:
         glUseProgram(gl3.program);
 
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
-        glUniform3f(gl3.iMouse, fMouseX, fMouseY, fMouseZ);
+        glUniform3f(gl3.iMouse, fMouseX.next(), fMouseY.next(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
 
         glUniform1f(gl3.iTime, getApp().getTime());
@@ -173,12 +181,33 @@ private:
     {
         const float w = getWidth();
         const float h = getHeight();
-        fMouseX = w / 2 + ev.pos.getX() / w * (w / 6);
-        fMouseY = h / 2 + ev.pos.getY() / h * (h / 8);
+        fMouseX.setTargetValue(w / 2 - ev.pos.getX() / w * (w / 4));
+        fMouseY.setTargetValue(h / 2 + ev.pos.getY() / h * (h / 4));
         return SubWidget::onMotion(ev);
     }
 
-private:
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        fMouseX.setTargetValue(getWidth() * 0.5f);
+        fMouseY.setTargetValue(getHeight() * 0.5f);
+        fMouseX.clearToTargetValue();
+        fMouseY.clearToTargetValue();
+        SubWidget::onPositionChanged(ev);
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        fMouseX.setTargetValue(ev.size.getWidth() * 0.5f);
+        fMouseY.setTargetValue(ev.size.getHeight() * 0.5f);
+        if (fFirstResize)
+        {
+            fFirstResize = false;
+            fMouseX.clearToTargetValue();
+            fMouseY.clearToTargetValue();
+        }
+        SubWidget::onResize(ev);
+    }
+
     struct {
         GLuint buffers[2];
         GLuint program;
@@ -190,9 +219,10 @@ private:
         GLint iTime;
     } gl3;
 
+    bool fFirstResize = true;
     float fBorderRadius = 0.f;
-    float fMouseX = 0.f;
-    float fMouseY = 0.f;
+    LinearValueSmoother fMouseX;
+    LinearValueSmoother fMouseY;
     float fMouseZ = 0.f;
 };
 
