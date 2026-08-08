@@ -21,7 +21,7 @@ public:
     explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent)
         : SubWidget(parent)
     {
-        parent->addIdleCallback(this);
+        parent->addIdleCallback(this, 8);
 
         const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
@@ -59,12 +59,16 @@ public:
         DISTRHO_SAFE_ASSERT_RETURN(fragment != 0,);
 
         static constexpr const unsigned char* const fragmentSource[] = {
-            SHADERS_LIBREAUDIO_HEADER_FRAG_DATA,
-            SHADERS_SHADERTOY_AURORA_FRAG_DATA,
+            SHADERS_LIBREAUDIO_FRAG_DATA,
+            SHADERS_SHADERTOY_AURORAS_FRAG_DATA,
+            // SHADERS_SHADERTOY_SQUARES_FRAG_DATA,
+            // SHADERS_SHADERTOY_HEARTFELT_FRAG_DATA,
         };
         static constexpr const GLint fragmentSourceLen[] = {
-            SHADERS_LIBREAUDIO_HEADER_FRAG_LEN,
-            SHADERS_SHADERTOY_AURORA_FRAG_LEN,
+            SHADERS_LIBREAUDIO_FRAG_LEN,
+            SHADERS_SHADERTOY_AURORAS_FRAG_LEN,
+            // SHADERS_SHADERTOY_SQUARES_FRAG_LEN,
+            // SHADERS_SHADERTOY_HEARTFELT_FRAG_LEN,
         };
         glShaderSource(fragment, ARRAY_SIZE(fragmentSource), reinterpret_cast<const GLchar* const*>(fragmentSource), fragmentSourceLen);
         glCompileShader(fragment);
@@ -102,6 +106,7 @@ public:
         }
 
         gl3.program = program;
+        gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
         gl3.iTime = glGetUniformLocation(program, "iTime");
         gl3.dpfBounds = glGetAttribLocation(program, "_dpf_bounds");
@@ -109,9 +114,9 @@ public:
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
     }
 
-    void setBorderRadius(const uint borderRadius) noexcept
+    void setBorderRadius(const float borderRadius) noexcept
     {
-        if (fBorderRadius == borderRadius)
+        if (d_isEqual(fBorderRadius, borderRadius))
             return;
         fBorderRadius = borderRadius;
         repaint();
@@ -133,7 +138,8 @@ private:
         glUseProgram(gl3.program);
 
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
-        glUniform2f(gl3.iResolution, width, height);
+        glUniform3f(gl3.iMouse, fMouseX, fMouseY, fMouseZ);
+        glUniform3f(gl3.iResolution, width, height, 0.f);
 
         glUniform1f(gl3.iTime, getApp().getTime());
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
@@ -156,6 +162,22 @@ private:
         glUseProgram(0);
     }
 
+    bool onMouse(const MouseEvent& ev) final
+    {
+        if (ev.button == kMouseButtonLeft)
+            fMouseZ = ev.press ? 1.f : 0.f;
+        return SubWidget::onMouse(ev);
+    }
+
+    bool onMotion(const MotionEvent& ev) final
+    {
+        const float w = getWidth();
+        const float h = getHeight();
+        fMouseX = w / 2 + ev.pos.getX() / w * (w / 6);
+        fMouseY = h / 2 + ev.pos.getY() / h * (h / 8);
+        return SubWidget::onMotion(ev);
+    }
+
 private:
     struct {
         GLuint buffers[2];
@@ -163,10 +185,15 @@ private:
         GLint dpfBounds;
         GLint dpfBorderRadius;
         GLint dpfPosition;
+        GLint iMouse;
         GLint iResolution;
         GLint iTime;
     } gl3;
-    uint fBorderRadius = 0;
+
+    float fBorderRadius = 0.f;
+    float fMouseX = 0.f;
+    float fMouseY = 0.f;
+    float fMouseZ = 0.f;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
