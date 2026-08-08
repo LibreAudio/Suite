@@ -114,15 +114,14 @@ class LibreAudioUI : public LibreAudioBaseUI
     using R = LibreAudioReference::Window;
 
     double fScaleFactor = getScaleFactor();
-    std::unique_ptr<LibreAudioBackgroundShaderWidget> fShaderTest { new LibreAudioBackgroundShaderWidget(this) };
+    // std::unique_ptr<LibreAudioBackgroundShaderWidget> fShaderTest { new LibreAudioBackgroundShaderWidget(this) };
     std::unique_ptr<LibreAudioRootWidget> fRoot { new LibreAudioRootWidget(getWindow(), this) };
 
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        updateShaderPosition();
-        // fShaderTest->setSize(getSize());
+        // updateShaderPosition();
     }
 
     ~LibreAudioUI() override
@@ -144,32 +143,31 @@ protected:
         fill();
     }
 
-    void onResize(const ResizeEvent& ev) override
-    {
-        LibreAudioBaseUI::onResize(ev);
-        updateShaderPosition();
-    }
+    // void onResize(const ResizeEvent& ev) override
+    // {
+    //     LibreAudioBaseUI::onResize(ev);
+    //     updateShaderPosition();
+    // }
 
-    void uiIdle() final
-    {
-        // FIXME
-        updateShaderPosition();
-    }
+    // void uiIdle() final
+    // {
+    //     // FIXME
+    //     updateShaderPosition();
+    // }
 
     void uiScaleFactorChanged(const double scaleFactor) final
     {
-        // fScaleFactor = scaleFactor;
+        fScaleFactor = scaleFactor;
+        // fShaderTest->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
         // TODO
     }
 
 private:
-    void updateShaderPosition()
-    {
-        fShaderTest->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
-        fShaderTest->setSize(fRoot->getStageAreaSize());
-        fShaderTest->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
-        // fShaderTest->setSize(getSize());
-    }
+    // void updateShaderPosition()
+    // {
+    //     fShaderTest->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
+    //     fShaderTest->setSize(fRoot->getStageAreaSize());
+    // }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };
