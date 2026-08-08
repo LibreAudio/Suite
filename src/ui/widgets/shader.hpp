@@ -62,15 +62,13 @@ public:
 
         static constexpr const unsigned char* const fragmentSource[] = {
             SHADERS_LIBREAUDIO_FRAG_DATA,
-            SHADERS_SHADERTOY_AURORAS_FRAG_DATA,
             // SHADERS_SHADERTOY_SQUARES_FRAG_DATA,
-            // SHADERS_SHADERTOY_HEARTFELT_FRAG_DATA,
+            SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA,
         };
         static constexpr const GLint fragmentSourceLen[] = {
             SHADERS_LIBREAUDIO_FRAG_LEN,
-            SHADERS_SHADERTOY_AURORAS_FRAG_LEN,
             // SHADERS_SHADERTOY_SQUARES_FRAG_LEN,
-            // SHADERS_SHADERTOY_HEARTFELT_FRAG_LEN,
+            SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN,
         };
         glShaderSource(fragment, ARRAY_SIZE(fragmentSource), reinterpret_cast<const GLchar* const*>(fragmentSource), fragmentSourceLen);
         glCompileShader(fragment);
