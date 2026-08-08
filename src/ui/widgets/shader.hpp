@@ -12,6 +12,12 @@
 
 #include "las-resources.h"
 
+#ifdef DISTRHO_OS_WINDOWS
+extern "C" {
+__declspec(dllimport) PROC WINAPI wglGetProcAddress(LPCSTR);
+}
+#endif
+
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -24,6 +30,11 @@ public:
         : SubWidget(parent)
     {
         parent->addIdleCallback(this, 8);
+
+       #ifdef DISTRHO_OS_WINDOWS
+        if (! initGL())
+            return;
+       #endif
 
         const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
@@ -118,6 +129,10 @@ public:
 
         fMouseY.setSampleRate(1.0 / 0.008);
         fMouseY.setTimeConstant(0.5);
+    }
+
+    ~LibreAudioBackgroundShaderWidget() final
+    {
     }
 
     void setBorderRadius(const float borderRadius) noexcept
@@ -222,6 +237,70 @@ private:
     LinearValueSmoother fMouseX;
     LinearValueSmoother fMouseY;
     float fMouseZ = 0.f;
+
+   #ifdef DISTRHO_OS_WINDOWS
+    #define DGL_EXT(PROC, func) PROC func;
+    DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
+    DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
+    DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
+    DGL_EXT(PFNGLCOMPILESHADERPROC,            glCompileShader)
+    DGL_EXT(PFNGLCREATEPROGRAMPROC,            glCreateProgram)
+    DGL_EXT(PFNGLCREATESHADERPROC,             glCreateShader)
+    DGL_EXT(PFNGLDELETEBUFFERSPROC,            glDeleteBuffers)
+    DGL_EXT(PFNGLDELETEPROGRAMPROC,            glDeleteProgram)
+    DGL_EXT(PFNGLDELETESHADERPROC,             glDeleteShader)
+    DGL_EXT(PFNGLDISABLEVERTEXATTRIBARRAYPROC, glDisableVertexAttribArray)
+    DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
+    DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
+    DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
+    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+    DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
+    DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
+    DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)
+    DGL_EXT(PFNGLGETUNIFORMLOCATIONPROC,       glGetUniformLocation)
+    DGL_EXT(PFNGLLINKPROGRAMPROC,              glLinkProgram)
+    DGL_EXT(PFNGLSHADERSOURCEPROC,             glShaderSource)
+    DGL_EXT(PFNGLUNIFORM1FPROC,                glUniform1f)
+    DGL_EXT(PFNGLUNIFORM2FPROC,                glUniform2f)
+    DGL_EXT(PFNGLUNIFORM3FPROC,                glUniform3f)
+    DGL_EXT(PFNGLUSEPROGRAMPROC,               glUseProgram)
+    DGL_EXT(PFNGLVERTEXATTRIBPOINTERPROC,      glVertexAttribPointer)
+    #undef DGL_EXT
+
+    bool initGL()
+    {
+        #define DGL_EXT(PROC, func) \
+            func = (PROC) wglGetProcAddress ( #func ); \
+            DISTRHO_SAFE_ASSERT_RETURN(func != nullptr, false);
+        DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
+        DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
+        DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
+        DGL_EXT(PFNGLCOMPILESHADERPROC,            glCompileShader)
+        DGL_EXT(PFNGLCREATEPROGRAMPROC,            glCreateProgram)
+        DGL_EXT(PFNGLCREATESHADERPROC,             glCreateShader)
+        DGL_EXT(PFNGLDELETEBUFFERSPROC,            glDeleteBuffers)
+        DGL_EXT(PFNGLDELETEPROGRAMPROC,            glDeleteProgram)
+        DGL_EXT(PFNGLDELETESHADERPROC,             glDeleteShader)
+        DGL_EXT(PFNGLDISABLEVERTEXATTRIBARRAYPROC, glDisableVertexAttribArray)
+        DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
+        DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
+        DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
+        DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+        DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
+        DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
+        DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)
+        DGL_EXT(PFNGLGETUNIFORMLOCATIONPROC,       glGetUniformLocation)
+        DGL_EXT(PFNGLLINKPROGRAMPROC,              glLinkProgram)
+        DGL_EXT(PFNGLSHADERSOURCEPROC,             glShaderSource)
+        DGL_EXT(PFNGLUNIFORM1FPROC,                glUniform1f)
+        DGL_EXT(PFNGLUNIFORM2FPROC,                glUniform2f)
+        DGL_EXT(PFNGLUNIFORM3FPROC,                glUniform3f)
+        DGL_EXT(PFNGLUSEPROGRAMPROC,               glUseProgram)
+        DGL_EXT(PFNGLVERTEXATTRIBPOINTERPROC,      glVertexAttribPointer)
+        #undef DGL_EXT
+        return true;
+    }
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
