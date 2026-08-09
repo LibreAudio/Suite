@@ -48,7 +48,7 @@ public:
     }
 
 protected:
-    std::unique_ptr<LibreAudioWidget> createSpacer()
+    std::unique_ptr<LibreAudioWidget> addSpacer()
     {
         std::unique_ptr<LibreAudioWidget> widget { new LibreAudioEmptyWidget(this) };
         Layout::widgets.push_back({ widget.get(), Expanding });
@@ -58,12 +58,13 @@ protected:
     template<class W,
              SizeHint sizeHint = Fixed,
              typename = std::enable_if_t<std::is_base_of_v<LibreAudioWidget, W>>>
-    std::unique_ptr<W> createWidget()
+    std::unique_ptr<W> addWidget()
     {
         std::unique_ptr<W> widget { new W(this) };
         Layout::widgets.push_back({ widget.get(), sizeHint });
         if (sizeHint == Fixed && widget->getSize().isNull())
-            d_stderr2("Error: createWidget called with Fixed sizeHint but widget does not have a known size");
+            d_stderr2("Error: addWidget called with Fixed sizeHint but widget '%s' does not have a known size",
+                      widget->getName());
         return widget;
     }
 

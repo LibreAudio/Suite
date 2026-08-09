@@ -15,8 +15,8 @@ START_NAMESPACE_DISTRHO
 
 class LibreAudioKnobWidget : public LibreAudioWidget,
                              public KnobEventHandler,
-                             private KnobEventHandler::Callback,
-                             private IdleCallback
+                             protected IdleCallback,
+                             private KnobEventHandler::Callback
 {
 public:
     explicit LibreAudioKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)

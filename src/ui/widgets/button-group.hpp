@@ -69,6 +69,8 @@ protected:
         return widget;
     }
 
+    void addWidget() = delete;
+
 private:
     void onNanoDisplay() final
     {

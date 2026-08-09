@@ -70,6 +70,8 @@ private:
         fSpacers.emplace_back(std::move(spacer));
     }
 
+    void addWidget() = delete;
+
     // void onNanoDisplay() final
     // {
     //     const float w = getWidth();

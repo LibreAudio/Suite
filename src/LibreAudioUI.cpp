@@ -24,13 +24,13 @@ START_NAMESPACE_DISTRHO
 
 class LibreAudioTopBar : public LibreAudioContainerSubWidget<LibreAudioReference::TopBar>
 {
-    std::unique_ptr<LibreAudioTopBarLogoWidget> fLogo = createWidget<LibreAudioTopBarLogoWidget>();
-    std::unique_ptr<LibreAudioTopBarNameWidget> fPluginName = createWidget<LibreAudioTopBarNameWidget>();
-    std::unique_ptr<LibreAudioWidget> fSpacer = createSpacer();
-    std::unique_ptr<LibreAudioButtonGroupWidget> fUndoRedoGroup = createWidget<LibreAudioTopBarUndoRedoGroupWidget>();
-    std::unique_ptr<LibreAudioButtonGroupWidget> fSnapshotsGroup = createWidget<LibreAudioTopBarSnapshotsGroupWidget>();
-    std::unique_ptr<LibreAudioButtonGroupWidget> fEasyExpertGroup = createWidget<LibreAudioTopBarEasyExpertGroupWidget>();
-    std::unique_ptr<LibreAudioButtonGroupWidget> fMenuPowerGroup = createWidget<LibreAudioTopBarMenuPowerGroupWidget>();
+    std::unique_ptr<LibreAudioTopBarLogoWidget> fLogo = addWidget<LibreAudioTopBarLogoWidget>();
+    std::unique_ptr<LibreAudioTopBarNameWidget> fPluginName = addWidget<LibreAudioTopBarNameWidget>();
+    std::unique_ptr<LibreAudioWidget> fSpacer = addSpacer();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fUndoRedoGroup = addWidget<LibreAudioTopBarUndoRedoGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fSnapshotsGroup = addWidget<LibreAudioTopBarSnapshotsGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fEasyExpertGroup = addWidget<LibreAudioTopBarEasyExpertGroupWidget>();
+    std::unique_ptr<LibreAudioButtonGroupWidget> fMenuPowerGroup = addWidget<LibreAudioTopBarMenuPowerGroupWidget>();
 
 public:
     LibreAudioTopBar(LibreAudioTopLevelWidget* const parent)
@@ -43,9 +43,9 @@ public:
 
 class LibreAudioMainArea : public LibreAudioContainerSubWidget<LibreAudioReference::MainArea>
 {
-    std::unique_ptr<LibreAudioMeterWidget> fMetersIn = createWidget<LibreAudioMeterWidget>();
-    std::unique_ptr<LibreAudioStageWidget> fStage = createWidget<LibreAudioStageWidget, Expanding>();
-    std::unique_ptr<LibreAudioMeterWidget> fMetersOut = createWidget<LibreAudioMeterWidget>();
+    std::unique_ptr<LibreAudioMeterWidget> fMetersIn = addWidget<LibreAudioMeterWidget>();
+    std::unique_ptr<LibreAudioStageWidget> fStage = addWidget<LibreAudioStageWidget, Expanding>();
+    std::unique_ptr<LibreAudioMeterWidget> fMetersOut = addWidget<LibreAudioMeterWidget>();
 
 public:
     LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)
@@ -87,8 +87,8 @@ public:
                              false);
         fontFace("Saira Semi Condensed (Regular)");
 
-        fTopBar = createWidget<LibreAudioTopBar>();
-        fMainArea = createWidget<LibreAudioMainArea, Expanding>();
+        fTopBar = addWidget<LibreAudioTopBar>();
+        fMainArea = addWidget<LibreAudioMainArea, Expanding>();
 
         // fake a resize after creating all widgets, to move everything into place
         ResizeEvent ev;
