@@ -6,9 +6,68 @@ declare unique_id "LAvd";
 
 import("stdfaust.lib");
 
+/* Grey-out list — which controls actually reach the output, per mode.
+   Verified by measurement, not by reading: '.' means the rendered output is
+   bit-identical with the control at either end of its range, so the UI can
+   disable it there with no audible consequence.
+
+                            ADT   1/3 Doubler   Take
+      dry_level              o         o         o
+      wet_level              o         o         o
+      hflim_amount           o         o         o
+      eq_hp                  o         o         o
+      eq_lp                  o         o         o
+      presence               o         o         o
+
+      adt_2voice             o         .         .
+      adt_delay              o         .         .
+      adt_wow_depth          o         .         .
+      adt_wow_rate          (o)        .         .
+      adt_pan               1v         .         .
+      adt_width             2v         .         .
+
+      doubler_base_delay     .         o         .
+      doubler_detune         .         o         .
+      doubler_wander_rate    .         o         .
+      doubler_wander_depth   .         o         .
+      doubler_width          .         o         .
+
+      take_base_delay        .         .         o
+      take_timing            .         .         o
+      take_pitch             .         .         o
+      take_character         .         .         o
+      take_width             .         .         o
+
+   Each mode's section is dead in the other two: the select3 at the end of
+   process discards the unselected branches whole. The six global rows are
+   live everywhere, because the HF limiter and the wet EQ sit in the shared
+   wet feed rather than inside any one mode.
+
+   1v / 2v  adt_pan and adt_width are mutually exclusive on the ADT 2nd Voice
+      switch: with one voice only pan is live (it places the double), with two
+      only width is (it spreads the pair). The other one is fully inert, not
+      just subtle.
+   (o)  adt_wow_rate goes dead at ADT Wow Depth 0 — the wow LFO is multiplied
+      by the depth, so at zero its rate cannot reach the delay time. Note that
+      doubler_wander_rate does NOT behave this way: at Wander Depth 0 it still
+      sets the amplitude-wander rate, so it stays live.
+
+   wet_level at its minimum (-70 dB, treated as -inf) mutes the wet path
+   outright and every row but the two faders goes dead — the plugin is then a
+   dry pass-through. dry_level's minimum is not symmetric: muting the dry
+   leaves the whole wet side, limiter and EQ included, still live.
+
+   Caveat for the Take rows: take_timing and take_pitch only reach the output
+   after a syllable onset has fired, since both scale a per-onset held value
+   that starts at zero. They measure dead on steady or metronomic material and
+   need a syllabic signal with real gaps between phrases to show up at all —
+   which is a property of the test signal, not a grey-out condition the UI can
+   act on.
+*/
+
 //======================= Mode & global controls =======================
 
-mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT (Tape)':0;'1/3 Doubler':1;'Take':2}]", 0, 0, 2, 1);
+mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'Human':2}]", 0, 0, 2, 1);
 
 // Independent dry and wet volume faders in dB. The bottom of the range is
 // treated as -inf (true silence) rather than the ~-84 dB a raw db2linear
