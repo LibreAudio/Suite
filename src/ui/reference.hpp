@@ -100,7 +100,8 @@ struct LibreAudioReference {
     };
 
     struct Stage {
-        static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
+        static constexpr const Color backgroundColor = Colors::transparent;
+        // static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint borderRadius = 7;

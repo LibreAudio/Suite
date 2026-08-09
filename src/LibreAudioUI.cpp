@@ -114,14 +114,15 @@ class LibreAudioUI : public LibreAudioBaseUI
     using R = LibreAudioReference::Window;
 
     double fScaleFactor = getScaleFactor();
-    // std::unique_ptr<LibreAudioBackgroundShaderWidget> fShaderTest { new LibreAudioBackgroundShaderWidget(this) };
+    std::unique_ptr<LibreAudioBackgroundShaderWidget> fShaderTest;
     std::unique_ptr<LibreAudioRootWidget> fRoot { new LibreAudioRootWidget(getWindow(), this) };
 
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        // updateShaderPosition();
+        // fShaderTest.reset(new LibreAudioBackgroundShaderWidget(this));
+        updateShaderPosition();
     }
 
     ~LibreAudioUI() override
@@ -143,11 +144,11 @@ protected:
         fill();
     }
 
-    // void onResize(const ResizeEvent& ev) override
-    // {
-    //     LibreAudioBaseUI::onResize(ev);
-    //     updateShaderPosition();
-    // }
+    void onResize(const ResizeEvent& ev) override
+    {
+        LibreAudioBaseUI::onResize(ev);
+        updateShaderPosition();
+    }
 
     // void uiIdle() final
     // {
@@ -163,11 +164,15 @@ protected:
     }
 
 private:
-    // void updateShaderPosition()
-    // {
-    //     fShaderTest->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
-    //     fShaderTest->setSize(fRoot->getStageAreaSize());
-    // }
+    void updateShaderPosition()
+    {
+        if (LibreAudioBackgroundShaderWidget* const sw = fShaderTest.get())
+        {
+            sw->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
+            sw->setSize(fRoot->getStageAreaSize());
+            sw->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
+        }
+    }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };
