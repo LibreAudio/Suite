@@ -28,7 +28,6 @@ protected:
             return isChecked() ? R::foregroundColor : R::backgroundColor;
 
         return R::backgroundColor;
-
     }
 
     virtual const Color& getForegroundColor() const noexcept
@@ -141,7 +140,7 @@ public:
     explicit LibreAudioTextButtonWidget(LibreAudioWidget* const parent)
         : LibreAudioBackgroundButtonWidget(parent)
     {
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor) * 2;
 
         Rectangle<float> bounds;
         fontSize(R::fontSize * fScaleFactor);

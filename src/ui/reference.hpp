@@ -171,6 +171,45 @@ struct LibreAudioReference {
             static constexpr const uint margin = Common::margin;
             static constexpr const uint width = 0;
         };
+
+        struct PillArea {
+            static constexpr const Color backgroundColor = Colors::transparent;
+            static constexpr const Color borderColor = Colors::transparent;
+            static constexpr const uint border = 0;
+            static constexpr const uint borderRadius = 0;
+            static constexpr const uint height = 0;
+            static constexpr const uint margin = 0;
+            static constexpr const uint padding = 0;
+            static constexpr const uint width = 0;
+        };
+
+        struct PillToggle {
+            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07 };
+            static constexpr const Color borderColor = { 0xff, 0xff, 0xff, 0.04 };
+            // static constexpr const Color deactivatedColor = Colors::ink3;
+            // static constexpr const Color foregroundColor = Colors::acc;
+            // static constexpr const float fontSize = Common::fontSize;
+            // static constexpr const float letterSpacing = Common::letterSpacing;
+            static constexpr const uint border = 1;
+            static constexpr const uint borderRadius = 8;
+            static constexpr const uint height = 0;
+            static constexpr const uint margin = 1;
+            static constexpr const uint padding = 2;
+            static constexpr const uint width = 0;
+            struct Cell {
+                static constexpr const Color backgroundColor = Colors::transparent;
+                static constexpr const Color foregroundColor = Colors::ink2;
+                static constexpr const Color selectedBackgroundColor = { 0xff, 0xff, 0xff, 0.12 };
+                static constexpr const Color selectedForegroundColor = Colors::acc;
+                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float letterSpacing = Common::letterSpacing;
+                static constexpr const uint border = 0;
+                static constexpr const uint borderRadius = 6;
+                static constexpr const uint height = 26;
+                static constexpr const uint margin = 20;
+                static constexpr const uint width = 0;
+            };
+        };
     };
 };
 

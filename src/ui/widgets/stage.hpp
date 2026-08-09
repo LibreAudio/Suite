@@ -6,6 +6,7 @@
 
 #include "../base/color.hpp"
 #include "knob-group.hpp"
+#include "pill-toggle.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -15,8 +16,7 @@ class LibreAudioStageWidget final : public LibreAudioContainerSubWidget<LibreAud
 {
     using R = LibreAudioReference::Stage;
 
-    static constexpr const float kTopAreaColor[] = { 1.f, 0.f, 0.f, 0.5f };
-    std::unique_ptr<LibreAudioWidget> fTopArea = addWidget<LibreAudioColorWidget<kTopAreaColor>>();
+    std::unique_ptr<LibreAudioPillAreaWidget> fTopArea = addWidget<LibreAudioPillAreaWidget>();
     std::unique_ptr<LibreAudioWidget> fSpacer = addSpacer();
     std::unique_ptr<LibreAudioExpertKnobsGroupWidget> fExpertKnobs = addWidget<LibreAudioExpertKnobsGroupWidget>();
 

@@ -40,17 +40,18 @@ private:
         const float cx = w * 0.5f;
         const float cy = R::Knob::width * 0.5f * fScaleFactor;
 
+        char textBuffer[24];
+
         if (const double timeNow = getTime();
             (getState() & kKnobStateDraggingHover) != 0 ||
             timeNotEllapsed(fLastParameterChangedByHostTime, kTimeForShowingHostParameterChanges, timeNow) ||
             timeNotEllapsed(fLastStateChangedTime, kTimeForValueFadeout, timeNow))
         {
-            char valueStr[24];
             if (isInteger())
-                std::snprintf(valueStr, sizeof(valueStr), "%d", d_roundToInt(getValue()));
+                std::snprintf(textBuffer, sizeof(textBuffer), "%d", d_roundToInt(getValue()));
             else
-                std::snprintf(valueStr, sizeof(valueStr), "%.2f", getValue());
-            valueStr[sizeof(valueStr) - 1] = '\0';
+                std::snprintf(textBuffer, sizeof(textBuffer), "%.2f", getValue());
+            textBuffer[sizeof(textBuffer) - 1] = '\0';
 
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 
@@ -60,12 +61,12 @@ private:
             if (fParameter.unit == nullptr || *fParameter.unit == '\0')
             {
                 // no unit, draw value in the center
-                text(w * 0.5f, h, valueStr);
+                text(w * 0.5f, h, textBuffer);
             }
             else
             {
                 // has unit, put value on the left
-                text(w * 0.4f, h, valueStr);
+                text(w * 0.4f, h, textBuffer);
 
                 // then unit on the right
                 fillColor(R::Unit::color);
@@ -78,7 +79,10 @@ private:
             fillColor(R::Name::color);
             fontSize(R::Name::fontSize * fScaleFactor);
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
-            text(w * 0.5f, h, getName());
+
+            std::snprintf(textBuffer, sizeof(textBuffer), "%.8s", getName());
+            textBuffer[sizeof(textBuffer) - 1] = '\0';
+            text(w * 0.5f, h, textBuffer);
         }
 
 #if 1

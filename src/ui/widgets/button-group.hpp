@@ -29,9 +29,9 @@ public:
 
     void done(ButtonEventHandler::Callback* const callback)
     {
-        const uint border = R::border * fScaleFactor;
-        const uint margin = R::margin * fScaleFactor;
-        const uint padding = R::padding * fScaleFactor;
+        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+        const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
 
         uint width = (border + margin) * 2;
         if (const uint numWidgets = widgets.size())

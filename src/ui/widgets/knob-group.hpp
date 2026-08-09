@@ -19,6 +19,8 @@ class LibreAudioKnobGroupWidget : public LibreAudioContainerSubWidget<LibreAudio
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
+    static constexpr const uint kMaxNumParameters = 11;
+
     std::vector<std::unique_ptr<LibreAudioSmallKnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
 
@@ -30,8 +32,6 @@ public:
     {
         DISTRHO_SAFE_ASSERT_RETURN(!parameters.empty(),);
 
-        static constexpr const uint kMaxNumParameters = 11;
-
         fKnobs.reserve(kMaxNumParameters);
         fSpacers.reserve(kMaxNumParameters + 1);
 
@@ -40,8 +40,8 @@ public:
         for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
         {
             const FaustParameter& parameter = parameters[i];
-            if (parameter.isOutput) {
-                d_stdout("skipped parameter %s", parameter.label);
+            if (parameter.isBoolean || parameter.isOutput) {
+                d_stdout("knob-group skipped parameter %s", parameter.label);
                 continue;
             }
             std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
@@ -50,14 +50,16 @@ public:
             addSpacer();
         }
 
-        const uint border = R::border * fScaleFactor;
-        const uint margin = R::margin * fScaleFactor;
+        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
         uint knobHeight;
 
         if constexpr (R::height != 0)
             knobHeight = R::height * fScaleFactor;
-        else
+        else if (! fKnobs.empty())
             knobHeight = fKnobs.front()->getHeight();
+        else
+            knobHeight = d_roundToUnsignedInt(fScaleFactor);
 
         LibreAudioWidget::setHeight((border + margin) * 2 + knobHeight);
     }
