@@ -45,14 +45,24 @@ public:
         return BaseWidget::getApp().getTime();
     }
 
+    bool timeEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
+    {
+        return d_isNotZero(lastTime) ? timeNow - lastTime >= wantedTime : false;
+    }
+
     bool timeEllapsed(const double lastTime, const double wantedTime) const
     {
-        return d_isNotZero(lastTime) ? getTime() - lastTime >= wantedTime : false;
+        return timeEllapsed(lastTime, wantedTime, getTime());
+    }
+
+    bool timeNotEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
+    {
+        return d_isNotZero(lastTime) ? timeNow - lastTime < wantedTime : false;
     }
 
     bool timeNotEllapsed(const double lastTime, const double wantedTime) const
     {
-        return d_isNotZero(lastTime) ? getTime() - lastTime < wantedTime : false;
+        return timeNotEllapsed(lastTime, wantedTime, getTime());
     }
 
 protected:

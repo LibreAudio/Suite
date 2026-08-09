@@ -15,6 +15,9 @@ class LibreAudioSmallKnobWidget final : public LibreAudioKnobWidget
 {
     using R = LibreAudioReference::Widgets::Knob;
 
+    static constexpr const double kTimeForShowingHostParameterChanges = 1;
+    static constexpr const double kTimeForValueFadeout = 0.1;
+
 public:
     LibreAudioSmallKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)
         : LibreAudioKnobWidget(parent, parameter, id)
@@ -24,6 +27,9 @@ public:
 
         if constexpr (R::height != 0)
             LibreAudioWidget::setHeight(d_roundToUnsignedInt(R::height * fScaleFactor));
+
+        fKnobStyle.bipolar = d_isZero(parameter.init) && parameter.min < 0 && parameter.max > 0;
+        fKnobStyle.invert = d_isEqual(parameter.init, parameter.max);
     }
 
 private:
@@ -34,7 +40,10 @@ private:
         const float cx = w * 0.5f;
         const float cy = R::Knob::width * 0.5f * fScaleFactor;
 
-        if ((getState() & kKnobStateDraggingHover) != 0 || timeNotEllapsed(fLastParameterChangedByHostTime, 1))
+        if (const double timeNow = getTime();
+            (getState() & kKnobStateDraggingHover) != 0 ||
+            timeNotEllapsed(fLastParameterChangedByHostTime, kTimeForShowingHostParameterChanges, timeNow) ||
+            timeNotEllapsed(fLastStateChangedTime, kTimeForValueFadeout, timeNow))
         {
             char valueStr[24];
             if (isInteger())
@@ -158,9 +167,15 @@ private:
     {
         LibreAudioKnobWidget::idleCallback();
 
-        if (timeEllapsed(fLastParameterChangedByHostTime, 1))
+        if (timeEllapsed(fLastParameterChangedByHostTime, kTimeForShowingHostParameterChanges))
         {
             fLastParameterChangedByHostTime = 0.0;
+            repaint();
+        }
+
+        if (timeEllapsed(fLastStateChangedTime, kTimeForValueFadeout))
+        {
+            fLastStateChangedTime = 0.0;
             repaint();
         }
     }
@@ -170,7 +185,15 @@ private:
         fLastParameterChangedByHostTime = getTime();
     }
 
+    void stateChanged(const State state, const State oldState) final
+    {
+        LibreAudioKnobWidget::stateChanged(state, oldState);
+
+        fLastStateChangedTime = getTime();
+    }
+
     double fLastParameterChangedByHostTime = 0.0;
+    double fLastStateChangedTime = 0.0;
 
 #if 1
     struct KnobStyle {
@@ -179,7 +202,7 @@ private:
         bool bipolar;
         bool invert;
     };
-    const KnobStyle fKnobStyle = {
+    KnobStyle fKnobStyle = {
         .colorAccent = {0xc3, 0xd9, 0xff},
         .colorDisabled = {0x5d, 0x5d, 0x66},
         .bipolar = true,
