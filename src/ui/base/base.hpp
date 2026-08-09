@@ -32,13 +32,28 @@ public:
           fInterface(iface),
           fScaleFactor(windowToMapTo.getScaleFactor()) {}
 
-    // void addIdleCallback(IdleCallback* const callback)
-    // {
-    //     if constexpr (std::is_same_v<BaseWidget, NanoSubWidget>)
-    //         BaseWidget::getWindow().addIdleCallback(callback);
-    //     else
-    //         addIdleCallback(callback);
-    // }
+    void addIdleCallback(IdleCallback* const callback)
+    {
+        if constexpr (std::is_same_v<BaseWidget, NanoSubWidget>)
+            BaseWidget::getWindow().addIdleCallback(callback);
+        else
+            addIdleCallback(callback);
+    }
+
+    double getTime() const
+    {
+        return BaseWidget::getApp().getTime();
+    }
+
+    bool timeEllapsed(const double lastTime, const double wantedTime) const
+    {
+        return d_isNotZero(lastTime) ? getTime() - lastTime >= wantedTime : false;
+    }
+
+    bool timeNotEllapsed(const double lastTime, const double wantedTime) const
+    {
+        return d_isNotZero(lastTime) ? getTime() - lastTime < wantedTime : false;
+    }
 
 protected:
     LibreAudioUIWidgetInterface* const fInterface;

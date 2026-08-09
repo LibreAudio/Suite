@@ -28,9 +28,10 @@ public:
         setName(parameter.label);
         setCallback(this);
         setDefault(parameter.init);
+        setOrientation(Vertical);
         setRange(parameter.min, parameter.max);
         setStep(parameter.step);
-        setUsingLogScale(parameter.isLogarithmic);
+        // setUsingLogScale(parameter.isLogarithmic); // FIXME
         setValue(parameter.init, false);
 
         getTopLevelWidget()->addIdleCallback(this);
@@ -39,13 +40,18 @@ public:
 protected:
     const FaustParameter& fParameter;
 
-private:
-    void idleCallback() final
+    void idleCallback() override
     {
         // NOTE this only triggers updates if the value doesnt match
-        setValue(fInterface->getParameterValue(getId()));
+        if (setValue(fInterface->getParameterValue(getId())))
+            parameterChangedByHost();
     }
 
+    virtual void parameterChangedByHost()
+    {
+    }
+
+private:
     void knobDragStarted(SubWidget* const widget) final
     {
         fInterface->parameterControlPressed(widget->getId());
@@ -67,14 +73,14 @@ private:
 
     bool onMouse(const Widget::MouseEvent& ev) final
     {
-        if (mouseEvent(ev))
+        if (mouseEvent(ev, fScaleFactor))
             return true;
         return LibreAudioWidget::onMouse(ev);
     }
 
     bool onMotion(const Widget::MotionEvent& ev) final
     {
-        if (motionEvent(ev))
+        if (motionEvent(ev, fScaleFactor))
             return true;
         return LibreAudioWidget::onMotion(ev);
     }

@@ -12,7 +12,11 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 struct LibreAudioReference {
+    static constexpr const float fontScaling = 1.75;
+
     struct Common {
+        static constexpr const float fontSize = 13 * fontScaling;
+        static constexpr const float letterSpacing = fontSize * 0.01;
         static constexpr const uint margin = 12;
     };
 
@@ -55,8 +59,8 @@ struct LibreAudioReference {
         static constexpr const uint width = 0;
         struct PluginName {
             static constexpr const Color color = Colors::acc;
-            static constexpr const float letterSpacing = 14 * 0.05;
-            static constexpr const uint fontSize = 20;
+            static constexpr const float fontSize = 14 * fontScaling;
+            static constexpr const float letterSpacing = fontSize * 0.05;
         };
     };
 
@@ -96,7 +100,7 @@ struct LibreAudioReference {
     };
 
     struct Stage {
-        static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color backgroundColor = Colors::track;
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint borderRadius = 7;
@@ -112,9 +116,10 @@ struct LibreAudioReference {
             static constexpr const Color deactivatedColor = Colors::ink3;
             static constexpr const Color foregroundColor = Colors::acc;
             // #4e4e5a
+            static constexpr const float fontSize = Common::fontSize;
+            static constexpr const float letterSpacing = Common::letterSpacing;
             static constexpr const uint border = 0;
             static constexpr const uint borderRadius = 6;
-            static constexpr const uint fontSize = 16;
             static constexpr const uint margin = 6;
         };
 
@@ -131,13 +136,29 @@ struct LibreAudioReference {
 
         struct Knob {
             static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
-            static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
-            static constexpr const uint border = 3;
-            static constexpr const uint borderRadius = 6;
-            static constexpr const uint fontSize = 16;
-            static constexpr const uint height = 58;
+            // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
+            static constexpr const uint border = 0;
+            static constexpr const uint borderRadius = 0;
+            static constexpr const uint height = 58 + 20;
             static constexpr const uint margin = 0;
             static constexpr const uint width = 58;
+            struct Name {
+                static constexpr const Color color = Colors::acc;
+                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float letterSpacing = Common::letterSpacing;
+                // text-shadow
+            };
+            struct Value {
+                static constexpr const Color color = Colors::ink2;
+                static constexpr const float fontSize = 12 * fontScaling;
+                // font-mono
+            };
+            struct Unit {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const float fontSize = 9.5 * fontScaling;
+                static constexpr const float letterSpacing = fontSize * 0.02;
+                // font-ui
+            };
         };
 
         struct KnobGroup {
