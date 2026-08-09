@@ -64,6 +64,11 @@ struct LibreAudioReference {
         };
     };
 
+    struct Line {
+        static constexpr const Color colorGradientStart = Colors::acc;
+        static constexpr const Color colorGradientStop = Colors::accGlow;
+    };
+
     struct MainArea {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
@@ -100,8 +105,8 @@ struct LibreAudioReference {
     };
 
     struct Stage {
-        static constexpr const Color backgroundColor = Colors::transparent;
-        // static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
+        // static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color backgroundColor = { 0x1b, 0x1c, 0x20 };
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint borderRadius = 7;

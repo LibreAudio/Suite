@@ -150,11 +150,11 @@ protected:
         updateShaderPosition();
     }
 
-    // void uiIdle() final
-    // {
-    //     // FIXME
-    //     updateShaderPosition();
-    // }
+    void uiIdle() final
+    {
+        // FIXME
+        updateShaderPosition();
+    }
 
     void uiScaleFactorChanged(const double scaleFactor) final
     {
