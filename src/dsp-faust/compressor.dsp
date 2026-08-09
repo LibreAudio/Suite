@@ -24,6 +24,7 @@ Nch = 2;
 // bottom of the file for the one-line change that opens the real inputs.
 
 maxGR = -60; // meter floor, also the widest Range setting
+maxMeter = -20;
 
 maxLookaheadSamples = 19200; // 100 ms at 192 kHz
 
@@ -37,6 +38,7 @@ ctl_group(x)   = knob_group(hgroup("[0]Compression Control", x));
 env_group(x)   = knob_group(hgroup("[1]Compression Response", x));
 det_group(x)   = knob_group(hgroup("[2]Detector", x));
 sc_group(x)    = knob_group(hgroup("[3]Sidechain Filter", x));
+out_group(x)   = knob_group(hgroup("[4]Output", x));
 
 //---- gain computer ----
 
@@ -66,6 +68,31 @@ rangeKnee = ctl_group(vslider("[4]Range Knee[unit:dB][symbol:range_knee]
       [tooltip: Softens the approach to the Range ceiling the same way Knee
        softens the approach to the threshold. 0 = hard clamp]",
                               6, 0, 24, 0.1));
+
+// Per-channel depth trims. Channel 1 is left or mid and channel 2 is right or
+// side, depending on the Mid / Side switch, hence the paired labels.
+//
+// These are applied after linking, so they still separate the two channels at
+// Link 100%: linking decides what the pair *detects* together, Scale decides
+// how much of that each one acts on. Turning Side down to 40% while Mid stays
+// at 100% is the point of having them, and it would be flattened by the
+// parallelMin if it happened before the link.
+
+scaleLM = ctl_group(vslider("[5]Scale L/M[unit:%][symbol:scale_lm]
+      [tooltip: Multiplies the gain reduction on channel 1 - left, or mid when
+       Mid / Side is on. 0% = that channel is not compressed at all whatever
+       the other settings say, 100% = as computed, 200% = twice as many dB of
+       reduction. Applied before Range, so the Range ceiling still holds]",
+                            100, 0, 200, 1)) / 100;
+
+scaleRS = ctl_group(vslider("[6]Scale R/S[unit:%][symbol:scale_rs]
+      [tooltip: Multiplies the gain reduction on channel 2 - right, or side when
+       Mid / Side is on. Pulling this below Scale L/M compresses the centre
+       harder than the edges of the image, which is the usual mid/side move]",
+                            100, 0, 200, 1)) / 100;
+
+chanScale(0) = scaleLM;
+chanScale(1) = scaleRS;
 
 //---- ballistics ----
 
@@ -184,11 +211,22 @@ scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt]
        cymbals; negative makes it hear the low end]",
                           0, -12, 12, 0.1));
 
-scFreq = sc_group(vslider("[4]SC Freq[unit:Hz][scale:log][symbol:sc_freq]
-      [tooltip: Pivot frequency of SC Tilt]",
-                          1000, 100, 8000, 1));
+scFreq = 700;
 
 scRes = 0.7; // shelf Q for the tilt pair — flat, no bump at the pivot
+
+//---- output ----
+
+makeupDb = out_group(vslider("[0]Makeup[unit:dB][symbol:makeup]
+      [tooltip: Output trim, to put back the level the compressor took away.
+       Applied after the gain stage, so it lifts the whole signal and does not
+       feed back into the detector or change where the threshold sits]",
+                             0, -12, 24, 0.1));
+
+// Smoothed because it multiplies the audio directly. The compression controls
+// need no such treatment: they move the ballistics' *target*, and the attack
+// and release ramps are already the smoothing.
+makeupGain = makeupDb : si.smoo : ba.db2linear;
 
 // Shelf pair pivoting at scFreq, same construction as the Shelf mode of
 // tiltEQ.dsp: equal and opposite low and high shelves.
@@ -199,8 +237,12 @@ scFilter = fi.highpass(2, scHp)
 
 //---- meters ----
 
-meter1 = _ <: (_, (max(maxGR) : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", maxGR, 0)))) : attach;
-meter2 = _ <: (_, (max(maxGR) : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", maxGR, 0)))) : attach;
+meter1 = _ <: (_, (max(maxMeter) : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", maxMeter, 0)))) : attach;
+meter2 = _ <: (_, (max(maxMeter) : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", maxMeter, 0)))) : attach;
+
+//meter1 = _ <: (_, ( ma.neg : min(maxMeter) : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", 0, maxMeter)))) : attach;
+//meter2 = _ <: (_, ( ma.neg : min(maxMeter) : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", 0, maxMeter)))) : attach;
+
 chanMeter(0) = meter1;
 chanMeter(1) = meter2;
 
@@ -346,6 +388,18 @@ with {
 // Linking happens on the gain computer's *target*, before the ballistics,
 // so linked channels share one envelope instead of two envelopes racing.
 //
+// The order of the last three stages is deliberate:
+//
+//   gain computer -> link -> Scale -> Range -> ballistics
+//
+// Link before Scale, so the per-channel Scale trims survive linking instead of
+// being flattened by the parallelMin. Range after Scale, so the Range ceiling
+// still caps the reduction that is actually applied at any Scale. And both
+// before the ballistics, so what the envelope chases is the finished target.
+// Moving Range past the link costs nothing: it is monotonic, so limiting each
+// channel and then taking the minimum gives the same answer as taking the
+// minimum and then limiting.
+//
 // Takes 2*Nch inputs - the audio, then the external sidechain - and returns
 // Nch gain reductions in dB. ro.interleave(Nch,3) turns the loop's
 // [gr.., audio.., sc..] into one (gr, audio, sc) triple per channel.
@@ -355,6 +409,7 @@ with {
     loop = ro.interleave(Nch, 3)
          : par(i, Nch, detTarget)
          : linkN(Nch, link)
+         : par(i, Nch, *(chanScale(i)) : rangeLimit)
          : par(i, Nch, ballistics);
 
     // SC Mix crossfades in the signal domain, ahead of the filter, so there is
@@ -363,7 +418,7 @@ with {
     // should do. Only the internal side carries the feedback gain; the external
     // input is not the compressor's own output, so it is never fed back.
     detTarget(grPrev, x, sc) = it.interpolate_linear(scMix, internal, sc)
-                             : scFilter : levelDb : gainComputer : rangeLimit
+                             : scFilter : levelDb : gainComputer
     with {
         internal = x * ba.db2linear(grPrev * feedback);
     };
@@ -402,7 +457,8 @@ compressorSC = si.bus(2 * Nch)
                  (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)), par(i, Nch, !)))
              :  ro.interleave(Nch, 2)
              :  par(i, Nch, applyGain(i))
-             :  msDec;
+             :  msDec
+             :  par(i, Nch, *(makeupGain));
 
 applyGain(i, grDb, x) = x * (grDb : chanMeter(i) : ba.db2linear);
 
