@@ -109,14 +109,8 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// SHADERS_LIBREAUDIO_LINE_FRAG_DATA,
-// SHADERS_SHADERTOY_SQUARES_FRAG_DATA,
-// SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA,
-// SHADERS_LIBREAUDIO_LINE_FRAG_LEN,
-// SHADERS_SHADERTOY_SQUARES_FRAG_LEN,
-// SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN,
-
 using S1 = LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA, SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN>;
+// using S1 = LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_SQUARES_FRAG_DATA, SHADERS_SHADERTOY_SQUARES_FRAG_LEN>;
 using S2 = LibreAudioBackgroundShaderWidget<SHADERS_LIBREAUDIO_LINE_FRAG_DATA, SHADERS_LIBREAUDIO_LINE_FRAG_LEN>;
 
 class LibreAudioUI : public LibreAudioBaseUI
