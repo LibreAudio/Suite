@@ -22,14 +22,15 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const unsigned char src[], uint size>
+template<const char src[], uint size>
 class LibreAudioBackgroundShaderWidget final : public SubWidget,
                                                public IdleCallback
 {
 public:
     explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
         : SubWidget(parent),
-          fInterface(iface)
+          fInterface(iface),
+          fParent(parent)
     {
         parent->addIdleCallback(this, 8);
 
@@ -38,21 +39,38 @@ public:
             return;
        #endif
 
-        const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
-        DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
-
         const GLuint program = glCreateProgram();
         DISTRHO_SAFE_ASSERT_RETURN(program != 0,);
 
+        const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
+        DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
+
         glGenBuffers(2, gl3.buffers);
 
-        static constexpr const unsigned char* const vertexSource[] = {
+	    static constexpr const char kShaderHeader[] =
+           #if defined(DGL_USE_GLES3)
+		    "#version 300 es\n"
+		    "#define LIBREAUDIO_GL3\n"
+           #elif defined(DGL_USE_GLES2)
+		    "#version 100\n"
+		    "#define LIBREAUDIO_GL2\n"
+           #elif defined(DGL_USE_OPENGL3)
+		    "#version 150 core\n"
+		    "#define LIBREAUDIO_GL3\n"
+           #else
+		    "#define LIBREAUDIO_GL2\n"
+           #endif
+        ;
+
+        static constexpr const char* const vertexSource[] = {
+            kShaderHeader,
             SHADERS_LIBREAUDIO_VERT_DATA,
         };
         static constexpr const GLint vertexSourceLen[] = {
+            sizeof(kShaderHeader) - 1,
             SHADERS_LIBREAUDIO_VERT_LEN,
         };
-        glShaderSource(vertex, ARRAY_SIZE(vertexSource), reinterpret_cast<const GLchar* const*>(vertexSource), vertexSourceLen);
+        glShaderSource(vertex, ARRAY_SIZE(vertexSource), vertexSource, vertexSourceLen);
         glCompileShader(vertex);
 
         int status;
@@ -73,15 +91,17 @@ public:
         const GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(fragment != 0,);
 
-        static constexpr const unsigned char* const fragmentSource[] = {
+        static constexpr const char* const fragmentSource[] = {
+            kShaderHeader,
             SHADERS_LIBREAUDIO_FRAG_DATA,
             src,
         };
         static constexpr const GLint fragmentSourceLen[] = {
+            sizeof(kShaderHeader) - 1,
             SHADERS_LIBREAUDIO_FRAG_LEN,
             size,
         };
-        glShaderSource(fragment, ARRAY_SIZE(fragmentSource), reinterpret_cast<const GLchar* const*>(fragmentSource), fragmentSourceLen);
+        glShaderSource(fragment, ARRAY_SIZE(fragmentSource), fragmentSource, fragmentSourceLen);
         glCompileShader(fragment);
 
         glGetShaderiv(fragment, GL_COMPILE_STATUS, &status);
@@ -101,6 +121,9 @@ public:
         glAttachShader(program, fragment);
         glAttachShader(program, vertex);
         glLinkProgram(program);
+
+        glDeleteShader(fragment);
+        glDeleteShader(vertex);
 
         glGetProgramiv(program, GL_LINK_STATUS, &status);
         if (status == 0)
@@ -135,6 +158,12 @@ public:
 
     ~LibreAudioBackgroundShaderWidget() final
     {
+        fParent->removeIdleCallback(this);
+
+        if (gl3.program == 0)
+            return;
+
+        glDeleteProgram(gl3.program);
     }
 
     void setBorderRadius(const float borderRadius) noexcept
@@ -236,9 +265,10 @@ private:
         GLint iResolution;
         GLint iTime;
         GLint hpHz;
-    } gl3;
+    } gl3 = {};
 
     LibreAudioUIWidgetInterface* const fInterface;
+    TopLevelWidget* const fParent;
     bool fFirstResize = true;
     float fBorderRadius = 0.f;
     LinearValueSmoother fMouseX;

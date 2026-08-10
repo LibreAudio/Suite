@@ -16,20 +16,25 @@ foreach(INPUT_FILE ${INPUT_FILES})
   string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," INPUT_FILE_HEX "${INPUT_FILE_HEX}")
 
   # generate C-compatible symbol based on input name
-  if("${INPUT_FILE}" MATCHES "^.*/resources/.*$")
+  #if("${INPUT_FILE}" MATCHES "^.*/resources/.*$")
     string(REGEX REPLACE "^(.*)/resources/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
-  else()
-    string(REGEX REPLACE "^(.*)/src/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
-  endif()
+    if("${INPUT_FILE}" MATCHES "^.*\.(frag|vert)$")
+      set(INPUT_TYPE "char")
+    else()
+      set(INPUT_TYPE "unsigned char")
+    endif()
+  #else()
+  #  string(REGEX REPLACE "^(.*)/src/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
+  #endif()
   string(MAKE_C_IDENTIFIER "${INPUT_SYMBOL}" INPUT_SYMBOL)
   string(TOUPPER "${INPUT_SYMBOL}" INPUT_SYMBOL)
 
   # add to resource contents, later written to a file
-  string(APPEND LAS_RESOURCES_CPP "const unsigned char ${INPUT_SYMBOL}_DATA[] = { ${INPUT_FILE_HEX} }\;\n")
+  string(APPEND LAS_RESOURCES_CPP "const ${INPUT_TYPE} ${INPUT_SYMBOL}_DATA[] = { ${INPUT_FILE_HEX} }\;\n")
   string(APPEND LAS_RESOURCES_CPP "static_assert(sizeof(${INPUT_SYMBOL}_DATA) == ${INPUT_SYMBOL}_LEN, \"Incorrect auto-generated size\")\;\n")
 
   string(APPEND LAS_RESOURCES_H "#define ${INPUT_SYMBOL}_LEN ${INPUT_FILE_LEN}\n")
-  string(APPEND LAS_RESOURCES_H "extern const unsigned char ${INPUT_SYMBOL}_DATA[]\;\n")
+  string(APPEND LAS_RESOURCES_H "extern const ${INPUT_TYPE} ${INPUT_SYMBOL}_DATA[]\;\n")
 endforeach()
 
 # write files

@@ -32,12 +32,25 @@ public:
           fInterface(iface),
           fScaleFactor(windowToMapTo.getScaleFactor()) {}
 
+    ~LibreAudioBaseWidget() override
+    {
+        for (IdleCallback* callback : fCallbacks)
+        {
+            if constexpr (std::is_same_v<BaseWidget, NanoSubWidget>)
+                BaseWidget::getWindow().removeIdleCallback(callback);
+            else
+                BaseWidget::removeIdleCallback(callback);
+        }
+    }
+
     void addIdleCallback(IdleCallback* const callback)
     {
+        fCallbacks.push_back(callback);
+
         if constexpr (std::is_same_v<BaseWidget, NanoSubWidget>)
             BaseWidget::getWindow().addIdleCallback(callback);
         else
-            addIdleCallback(callback);
+            BaseWidget::addIdleCallback(callback);
     }
 
     double getTime() const
@@ -71,6 +84,9 @@ protected:
 
     friend class LibreAudioBaseWidget<NanoSubWidget>;
     // friend class LibreAudioBaseWidget<NanoTopLevelWidget>;
+
+private:
+    std::vector<IdleCallback*> fCallbacks;
 };
 
 using LibreAudioWidget = LibreAudioBaseWidget<NanoSubWidget> ;

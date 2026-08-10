@@ -2,8 +2,6 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#version 110
-
 // DPF variables
 attribute vec4 _dpf_bounds;
 

@@ -62,7 +62,7 @@ public:
         fUndo->setEnabled(false);
         fRedo->setEnabled(false);
 
-        getTopLevelWidget()->addIdleCallback(this);
+        addIdleCallback(this);
     }
 
 private:
@@ -124,7 +124,7 @@ public:
         fC->setId(kWidgetSnapshotC);
         fD->setId(kWidgetSnapshotD);
 
-        getTopLevelWidget()->addIdleCallback(this);
+        addIdleCallback(this);
     }
 
 private:
@@ -230,7 +230,7 @@ public:
         fMenu->setId(kWidgetMenu);
         fPower->setId(kWidgetPower);
 
-        getTopLevelWidget()->addIdleCallback(this);
+        addIdleCallback(this);
     }
 
 private:

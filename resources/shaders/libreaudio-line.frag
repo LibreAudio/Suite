@@ -1,10 +1,10 @@
-// ChorusScope — standalone Shadertoy port of the Vocal Doubler rainbow LFO traces.
+// ChorusScope - standalone Shadertoy port of the Vocal Doubler rainbow LFO traces.
 // Self-contained: computes both traces in-shader, no iChannel needed.
 // Paste into a new Shadertoy shader (Image tab) and hit Alt+Enter.
 
 uniform float hpHz; // high-pass corner
 
-// ── palette: the 7 Libre Audio rainbow stops ────────────────────────────────
+// -- palette: the 7 Libre Audio rainbow stops --
 vec3 rainbow(float t){
     t = clamp(t, 0.0, 1.0);
     vec3 c0=vec3(255.,191.,203.)/255., c1=vec3(255.,223.,173.)/255., c2=vec3(210.,253.,211.)/255.,
@@ -22,7 +22,7 @@ float segDist(vec2 p, vec2 a, vec2 b){
     return length(pa-ba*t);
 }
 
-// ── scope model (ported from the JS ChorusScope) ─────────────────────────────
+// -- scope model (ported from the JS ChorusScope) --
 // t01 = 0..1 across the display maps to 20 Hz .. 20 kHz (log).
 const float FMIN = 20.0;
 const float FMAX = 20000.0;
@@ -32,7 +32,7 @@ const float DB_MIN = -42.0;
 float normToFreq(float t){ return FMIN * pow(FMAX/FMIN, t); }
 
 // combined 48 dB/oct LP + HP response + a presence bell, in dB.
-// tweak these four to taste — they are the "knobs".
+// tweak these four to taste - they are the "knobs".
 float responseDb(float f){
     float lpHz = 8000.0;   // low-pass corner
     float presence = 0.2;   // 0..1, bell around 2 kHz
@@ -65,7 +65,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float t  = clamp(px / res.x, 0.0, 1.0);
     float H  = res.y;
 
-    // ── trace parameters (mode2 = show the 2nd trace + fill) ────────────────
+    // -- trace parameters (mode2 = show the 2nd trace + fill) --
     bool  mode2 = true;
     float depth = 1.0;                           // 0..1
     float glow  = 0.25;                           // halo strength 0..~0.5

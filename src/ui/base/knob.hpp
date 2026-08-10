@@ -34,7 +34,7 @@ public:
         // setUsingLogScale(parameter.isLogarithmic); // FIXME
         setValue(parameter.init, false);
 
-        getTopLevelWidget()->addIdleCallback(this);
+        addIdleCallback(this);
     }
 
 protected:

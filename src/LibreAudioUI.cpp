@@ -132,8 +132,8 @@ public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        // fShaderBackground.reset(new S1(this, this));
-        // fShaderLine.reset(new S2(this, this));
+        fShaderBackground.reset(new S1(this, this));
+        fShaderLine.reset(new S2(this, this));
         updateShaderPosition();
     }
 
