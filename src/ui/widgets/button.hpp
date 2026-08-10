@@ -109,7 +109,7 @@ private:
         globalTint(getForegroundColor());
 
         beginPath();
-        rect(0, 0, w, h);
+        rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
         fillPaint(imagePattern((w - fImageWidth) * 0.5,
                                (h - fImageHeight) * 0.5,
                                fImageWidth,
