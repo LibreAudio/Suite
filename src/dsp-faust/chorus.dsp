@@ -101,15 +101,15 @@ dim         = uiBottomLeft(hslider("[05]Dim-D[style:knob][symbol:dim]", 0, 0, 3,
 
 true_stereo = uiMode(nentry("[0]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
 
-rate1       = uiBottomLeft(hslider("[03]rate1[style:knob][unit:Hz][scale:log][symbol:rate1][bracket:Lfo]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
-rate2       = uiBottomLeft(hslider("[04]rate2[style:knob][unit:Hz][scale:log][symbol:rate2][bracket:Lfo]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
+rate1       = uiBottomLeft(hslider("[03]rate1[style:knob][unit:Hz][scale:log][symbol:rate1][bracket:LFO]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
+rate2       = uiBottomLeft(hslider("[04]rate2[style:knob][unit:Hz][scale:log][symbol:rate2][bracket:LFO]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
 detune      = uiBottomLeft(hslider("[06]detune [style:knob][unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
 
-dctr        = uiBottomLeft(hslider("[01]center [style:knob][unit:ms][symbol:dctr][bracket:Delay]",       6.0,   1.0,  20.0,  0.1))  / 1000;
-ddepth      = uiBottomLeft(hslider("[02]depth [style:knob][unit:ms][symbol:ddepth][bracket:Delay]",     3.0,   0.0,  10.0,  0.01)) / 1000;
+dctr        = uiBottomLeft(hslider("[01]center [style:knob][unit:ms][symbol:dctr][bracket:DELAY]",       6.0,   1.0,  20.0,  0.1))  / 1000;
+ddepth      = uiBottomLeft(hslider("[02]depth [style:knob][unit:ms][symbol:ddepth][bracket:DELAY]",     3.0,   0.0,  10.0,  0.01)) / 1000;
 
-hp_freq     = uiBottomRight(hslider("[08]hp_freq [style:knob][unit:Hz][scale:log][symbol:hp_freq][bracket:Tone]",    1,    1,   20000,  1));
-lp_freq     = uiBottomRight(hslider("[09]lp_freq [style:knob][unit:Hz][scale:log][symbol:lp_freq][bracket:Tone]",    20000, 1,  20000, 1));
+hp_freq     = uiBottomRight(hslider("[08]hp_freq [style:knob][unit:Hz][scale:log][symbol:hp_freq][bracket:TONE]",    1,    1,   20000,  1));
+lp_freq     = uiBottomRight(hslider("[09]lp_freq [style:knob][unit:Hz][scale:log][symbol:lp_freq][bracket:TONE]",    20000, 1,  20000, 1));
 
 drywet      = uiBottomRight(hslider("[11]drywet [style:knob][unit:%][symbol:drywet][easy]",50,0,100,1)) / 100;
 width       = uiBottomRight(hslider("[10]width [style:knob][unit:%][symbol:width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width

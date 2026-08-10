@@ -184,8 +184,8 @@ wetEq = fi.highpass(2, eq_hpHz)
 
 adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1)) : si.smoo;
 adt_2voice  = uiAdt(hslider("[02]ADT 2nd Voice[style:knob][symbol:adt_2voice]",0,0,1,1));
-adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][bracket:Wow]", 0.6, 0.05, 5, 0.01));
-adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][bracket:Wow]", 2.5, 0, 10, 0.1)) :si.smoo;
+adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][bracket:WOW]", 0.6, 0.05, 5, 0.01));
+adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
 adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan]", 0, -1, 1, 0.01));
 adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width]", 1, 0, 1, 0.01));
 
@@ -240,8 +240,8 @@ with {
 
 db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1)) : si.smoo;
 db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune]", 14, 0, 40, 0.1));
-db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][bracket:Wander]", 0.25, 0.02, 2, 0.01));
-db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][bracket:Wander]", 6, 0, 25, 0.1));
+db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][bracket:WANDER]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][bracket:WANDER]", 6, 0, 25, 0.1));
 db_width    = uiDoubler(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width]", 1, 0, 1, 0.01));
 
 db_voice(centsShift, delayMs, wanderFreq, x) = out
@@ -288,9 +288,9 @@ with {
 // detuned.
 
 tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1)) : si.smoo;
-tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][bracket:Variation]", 15, 0, 40, 0.1));
-tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][bracket:Variation]", 10, 0, 30, 0.1));
-tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][bracket:Variation]", 40, 0, 100, 1)) / 100;
+tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][bracket:VARIATION]", 15, 0, 40, 0.1));
+tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][bracket:VARIATION]", 10, 0, 30, 0.1));
+tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][bracket:VARIATION]", 40, 0, 100, 1)) / 100;
 tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
 tk_width    = uiHuman(hslider("[25]TAKE Width[style:knob][symbol:take_width]", 1, 0, 1, 0.01));
 
