@@ -72,5 +72,6 @@ void main()
         relativeDistanceToCenter = log(distanceToCenter / (iResolution.x / 2. - circleDistanceAlongShortSide));
     }
 
-    gl_FragColor = vec4(gl_FragColor.xyz, 1. - step(0., relativeDistanceToCenter));
+    float alpha = 1. - step(0., relativeDistanceToCenter);
+    gl_FragColor = vec4(gl_FragColor.xyz, gl_FragColor.a * alpha);
 }

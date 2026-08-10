@@ -17,7 +17,7 @@ class LibreAudioStageWidget final : public LibreAudioContainerSubWidget<LibreAud
 {
     using R = LibreAudioReference::Stage;
 
-    std::unique_ptr<LibreAudioLineWidget> fLine { new LibreAudioLineWidget(this) };
+    // std::unique_ptr<LibreAudioLineWidget> fLine { new LibreAudioLineWidget(this) };
     std::unique_ptr<LibreAudioPillAreaWidget> fTopArea = addWidget<LibreAudioPillAreaWidget>();
     std::unique_ptr<LibreAudioWidget> fSpacer = addSpacer();
     std::unique_ptr<LibreAudioExpertKnobsGroupWidget> fExpertKnobs = addWidget<LibreAudioExpertKnobsGroupWidget>();
@@ -66,16 +66,16 @@ private:
     {
         LibreAudioContainerSubWidget::onPositionChanged(ev);
 
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        fLine->setAbsolutePos(ev.pos.getX() + border, ev.pos.getY() + border);
+        // const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        // fLine->setAbsolutePos(ev.pos.getX() + border, ev.pos.getY() + border);
     }
 
     void onResize(const ResizeEvent& ev) final
     {
         LibreAudioContainerSubWidget::onResize(ev);
 
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        fLine->setSize(ev.size.getWidth() - border, ev.size.getHeight() - border);
+        // const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        // fLine->setSize(ev.size.getWidth() - border, ev.size.getHeight() - border);
     }
 };
 

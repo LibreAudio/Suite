@@ -22,12 +22,14 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<const unsigned char src[], uint size>
 class LibreAudioBackgroundShaderWidget final : public SubWidget,
                                                public IdleCallback
 {
 public:
-    explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent)
-        : SubWidget(parent)
+    explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
+        : SubWidget(parent),
+          fInterface(iface)
     {
         parent->addIdleCallback(this, 8);
 
@@ -73,13 +75,11 @@ public:
 
         static constexpr const unsigned char* const fragmentSource[] = {
             SHADERS_LIBREAUDIO_FRAG_DATA,
-            // SHADERS_SHADERTOY_SQUARES_FRAG_DATA,
-            SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA,
+            src,
         };
         static constexpr const GLint fragmentSourceLen[] = {
             SHADERS_LIBREAUDIO_FRAG_LEN,
-            // SHADERS_SHADERTOY_SQUARES_FRAG_LEN,
-            SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN,
+            size,
         };
         glShaderSource(fragment, ARRAY_SIZE(fragmentSource), reinterpret_cast<const GLchar* const*>(fragmentSource), fragmentSourceLen);
         glCompileShader(fragment);
@@ -120,6 +120,8 @@ public:
         gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
         gl3.iTime = glGetUniformLocation(program, "iTime");
+        gl3.hpHz = glGetUniformLocation(program, "hpHz");
+
         gl3.dpfBounds = glGetAttribLocation(program, "_dpf_bounds");
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
@@ -164,6 +166,9 @@ private:
 
         glUniform1f(gl3.iTime, getApp().getTime());
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
+
+        if (gl3.hpHz != 0)
+            glUniform1f(gl3.hpHz, (fInterface->getParameterValue(kParametersMainStart + 2) - 0.25f) * 0.05f * 500.0);
 
         static const constexpr GLfloat vertices[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
         glBindBuffer(GL_ARRAY_BUFFER, gl3.buffers[0]);
@@ -230,8 +235,10 @@ private:
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
+        GLint hpHz;
     } gl3;
 
+    LibreAudioUIWidgetInterface* const fInterface;
     bool fFirstResize = true;
     float fBorderRadius = 0.f;
     LinearValueSmoother fMouseX;
@@ -285,7 +292,7 @@ private:
         DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
         DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
         DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
-        DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+        DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog)
         DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
         DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
         DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)

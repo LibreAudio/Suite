@@ -109,19 +109,31 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// SHADERS_LIBREAUDIO_LINE_FRAG_DATA,
+// SHADERS_SHADERTOY_SQUARES_FRAG_DATA,
+// SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA,
+// SHADERS_LIBREAUDIO_LINE_FRAG_LEN,
+// SHADERS_SHADERTOY_SQUARES_FRAG_LEN,
+// SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN,
+
+using S1 = LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA, SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN>;
+using S2 = LibreAudioBackgroundShaderWidget<SHADERS_LIBREAUDIO_LINE_FRAG_DATA, SHADERS_LIBREAUDIO_LINE_FRAG_LEN>;
+
 class LibreAudioUI : public LibreAudioBaseUI
 {
     using R = LibreAudioReference::Window;
 
     double fScaleFactor = getScaleFactor();
-    std::unique_ptr<LibreAudioBackgroundShaderWidget> fShaderTest;
+    std::unique_ptr<S1> fShaderBackground;
+    std::unique_ptr<S2> fShaderLine;
     std::unique_ptr<LibreAudioRootWidget> fRoot { new LibreAudioRootWidget(getWindow(), this) };
 
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        // fShaderTest.reset(new LibreAudioBackgroundShaderWidget(this));
+        // fShaderBackground.reset(new S1(this, this));
+        // fShaderLine.reset(new S2(this, this));
         updateShaderPosition();
     }
 
@@ -166,7 +178,13 @@ protected:
 private:
     void updateShaderPosition()
     {
-        if (LibreAudioBackgroundShaderWidget* const sw = fShaderTest.get())
+        if (S1* const sw = fShaderBackground.get())
+        {
+            sw->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
+            sw->setSize(fRoot->getStageAreaSize());
+            sw->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
+        }
+        if (S2* const sw = fShaderLine.get())
         {
             sw->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
             sw->setSize(fRoot->getStageAreaSize());
