@@ -61,7 +61,7 @@ import("stdfaust.lib");
       rate2         .    o    o     .      .
       dctr          o    o    o     .      .
       ddepth        o    o    o     .      .
-      spread        o    o    o     .      o
+      width        o    o    o     .      o
       hp_freq       o    o    o     o      o
       lp_freq       o    o    o     o      o
       hflim_amount  o    o    o     o      o
@@ -72,7 +72,7 @@ import("stdfaust.lib");
 
    Dimension D and Ensemble are fixed-constant machine emulations, which is
    why the whole Delay section and most of the LFO section go dead in them.
-   spread survives in Ensemble but not Dimension D: the latter's wet signal
+   width survives in Ensemble but not Dimension D: the latter's wet signal
    is already pure side, so widening has nothing to act on.
    detune is the one control whose condition is not the mode at all — it only
    ever reaches the true-stereo signal paths.
@@ -82,8 +82,10 @@ import("stdfaust.lib");
 */
 
 
-uiTop(x)    = hgroup("[0]", x);
-uiBottom(x) = hgroup("[8]", x);
+uiTop(x)    = hgroup("[0]Stage Top", x);
+uiBottom(x) = hgroup("[8]Stage Bottom", x);
+uiBottomLeft(x) = uiBottom(hgroup("[1]Stage Bottom Left", x));
+uiBottomRight(x) = uiBottom(hgroup("[1]Stage Bottom Right", x));
 uiMeters(x) = hgroup("[9]", x);
 
 uiMode(x)   = uiTop((hgroup("[0]Mode",  x)));
@@ -95,25 +97,28 @@ uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
 
 mode        = uiMode(nentry("[0]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
-dim         = uiBottom(hslider("[1]dim[style:knob][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
+dim         = uiBottomLeft(hslider("[05]Dim-D[style:knob][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
 
 true_stereo = uiMode(nentry("[0]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
 
-rate1       = uiLFO(hslider("[0]rate1[style:knob][unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
-rate2       = uiLFO(hslider("[1]rate2[style:knob][unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
-detune      = uiLFO(hslider("[2]detune [style:knob][unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
+rate1       = uiBottomLeft(hslider("[03]rate1[style:knob][unit:Hz][scale:log][symbol:rate1][bracket:Lfo]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
+rate2       = uiBottomLeft(hslider("[04]rate2[style:knob][unit:Hz][scale:log][symbol:rate2][bracket:Lfo]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
+detune      = uiBottomLeft(hslider("[06]detune [style:knob][unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
 
-dctr        = uiDelay(hslider("[0]dctr [style:knob][unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1))  / 1000;
-ddepth      = uiDelay(hslider("[1]ddepth [style:knob][unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01)) / 1000;
+dctr        = uiBottomLeft(hslider("[01]center [style:knob][unit:ms][symbol:dctr][bracket:Delay]",       6.0,   1.0,  20.0,  0.1))  / 1000;
+ddepth      = uiBottomLeft(hslider("[02]depth [style:knob][unit:ms][symbol:ddepth][bracket:Delay]",     3.0,   0.0,  10.0,  0.01)) / 1000;
 
-hp_freq     = uiTone(hslider("[0]hp_freq [style:knob][unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1));
-lp_freq     = uiTone(hslider("[1]lp_freq [style:knob][unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1));
+hp_freq     = uiBottomRight(hslider("[08]hp_freq [style:knob][unit:Hz][scale:log][symbol:hp_freq][bracket:Tone]",    1,    1,   20000,  1));
+lp_freq     = uiBottomRight(hslider("[09]lp_freq [style:knob][unit:Hz][scale:log][symbol:lp_freq][bracket:Tone]",    20000, 1,  20000, 1));
 
-drywet      = uiMix(hslider("[0]drywet [style:knob][unit:%][symbol:drywet]",50,0,100,1)) / 100;
-spread      = uiMix(hslider("[1]spread [style:knob][unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
+drywet      = uiBottomRight(hslider("[11]drywet [style:knob][unit:%][symbol:drywet][easy]",50,0,100,1)) / 100;
+width       = uiBottomRight(hslider("[10]width [style:knob][unit:%][symbol:width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
 // currently unused — the explicit dry/wet mix in chorus() is commented out below
 dry         = uiMix(hslider("[2]dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
 wet         = uiMix(hslider("[3]wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
+
+hflim_amount = uiBottomRight(hslider("[07]De-Ess[style:knob][unit:%][symbol:deess_amount]", 0, 0, 100, 1)) / 100;
+hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
 MAXN = 1 << 17;    // delay buffer size in samples
 
@@ -257,8 +262,7 @@ lerp(a, b, t) = a + (b - a) * t;
 // Defaults to 0, i.e. a true bypass, because a chorus is not a vocal-only
 // box — every existing patch keeps sounding exactly as it did until this is
 // turned up. (vocalDoubler ships it at 50.)
-hflim_amount = uiDeEss(hslider("[0]De-Ess[style:knob][unit:%][symbol:deess_amount]", 0, 0, 100, 1)) / 100;
-hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
+
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
@@ -368,10 +372,10 @@ with {
     // Dimension D puts its whole wet signal in the side channel, so spread
     // would not widen it — it would just ride its level, and mute it at 0%.
     // Pinned to unity there; every other mode has real mid content to widen.
-    spread_eff = select2(dimD, spread, 1.0);
+    width_eff = select2(dimD, width, 1.0);
     mid    = (wL + wR) * 0.25;
     side   = (wL - wR) * 0.25;
-    outL   = mid + side * spread_eff;
-    outR   = mid - side * spread_eff;
+    outL   = mid + side * width_eff;
+    outR   = mid - side * width_eff;
 };
 
