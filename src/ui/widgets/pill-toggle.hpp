@@ -191,7 +191,7 @@ class LibreAudioPillAreaWidget : public LibreAudioContainerSubWidget<LibreAudioR
 {
     using R = LibreAudioReference::Widgets::PillToggle;
 
-    static constexpr const uint kMaxNumToggles = 1;
+    static constexpr const uint kMaxNumToggles = 2;
 
     std::vector<std::unique_ptr<LibreAudioPillToggleWidget>> fToggles;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
