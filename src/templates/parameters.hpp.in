@@ -26,8 +26,6 @@
 {% block ImplementationIncludeExtra %}
 {% endblock %}
 
-#include <array>
-
 namespace {{id}} {
 
 enum FaustParameterList {
