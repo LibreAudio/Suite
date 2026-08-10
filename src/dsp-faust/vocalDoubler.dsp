@@ -65,10 +65,10 @@ import("stdfaust.lib");
 */
 
 // UI
-uiTop(x)    = hgroup("[0]Top", x);
-uiBottom(x) = hgroup("[9]Bottom", x);
+uiTop(x)    = hgroup("[0]", x);
+uiBottom(x) = hgroup("[8]", x);
+uiMeters(x) = hgroup("[9]", x);
 
-uiMode(x)   = uiTop((hgroup("[0]Mode",  x)));
 uiDelay(x)  = uiBottom(hgroup("[1]Delay", x));
 uiLFO(x)    = uiBottom(hgroup("[2]LFO",   x));
 uiWow(x)    = uiBottom(hgroup("[3]Wow",   x));
@@ -80,7 +80,7 @@ uiTone(x)   = uiBottom(hgroup("[9]Tone",  x));
 
 //======================= Mode & global controls =======================
 
-mode = uiMode(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'Human':2}]", 0, 0, 2, 1));
+mode = uiTop(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'Human':2}]", 0, 0, 2, 1));
 
 // Dry/wet balance on one knob. At 0 both paths pass at unity; turning toward
 // Wet pulls the dry down, toward Dry pulls the wet down. Only one side ever
@@ -125,7 +125,7 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total red
 lerp(a, b, t) = a + (b - a) * t;
 
 hflim_amount = uiBottom(hslider("[80]HFlim Intensity[style:knob][unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
-hflim_meter  = hgroup("[9]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
+hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
@@ -281,7 +281,7 @@ with {
 // detuned.
 
 tk_baseMs   = uiBottom(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1));
-tk_timingMs = uiVariation(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing]", 15, 0, 40, 0.1));
+tk_timingMs = uiVariation(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][bracket:test]", 15, 0, 40, 0.1));
 tk_pitchCt  = uiVariation(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch]", 10, 0, 30, 0.1));
 tk_charact  = uiVariation(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character]", 40, 0, 100, 1)) / 100;
 tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
