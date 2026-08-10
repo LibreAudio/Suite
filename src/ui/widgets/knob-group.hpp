@@ -85,14 +85,30 @@ private:
 
     void addWidget() = delete;
 
-    // void onNanoDisplay() final
-    // {
-    //     const float w = getWidth();
-    //     const float h = getHeight();
-    //     d_stdout("knob group size %f %f", w, h);
-    //
-    //     // TODO divider??
-    // }
+    void onNanoDisplay() final
+    {
+        // const float w = getWidth();
+        // const float h = getHeight();
+        //
+        //
+        // const float border = 18 * this->fScaleFactor;
+        // const float radius = 4 * this->fScaleFactor;
+        // const float feather = 28 * this->fScaleFactor;
+        //
+        // beginPath();
+        // roundedRect(0, 0, w, h, 4 * this->fScaleFactor);
+        // fillColor(Color(1.f, 0.f, 0.f));
+        // fill();
+        //
+        // fillPaint(boxGradient(0, 0, w, h, radius, feather, Color(0.f, 0.f, 0.f, 0.f), Color(0.f, 0.f, 0.f, 1.0f)));
+        // fill();
+        //
+        // beginPath();
+        // roundedRect(border * 0.5f, border * 0.5f, w - border, h - border, radius);
+        // strokeColor(Color(0.f, 1.f, 0.f, 0.5f));
+        // strokeWidth(border);
+        // stroke();
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

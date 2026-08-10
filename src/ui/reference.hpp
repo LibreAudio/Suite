@@ -213,7 +213,7 @@ struct LibreAudioReference {
                 static constexpr const uint border = 0;
                 static constexpr const uint borderRadius = 6;
                 static constexpr const uint height = 26;
-                static constexpr const uint margin = 20;
+                static constexpr const uint margin = 10;
                 static constexpr const uint width = 0;
             };
         };
