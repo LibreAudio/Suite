@@ -124,8 +124,8 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total red
 
 lerp(a, b, t) = a + (b - a) * t;
 
-hflim_amount = uiBottom(hslider("[80]HFlim Intensity[style:knob][unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
-hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
+hflim_amount = uiBottom(hslider("[80]De-Ess[style:knob][unit:%][symbol:deess_amount]", 50, 0, 100, 1)) / 100;
+hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
