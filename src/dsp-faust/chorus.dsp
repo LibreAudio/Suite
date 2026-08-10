@@ -89,10 +89,9 @@ uiTone(x)   = uiBottom(hgroup("[4]Tone",  x));
 
 
 mode        = uiMode(nentry("[0]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
-//dim         = uiBottom(nentry("[1]dim[style:radio{'1':0;'2':1;'3':2;'4':3}][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
 dim         = uiBottom(hslider("[1]dim[style:knob][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
 
-true_stereo = uiMode(nentry("[0]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:mode]", 0, 0, 1, 1)) : int;
+true_stereo = uiMode(nentry("[0]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
 
 rate1       = uiLFO(hslider("[0]rate1[style:knob][unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
 rate2       = uiLFO(hslider("[1]rate2[style:knob][unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
