@@ -103,7 +103,7 @@ mode = uiTop(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'H
 faderMinDb = -70;
 faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
 
-mix = uiBottomRight(hslider("[70]Mix[style:knob][symbol:mix]", 0, -100, 100, 0.1)) / 100;
+mix = uiBottomRight(hslider("[70]Mix[style:knob][symbol:mix]", 0, -100, 100, 0.1)) / 100 : si.smoo;
 
 mixAttenDb(amount) = ba.linear2db(max(0.000001, 1 - amount));
 
@@ -162,10 +162,10 @@ with {
 // it, plus one band to duck or lift whatever frequency the double
 // exaggerates. Applies in every mode.
 
-eq_hpHz = uiBottomRight(hslider("[0]High Pass[style:knob][unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
-eq_lpHz = uiBottomRight(hslider("[1]Low Pass[style:knob][unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
+eq_hpHz = uiBottomRight(hslider("[0]High Pass[style:knob][unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1)) : si.smoo;
+eq_lpHz = uiBottomRight(hslider("[1]Low Pass[style:knob][unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1)) : si.smoo;
 eq_freq = 5000; //hgroup("[5]Wet EQ", hslider("[2]Presence Freq[unit:Hz][symbol:presence_freq]", 2000, 100, 12000, 1));
-eq_gain = uiBottomRight(hslider("[3]Prensence[style:knob][unit:dB][symbol:presence]", 0, -12, 12, 0.1));
+eq_gain = uiBottomRight(hslider("[3]Prensence[style:knob][unit:dB][symbol:presence]", 0, -12, 12, 0.1)) : si.smoo;
 eq_q    = 0.28; //hgroup("[5]Wet EQ", hslider("[4]Presence Q[symbol:presence_q]", 1, 0.2, 8, 0.01));
 
 wetEq = fi.highpass(2, eq_hpHz)
@@ -182,10 +182,10 @@ wetEq = fi.highpass(2, eq_hpHz)
 // with two (how far apart they sit); the unused one is simply ignored.
 
 
-adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1));
+adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1)) : si.smoo;
 adt_2voice  = uiAdt(hslider("[02]ADT 2nd Voice[style:knob][symbol:adt_2voice]",0,0,1,1));
 adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][bracket:Wow]", 0.6, 0.05, 5, 0.01));
-adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][bracket:Wow]", 2.5, 0, 10, 0.1));
+adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][bracket:Wow]", 2.5, 0, 10, 0.1)) :si.smoo;
 adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan]", 0, -1, 1, 0.01));
 adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width]", 1, 0, 1, 0.01));
 
@@ -238,7 +238,7 @@ with {
 // own slow random ("humanized") wander in pitch and level so they don't
 // read as a static chorus but as two separate takes.
 
-db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1));
+db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1)) : si.smoo;
 db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune]", 14, 0, 40, 0.1));
 db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][bracket:Wander]", 0.25, 0.02, 2, 0.01));
 db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][bracket:Wander]", 6, 0, 25, 0.1));
@@ -287,7 +287,7 @@ with {
 // makes each voice read as a different throat rather than the same voice
 // detuned.
 
-tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1));
+tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1)) : si.smoo;
 tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][bracket:Variation]", 15, 0, 40, 0.1));
 tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][bracket:Variation]", 10, 0, 30, 0.1));
 tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][bracket:Variation]", 40, 0, 100, 1)) / 100;
