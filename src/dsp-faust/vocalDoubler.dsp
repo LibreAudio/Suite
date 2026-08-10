@@ -12,8 +12,7 @@ import("stdfaust.lib");
    disable it there with no audible consequence.
 
                             ADT   1/3 Doubler   Take
-      dry_level              o         o         o
-      wet_level              o         o         o
+      mix                    o         o         o
       hflim_amount           o         o         o
       eq_hp                  o         o         o
       eq_lp                  o         o         o
@@ -52,10 +51,10 @@ import("stdfaust.lib");
       doubler_wander_rate does NOT behave this way: at Wander Depth 0 it still
       sets the amplitude-wander rate, so it stays live.
 
-   wet_level at its minimum (-70 dB, treated as -inf) mutes the wet path
-   outright and every row but the two faders goes dead — the plugin is then a
-   dry pass-through. dry_level's minimum is not symmetric: muting the dry
-   leaves the whole wet side, limiter and EQ included, still live.
+   mix at -100 mutes the wet path outright and every row but mix itself goes
+   dead — the plugin is then a dry pass-through. The other end is not
+   symmetric: +100 mutes the dry but leaves the whole wet side, limiter and EQ
+   included, still live.
 
    Caveat for the Take rows: take_timing and take_pitch only reach the output
    after a syllable onset has fired, since both scale a per-onset held value
@@ -65,21 +64,44 @@ import("stdfaust.lib");
    act on.
 */
 
+// UI
+uiTop(x)    = hgroup("[0]Top", x);
+uiBottom(x) = hgroup("[9]Bottom", x);
+
+uiMode(x)   = uiTop((hgroup("[0]Mode",  x)));
+uiDelay(x)  = uiBottom(hgroup("[1]Delay", x));
+uiLFO(x)    = uiBottom(hgroup("[2]LFO",   x));
+uiWow(x)    = uiBottom(hgroup("[3]Wow",   x));
+uiWander(x) = uiBottom(hgroup("[4]Wander",   x));
+uiVariation(x) = uiBottom(hgroup("[5]Variation",   x));
+
+uiMix(x)    = uiBottom(hgroup("[8]Mix",   x));
+uiTone(x)   = uiBottom(hgroup("[9]Tone",  x));
+
 //======================= Mode & global controls =======================
 
-mode = nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'Human':2}]", 0, 0, 2, 1);
+mode = uiMode(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'Human':2}]", 0, 0, 2, 1));
 
-// Independent dry and wet volume faders in dB. The bottom of the range is
-// treated as -inf (true silence) rather than the ~-84 dB a raw db2linear
-// would give, so pulling a fader all the way down fully mutes that path.
+// Dry/wet balance on one knob. At 0 both paths pass at unity; turning toward
+// Wet pulls the dry down, toward Dry pulls the wet down. Only one side ever
+// moves — this is a dry-kill fade, not a crossfade, so the sum runs up to
+// ~6 dB hotter at center than at either end.
+//
+// The taper is linear in *amplitude* — the usual mix-knob feel — so half
+// travel is -6 dB on the receding path rather than half of some dB range,
+// which would already be inaudible well before the knob got there. The floor
+// keeps linear2db out of -inf; at -120 dB it sits below faderMinDb, so both
+// ends of the travel trip the mute test and silence that path outright
+// instead of leaving a residue.
 faderMinDb = -70;
 faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
 
-dryDb = hslider("[1]Dry[unit:dB][symbol:dry_level]",  0, faderMinDb, 12, 0.1);
-wetDb = hslider("[2]Wet[unit:dB][symbol:wet_level]",  0, faderMinDb, 12, 0.1);
+mix = uiBottom(hslider("[70]Mix[style:knob][symbol:mix]", 0, -100, 100, 0.1)) / 100;
 
-mixDry = faderGain(dryDb);
-mixWet = faderGain(wetDb);
+mixAttenDb(amount) = ba.linear2db(max(0.000001, 1 - amount));
+
+mixDry = faderGain(mixAttenDb(max(0, mix)));
+mixWet = faderGain(mixAttenDb(max(0, 0 - mix)));
 
 //======================= High Frequency Limiter =======================
 // Feeds the wet path only — the dry half of the dry/wet mix always passes
@@ -102,8 +124,8 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total red
 
 lerp(a, b, t) = a + (b - a) * t;
 
-hflim_amount = hgroup("[2]High Frequency Limiter", hslider("[0]HFlim Intensity[unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
-hflim_meter  = hgroup("[2]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
+hflim_amount = uiBottom(hslider("[80]HFlim Intensity[style:knob][unit:%][symbol:hflim_amount]", 50, 0, 100, 1)) / 100;
+hflim_meter  = hgroup("[9]High Frequency Limiter", hbargraph("[1]HFlim Reduction[unit:dB][symbol:hflim_meter]", 0, 30));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
@@ -133,10 +155,10 @@ with {
 // it, plus one band to duck or lift whatever frequency the double
 // exaggerates. Applies in every mode.
 
-eq_hpHz = hgroup("[9]Wet EQ", hslider("[0]High Pass[unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
-eq_lpHz = hgroup("[9]Wet EQ", hslider("[1]Low Pass[unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
+eq_hpHz = uiTone(hslider("[0]High Pass[style:knob][unit:Hz][scale:log][symbol:eq_hp]", 20, 20, 20000, 1));
+eq_lpHz = uiTone(hslider("[1]Low Pass[style:knob][unit:Hz][scale:log][symbol:eq_lp]", 20000, 20, 20000, 1));
 eq_freq = 5000; //hgroup("[5]Wet EQ", hslider("[2]Presence Freq[unit:Hz][symbol:presence_freq]", 2000, 100, 12000, 1));
-eq_gain = hgroup("[9]Wet EQ", hslider("[3]Prensence[unit:dB][symbol:presence]", 0, -12, 12, 0.1));
+eq_gain = uiTone(hslider("[3]Prensence[style:knob][unit:dB][symbol:presence]", 0, -12, 12, 0.1));
 eq_q    = 0.28; //hgroup("[5]Wet EQ", hslider("[4]Presence Q[symbol:presence_q]", 1, 0.2, 8, 0.01));
 
 wetEq = fi.highpass(2, eq_hpHz)
@@ -152,12 +174,13 @@ wetEq = fi.highpass(2, eq_hpHz)
 // Stereo placement is Pan with one voice (where the double sits) and Width
 // with two (how far apart they sit); the unused one is simply ignored.
 
-adt_2voice  = hgroup("[3]ADT", checkbox("[0]ADT 2nd Voice[symbol:adt_2voice]"));
-adt_delayMs = hgroup("[3]ADT", hslider("[1]ADT Delay[unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1));
-adt_rateHz  = hgroup("[3]ADT", hslider("[2]ADT Wow Rate[unit:Hz][symbol:adt_wow_rate]", 0.6, 0.05, 5, 0.01));
-adt_depthMs = hgroup("[3]ADT", hslider("[3]ADT Wow Depth[unit:ms][symbol:adt_wow_depth]", 2.5, 0, 10, 0.1));
-adt_pan     = hgroup("[3]ADT", hslider("[4]ADT Pan[symbol:adt_pan]", 0, -1, 1, 0.01));
-adt_width   = hgroup("[3]ADT", hslider("[5]ADT Width[symbol:adt_width]", 1, 0, 1, 0.01));
+
+adt_delayMs = uiBottom(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay]", 18, 5, 40, 0.1));
+adt_2voice  = uiBottom(hslider("[02]ADT 2nd Voice[style:knob][symbol:adt_2voice]",0,0,1,1));
+adt_rateHz  = uiWow(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate]", 0.6, 0.05, 5, 0.01));
+adt_depthMs = uiWow(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth]", 2.5, 0, 10, 0.1));
+adt_pan     = uiBottom(hslider("[05]ADT Pan[style:knob][symbol:adt_pan]", 0, -1, 1, 0.01));
+adt_width   = uiBottom(hslider("[06]ADT Width[style:knob][symbol:adt_width]", 1, 0, 1, 0.01));
 
 // second machine, derived from the single-voice settings
 adt_delay2  = adt_delayMs * 1.6 + 4;
@@ -208,11 +231,11 @@ with {
 // own slow random ("humanized") wander in pitch and level so they don't
 // read as a static chorus but as two separate takes.
 
-db_delayMs  = hgroup("[4]1/3 Doubler", hslider("[0]DOUBLER Base Delay[unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1));
-db_detune   = hgroup("[4]1/3 Doubler", hslider("[1]DOUBLER Detune[unit:cents][symbol:doubler_detune]", 14, 0, 40, 0.1));
-db_wanderHz = hgroup("[4]1/3 Doubler", hslider("[2]DOUBLER Wander Rate[unit:Hz][symbol:doubler_wander_rate]", 0.25, 0.02, 2, 0.01));
-db_wanderCt = hgroup("[4]1/3 Doubler", hslider("[3]DOUBLER Wander Depth[unit:cents][symbol:doubler_wander_depth]", 6, 0, 25, 0.1));
-db_width    = hgroup("[4]1/3 Doubler", hslider("[4]DOUBLER Width[symbol:doubler_width]", 1, 0, 1, 0.01));
+db_delayMs  = uiBottom(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay]", 20, 5, 50, 0.1));
+db_detune   = uiBottom(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune]", 14, 0, 40, 0.1));
+db_wanderHz = uiWander(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = uiWander(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth]", 6, 0, 25, 0.1));
+db_width    = uiBottom(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width]", 1, 0, 1, 0.01));
 
 db_voice(centsShift, delayMs, wanderFreq, x) = out
 with {
@@ -257,12 +280,12 @@ with {
 // makes each voice read as a different throat rather than the same voice
 // detuned.
 
-tk_baseMs   = hgroup("[6]Take", hslider("[0]TAKE Base Delay[unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1));
-tk_timingMs = hgroup("[6]Take", hslider("[1]TAKE Timing Variation[unit:ms][symbol:take_timing]", 15, 0, 40, 0.1));
-tk_pitchCt  = hgroup("[6]Take", hslider("[2]TAKE Pitch Variation[unit:cents][symbol:take_pitch]", 10, 0, 30, 0.1));
-tk_charact  = hgroup("[6]Take", hslider("[3]TAKE Character[unit:%][symbol:take_character]", 40, 0, 100, 1)) / 100;
+tk_baseMs   = uiBottom(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay]", 25, 5, 60, 0.1));
+tk_timingMs = uiVariation(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing]", 15, 0, 40, 0.1));
+tk_pitchCt  = uiVariation(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch]", 10, 0, 30, 0.1));
+tk_charact  = uiVariation(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character]", 40, 0, 100, 1)) / 100;
 tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
-tk_width    = hgroup("[6]Take", hslider("[5]TAKE Width[symbol:take_width]", 1, 0, 1, 0.01));
+tk_width    = uiBottom(hslider("[25]TAKE Width[style:knob][symbol:take_width]", 1, 0, 1, 0.01));
 
 // Onset detection watches the consonant band rather than overall level: a
 // syllable in legato singing barely moves the total envelope, but its
