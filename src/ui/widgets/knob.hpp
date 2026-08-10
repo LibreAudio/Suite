@@ -58,7 +58,7 @@ private:
             fillColor(R::Value::color);
             fontSize(R::Value::fontSize * fScaleFactor);
 
-            if (fParameter.unit == nullptr || *fParameter.unit == '\0')
+            if (*fParameter.unit == '\0')
             {
                 // no unit, draw value in the center
                 text(w * 0.5f, h, textBuffer);
@@ -80,7 +80,10 @@ private:
             fontSize(R::Name::fontSize * fScaleFactor);
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 
-            std::snprintf(textBuffer, sizeof(textBuffer), "%.8s", getName());
+            std::snprintf(textBuffer,
+                          sizeof(textBuffer),
+                          "%.8s",
+                          *fParameter.label != '\0' ? fParameter.label : fParameter.name);
             textBuffer[sizeof(textBuffer) - 1] = '\0';
             text(w * 0.5f, h, textBuffer);
         }
