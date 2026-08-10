@@ -183,7 +183,7 @@ wetEq = fi.highpass(2, eq_hpHz)
 
 
 adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay][label:Delay]", 18, 5, 40, 0.1)) : si.smoo;
-adt_2voice  = uiAdt(hslider("[02]ADT 2nd Voice[style:knob][symbol:adt_2voice][label:Voices]",0,0,1,1));
+adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices]",1,1,2,1)) -1;
 adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][bracket:WOW]", 0.6, 0.05, 5, 0.01));
 adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
 adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan]", 0, -1, 1, 0.01));
