@@ -43,6 +43,7 @@ const std::vector<FaustParameter>& getFaustParameters()
     {
         {% for w in (active + passive) if w.symbol not in ["latency_samples"] %}
         {
+            .bracket = "{{w.meta.bracket}}",
             .label = "{{w.label}}",
             .symbol = "{{w.symbol}}",
             .tooltip = "{{w.tooltip}}",

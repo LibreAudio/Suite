@@ -18,6 +18,7 @@ struct FaustParameterEnumerationValue {
 
 struct FaustParameter
 {
+    const char* bracket;
     const char* label;
     const char* symbol;
     const char* tooltip;

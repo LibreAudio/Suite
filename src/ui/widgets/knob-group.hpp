@@ -24,11 +24,20 @@ class LibreAudioKnobGroupWidget : public LibreAudioContainerSubWidget<LibreAudio
     std::vector<std::unique_ptr<LibreAudioSmallKnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
 
+    struct Bracket {
+        uint start;
+        uint end;
+        const char* label;
+    };
+    std::vector<Bracket> fBrackets;
+
 public:
     explicit LibreAudioKnobGroupWidget(LibreAudioWidget* const parent,
                                        const std::vector<FaustParameter>& parameters,
                                        const uint32_t idOffset = 0)
-        : LibreAudioContainerSubWidget(parent)
+        : LibreAudioContainerSubWidget(parent),
+          fParameters(parameters),
+          fParametersOffset(idOffset)
     {
         DISTRHO_SAFE_ASSERT_RETURN(!parameters.empty(),);
 
@@ -72,10 +81,42 @@ public:
         else
             knobHeight = d_roundToUnsignedInt(fScaleFactor);
 
+        const char* lastBracket = "";
+        for (uint i = 0, size = fKnobs.size(); i < size; ++i)
+        {
+            const std::unique_ptr<LibreAudioSmallKnobWidget>& knob = fKnobs[i];
+
+            const FaustParameter& parameter = fParameters.at(knob->getId() - fParametersOffset);
+
+            if (std::strcmp(parameter.bracket, lastBracket) != 0)
+            {
+                if (fBrackets.empty())
+                {
+                    fBrackets.push_back({ i, i, parameter.bracket });
+                }
+                else
+                {
+                    if (*lastBracket != '\0')
+                        fBrackets.back().end = i - 1;
+
+                    if (*parameter.bracket != '\0')
+                        fBrackets.push_back({ i, i, parameter.bracket });
+                }
+            }
+
+            lastBracket = parameter.bracket;
+        }
+
+        if (*lastBracket != '\0')
+            fBrackets.back().end = fKnobs.size() - 1;
+
         LibreAudioWidget::setHeight((border + margin) * 2 + knobHeight);
     }
 
 private:
+    const std::vector<FaustParameter>& fParameters;
+    const uint32_t fParametersOffset;
+
     void addSpacer()
     {
         std::unique_ptr<LibreAudioWidget> spacer { new LibreAudioEmptyWidget(this) };
@@ -87,19 +128,57 @@ private:
 
     void onNanoDisplay() final
     {
+        for (const Bracket& bracket : fBrackets)
+        {
+            const LibreAudioSmallKnobWidget* const knobS = fKnobs[bracket.start].get();
+            const LibreAudioSmallKnobWidget* const knobE = fKnobs[bracket.end - 1].get();
+
+            const float lw = 2;
+            const float sx = knobS->getAbsoluteX() - knobS->getWidth();
+            const float ex = knobE->getAbsoluteX() + knobE->getWidth();
+            const float y = 20;
+
+            beginPath();
+            fontSize(LibreAudioReference::Common::fontSize * fScaleFactor);
+            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+
+            fillColor(Color(LibreAudioReference::Colors::ink.invert(), 0.5f));
+            text(sx + (ex - sx) * 0.5f, 1 * fScaleFactor, bracket.label);
+
+            fillColor(LibreAudioReference::Colors::ink3);
+            text(sx + (ex - sx) * 0.5f, 0, bracket.label);
+
+            Rectangle<float> bounds;
+            textBounds(sx + (ex - sx) * 0.5f, 0, bracket.label, nullptr, bounds);
+
+            strokeColor(LibreAudioReference::Colors::ink3);
+            strokeWidth(lw);
+
+            beginPath();
+            moveTo(sx, y);
+            lineTo(sx, 0);
+            lineTo(bounds.getX() - 2, 0);
+            stroke();
+
+            beginPath();
+            moveTo(bounds.getX() + bounds.getWidth() + 2, 0);
+            lineTo(ex, 0);
+            lineTo(ex, y);
+            stroke();
+        }
+
         // const float w = getWidth();
         // const float h = getHeight();
-        //
-        //
-        // const float border = 18 * this->fScaleFactor;
-        // const float radius = 4 * this->fScaleFactor;
-        // const float feather = 28 * this->fScaleFactor;
         //
         // beginPath();
         // roundedRect(0, 0, w, h, 4 * this->fScaleFactor);
         // fillColor(Color(1.f, 0.f, 0.f));
         // fill();
-        //
+
+        // const float border = 18 * this->fScaleFactor;
+        // const float radius = 4 * this->fScaleFactor;
+        // const float feather = 28 * this->fScaleFactor;
+
         // fillPaint(boxGradient(0, 0, w, h, radius, feather, Color(0.f, 0.f, 0.f, 0.f), Color(0.f, 0.f, 0.f, 1.0f)));
         // fill();
         //
