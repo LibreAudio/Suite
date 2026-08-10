@@ -78,28 +78,31 @@ import("stdfaust.lib");
 */
 
 sections(x) = hgroup("Chorus", x);
+uiTop(x)    = sections(hgroup("[0]Display Top", x));
+uiBottom(x) = sections(hgroup("[1]Display Bottom", x));
 uiMode(x)   = sections(vgroup("[0]Mode",  x));
-uiLFO(x)    = sections(vgroup("[1]LFO",   x));
-uiDelay(x)  = sections(vgroup("[2]Delay", x));
-uiTone(x)   = sections(vgroup("[3]Tone",  x));
-uiMix(x)    = sections(vgroup("[4]Mix",   x));
+uiDelay(x)  = sections(hgroup("[1]Delay", x));
+uiLFO(x)    = sections(hgroup("[2]LFO",   x));
+uiMix(x)    = sections(hgroup("[3]Mix",   x));
+uiTone(x)   = sections(hgroup("[4]Tone",  x));
+
 
 mode        = uiMode(nentry("[0]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
 dim         = uiMode(nentry("[1]dim[style:radio{'1':0;'2':1;'3':2;'4':3}][symbol:dim]", 0, 0, 3, 1)) : int; // SDD-320 four-button switch, Dimension D mode only
 true_stereo = uiMode(checkbox("[2]true stereo[symbol:true_stereo]"));
 
-rate1       = uiLFO(hslider("[0]rate1[unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
-rate2       = uiLFO(hslider("[1]rate2[unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
-detune      = uiLFO(hslider("[2]detune [unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
+rate1       = uiLFO(hslider("[0]rate1[style:knob][unit:Hz][scale:log][symbol:rate1]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
+rate2       = uiLFO(hslider("[1]rate2[style:knob][unit:Hz][scale:log][symbol:rate2]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
+detune      = uiLFO(hslider("[2]detune [style:knob][unit:%][symbol:detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
 
-dctr        = uiDelay(hslider("[0]dctr [unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1))  / 1000;
-ddepth      = uiDelay(hslider("[1]ddepth [unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01)) / 1000;
+dctr        = uiDelay(hslider("[0]dctr [style:knob][unit:ms][symbol:dctr]",       6.0,   1.0,  20.0,  0.1))  / 1000;
+ddepth      = uiDelay(hslider("[1]ddepth [style:knob][unit:ms][symbol:ddepth]",     3.0,   0.0,  10.0,  0.01)) / 1000;
 
-hp_freq     = uiTone(hslider("[0]hp_freq [unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1));
-lp_freq     = uiTone(hslider("[1]lp_freq [unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1));
+hp_freq     = uiTone(hslider("[0]hp_freq [style:knob][unit:Hz][scale:log][symbol:hp_freq]",    1,    1,   20000,  1));
+lp_freq     = uiTone(hslider("[1]lp_freq [style:knob][unit:Hz][scale:log][symbol:lp_freq]",    20000, 1,  20000, 1));
 
-drywet      = uiMix(hslider("[0]drywet [unit:%][symbol:drywet]",50,0,100,1)) / 100;
-spread      = uiMix(hslider("[1]spread [unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
+drywet      = uiMix(hslider("[0]drywet [style:knob][unit:%][symbol:drywet]",50,0,100,1)) / 100;
+spread      = uiMix(hslider("[1]spread [style:knob][unit:%][symbol:spread]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
 // currently unused — the explicit dry/wet mix in chorus() is commented out below
 dry         = uiMix(hslider("[2]dry [unit:dB][symbol:dry]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
 wet         = uiMix(hslider("[3]wet [unit:dB][symbol:wet]", -6.0, -96.0, 0.0, 0.1)) : ba.db2linear;
