@@ -191,7 +191,7 @@ class LibreAudioPillAreaWidget : public LibreAudioContainerSubWidget<LibreAudioR
 {
     using R = LibreAudioReference::Widgets::PillToggle;
 
-    static constexpr const uint kMaxNumToggles = 2;
+    static constexpr const uint kMaxNumToggles = 1;
 
     std::vector<std::unique_ptr<LibreAudioPillToggleWidget>> fToggles;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
@@ -214,6 +214,7 @@ public:
                 d_stdout("pill area skipped parameter %s", parameter.label);
                 continue;
             }
+            d_stdout("using pill for parameter %s", parameter.label);
             std::unique_ptr<LibreAudioPillToggleWidget> widget { new LibreAudioPillToggleWidget(this, parameter, kParametersMainStart + i) };
             widgets.push_back({ widget.get(), Fixed });
             fToggles.emplace_back(std::move(widget));
