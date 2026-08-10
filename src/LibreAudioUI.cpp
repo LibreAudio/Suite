@@ -43,9 +43,9 @@ public:
 
 class LibreAudioMainArea : public LibreAudioContainerSubWidget<LibreAudioReference::MainArea>
 {
-    std::unique_ptr<LibreAudioMeterWidget> fMetersIn = addWidget<LibreAudioMeterWidget>();
+    std::unique_ptr<LibreAudioWidget> fMetersIn = addWidget<LibreAudioMeterWidget<Input>>();
     std::unique_ptr<LibreAudioStageWidget> fStage = addWidget<LibreAudioStageWidget, Expanding>();
-    std::unique_ptr<LibreAudioMeterWidget> fMetersOut = addWidget<LibreAudioMeterWidget>();
+    std::unique_ptr<LibreAudioWidget> fMetersOut = addWidget<LibreAudioMeterWidget<Output>>();
 
 public:
     LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)

@@ -11,14 +11,30 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioMeterWidget final : public LibreAudioWidget
+enum LibreAudioMeterWidgetType {
+    Input,
+    Output
+};
+
+template<LibreAudioMeterWidgetType type>
+class LibreAudioMeterWidget final : public LibreAudioWidget,
+                                    private IdleCallback
 {
     using R = LibreAudioReference::Meter;
+
+    static constexpr const uint kParameterL = type == Input
+        ? kParametersInputStart + common_input::kFaustParameterInput_peak_l
+        : kParametersOutputStart + common_output::kFaustParameterOutput_peak_l - 1;
+    static constexpr const uint kParameterR = type == Input
+        ? kParametersInputStart + common_input::kFaustParameterInput_peak_r
+        : kParametersOutputStart + common_output::kFaustParameterOutput_peak_r - 1;
 
 public:
     LibreAudioMeterWidget(LibreAudioWidget* const parent)
         : LibreAudioWidget(parent)
     {
+        addIdleCallback(this);
+
         if constexpr (R::width != 0)
             LibreAudioWidget::setWidth(d_roundToUnsignedInt(R::width * fScaleFactor));
 
@@ -27,6 +43,31 @@ public:
     }
 
 private:
+    // FIXME non-hardcoded
+    static constexpr const float min = -70.0;
+    static constexpr const float max = 24.0;
+    static constexpr const float diff = max - min;
+
+    float fValueL = min;
+    float fValueR = min;
+
+    void idleCallback() final
+    {
+        if (const float valueL = std::clamp(fInterface->getParameterValue(kParameterL), min, max);
+            d_isNotEqual(fValueL, valueL))
+        {
+            fValueL = valueL;
+            repaint();
+        }
+
+        if (const float valueR = std::clamp(fInterface->getParameterValue(kParameterR), min, max);
+            d_isNotEqual(fValueR, valueR))
+        {
+            fValueR = valueR;
+            repaint();
+        }
+    }
+
     void onNanoDisplay() final
     {
         const float w = getWidth();
@@ -63,15 +104,23 @@ private:
             //         w - R::border * 2 * fScaleFactor,
             //         h - R::border * 2 * fScaleFactor);
 
-            beginPath();
-            rect(ts, ts, tw, h - ts);
-            fill();
+            if (d_isNotEqual(fValueL, min))
+            {
+                const float lh = (h - ts) * (1.f - (fValueL - min) / diff);
 
-            beginPath();
-            rect(tc + 0.5f, ts, tw, h - ts);
-            fill();
+                beginPath();
+                rect(ts, ts + lh, tw, h - ts - lh);
+                fill();
+            }
 
-            // resetScissor();
+            if (d_isNotEqual(fValueR, min))
+            {
+                const float rh = (h - ts) * (1.f - (fValueR - min) / diff);
+
+                beginPath();
+                rect(tc + 0.5f, ts + rh, tw, h - ts - rh);
+                fill();
+            }
         }
 
         // ------------------------------------------------------------------------------------------------------------
