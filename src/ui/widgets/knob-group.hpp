@@ -19,7 +19,7 @@ class LibreAudioKnobGroupWidget : public LibreAudioContainerSubWidget<LibreAudio
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
-    static constexpr const uint kMaxNumParameters = 11;
+    static constexpr const uint kMaxNumParameters = 10;
 
     std::vector<std::unique_ptr<LibreAudioSmallKnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
@@ -48,6 +48,17 @@ public:
             widgets.push_back({ widget.get(), Fixed });
             fKnobs.emplace_back(std::move(widget));
             addSpacer();
+        }
+
+        // middle spacer
+        {
+            std::unique_ptr<LibreAudioWidget> spacer { new LibreAudioEmptyWidget<LibreAudioReference::Widgets::Knob>(this) };
+            auto it = widgets.begin();
+            for (uint i = 0, middle = widgets.size() / 2; i < middle; ++i)
+                ++it;
+            widgets.insert(it, { spacer.get(), Fixed });
+
+            fSpacers.emplace_back(std::move(spacer));
         }
 
         const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
