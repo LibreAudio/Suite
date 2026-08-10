@@ -103,7 +103,7 @@ mode = uiTop(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'H
 faderMinDb = -70;
 faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
 
-mix = uiBottomRight(hslider("[70]Mix[style:knob][symbol:mix][label:Mix]", 0, -100, 100, 0.1)) / 100 : si.smoo;
+mix = uiBottomRight(hslider("[90]Mix[style:knob][symbol:mix][label:Mix]", 0, -100, 100, 0.1)) / 100 : si.smoo;
 
 mixAttenDb(amount) = ba.linear2db(max(0.000001, 1 - amount));
 
