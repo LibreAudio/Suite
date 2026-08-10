@@ -1,5 +1,5 @@
 /* ===========================================================================
-   LAS Vocal Doubler (v8) — modulation-scope CURVE, Shadertoy port
+   LAS Vocal Doubler (v8) - modulation-scope CURVE, Shadertoy port
    ---------------------------------------------------------------------------
    Two rainbow voice traces riding on the wet-EQ response (HP + LP + presence
    bell), with the De-Ess dynamic downward shelf on top. Curve only: the
@@ -15,7 +15,7 @@
 uniform float uRate1;     // voice 1 trace rate, Hz
 uniform float uRate2;     // voice 2 trace rate, Hz
 uniform float uDepth;     // trace amplitude / wet depth (0 .. 1)
-uniform float uShowB;     // draw the 2nd voice? (0 or 1) — on in 1/3 Doubler & 2-voice ADT
+uniform float uShowB;     // draw the 2nd voice? (0 or 1) - on in 1/3 Doubler & 2-voice ADT
 uniform float uLpHz;      // wet-EQ low-pass corner, Hz
 uniform float uHpHz;      // wet-EQ high-pass corner, Hz
 uniform float uLpRes;     // low-pass resonance bump  (0 .. 1)
@@ -138,7 +138,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
     float baseNorm = (DBMAX - db) / (DBMAX - DBMIN);
 
     /* De-Ess: downward high-shelf above the crossover, amount animated per
-       frame to read as dynamic (sibilant) gain reduction — downward only.
+       frame to read as dynamic (sibilant) gain reduction - downward only.
        Softer knee (^3) and faster pump than the chorus, matching v8. */
     float wsh = 1.0 / (1.0 + pow(DEESSFREQ / freq, 3.0));
     float env = 0.0;

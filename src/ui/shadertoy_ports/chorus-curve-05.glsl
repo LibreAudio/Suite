@@ -1,5 +1,5 @@
 /* ===========================================================================
-   LAS Chorus — modulation-scope CURVE, Shadertoy port
+   LAS Chorus - modulation-scope CURVE, Shadertoy port
    ---------------------------------------------------------------------------
    Reproduces the two LFO traces riding on the filter response, plus the
    downward De-Ess high-shelf. Curve only: the background stays black and
@@ -128,7 +128,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
     float baseNorm = (DBMAX - db) / (DBMAX - DBMIN);
 
     /* De-Ess: downward high-shelf above the crossover, amount animated per
-       frame to read as dynamic (sibilant) gain reduction — downward only */
+       frame to read as dynamic (sibilant) gain reduction - downward only */
     float wsh = 1.0 / (1.0 + pow(DEESSFREQ / freq, 6.0));
     float env = 0.0;
     if (DEESS > 0.001){
