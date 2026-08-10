@@ -96,7 +96,7 @@ static void initParameterFromFaust(Parameter& parameter, const FaustParameter& f
         parameter.hints = kParameterIsOutput | kParameterIsHidden;
    #endif
 
-    parameter.name = faustParameter.label;
+    parameter.name = faustParameter.name;
     parameter.symbol = faustParameter.symbol;
     parameter.description = faustParameter.tooltip;
     parameter.unit = faustParameter.unit;
