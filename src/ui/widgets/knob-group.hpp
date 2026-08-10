@@ -40,7 +40,7 @@ public:
         for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
         {
             const FaustParameter& parameter = parameters[i];
-            if (parameter.isBoolean || parameter.isOutput) {
+            if (parameter.isEnumerator || parameter.isOutput) {
                 d_stdout("knob-group skipped parameter %s", parameter.label);
                 continue;
             }
