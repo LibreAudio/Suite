@@ -108,8 +108,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec2 uvRot = uv - pos.xy + pos.z/2.;
     	uvRot = rotate2d( i+iTime/2. ) * uvRot;
         uvRot += pos.xy+pos.z/2.;
-        float rect = rectangle(uvRot, pos.xy, pos.z, pos.z, (maxSize+minSize-pos.z)/2.);
-	    color += rectColor * rect * pos.z/maxSize;
+//         float rect = rectangle(uvRot, pos.xy, pos.z, pos.z, (maxSize+minSize-pos.z)/2.);
+// 	    color += rectColor * rect * pos.z/maxSize;
     }
     
 	fragColor = vec4(color, 1.0);

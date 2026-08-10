@@ -18,7 +18,7 @@ foreach(INPUT_FILE ${INPUT_FILES})
   # generate C-compatible symbol based on input name
   #if("${INPUT_FILE}" MATCHES "^.*/resources/.*$")
     string(REGEX REPLACE "^(.*)/resources/(.*)$" "\\2" INPUT_SYMBOL "${INPUT_FILE}")
-    if("${INPUT_FILE}" MATCHES "^.*\.(frag|vert)$")
+    if("${INPUT_FILE}" MATCHES "^.*.(frag|vert)$")
       set(INPUT_TYPE "char")
     else()
       set(INPUT_TYPE "unsigned char")
