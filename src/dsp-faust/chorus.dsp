@@ -55,30 +55,46 @@ import("stdfaust.lib");
    bit-identical with the control at either end of its range, so the UI can
    disable it there with no audible consequence.
 
-                    I    II   I+II  Dim D  Ens
-      dim           .    .    .     o      .
-      rate1         o    o    o     .      .
-      rate2         .    o    o     .      .
-      dctr          o    o    o     .      .
-      ddepth        o    o    o     .      .
-      width         o    o    o     .      o
-      hp_freq       o    o    o     o      o
-      lp_freq       o    o    o     o      o
-      hflim_amount  o    o    o     o      o
-      drywet        o    o    o     o      o
-      true stereo   o    o    o     o      o
+   Rows follow the order the controls appear in the UI, listed with the [n]
+   index each one declares, groups themselves in index order. One tie means the
+   indices alone do not settle that order: Stage Bottom Left and Stage Bottom
+   Right both declare [1]. The order below is the one the generated UI actually
+   produces, with Left ahead of Right.
 
-      detune        true stereo only — inert in every mode with it off
+                              I    II   I+II  Dim D  Ens
+    Mode [0]
+      [02] stereo             o    o    o     o      o
+    Stage Bottom Left [1]
+      [11] dctr               o    o    o     .      .
+      [12] ddepth             o    o    o     .      .
+      [13] rate1              o    o    o     .      .
+      [14] rate2              .    o    o     .      .
+      [15] dim                .    .    .     o      .
+      [16] detune            ts   ts   ts    ts     ts
+    Stage Bottom Right [1]
+      [21] deess_amount       o    o    o     o      o
+      [22] hp_freq            o    o    o     o      o
+      [23] lp_freq            o    o    o     o      o
+      [24] width              o    o    o     .      o
+      [25] drywet             o    o    o     o      o
 
-   Dimension D and Ensemble are fixed-constant machine emulations, which is
-   why the whole Delay section and most of the LFO section go dead in them.
+   Dimension D and Ensemble are fixed-constant machine emulations, which is why
+   both DELAY controls and both LFO rates go dead in them — of the whole Stage
+   Bottom Left group only dim and detune reach the output there.
    width survives in Ensemble but not Dimension D: the latter's wet signal
    is already pure side, so widening has nothing to act on.
-   detune is the one control whose condition is not the mode at all — it only
-   ever reaches the true-stereo signal paths.
-   hflim_amount is live in every mode because it sits in the shared wet feed
-   ahead of the mode select, but it goes dead at drywet 0 along with every
-   other wet-side row — the plugin is a dry pass-through there.
+
+   ts  detune is the one control whose condition is not the mode at all: it
+      reaches only the true-stereo signal paths, so it is live in all five modes
+      with Stereo on True Stereo and inert in all five on Mono.
+
+   deess_amount is live in every mode because it sits in the shared wet feed
+   ahead of the mode select rather than inside any one mode.
+
+   drywet at 0 mutes the wet path outright and every row above goes dead — the
+   plugin is a dry pass-through there. Unlike the Vocal Doubler's Dry-Wet this
+   knob is not smoothed, so that holds sample-for-sample rather than only once
+   the knob has settled.
 */
 
 
@@ -96,27 +112,27 @@ uiTone(x)   = uiBottom(hgroup("[4]Tone",  x));
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
 // Pills
-mode        = uiMode(nentry("[0]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
-true_stereo = uiMode(nentry("[0]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
+mode        = uiMode(nentry("[01]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
+true_stereo = uiMode(nentry("[02]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
 
 // Parameters
-dctr        = uiBottomLeft(hslider("[01]Center [style:knob][unit:ms][symbol:dctr][label:Center][bracket:DELAY]",       6.0,   1.0,  20.0,  0.1))  / 1000;
-ddepth      = uiBottomLeft(hslider("[02]Depth [style:knob][unit:ms][symbol:ddepth][label:Depth][bracket:DELAY]",     3.0,   0.0,  10.0,  0.01)) / 1000;
-rate1       = uiBottomLeft(hslider("[03]Rate 1[style:knob][unit:Hz][scale:log][symbol:rate1][label:Rate 1][bracket:LFO]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
-rate2       = uiBottomLeft(hslider("[04]Rate 2[style:knob][unit:Hz][scale:log][symbol:rate2][label:Rate 2][bracket:LFO]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
+dctr        = uiBottomLeft(hslider("[11]Center [style:knob][unit:ms][symbol:dctr][label:Center][accentcolor:02][bracket:DELAY]",       6.0,   1.0,  20.0,  0.1))  / 1000;
+ddepth      = uiBottomLeft(hslider("[12]Depth [style:knob][unit:ms][symbol:ddepth][label:Depth][accentcolor:02][bracket:DELAY]",     3.0,   0.0,  10.0,  0.01)) / 1000;
+rate1       = uiBottomLeft(hslider("[13]Rate 1[style:knob][unit:Hz][scale:log][symbol:rate1][label:Rate 1][accentcolor:03][bracket:LFO]",  0.513, 0.05, 5.0,    0.001));  // primary LFO (Hz)
+rate2       = uiBottomLeft(hslider("[14]Rate 2[style:knob][unit:Hz][scale:log][symbol:rate2][label:Rate 2][accentcolor:03][bracket:LFO]",  0.863, 0.05, 5.0,    0.001));  // secondary LFO, modes II and I+II only (Hz)
 
-dim         = uiBottomLeft(hslider("[05]Dim-D[style:knob][symbol:dim][label:Dimension]", 1, 1, 4, 1)) -1 : int; // SDD-320 four-button switch, Dimension D mode only
+dim         = uiBottomLeft(hslider("[15]Dim-D[style:knob][symbol:dim][label:Dimension][accentcolor:02]", 1, 1, 4, 1)) -1 : int; // SDD-320 four-button switch, Dimension D mode only
 
-detune      = uiBottomLeft(hslider("[06]Detune [style:knob][unit:%][symbol:detune][label:Detune]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
+detune      = uiBottomLeft(hslider("[16]Detune [style:knob][unit:%][symbol:detune][label:Detune][accentcolor:02]",      5.0,   0.0,  50.0,  0.1))  / 100;   // LFO rate detune between L/R instances (true stereo)
 
-hflim_amount = uiBottomRight(hslider("[07]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess]", 0, 0, 100, 1)) / 100;
+hflim_amount = uiBottomRight(hslider("[21]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
 hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
-hp_freq     = uiBottomRight(hslider("[08]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][bracket:TONE]",    1,    1,   20000,  1));
-lp_freq     = uiBottomRight(hslider("[09]LowPass [style:knob][unit:Hz][scale:log][symbol:lp_freq][label:LowPass][bracket:TONE]",    20000, 1,  20000, 1));
+hp_freq     = uiBottomRight(hslider("[22]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][accentcolor:06][bracket:TONE]",    1,    1,   20000,  1));
+lp_freq     = uiBottomRight(hslider("[23]LowPass [style:knob][unit:Hz][scale:log][symbol:lp_freq][label:LowPass][accentcolor:06][bracket:TONE]",    20000, 1,  20000, 1));
 
-drywet      = uiBottomRight(hslider("[11]Dry-Wet [style:knob][unit:%][symbol:drywet][label:Dry-Wet][easy]",50,0,100,1)) / 100;
-width       = uiBottomRight(hslider("[10]Width [style:knob][unit:%][symbol:width][label:Width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
+width       = uiBottomRight(hslider("[24]Width [style:knob][unit:%][symbol:width][accentcolor:04][label:Width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
+drywet      = uiBottomRight(hslider("[25]Dry-Wet [style:knob][unit:%][symbol:drywet][label:Dry-Wet][accentcolor:01][easy]",50,0,100,1)) / 100;
 
 
 MAXN = 1 << 17;    // delay buffer size in samples
