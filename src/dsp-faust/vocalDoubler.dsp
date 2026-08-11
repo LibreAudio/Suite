@@ -11,52 +11,57 @@ import("stdfaust.lib");
    bit-identical with the control at either end of its range, so the UI can
    disable it there with no audible consequence.
 
-                            ADT   1/3 Doubler   Take
-      mix                    o         o         o
-      hflim_amount           o         o         o
-      eq_hp                  o         o         o
-      eq_lp                  o         o         o
-      presence               o         o         o
+   Rows follow the order the controls appear in the UI, listed with the [n]
+   index each one declares, groups themselves in index order. Note that Stage
+   Bottom Left and Stage Bottom Right both declare [1], so their indices do not
+   decide which comes first; the order below is the one the generated UI
+   actually produces, with Left ahead of Right.
 
-      adt_2voice             o         .         .
-      adt_delay              o         .         .
-      adt_wow_depth          o         .         .
-      adt_wow_rate          (o)        .         .
-      adt_pan               1v         .         .
-      adt_width             2v         .         .
-
-      doubler_base_delay     .         o         .
-      doubler_detune         .         o         .
-      doubler_wander_rate    .         o         .
-      doubler_wander_depth   .         o         .
-      doubler_width          .         o         .
-
-      take_base_delay        .         .         o
-      take_timing            .         .         o
-      take_pitch             .         .         o
-      take_character         .         .         o
-      take_width             .         .         o
+                                 ADT   1/3 Doubler   Human
+    Adt [0]
+      [01] adt_delay              o         .         .
+      [02] adt_2voice             o         .         .
+      [03] adt_wow_rate           o         .         .
+      [04] adt_wow_depth          o         .         .
+      [05] adt_pan               1v         .         .
+      [06] adt_width             2v         .         .
+    Doubler [1]
+      [11] doubler_base_delay     .         o         .
+      [12] doubler_detune         .         o         .
+      [13] doubler_wander_rate    .         o         .
+      [14] doubler_wander_depth   .         o         .
+      [15] doubler_width          .         o         .
+    Human [2]
+      [21] take_base_delay        .         .         o
+      [22] take_timing            .         .         o
+      [23] take_pitch             .         .         o
+      [24] take_character         .         .         o
+      [25] take_width             .         .         o
+    Stage Bottom Right [1] — global
+      [31] deess_amount           o         o         o
+      [32] eq_hp                  o         o         o
+      [33] eq_lp                  o         o         o
+      [34] presence               o         o         o
+      [35] mix                    o         o         o
 
    Each mode's section is dead in the other two: the select3 at the end of
-   process discards the unselected branches whole. The six global rows are
-   live everywhere, because the HF limiter and the wet EQ sit in the shared
-   wet feed rather than inside any one mode.
+   process discards the unselected branches whole. The five global rows are
+   live everywhere, because the de-esser and the wet EQ sit in the shared wet
+   feed rather than inside any one mode.
 
-   1v / 2v  adt_pan and adt_width are mutually exclusive on the ADT 2nd Voice
-      switch: with one voice only pan is live (it places the double), with two
-      only width is (it spreads the pair). The other one is fully inert, not
-      just subtle.
-   (o)  adt_wow_rate goes dead at ADT Wow Depth 0 — the wow LFO is multiplied
-      by the depth, so at zero its rate cannot reach the delay time. Note that
-      doubler_wander_rate does NOT behave this way: at Wander Depth 0 it still
-      sets the amplitude-wander rate, so it stays live.
+   1v / 2v  adt_pan and adt_width are mutually exclusive on the Voices knob:
+      at 1 only pan is live (it places the double), at 2 only width is (it
+      spreads the pair). The other one is fully inert, not just subtle.
+   
 
-   mix at -100 mutes the wet path outright and every row but mix itself goes
-   dead — the plugin is then a dry pass-through. The other end is not
-   symmetric: +100 mutes the dry but leaves the whole wet side, limiter and EQ
+   mix at -100 mutes the wet path outright: with the knob settled there every
+   row above goes bit-identical and the plugin is a dry pass-through. mix is
+   smoothed, so a move to -100 leaks a short wet tail on the way — the row is a
+   steady-state statement, not an instantaneous one. The other end is not
+   symmetric: +100 mutes the dry but leaves the whole wet side, de-esser and EQ
    included, still live.
 
-   Caveat for the Take rows: take_timing and take_pitch only reach the output
+   Caveat for the Human rows: take_timing and take_pitch only reach the output
    after a syllable onset has fired, since both scale a per-onset held value
    that starts at zero. They measure dead on steady or metronomic material and
    need a syllabic signal with real gaps between phrases to show up at all —
@@ -103,7 +108,7 @@ mode = uiTop(nentry("[0]Mode[symbol:mode][style:radio{'ADT':0;'1/3 Doubler':1;'H
 faderMinDb = -70;
 faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
 
-mix = uiBottomRight(hslider("[90]Mix[style:knob][symbol:mix][label:Mix][easy]", 0, -100, 100, 0.1)) / 100 : si.smoo;
+mix = uiBottomRight(hslider("[35]Dry-Wet[unit:%][style:knob][symbol:mix][label:Dry-Wet][accentcolor:01][easy]", 0, -100, 100, 0.1)) / 100 : si.smoo;
 
 mixAttenDb(amount) = ba.linear2db(max(0.000001, 1 - amount));
 
@@ -131,7 +136,7 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total red
 
 lerp(a, b, t) = a + (b - a) * t;
 
-hflim_amount = uiBottomRight(hslider("[80]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess]", 50, 0, 100, 1)) / 100;
+hflim_amount = uiBottomRight(hslider("[31]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 50, 0, 100, 1)) / 100;
 hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
@@ -162,10 +167,10 @@ with {
 // it, plus one band to duck or lift whatever frequency the double
 // exaggerates. Applies in every mode.
 
-eq_hpHz = uiBottomRight(hslider("[0]High Pass[style:knob][unit:Hz][scale:log][symbol:eq_hp][label:HighPass]", 20, 20, 20000, 1)) : si.smoo;
-eq_lpHz = uiBottomRight(hslider("[1]Low Pass[style:knob][unit:Hz][scale:log][symbol:eq_lp][label:LowPass]", 20000, 20, 20000, 1)) : si.smoo;
+eq_hpHz = uiBottomRight(hslider("[32]HighPass[style:knob][unit:Hz][scale:log][symbol:eq_hp][label:HighPass][accentcolor:06]", 20, 20, 20000, 1)) : si.smoo;
+eq_lpHz = uiBottomRight(hslider("[33]LowPass[style:knob][unit:Hz][scale:log][symbol:eq_lp][label:LowPass][accentcolor:06]", 20000, 20, 20000, 1)) : si.smoo;
 eq_freq = 5000; //hgroup("[5]Wet EQ", hslider("[2]Presence Freq[unit:Hz][symbol:presence_freq]", 2000, 100, 12000, 1));
-eq_gain = uiBottomRight(hslider("[3]Prensence[style:knob][unit:dB][symbol:presence][label:Presence]", 0, -12, 12, 0.1)) : si.smoo;
+eq_gain = uiBottomRight(hslider("[34]Prensence[style:knob][unit:dB][symbol:presence][label:Presence][accentcolor:06]", 0, -12, 12, 0.1)) : si.smoo;
 eq_q    = 0.28; //hgroup("[5]Wet EQ", hslider("[4]Presence Q[symbol:presence_q]", 1, 0.2, 8, 0.01));
 
 wetEq = fi.highpass(2, eq_hpHz)
@@ -182,12 +187,12 @@ wetEq = fi.highpass(2, eq_hpHz)
 // with two (how far apart they sit); the unused one is simply ignored.
 
 
-adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay][label:Delay]", 18, 5, 40, 0.1)) : si.smoo;
-adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices]",1,1,2,1)) -1;
-adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][bracket:WOW]", 0.6, 0.05, 5, 0.01));
-adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
-adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan]", 0, -1, 1, 0.01));
-adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width][label:Width]", 1, 0, 1, 0.01));
+adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay][label:Delay][accentcolor:02]", 18, 5, 40, 0.1)) : si.smoo;
+adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices][accentcolor:02]",1,1,2,1)) -1;
+adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][accentcolor:03][bracket:WOW]", 0.6, 0.05, 5, 0.01));
+adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][accentcolor:03][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
+adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan][accentcolor:04]", 0, -1, 1, 0.01));
+adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width][label:Width][accentcolor:04]", 1, 0, 1, 0.01));
 
 // second machine, derived from the single-voice settings
 adt_delay2  = adt_delayMs * 1.6 + 4;
@@ -238,11 +243,11 @@ with {
 // own slow random ("humanized") wander in pitch and level so they don't
 // read as a static chorus but as two separate takes.
 
-db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay][label:Delay]", 20, 5, 50, 0.1)) : si.smoo;
-db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune][label:Detune]", 14, 0, 40, 0.1));
-db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][label:Rate][bracket:WANDER]", 0.25, 0.02, 2, 0.01));
-db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][label:Depth][bracket:WANDER]", 6, 0, 25, 0.1));
-db_width    = uiDoubler(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width][label:Width]", 1, 0, 1, 0.01));
+db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay][label:Delay][accentcolor:02]", 20, 5, 50, 0.1)) : si.smoo;
+db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune][label:Detune][accentcolor:05]", 14, 0, 40, 0.1));
+db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][label:Rate][accentcolor:03][bracket:WANDER]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][label:Depth][accentcolor:03][bracket:WANDER]", 6, 0, 25, 0.1));
+db_width    = uiDoubler(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width][label:Width][accentcolor:04]", 1, 0, 1, 0.01));
 
 db_voice(centsShift, delayMs, wanderFreq, x) = out
 with {
@@ -287,12 +292,12 @@ with {
 // makes each voice read as a different throat rather than the same voice
 // detuned.
 
-tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay][label:Delay]", 25, 5, 60, 0.1)) : si.smoo;
-tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][label:Timing][bracket:VARIATION]", 15, 0, 40, 0.1));
-tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][label:Pitch][bracket:VARIATION]", 10, 0, 30, 0.1));
-tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][label:Character][bracket:VARIATION]", 40, 0, 100, 1)) / 100;
+tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay][label:Delay][accentcolor:02]", 25, 5, 60, 0.1)) : si.smoo;
+tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][label:Timing][accentcolor:03][bracket:VARIATION]", 15, 0, 40, 0.1));
+tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][label:Pitch][accentcolor:03][bracket:VARIATION]", 10, 0, 30, 0.1));
+tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][label:Character][accentcolor:03][bracket:VARIATION]", 40, 0, 100, 1)) / 100;
 tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
-tk_width    = uiHuman(hslider("[25]TAKE Width[style:knob][symbol:take_width][label:Width]", 1, 0, 1, 0.01));
+tk_width    = uiHuman(hslider("[25]TAKE Width[style:knob][symbol:take_width][accentcolor:04][label:Width]", 1, 0, 1, 0.01));
 
 // Onset detection watches the consonant band rather than overall level: a
 // syllable in legato singing barely moves the total envelope, but its
