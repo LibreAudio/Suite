@@ -224,8 +224,8 @@ private:
     static inline void knobPt(float cx, float cy, float r, float deg, float& x, float& y)
     {
         const float a = deg * M_PI / 180.f;
-        x = cx + r * std::sinf(a);
-        y = cy - r * std::cosf(a);
+        x = cx + r * std::sin(a);
+        y = cy - r * std::cos(a);
     }
 
     void knobBand(float cx, float cy, float rArc, float w, float a0, float a1, Paint* paint, Color solid)
