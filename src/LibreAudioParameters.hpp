@@ -6,8 +6,10 @@
 
 #include "DistrhoDetails.hpp"
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 #include "common_input-parameters.hpp"
 #include "common_output-parameters.hpp"
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -35,10 +37,12 @@ enum Groups {
 enum Parameters {
     kParametersCommonStart,
     kParametersCommonEnd = kParametersCommonStart + kCommonParameterCount - 1,
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     kParametersInputStart,
     kParametersInputEnd = kParametersInputStart + common_input::kFaustParameterCount - 1,
     kParametersOutputStart,
     kParametersOutputEnd = kParametersOutputStart + common_output::kFaustParameterCount - 1 - kCommonIOParameters,
+   #endif
     kParametersMainStart,
 };
 

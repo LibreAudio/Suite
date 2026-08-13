@@ -60,11 +60,13 @@ protected:
     */
     void initParameter(uint32_t index, Parameter& parameter) final;
 
+  #ifndef _DARKGLASS_DEVICE_PABLITO
    /**
       Initialize the state @a index.
       This function will be called once, shortly after the plugin is created.
     */
     void initState(uint32_t index, State& state) final;
+  #endif
 
    /**
       Initialize the port group @a groupId.
@@ -90,10 +92,12 @@ protected:
     */
     void setParameterValue(uint32_t index, float value) final;
 
+  #ifndef _DARKGLASS_DEVICE_PABLITO
    /**
       Change an internal state @a key to @a value.
     */
     void setState(const char* key, const char* value) final;
+  #endif
 
    /* -----------------------------------------------------------------------------------------------------------------
     * Audio/MIDI Processing */
@@ -121,9 +125,11 @@ protected:
 private:
     static const std::vector<FaustParameter>& kFaustParameters;
 
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     // TODO convert common IO to C++
     static const std::vector<FaustParameter>& kFaustParametersIn;
     static const std::vector<FaustParameter>& kFaustParametersOut;
+   #endif
 
     const uint32_t kParameterCount;
     float* const fCommonParameterValues;
@@ -159,8 +165,10 @@ private:
     std::atomic<bool> fMuting { false };
 
     FaustDSP* const fMainDSP;
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     FaustDSP* const fInputDSP;
     FaustDSP* const fOutputDSP;
+   #endif
 
     void mute();
     void unmute();

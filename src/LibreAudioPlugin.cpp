@@ -4,14 +4,19 @@
 
 #include "LibreAudioPlugin.hpp"
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 #include "extra/ScopedDenormalDisable.hpp"
+#endif
 
+#include "FaustDSP.hpp"
 #include "LibreAudioParameters.hpp"
 #include "LibreAudioStates.hpp"
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 // TODO convert common IO to C++
 #include "common_input-dsp.hpp"
 #include "common_output-dsp.hpp"
+#endif
 
 #include <cassert>
 
@@ -25,9 +30,11 @@ static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
 const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParameters = getFaustParameters();
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 // TODO convert common IO to C++
 const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParametersIn = common_input::getFaustParameters();
 const std::vector<FaustParameter>& LibreAudioPlugin::kFaustParametersOut = common_output::getFaustParameters();
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -35,9 +42,11 @@ LibreAudioPlugin::LibreAudioPlugin()
     : Plugin(kParametersMainStart  + kFaustParameters.size(), 0, kStateCount),
       kParameterCount(kParametersMainStart  + kFaustParameters.size()),
       fCommonParameterValues(new float[kCommonParameterCount]),
-      fMainDSP(createDSP()),
-      fInputDSP(common_input::createDSP()),
-      fOutputDSP(common_output::createDSP())
+      fMainDSP(createDSP())
+   #ifndef _DARKGLASS_DEVICE_PABLITO
+    , fInputDSP(common_input::createDSP())
+    , fOutputDSP(common_output::createDSP())
+   #endif
 {
     initCommonParameterValuesToDefault(fCommonParameterValues);
 
@@ -53,8 +62,10 @@ LibreAudioPlugin::LibreAudioPlugin()
     fGlobalWetValue.setTargetValue(1.f);
 
     fMainDSP->init(iSampleRate);
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     fInputDSP->init(iSampleRate);
     fOutputDSP->init(iSampleRate);
+   #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
     fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);
@@ -65,8 +76,10 @@ LibreAudioPlugin::LibreAudioPlugin()
 LibreAudioPlugin::~LibreAudioPlugin()
 {
     delete fMainDSP;
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     delete fInputDSP;
     delete fOutputDSP;
+   #endif
     delete[] fCommonParameterValues;
     delete[] fInternalBuffer;
    #if DISTRHO_PLUGIN_WANT_LATENCY
@@ -149,6 +162,7 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
         parameter.ranges.max = 100.f;
         break;
    #endif
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     case kParametersInputStart ... kParametersInputEnd:
         parameter.groupId = kGroupInput;
         initParameterFromFaust(parameter, kFaustParametersIn[index - kParametersInputStart]);
@@ -157,14 +171,18 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
         parameter.groupId = kGroupOutput;
         initParameterFromFaust(parameter, kFaustParametersOut[index - kParametersOutputStart + kCommonIOParameters]);
         break;
+   #endif
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount,);
+       #ifndef _DARKGLASS_DEVICE_PABLITO
         parameter.groupId = kGroupMain;
+       #endif
         initParameterFromFaust(parameter, kFaustParameters[index - kParametersMainStart]);
         break;
     }
 }
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 void LibreAudioPlugin::initState(const uint32_t index, State& state)
 {
     state.hints = kStateIsOnlyForUI;
@@ -191,6 +209,7 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
         break;
     }
 }
+#endif
 
 void LibreAudioPlugin::initPortGroup(const uint32_t groupId, PortGroup& portGroup)
 {
@@ -221,10 +240,12 @@ float LibreAudioPlugin::getParameterValue(const uint32_t index) const
     {
     case kParametersCommonStart ... kParametersCommonEnd:
         return fCommonParameterValues[index - kParametersCommonStart];
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     case kParametersInputStart ... kParametersInputEnd:
         return fInputDSP->get(index - kParametersInputStart);
     case kParametersOutputStart ... kParametersOutputEnd:
         return fOutputDSP->get(index - kParametersOutputStart + kCommonIOParameters);
+   #endif
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount, 0.f);
         return fMainDSP->get(index - kParametersMainStart);
@@ -239,12 +260,14 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
     case kParametersCommonStart ... kParametersCommonEnd:
         fCommonParameterValues[index - kParametersCommonStart] = value;
         break;
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     case kParametersInputStart ... kParametersInputEnd:
         fInputDSP->set(index - kParametersInputStart, value);
         break;
     case kParametersOutputStart ... kParametersOutputEnd:
         fOutputDSP->set(index - kParametersOutputStart + kCommonIOParameters, value);
         break;
+   #endif
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParameterCount,);
         fMainDSP->set(index - kParametersMainStart, value);
@@ -261,16 +284,20 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
         if (fMuting.load() == false)
             doUnmute();
         break;
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     case kParametersInputStart + common_input::kFaustParameterInput_ms_on:
         fOutputDSP->set(common_output::kFaustParameterInput_ms_on, value);
         break;
+   #endif
     }
 }
 
+#ifndef _DARKGLASS_DEVICE_PABLITO
 void LibreAudioPlugin::setState(const char*, const char*)
 {
     // all states in LA plugins are UI-only
 }
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 // Audio/MIDI Processing
@@ -282,7 +309,9 @@ void LibreAudioPlugin::activate()
 
 void LibreAudioPlugin::run(const float** const inputs, float** const outputs, const uint32_t frames)
 {
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     const ScopedDenormalDisable sdd;
+   #endif
 
     if (d_isNotZero(fCommonParameterValues[kCommonParameterReset]))
     {
@@ -293,8 +322,10 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         fGlobalDryValue.clearToTargetValue();
         fGlobalWetValue.clearToTargetValue();
         fMainDSP->instanceClear();
+       #ifndef _DARKGLASS_DEVICE_PABLITO
         fInputDSP->instanceClear();
         fOutputDSP->instanceClear();
+       #endif
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
         fLatencyReadPos = -fLastKnownLatency;
@@ -339,9 +370,13 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         fMainDSP->set(leveler::kFaustParameterVad_ext, vad);
        #endif
 
+       #ifndef _DARKGLASS_DEVICE_PABLITO
         fInputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
         fMainDSP->compute(cycleFrames, fCycleBuffer2, fCycleBuffer1);
         fOutputDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
+       #else
+        fMainDSP->compute(cycleFrames, fCycleBuffer1, fCycleBuffer2);
+       #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
         {
@@ -387,8 +422,10 @@ void LibreAudioPlugin::sampleRateChanged(const double newSampleRate)
 
     const int sampleRate = d_roundToIntPositive(newSampleRate);
     fMainDSP->instanceConstants(sampleRate);
+   #ifndef _DARKGLASS_DEVICE_PABLITO
     fInputDSP->instanceConstants(sampleRate);
     fOutputDSP->instanceConstants(sampleRate);
+   #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
     fMainDSP->compute(0, fCycleBuffer1, fCycleBuffer2);

@@ -13,13 +13,19 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 enum States {
+#ifndef _DARKGLASS_DEVICE_PABLITO
     kStateCurrentSnapshot,
     kStateSnapshotValuesA,
     kStateSnapshotValuesB,
     kStateSnapshotValuesC,
     kStateSnapshotValuesD,
+#endif
     kStateCount,
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+#ifndef _DARKGLASS_DEVICE_PABLITO
 
 #define LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "snapshot_values_"
 
@@ -32,6 +38,8 @@ inline constexpr const char* kStateKeys[kStateCount] = {
 };
 
 inline constexpr const uint8_t kNumSnapshots = 4;
+
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 
