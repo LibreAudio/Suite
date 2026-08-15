@@ -35,6 +35,8 @@ protected:
     // ----------------------------------------------------------------------------------------------------------------
     // UI Widget Interface
 
+    PageButton getCurrentPage() const noexcept final { return fPage; }
+
     float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
 
     bool canUndo() const noexcept final { return fSnapshots.canUndo(); }
@@ -49,6 +51,7 @@ protected:
     void parameterControlReleased(uint32_t index) final;
     void parameterControlModified(uint32_t index, float value) final;
 
+    void pageButtonClicked(PageButton button) final;
     void snapshotButtonClicked(SnapshotButton button) final;
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -64,6 +67,9 @@ private:
 
     float* const fParameterValues;
     float* const fParameterValuesWhenActivated;
+
+    PageButton fPage = kPageButtonEasy;
+    PageButton fLastEasyExpertPage = kPageButtonEasy;
 
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;

@@ -61,10 +61,7 @@ public:
         fUndo->setId(kWidgetUndo);
         fRedo->setId(kWidgetRedo);
 
-        // no undo/redo by default
-        fUndo->setEnabled(false);
-        fRedo->setEnabled(false);
-
+        update();
         addIdleCallback(this);
     }
 
@@ -83,6 +80,11 @@ private:
     }
 
     void idleCallback() final
+    {
+        update();
+    }
+
+    void update()
     {
         fUndo->setEnabled(fInterface->canUndo());
         fRedo->setEnabled(fInterface->canRedo());
@@ -128,6 +130,7 @@ public:
         fC->setId(kWidgetSnapshotC);
         fD->setId(kWidgetSnapshotD);
 
+        update();
         addIdleCallback(this);
     }
 
@@ -176,15 +179,13 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioTopBarEasyExpertGroupWidget : public LibreAudioButtonGroupWidget,
-                                              private ButtonEventHandler::Callback
+                                              private ButtonEventHandler::Callback,
+                                              private IdleCallback
 {
     static constexpr const char kTextEasy[] = "Easy";
     static constexpr const char kTextExpert[] = "Expert";
     std::unique_ptr<LibreAudioButtonWidget> fEasy = addButton<LibreAudioTextButtonWidget<kTextEasy>>();
     std::unique_ptr<LibreAudioButtonWidget> fExpert = addButton<LibreAudioTextButtonWidget<kTextExpert>>();
-
-    // easy mode checked by default
-    bool fEasyMode = true;
 
 public:
     explicit LibreAudioTopBarEasyExpertGroupWidget(LibreAudioWidget* const parent)
@@ -195,21 +196,39 @@ public:
         fEasy->setCheckable(true);
         fExpert->setCheckable(true);
 
-        fEasy->setChecked(fEasyMode, false);
-        fExpert->setChecked(!fEasyMode, false);
-
         fEasy->setId(kWidgetEasy);
         fExpert->setId(kWidgetExpert);
+
+        update();
+        addIdleCallback(this);
     }
 
 private:
-    void buttonClicked(SubWidget*, int) final
+    void buttonClicked(SubWidget* const widget, int) final
     {
-        fEasyMode = !fEasyMode;
-        fEasy->setChecked(fEasyMode, false);
-        fExpert->setChecked(!fEasyMode, false);
+        switch (widget->getId())
+        {
+        case kWidgetEasy:
+            fInterface->pageButtonClicked(LibreAudioUIWidgetInterface::kPageButtonEasy);
+            break;
+        case kWidgetExpert:
+            fInterface->pageButtonClicked(LibreAudioUIWidgetInterface::kPageButtonExpert);
+            break;
+        }
 
-        // fInterface->
+        update();
+    }
+
+    void idleCallback() final
+    {
+        update();
+    }
+
+    void update()
+    {
+        const LibreAudioUIWidgetInterface::PageButton page = fInterface->getCurrentPage();
+        fEasy->setChecked(page == LibreAudioUIWidgetInterface::kPageButtonEasy, false);
+        fExpert->setChecked(page == LibreAudioUIWidgetInterface::kPageButtonExpert, false);
     }
 };
 
@@ -229,6 +248,7 @@ public:
         done(this);
 
         fMenu->setCheckable(true);
+        fPower->setCheckable(true);
 
         fMenu->setId(kWidgetMenu);
         fPower->setId(kWidgetPower);
@@ -242,7 +262,7 @@ private:
         switch (widget->getId())
         {
         case kWidgetMenu:
-            // TODO
+            fInterface->pageButtonClicked(LibreAudioUIWidgetInterface::kPageButtonSettings);
             break;
         case kWidgetPower:
             fInterface->parameterControlPressed(kCommonParameterBypass);
@@ -251,12 +271,20 @@ private:
             fInterface->parameterControlReleased(kCommonParameterBypass);
             break;
         }
+
+        update();
     }
 
     void idleCallback() final
     {
+        update();
+    }
+
+    void update()
+    {
+        fMenu->setChecked(fInterface->getCurrentPage() == LibreAudioUIWidgetInterface::kPageButtonSettings, false);
         // NOTE this only triggers updates if the value doesnt match
-        fPower->setChecked(d_isNotZero(fInterface->getParameterValue(kCommonParameterBypass)), true);
+        fPower->setChecked(d_isNotZero(fInterface->getParameterValue(kCommonParameterBypass)), false);
     }
 };
 

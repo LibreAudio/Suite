@@ -26,7 +26,7 @@ class LibreAudioKnobGroupWidget : public LibreAudioContainerWidget<LibreAudioRef
 
     static constexpr const uint kMaxNumParameters = 10;
 
-    std::vector<std::unique_ptr<LibreAudioSmallKnobWidget>> fKnobs;
+    std::vector<std::unique_ptr<KnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
 
     struct Bracket {
@@ -113,7 +113,7 @@ public:
         const char* lastBracket = "";
         for (uint i = 0, size = fKnobs.size(); i < size; ++i)
         {
-            const std::unique_ptr<LibreAudioSmallKnobWidget>& knob = fKnobs[i];
+            const std::unique_ptr<KnobWidget>& knob = fKnobs[i];
 
             const FaustParameter& parameter = fParameters.at(knob->getId() - fParametersOffset);
 
@@ -159,8 +159,8 @@ private:
     {
         for (const Bracket& bracket : fBrackets)
         {
-            const LibreAudioSmallKnobWidget* const knobS = fKnobs[bracket.start].get();
-            const LibreAudioSmallKnobWidget* const knobE = fKnobs[bracket.end - 1].get();
+            const KnobWidget* const knobS = fKnobs[bracket.start].get();
+            const KnobWidget* const knobE = fKnobs[bracket.end - 1].get();
 
             const float lw = 2;
             const float sx = knobS->getAbsoluteX() - knobS->getWidth();
@@ -221,7 +221,62 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioExpertKnobsGroupWidget : public LibreAudioKnobGroupWidget<>
+class LibreAudioEasyKnobsGroupWidget final : public LibreAudioContainerWidget<LibreAudioReference::Widgets::KnobGroup>
+{
+    using R = LibreAudioReference::Widgets::KnobGroup;
+
+public:
+    explicit LibreAudioEasyKnobsGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioContainerWidget(parent)
+    {
+        addSpacer();
+
+        const std::vector<FaustParameter>& parameters = getFaustParameters();
+
+        for (uint32_t i = 0, count = parameters.size(); i < count; ++i)
+        {
+            const FaustParameter& parameter = parameters[i];
+            if (! parameter.isEasy) {
+                continue;
+            }
+            std::unique_ptr<LibreAudioKnobWidget> widget { new LibreAudioEasyKnobWidget(this, parameter, kParametersMainStart + i) };
+            widgets.push_back({ widget.get(), Fixed });
+            fKnobs.emplace_back(std::move(widget));
+        }
+
+        addSpacer();
+
+        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+        uint knobHeight;
+
+        if constexpr (R::height != 0)
+            knobHeight = R::height * fScaleFactor;
+        else if (! fKnobs.empty())
+            knobHeight = fKnobs.front()->getHeight();
+        else
+            knobHeight = d_roundToUnsignedInt(fScaleFactor);
+
+        LibreAudioWidget::setHeight((border + margin) * 2 + knobHeight);
+    }
+
+private:
+    std::vector<std::unique_ptr<LibreAudioKnobWidget>> fKnobs;
+    std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
+
+    void addSpacer()
+    {
+        std::unique_ptr<LibreAudioEmptyWidget<>> spacer { new LibreAudioEmptyWidget(this) };
+        widgets.push_back({ spacer.get(), Expanding });
+        fSpacers.emplace_back(std::move(spacer));
+    }
+
+    void addWidget() = delete;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioExpertKnobsGroupWidget final : public LibreAudioKnobGroupWidget<>
 {
 public:
     explicit LibreAudioExpertKnobsGroupWidget(LibreAudioWidget* const parent)

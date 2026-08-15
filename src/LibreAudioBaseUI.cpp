@@ -322,6 +322,28 @@ void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const floa
     setParameterValue(index, value);
 }
 
+void LibreAudioBaseUI::pageButtonClicked(const PageButton button)
+{
+    if (fPage == button)
+    {
+        if (button == kPageButtonSettings)
+            fPage = fLastEasyExpertPage;
+        return;
+    }
+
+    fPage = button;
+
+    switch (button)
+    {
+    case kPageButtonEasy:
+    case kPageButtonExpert:
+        fLastEasyExpertPage = button;
+        break;
+    default:
+        break;
+    }
+}
+
 void LibreAudioBaseUI::snapshotButtonClicked(const SnapshotButton button)
 {
     if (button == kSnapshotButtonCopy)

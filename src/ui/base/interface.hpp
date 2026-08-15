@@ -13,6 +13,13 @@ START_NAMESPACE_DISTRHO
 class LibreAudioUIWidgetInterface
 {
 public:
+    enum PageButton {
+        kPageButtonAbout,
+        kPageButtonEasy,
+        kPageButtonExpert,
+        kPageButtonSettings,
+    };
+
     enum SnapshotButton {
         kSnapshotButtonCopy,
         kSnapshotButtonA,
@@ -22,6 +29,8 @@ public:
     };
 
     virtual ~LibreAudioUIWidgetInterface() = default;
+
+    virtual PageButton getCurrentPage() const noexcept = 0;
 
     virtual float getParameterValue(const uint32_t index) const noexcept = 0;
 
@@ -36,6 +45,8 @@ public:
     virtual void parameterControlPressed(uint32_t index) = 0;
     virtual void parameterControlReleased(uint32_t index) = 0;
     virtual void parameterControlModified(uint32_t index, float value) = 0;
+
+    virtual void pageButtonClicked(PageButton button) = 0;
 
     virtual void snapshotButtonClicked(SnapshotButton button) = 0;
 };

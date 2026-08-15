@@ -167,6 +167,34 @@ struct LibreAudioReference {
             };
         };
 
+        struct EasyKnob {
+            static constexpr const Color backgroundColor = Colors::transparent;
+            static constexpr const Color borderColor = Colors::transparent;
+            // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
+            static constexpr const uint border = 0;
+            static constexpr const uint borderRadius = 0;
+            static constexpr const uint height = (58 + 20) * 2;
+            static constexpr const uint margin = 0;
+            static constexpr const uint width = 58 * 2;
+            struct Name {
+                static constexpr const Color color = Colors::acc;
+                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float letterSpacing = Common::letterSpacing;
+                // text-shadow
+            };
+            struct Value {
+                static constexpr const Color color = Colors::ink2;
+                static constexpr const float fontSize = 12 * fontScaling * 2;
+                // font-mono
+            };
+            struct Unit {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const float fontSize = 9.5 * fontScaling * 2;
+                static constexpr const float letterSpacing = fontSize * 0.02;
+                // font-ui
+            };
+        };
+
         struct KnobGroup {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;

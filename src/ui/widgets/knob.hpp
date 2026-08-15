@@ -11,15 +11,14 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioSmallKnobWidget final : public LibreAudioKnobWidget
+template <class R>
+class LibreAudioDrawableKnobWidget final : public LibreAudioKnobWidget
 {
-    using R = LibreAudioReference::Widgets::Knob;
-
     static constexpr const double kTimeForShowingHostParameterChanges = 1;
     static constexpr const double kTimeForValueFadeout = 0.1;
 
 public:
-    LibreAudioSmallKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)
+    LibreAudioDrawableKnobWidget(LibreAudioWidget* const parent, const FaustParameter& parameter, const uint32_t id)
         : LibreAudioKnobWidget(parent, parameter, id)
     {
         if constexpr (R::width != 0)
@@ -38,7 +37,7 @@ private:
         const float w = getWidth();
         const float h = getHeight();
         const float cx = w * 0.5f;
-        const float cy = R::Knob::width * 0.5f * fScaleFactor;
+        const float cy = R::width * 0.5f * fScaleFactor;
 
         char textBuffer[24];
 
@@ -249,6 +248,9 @@ private:
     }
 #endif
 };
+
+using LibreAudioEasyKnobWidget = LibreAudioDrawableKnobWidget<LibreAudioReference::Widgets::EasyKnob>;
+using LibreAudioSmallKnobWidget = LibreAudioDrawableKnobWidget<LibreAudioReference::Widgets::Knob>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
