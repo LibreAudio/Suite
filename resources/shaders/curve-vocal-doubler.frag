@@ -125,48 +125,82 @@ vec3 rainbow(float x){
     return mix(a, b, f);
 }
 
+/* baseline (wet-EQ response + De-Ess shelf) in height fractions, 0 = top */
+float baseY(float t, float env){
+    /* x -> frequency, log axis */
+    float freq = FMIN * pow(FMAX / FMIN, t);
+
+    /* wet-EQ response, normalised into the dB window */
+    float db = min(DBMAX, fdb(freq));
+    float baseNorm = (DBMAX - db) / (DBMAX - DBMIN);
+
+    /* De-Ess: downward high-shelf above the crossover, softer knee (^3) than
+       the chorus. The shelf pulls the curve DOWN (bigger y). */
+    float wsh = 1.0 / (1.0 + pow(DEESSFREQ / freq, 3.0));
+    float shelfNorm = (DEESS * 15.0 * env) * wsh / (DBMAX - DBMIN);
+
+    return baseNorm + shelfNorm;
+}
+
+/* One voice trace riding on the baseline. `phase` is the scroll position in
+   cycles, already wrapped to [0,1) by the caller - only its fractional part
+   matters, and keeping it small stops the sine argument from quantising. */
+float traceY(float t, float env, float rate, float amp, float phase){
+    return baseY(t, env) - amp * sin(TAU * (t * rate * WIN - phase));
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord){
     vec2 uv = fragCoord / iResolution.xy;
     float t  = uv.x;               // 0..1 left->right (time & frequency axis)
     float py = 1.0 - uv.y;         // 0 at top, 1 at bottom (matches the plugin)
 
-    /* x -> frequency, log axis */
-    float freq = FMIN * pow(FMAX / FMIN, t);
-
-    /* wet-EQ response baseline, normalised into the dB window */
-    float db = min(DBMAX, fdb(freq));
-    float baseNorm = (DBMAX - db) / (DBMAX - DBMIN);
-
-    /* De-Ess: downward high-shelf above the crossover, amount animated per
-       frame to read as dynamic (sibilant) gain reduction - downward only.
-       Softer knee (^3) and faster pump than the chorus, matching v8. */
-    float wsh = 1.0 / (1.0 + pow(DEESSFREQ / freq, 3.0));
+    /* De-Ess amount animated per frame to read as dynamic (sibilant) gain
+       reduction, faster pump than the chorus, matching v8 */
     float env = 0.0;
     if (DEESS > 0.001){
-        env = max(0.0, 0.6 * sin(TAU * iTime * 4.0) + 0.4 * sin(TAU * (iTime * 6.3) + 1.1));
+        env = max(0.0, 0.6 * sin(TAU * fract(iTime * 4.0)) + 0.4 * sin(TAU * fract(iTime * 6.3) + 1.1));
     }
-    float shelfNorm = (DEESS * 15.0 * env) * wsh / (DBMAX - DBMIN);
-
-    float base = baseNorm + shelfNorm;   // shelf pulls the curve DOWN (bigger y)
 
     /* trace amplitudes, in height fractions (plugin: a1 = 4 + depth*10 px @210, a2 = 0.75*a1) */
     float a1 = (4.0 + DEPTH * 10.0) / REF_H;
     float a2 = a1 * 0.75;
 
-    float y1 = base - a1 * sin(TAU * (t * R1 * WIN - R1 * iTime));
-    float y2 = base - a2 * sin(TAU * (t * R2 * WIN - (R2 * iTime + 0.25)));
+    /* Scroll positions, wrapped to [0,1). Wrapping here is what keeps the sine
+       argument small: unwrapped, TAU * rate * iTime lands where a single float
+       step is a large fraction of a radian and the trace visibly staircases. */
+    float ph1 = fract(R1 * iTime);
+    float ph2 = fract(R2 * iTime + 0.25);
 
-    /* antialiased line coverage */
-    float hw  = THICK * 0.5 / iResolution.y;
+    float y1 = traceY(t, env, R1, a1, ph1);
+    float y2 = traceY(t, env, R2, a2, ph2);
+
+    /* Curve slope in pixels-of-y per pixel-of-x, by central difference one
+       pixel either side. The EQ skirts are ~160 dB/decade, so squeezed into
+       the dB window they run near-vertical: without this a vertical-only
+       distance test pinches the stroke to a hairline and the line reads as
+       broken. Central (not forward) difference so the DBMAX clamp kink stays
+       symmetric. */
+    float dtx = 1.0 / iResolution.x;
+    float s1 = (traceY(t + dtx, env, R1, a1, ph1) - traceY(t - dtx, env, R1, a1, ph1))
+             * 0.5 * iResolution.y;
+    float s2 = (traceY(t + dtx, env, R2, a2, ph2) - traceY(t - dtx, env, R2, a2, ph2))
+             * 0.5 * iResolution.y;
+
+    /* perpendicular distance to each trace, in pixels */
+    float d1 = abs(py - y1) * iResolution.y * inversesqrt(1.0 + s1 * s1);
+    float d2 = abs(py - y2) * iResolution.y * inversesqrt(1.0 + s2 * s2);
+
+    /* antialiased line coverage (constant width whatever the slope) */
+    float hw  = THICK * 0.5;
     float aa  = 1.5 / iResolution.y;
-    float c1 = 1.0 - smoothstep(hw, hw + aa, abs(py - y1));
-    float c2 = (SHOWB > 0.5) ? 1.0 - smoothstep(hw, hw + aa, abs(py - y2)) : 0.0;
+    float c1 = 1.0 - smoothstep(hw, hw + 1.5, d1);
+    float c2 = (SHOWB > 0.5) ? 1.0 - smoothstep(hw, hw + 1.5, d2) : 0.0;
     float cov = max(c1, c2);
 
     /* soft glow bloom around each trace (a wide gaussian falloff) */
-    float gw = max(GLOWW, 0.001) / iResolution.y;
-    float g1 = exp(-(py - y1) * (py - y1) / (gw * gw));
-    float g2 = (SHOWB > 0.5) ? exp(-(py - y2) * (py - y2) / (gw * gw)) : 0.0;
+    float gw = max(GLOWW, 0.001);
+    float g1 = exp(-(d1 * d1) / (gw * gw));
+    float g2 = (SHOWB > 0.5) ? exp(-(d2 * d2) / (gw * gw)) : 0.0;
     float glow = max(g1, g2) * GLOW;
 
     vec3 col = rainbow(t);

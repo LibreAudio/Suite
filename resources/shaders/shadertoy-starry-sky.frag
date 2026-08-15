@@ -36,6 +36,6 @@ void mainImage(out vec4 color, vec2 coord) {
     vec2 uv = coord * ps;
     color = vec4(0.0);
     
-    draw_stars(color, uv);
+//    draw_stars(color, uv);
     draw_auroras(color, uv);
 }
