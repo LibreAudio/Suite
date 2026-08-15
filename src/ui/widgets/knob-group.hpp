@@ -6,6 +6,7 @@
 
 #include "../reference.hpp"
 #include "../base/container.hpp"
+#include "../base/image.hpp"
 #include "knob.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -65,7 +66,9 @@ public:
 
         // middle spacer
         {
-            std::unique_ptr<LibreAudioWidget> spacer { new LibreAudioEmptyWidget<LibreAudioReference::Widgets::Knob>(this) };
+            std::unique_ptr<LibreAudioWidget> spacer {
+                new LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>(this)
+            };
             auto it = widgets.begin();
             for (uint i = 0, middle = widgets.size() / 2; i < middle; ++i)
                 ++it;

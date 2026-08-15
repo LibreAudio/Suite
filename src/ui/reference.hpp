@@ -121,7 +121,8 @@ struct LibreAudioReference {
             static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
             static constexpr const Color deactivatedColor = Colors::ink3;
             static constexpr const Color foregroundColor = Colors::acc;
-            // #4e4e5a
+            static constexpr const Color bypassBackgroundColor = { 0x5a, 0x35, 0x3c };
+            static constexpr const Color bypassForegroundColor = { 0xff, 0x5d, 0x5d };
             static constexpr const float fontSize = Common::fontSize;
             static constexpr const float letterSpacing = Common::letterSpacing;
             static constexpr const uint border = 0;

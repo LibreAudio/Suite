@@ -79,7 +79,7 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const uchar* imageData, uint imageDataSize, uint imageScale = 2>
-class LibreAudioImageButtonWidget final : public LibreAudioBackgroundButtonWidget
+class LibreAudioImageButtonWidget : public LibreAudioBackgroundButtonWidget
 {
     using R = LibreAudioReference::Widgets::Button;
 
@@ -131,8 +131,63 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, uint imageScale = 2>
+class LibreAudioDualImageButtonWidget : public LibreAudioBackgroundButtonWidget
+{
+    using R = LibreAudioReference::Widgets::Button;
+
+public:
+    explicit LibreAudioDualImageButtonWidget(LibreAudioWidget* const parent)
+        : LibreAudioBackgroundButtonWidget(parent)
+    {
+        const uint margin = (R::border + R::margin) * fScaleFactor;
+
+        setCheckable(true);
+        updateImageSize();
+        setSize(fImageWidth + margin * 2, fImageHeight + margin * 2);
+    }
+
+private:
+    const NanoImage fImage1 { createImageFromMemory(image1Data, imageData1Size, IMAGE_GENERATE_MIPMAPS) };
+    const NanoImage fImage2 { createImageFromMemory(image2Data, imageData2Size, IMAGE_GENERATE_MIPMAPS) };
+    double fImageWidth;
+    double fImageHeight;
+
+    void onNanoDisplay() final
+    {
+        LibreAudioBackgroundButtonWidget::onNanoDisplay();
+
+        const float w = getWidth();
+        const float h = getHeight();
+
+        save();
+        globalTint(getForegroundColor());
+
+        beginPath();
+        rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
+        fillPaint(imagePattern((w - fImageWidth) * 0.5,
+                               (h - fImageHeight) * 0.5,
+                               fImageWidth,
+                               fImageHeight,
+                               0.f,
+                               isChecked() ? fImage1 : fImage2,
+                               1.f));
+        fill();
+
+        restore();
+    }
+
+    void updateImageSize()
+    {
+        fImageWidth = fImage1.getWidth() * fScaleFactor / imageScale;
+        fImageHeight = fImage1.getHeight() * fScaleFactor / imageScale;
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<const char _text[]>
-class LibreAudioTextButtonWidget final : public LibreAudioBackgroundButtonWidget
+class LibreAudioTextButtonWidget : public LibreAudioBackgroundButtonWidget
 {
     using R = LibreAudioReference::Widgets::Button;
 
@@ -161,6 +216,31 @@ private:
         fontSize(R::fontSize * fScaleFactor);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         text(getWidth() * 0.5f, getHeight() * 0.5f, _text);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioBypassButtonWidget final : public LibreAudioImageButtonWidget<IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN>
+{
+    using R = LibreAudioReference::Widgets::Button;
+
+public:
+    explicit LibreAudioBypassButtonWidget(LibreAudioWidget* const parent)
+        : LibreAudioImageButtonWidget(parent)
+    {
+        setCheckable(true);
+    }
+
+private:
+    const Color& getBackgroundColor() const noexcept final
+    {
+        return isChecked() ? R::bypassBackgroundColor : R::backgroundColor;
+    }
+
+    const Color& getForegroundColor() const noexcept final
+    {
+        return isChecked() || isHovered() ? R::bypassForegroundColor : R::foregroundColor;
     }
 };
 
