@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base.hpp"
+
 #include "EventHandlers.hpp"
 
 START_NAMESPACE_DISTRHO

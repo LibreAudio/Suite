@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "../base/color.hpp"
 #include "knob-group.hpp"
-#include "line.hpp"
 #include "pill-toggle.hpp"
 
 START_NAMESPACE_DISTRHO

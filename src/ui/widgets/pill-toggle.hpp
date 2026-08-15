@@ -8,6 +8,7 @@
 #include "../base/container.hpp"
 #include "../reference.hpp"
 
+#include "LibreAudioParameters.hpp"
 #include "FaustParameters.hpp"
 
 START_NAMESPACE_DISTRHO

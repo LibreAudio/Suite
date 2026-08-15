@@ -5,7 +5,10 @@
 #pragma once
 
 #include "../base/base.hpp"
+#include "../base/interface.hpp"
 #include "../reference.hpp"
+
+#include "LibreAudioParameters.hpp"
 
 START_NAMESPACE_DISTRHO
 

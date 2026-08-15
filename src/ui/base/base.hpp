@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "Application.hpp"
 #include "NanoVG.hpp"
 
 START_NAMESPACE_DISTRHO

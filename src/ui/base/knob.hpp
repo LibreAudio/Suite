@@ -5,6 +5,8 @@
 #pragma once
 
 #include "base.hpp"
+#include "interface.hpp"
+
 #include "EventHandlers.hpp"
 
 #include "FaustParameters.hpp"

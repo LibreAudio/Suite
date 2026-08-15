@@ -26,7 +26,6 @@ set(COMMON_FLAGS "-ffast-math")
 
 # invalidate possible -fno-finite-math-only from user environment
 set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only")
-# FIXME which compilers support -Wno-nan-infinity-disabled ?
 
 # use a custom namespace for all DPF things
 set(COMMON_FLAGS "${COMMON_FLAGS} -DDISTRHO_NAMESPACE=LibreAudioSuiteDISTRHO")
@@ -39,8 +38,13 @@ elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv[3-9][a-z]*)$")
   set(COMMON_FLAGS "${COMMON_FLAGS} -mfpu=neon-vfpv4 -mfloat-abi=hard")
 endif()
 
+# Clang specific flags
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # silence warnings caused by -ffinite-math-only
+  set(COMMON_FLAGS "${COMMON_FLAGS} -Wno-nan-infinity-disabled")
+
 # GCC specific flags
-if("${C_COMPILER_ID}" STREQUAL "GNU")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # do not keep GNU-specific symbols around, preventing dlclose() from working properly
   set(COMMON_FLAGS "${COMMON_FLAGS} -fno-gnu-unique")
 
@@ -55,13 +59,13 @@ endif()
 # strip flags
 
 # split sections to help reduce binary size
-set(STRIP_FLAGS "-fdata-sections -ffunction-sections")
+set(STRIP_BUILD_FLAGS "-fdata-sections -ffunction-sections")
 
 # strip symbols
-if("${C_COMPILER_ID}" STREQUAL "AppleClang")
-  set(STRIP_FLAGS "${RELEASE_FLAGS} -Wl,-dead_strip,-dead_strip_dylibs,-x")
-elseif("${C_COMPILER_ID}" STREQUAL "GNU")
-  set(STRIP_FLAGS "${RELEASE_FLAGS} -Wl,--as-needed,--gc-sections,--strip-all")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  set(STRIP_LINK_FLAGS "${RELEASE_FLAGS} -Wl,-dead_strip,-dead_strip_dylibs,-x")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(STRIP_LINK_FLAGS "${RELEASE_FLAGS} -Wl,--as-needed,--gc-sections,--strip-all")
 endif()
 
 #######################################################################################################################
@@ -71,8 +75,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Release" OR "${CMAKE_BUILD_TYPE}" STREQUAL "M
   set(CMAKE_C_VISIBILITY_PRESET hidden)
   set(CMAKE_CXX_VISIBILITY_PRESET hidden)
   set(CMAKE_VISIBILITY_INLINES_HIDDEN TRUE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} ${STRIP_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} ${STRIP_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS} ${STRIP_BUILD_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} ${STRIP_BUILD_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${STRIP_LINK_FLAGS}")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${STRIP_LINK_FLAGS}")
 else()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")

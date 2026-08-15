@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include "../reference.hpp"
+#include "../base/container.hpp"
 #include "knob.hpp"
+
+#include "LibreAudioParameters.hpp"
+
 #include "Layout.hpp"
 
 #include <memory>
-#include <type_traits>
 
 START_NAMESPACE_DISTRHO
 

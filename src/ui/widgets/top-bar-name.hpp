@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "../base/widgets.hpp"
+#include "../reference.hpp"
+#include "../base/base.hpp"
+
+#include "DistrhoPluginInfo.h"
+
+#include <cctype>
 
 START_NAMESPACE_DISTRHO
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DistrhoDetails.hpp"
+#include "src/DistrhoDefines.h"
 
 #ifndef _DARKGLASS_DEVICE_PABLITO
 #include "common_input-parameters.hpp"

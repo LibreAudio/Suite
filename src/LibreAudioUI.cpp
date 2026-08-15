@@ -3,15 +3,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "LibreAudioBaseUI.hpp"
-#include "LibreAudioParameters.hpp"
-#include "LibreAudioStates.hpp"
 
-#include "EventHandlers.hpp"
+#include "ui/reference.hpp"
+#include "ui/base/container.hpp"
+#include "ui/widgets/meter.hpp"
+#include "ui/widgets/shader.hpp"
+#include "ui/widgets/stage.hpp"
+#include "ui/widgets/top-bar-name.hpp"
+
+// #include "LibreAudioParameters.hpp"
+// #include "LibreAudioStates.hpp"
+
+// #include "EventHandlers.hpp"
 #include "Layout.hpp"
-#include "extra/Time.hpp"
+// #include "extra/Time.hpp"
 
-#include <string>
-#include <vector>
+// #include <string>
+// #include <vector>
 
 #include "ui/reference.hpp"
 #include "ui/widgets.hpp"

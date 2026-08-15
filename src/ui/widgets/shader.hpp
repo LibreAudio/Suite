@@ -4,13 +4,19 @@
 
 #pragma once
 
-#include "Application.hpp"
+#include "../base/interface.hpp"
+
+#include "LibreAudioParameters.hpp"
+
+#include "OpenGL-include.hpp"
 #include "SubWidget.hpp"
 #include "TopLevelWidget.hpp"
 
 #include "extra/ValueSmoother.hpp"
 
 #include "las-resources.h"
+
+#include <vector>
 
 #ifdef DISTRHO_OS_WINDOWS
 extern "C" {
@@ -47,18 +53,18 @@ public:
 
         glGenBuffers(2, gl3.buffers);
 
-	    static constexpr const char kShaderHeader[] =
+        static constexpr const char kShaderHeader[] =
            #if defined(DGL_USE_GLES3)
-		    "#version 300 es\n"
-		    "#define LIBREAUDIO_GL3\n"
+            "#version 300 es\n"
+            "#define LIBREAUDIO_GL3\n"
            #elif defined(DGL_USE_GLES2)
-		    "#version 100\n"
-		    "#define LIBREAUDIO_GL2\n"
+            "#version 100\n"
+            "#define LIBREAUDIO_GL2\n"
            #elif defined(DGL_USE_OPENGL3)
-		    "#version 150 core\n"
-		    "#define LIBREAUDIO_GL3\n"
+            "#version 150 core\n"
+            "#define LIBREAUDIO_GL3\n"
            #else
-		    "#define LIBREAUDIO_GL2\n"
+            "#define LIBREAUDIO_GL2\n"
            #endif
         ;
 

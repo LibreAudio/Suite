@@ -4,16 +4,19 @@
 
 #pragma once
 
+#include "base/image.hpp"
 #include "widgets/button.hpp"
 #include "widgets/button-group.hpp"
-#include "widgets/knob.hpp"
-#include "widgets/knob-group.hpp"
-#include "widgets/line.hpp"
-#include "widgets/meter.hpp"
-#include "widgets/pill-toggle.hpp"
-#include "widgets/shader.hpp"
-#include "widgets/stage.hpp"
-#include "widgets/top-bar-name.hpp"
+// #include "widgets/knob.hpp"
+// #include "widgets/knob-group.hpp"
+// #include "widgets/line.hpp"
+// #include "widgets/meter.hpp"
+// #include "widgets/pill-toggle.hpp"
+// #include "widgets/shader.hpp"
+// #include "widgets/stage.hpp"
+// #include "widgets/top-bar-name.hpp"
+
+#include "LibreAudioParameters.hpp"
 
 #include "las-resources.h"
 
