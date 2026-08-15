@@ -19,6 +19,7 @@
 #include <vector>
 
 #ifdef DISTRHO_OS_WINDOWS
+#include "extra/Windows-include.h"
 extern "C" {
 __declspec(dllimport) PROC WINAPI wglGetProcAddress(LPCSTR);
 }
@@ -28,14 +29,35 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class LibreAudioShaderBaseWidget : public SubWidget
+{
+public:
+    explicit LibreAudioShaderBaseWidget(TopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
+        : SubWidget(parent),
+          fInterface(iface) {}
+
+    void setBorderRadius(const float borderRadius) noexcept
+    {
+        if (d_isEqual(fBorderRadius, borderRadius))
+            return;
+        fBorderRadius = borderRadius;
+        repaint();
+    }
+
+protected:
+    LibreAudioUIWidgetInterface* const fInterface;
+    float fBorderRadius = 0.f;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<const char src[], uint size>
-class LibreAudioBackgroundShaderWidget final : public SubWidget,
+class LibreAudioBackgroundShaderWidget final : public LibreAudioShaderBaseWidget,
                                                public IdleCallback
 {
 public:
     explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
-        : SubWidget(parent),
-          fInterface(iface),
+        : LibreAudioShaderBaseWidget(parent, iface),
           fParent(parent)
     {
         parent->addIdleCallback(this, 8);
@@ -172,14 +194,6 @@ public:
         glDeleteProgram(gl3.program);
     }
 
-    void setBorderRadius(const float borderRadius) noexcept
-    {
-        if (d_isEqual(fBorderRadius, borderRadius))
-            return;
-        fBorderRadius = borderRadius;
-        repaint();
-    }
-
 private:
     void idleCallback() final
     {
@@ -273,10 +287,8 @@ private:
         GLint hpHz;
     } gl3 = {};
 
-    LibreAudioUIWidgetInterface* const fInterface;
     TopLevelWidget* const fParent;
     bool fFirstResize = true;
-    float fBorderRadius = 0.f;
     LinearValueSmoother fMouseX;
     LinearValueSmoother fMouseY;
     float fMouseZ = 0.f;

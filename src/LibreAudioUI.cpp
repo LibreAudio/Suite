@@ -117,25 +117,29 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// using S1 = LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_STARRY_SKY_FRAG_DATA, SHADERS_SHADERTOY_STARRY_SKY_FRAG_LEN>;
-using S1 = LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_SQUARES_FRAG_DATA, SHADERS_SHADERTOY_SQUARES_FRAG_LEN>;
-using S2 = LibreAudioBackgroundShaderWidget<SHADERS_LIBREAUDIO_LINE_FRAG_DATA, SHADERS_LIBREAUDIO_LINE_FRAG_LEN>;
-
 class LibreAudioUI : public LibreAudioBaseUI
 {
     using R = LibreAudioReference::Window;
 
     double fScaleFactor = getScaleFactor();
-    std::unique_ptr<S1> fShaderBackground;
-    std::unique_ptr<S2> fShaderLine;
+    std::unique_ptr<LibreAudioShaderBaseWidget> fShaderBackground;
+    std::unique_ptr<LibreAudioShaderBaseWidget> fShaderLine;
     std::unique_ptr<LibreAudioRootWidget> fRoot { new LibreAudioRootWidget(getWindow(), this) };
 
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        fShaderBackground.reset(new S1(this, this));
-        fShaderLine.reset(new S2(this, this));
+        fShaderBackground.reset(new LibreAudioBackgroundShaderWidget<SHADERS_SHADERTOY_SQUARES_FRAG_DATA, SHADERS_SHADERTOY_SQUARES_FRAG_LEN>(this, this));
+
+        static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
+        if constexpr (label == "chorus")
+            fShaderLine.reset(new LibreAudioBackgroundShaderWidget<SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN>(this, this));
+        else if constexpr (label == "vocalDoubler")
+            fShaderLine.reset(new LibreAudioBackgroundShaderWidget<SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN>(this, this));
+        else
+            fShaderLine.reset(new LibreAudioBackgroundShaderWidget<SHADERS_LIBREAUDIO_LINE_FRAG_DATA, SHADERS_LIBREAUDIO_LINE_FRAG_LEN>(this, this));
+
         updateShaderPosition();
     }
 
@@ -156,6 +160,13 @@ protected:
         rect(0, 0, w, h);
         fillPaint(linearGradient(0, 0, 0, h, R::backgroundGradientStart, R::backgroundGradientStop));
         fill();
+
+        if constexpr (R::border != 0 && d_isNotZero(R::borderColor.alpha))
+        {
+            strokeColor(R::borderColor);
+            strokeWidth(R::border * 2 * fScaleFactor);
+            stroke();
+        }
     }
 
     void onResize(const ResizeEvent& ev) override
@@ -180,13 +191,13 @@ protected:
 private:
     void updateShaderPosition()
     {
-        if (S1* const sw = fShaderBackground.get())
+        if (LibreAudioShaderBaseWidget* const sw = fShaderBackground.get())
         {
             sw->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
             sw->setSize(fRoot->getStageAreaSize());
             sw->setBorderRadius(LibreAudioReference::Stage::borderRadius * fScaleFactor);
         }
-        if (S2* const sw = fShaderLine.get())
+        if (LibreAudioShaderBaseWidget* const sw = fShaderLine.get())
         {
             sw->setAbsolutePos(fRoot->getStageAreaAbsolutePos());
             sw->setSize(fRoot->getStageAreaSize());

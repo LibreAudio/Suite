@@ -43,9 +43,7 @@ struct LibreAudioReference {
         static constexpr const Color borderColor { 0, 0, 0, 0.35f };
         static constexpr const uint border = 1;
         static constexpr const uint padding = Common::margin;
-        static constexpr const uint height = 0;
         static constexpr const uint margin = Common::margin;
-        static constexpr const uint width = 0;
     };
 
     struct TopBar {
