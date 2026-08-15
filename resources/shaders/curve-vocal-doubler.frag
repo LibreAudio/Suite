@@ -29,6 +29,7 @@ uniform float uWin;       // time window shown, seconds
 uniform float uThick;     // line thickness, pixels
 uniform float uGlow;      // glow strength (0 .. 1)
 uniform float uGlowWidth; // glow radius, pixels
+uniform float uFill;      // fill opacity between the two voices (0 .. 1)
 uniform float uFMin;      // frequency axis min, Hz (left edge)
 uniform float uFMax;      // frequency axis max, Hz (right edge)
 
@@ -49,9 +50,10 @@ uniform float uFMax;      // frequency axis max, Hz (right edge)
   #define DBMAX 18.0
   #define DBMIN -42.0
   #define WIN  2.0
-  #define THICK 2.0
-  #define GLOW 0.55
+  #define THICK 3.0
+  #define GLOW 0.60
   #define GLOWW 7.0
+  #define FILL 0.35
   #define FMIN 20.0
   #define FMAX 10000.0
 #else
@@ -72,6 +74,7 @@ uniform float uFMax;      // frequency axis max, Hz (right edge)
   #define THICK uThick
   #define GLOW uGlow
   #define GLOWW uGlowWidth
+  #define FILL uFill
   #define FMIN uFMin
   #define FMAX uFMax
 #endif
@@ -205,12 +208,12 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
 
     vec3 col = rainbow(t);
 
-    /* fill between the two voice traces (matches fillOpacity 0.16) */
+    /* fill between the two voice traces (FILL defaults to the SVG's fillOpacity) */
     float fill = 0.0;
     if (SHOWB > 0.5){
         float lo = min(y1, y2), hi = max(y1, y2);
         float band = smoothstep(-aa, aa, py - lo) * smoothstep(-aa, aa, hi - py);
-        fill = band * 0.16;
+        fill = band * FILL;
     }
 
     /* composite: fill, then glow, then the crisp lines on top */

@@ -60,7 +60,16 @@ public:
         : LibreAudioShaderBaseWidget(parent, iface),
           fParent(parent)
     {
-        parent->addIdleCallback(this, 8);
+        // 8ms was 125 Hz: on a 60 Hz display more than half of those frames were rendered
+        // and then thrown away. The shader widgets all cover the same area, so the window
+        // redraws at whichever callback is fastest -- this has to stay in step with them.
+        parent->addIdleCallback(this, 16);
+
+        // iTime must stay small: it is uploaded as a 32-bit float, and pugl's macOS puglGetTime
+        // returns time since system boot (the X11 one subtracts world->startTime, so it is already
+        // relative there). After a couple of weeks of uptime a single float ulp at TAU * rate * iTime
+        // is bigger than half a radian, which quantises animated phases into visible steps.
+        fStartTime = getApp().getTime();
 
        #ifdef DISTRHO_OS_WINDOWS
         if (! initGL())
@@ -213,7 +222,7 @@ private:
         glUniform3f(gl3.iMouse, fMouseX.next(), fMouseY.next(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
 
-        glUniform1f(gl3.iTime, getApp().getTime());
+        glUniform1f(gl3.iTime, static_cast<float>(getApp().getTime() - fStartTime));
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
 
         if (gl3.hpHz != 0)
@@ -288,6 +297,7 @@ private:
     } gl3 = {};
 
     TopLevelWidget* const fParent;
+    double fStartTime = 0.0;
     bool fFirstResize = true;
     LinearValueSmoother fMouseX;
     LinearValueSmoother fMouseY;
