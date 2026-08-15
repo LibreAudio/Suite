@@ -16,6 +16,12 @@ struct FaustParameterEnumerationValue {
     int value;
 };
 
+struct FaustParameterRequirement {
+    const char* context;
+    const char* symbol;
+    int value;
+};
+
 struct FaustParameter
 {
     const char* bracket;
@@ -30,8 +36,10 @@ struct FaustParameter
     float step;
     const FaustParameterEnumerationValue* scalePoints;
     uint scalePointCount;
+    FaustParameterRequirement requirement;
     bool isBoolean : 1;
     bool isEnumerator : 1;
+    bool isDynamic : 1;
     bool isInteger : 1;
     bool isLogarithmic : 1;
     bool isOutput : 1;

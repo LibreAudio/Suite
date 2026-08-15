@@ -187,10 +187,10 @@ wetEq = fi.highpass(2, eq_hpHz)
 // with two (how far apart they sit); the unused one is simply ignored.
 
 
-adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay][label:Delay][accentcolor:02]", 18, 5, 40, 0.1)) : si.smoo;
-adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices][accentcolor:02]",1,1,2,1)) -1;
-adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][accentcolor:03][bracket:WOW]", 0.6, 0.05, 5, 0.01));
-adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][accentcolor:03][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
+adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay][label:Delay][requires:mode:0][accentcolor:02]", 18, 5, 40, 0.1)) : si.smoo;
+adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices][requires:mode:0][accentcolor:02]",1,1,2,1)) -1;
+adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][requires:mode:0][accentcolor:03][bracket:WOW]", 0.6, 0.05, 5, 0.01));
+adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][requires:mode:0][accentcolor:03][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
 adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan][accentcolor:04]", 0, -1, 1, 0.01));
 adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width][label:Width][accentcolor:04]", 1, 0, 1, 0.01));
 
@@ -243,11 +243,11 @@ with {
 // own slow random ("humanized") wander in pitch and level so they don't
 // read as a static chorus but as two separate takes.
 
-db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay][label:Delay][accentcolor:02]", 20, 5, 50, 0.1)) : si.smoo;
-db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune][label:Detune][accentcolor:05]", 14, 0, 40, 0.1));
-db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][label:Rate][accentcolor:03][bracket:WANDER]", 0.25, 0.02, 2, 0.01));
-db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][label:Depth][accentcolor:03][bracket:WANDER]", 6, 0, 25, 0.1));
-db_width    = uiDoubler(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width][label:Width][accentcolor:04]", 1, 0, 1, 0.01));
+db_delayMs  = uiDoubler(hslider("[11]DOUBLER Base Delay[style:knob][unit:ms][symbol:doubler_base_delay][label:Delay][requires:mode:1][accentcolor:02]", 20, 5, 50, 0.1)) : si.smoo;
+db_detune   = uiDoubler(hslider("[12]DOUBLER Detune[style:knob][unit:cents][symbol:doubler_detune][label:Detune][requires:mode:1][accentcolor:05]", 14, 0, 40, 0.1));
+db_wanderHz = uiDoubler(hslider("[13]DOUBLER Wander Rate[style:knob][unit:Hz][symbol:doubler_wander_rate][label:Rate][requires:mode:1][accentcolor:03][bracket:WANDER]", 0.25, 0.02, 2, 0.01));
+db_wanderCt = uiDoubler(hslider("[14]DOUBLER Wander Depth[style:knob][unit:cents][symbol:doubler_wander_depth][label:Depth][requires:mode:1][accentcolor:03][bracket:WANDER]", 6, 0, 25, 0.1));
+db_width    = uiDoubler(hslider("[15]DOUBLER Width[style:knob][symbol:doubler_width][label:Width][requires:mode:1][accentcolor:04]", 1, 0, 1, 0.01));
 
 db_voice(centsShift, delayMs, wanderFreq, x) = out
 with {
@@ -292,12 +292,12 @@ with {
 // makes each voice read as a different throat rather than the same voice
 // detuned.
 
-tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay][label:Delay][accentcolor:02]", 25, 5, 60, 0.1)) : si.smoo;
-tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][label:Timing][accentcolor:03][bracket:VARIATION]", 15, 0, 40, 0.1));
-tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][label:Pitch][accentcolor:03][bracket:VARIATION]", 10, 0, 30, 0.1));
-tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][label:Character][accentcolor:03][bracket:VARIATION]", 40, 0, 100, 1)) / 100;
+tk_baseMs   = uiHuman(hslider("[21]TAKE Base Delay[style:knob][unit:ms][symbol:take_base_delay][label:Delay][requires:mode:2][accentcolor:02]", 25, 5, 60, 0.1)) : si.smoo;
+tk_timingMs = uiHuman(hslider("[22]TAKE Timing Variation[style:knob][unit:ms][symbol:take_timing][label:Timing][requires:mode:2][accentcolor:03][bracket:VARIATION]", 15, 0, 40, 0.1));
+tk_pitchCt  = uiHuman(hslider("[23]TAKE Pitch Variation[style:knob][unit:cents][symbol:take_pitch][label:Pitch][requires:mode:2][accentcolor:03][bracket:VARIATION]", 10, 0, 30, 0.1));
+tk_charact  = uiHuman(hslider("[24]TAKE Character[style:knob][unit:%][symbol:take_character][label:Character][requires:mode:2][accentcolor:03][bracket:VARIATION]", 40, 0, 100, 1)) / 100;
 tk_sens     = 50; //hgroup("[6]Take", hslider("[4]TAKE Onset Sensitivity[unit:%][symbol:take_sensitivity]", 50, 0, 100, 1)) / 100;
-tk_width    = uiHuman(hslider("[25]TAKE Width[style:knob][symbol:take_width][accentcolor:04][label:Width]", 1, 0, 1, 0.01));
+tk_width    = uiHuman(hslider("[25]TAKE Width[style:knob][symbol:take_width][label:Width][requires:mode:2][accentcolor:04]", 1, 0, 1, 0.01));
 
 // Onset detection watches the consonant band rather than overall level: a
 // syllable in legato singing barely moves the total envelope, but its

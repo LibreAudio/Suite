@@ -51,12 +51,27 @@ public:
 
         addSpacer();
 
+        bool isDynamic = false;
+        uint32_t firstDynamicIndex = 0;
         for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
         {
             const FaustParameter& parameter = parameters[i];
             if (parameter.isEnumerator || parameter.isOutput) {
                 d_stdout("knob-group skipped parameter %s", parameter.label);
                 continue;
+            }
+            if (parameter.isDynamic)
+            {
+                if (! isDynamic)
+                {
+                    isDynamic = true;
+                    firstDynamicIndex = i;
+                }
+            }
+            else if (isDynamic)
+            {
+                isDynamic = false;
+
             }
             std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
             widgets.push_back({ widget.get(), Fixed });

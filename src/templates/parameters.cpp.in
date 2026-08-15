@@ -55,8 +55,22 @@ const std::vector<FaustParameter>& getFaustParameters()
             .step = {{w.step}},
             .scalePoints = {{ 'kFaustScalePoints_' + w.varname if w.entries else 'nullptr' }},
             .scalePointCount = {{ w.entries | length }},
+            {% if w.meta.requires is defined %}
+            .requirement = {
+                .context = "{{w.meta.requires}}",
+                .symbol = "{{w.meta.requires[ : w.meta.requires.index(':')]}}",
+                .value = {{w.meta.requires[w.meta.requires.index(':') + 1 : ]}},
+            },
+            {% else %}
+            .requirement = {
+                .context = nullptr,
+                .symbol = nullptr,
+                .value = -1,
+            },
+            {% endif %}
             .isBoolean = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined else 'false' }},
             .isEnumerator = {{ 'true' if w.style in ["menu", "radio"] else 'false' }},
+            .isDynamic = {{ 'true' if w.meta.requires is defined else 'false' }},
             .isInteger = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined or w.meta.integer is defined else 'false' }},
             .isLogarithmic = {{ 'true'  if w.scale == "log" else 'false' }},
             .isOutput = {{ 'true' if w in passive else 'false' }},
