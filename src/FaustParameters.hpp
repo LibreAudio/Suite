@@ -38,6 +38,7 @@ struct FaustParameter
     uint scalePointCount;
     FaustParameterRequirement requirement;
     bool isBoolean : 1;
+    bool isEasy : 1;
     bool isEnumerator : 1;
     bool isDynamic : 1;
     bool isInteger : 1;

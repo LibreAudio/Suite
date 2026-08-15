@@ -69,6 +69,7 @@ const std::vector<FaustParameter>& getFaustParameters()
             },
             {% endif %}
             .isBoolean = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined else 'false' }},
+            .isEasy = {{ 'true' if w.meta.easy is defined else 'false' }},
             .isEnumerator = {{ 'true' if w.style in ["menu", "radio"] else 'false' }},
             .isDynamic = {{ 'true' if w.meta.requires is defined else 'false' }},
             .isInteger = {{ 'true' if w.type in ["button", "checkbox"] or w.meta.boolean is defined or w.meta.integer is defined else 'false' }},
