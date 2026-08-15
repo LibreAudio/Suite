@@ -37,7 +37,7 @@ public:
     void openVerticalBox(...) {}
 };
 
-typedef UI FaustUI;
+using FaustUI = UI;
 
 }
 
@@ -46,13 +46,13 @@ typedef UI FaustUI;
 
 struct FaustDSP
 {
-    virtual ~FaustDSP() {};
-    virtual FaustDSP* clone() = 0;
-    virtual float latency() const = 0;
-    virtual float get(uint32_t index) const = 0;
-    virtual int getNumInputs() = 0;
-    virtual int getNumOutputs() = 0;
-    virtual int getSampleRate() = 0;
+    virtual ~FaustDSP() = default;
+    [[nodiscard]] virtual FaustDSP* clone() = 0;
+    [[nodiscard]] virtual float latency() const = 0;
+    [[nodiscard]] virtual float get(uint32_t index) const = 0;
+    [[nodiscard]] virtual int getNumInputs() = 0;
+    [[nodiscard]] virtual int getNumOutputs() = 0;
+    [[nodiscard]] virtual int getSampleRate() = 0;
     virtual void buildUserInterface(FaustUI* ui_interface) = 0;
     virtual void compute(int count, const float* const* RESTRICT inputs, float** RESTRICT outputs) = 0;
     virtual void init(int sample_rate) = 0;

@@ -35,14 +35,14 @@ protected:
     // ----------------------------------------------------------------------------------------------------------------
     // UI Widget Interface
 
-    PageButton getCurrentPage() const noexcept final { return fPage; }
+    [[nodiscard]] PageButton getCurrentPage() const noexcept final { return fPage; }
 
-    float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
+    [[nodiscard]] float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
 
-    bool canUndo() const noexcept final { return fSnapshots.canUndo(); }
-    bool canRedo() const noexcept final { return fSnapshots.canRedo(); }
-    bool isCopyingSnapshot() const noexcept final { return fCopyingSnapshot; }
-    uint8_t getCurrentSnapshot() const noexcept final { return fSnapshots.getCurrent(); }
+    [[nodiscard]] bool canUndo() const noexcept final { return fSnapshots.canUndo(); }
+    [[nodiscard]] bool canRedo() const noexcept final { return fSnapshots.canRedo(); }
+    [[nodiscard]] bool isCopyingSnapshot() const noexcept final { return fCopyingSnapshot; }
+    [[nodiscard]] uint8_t getCurrentSnapshot() const noexcept final { return fSnapshots.getCurrent(); }
 
     void undo() final { fSnapshots.undo(); }
     void redo() final { fSnapshots.redo(); }
@@ -81,7 +81,7 @@ private:
       A parameter has changed on the plugin side.@n
       This is called by the host to inform the UI about parameter changes.
     */
-    void parameterChanged(const uint32_t index, const float value) final;
+    void parameterChanged(uint32_t index, float value) final;
 
     void stateChanged(const char* key, const char* value) final;
 
