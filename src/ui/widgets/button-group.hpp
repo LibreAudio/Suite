@@ -17,7 +17,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioButtonGroupWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::ButtonGroup>
+class LibreAudioButtonGroupWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::ButtonGroup>
 {
     using R = LibreAudioReference::Widgets::ButtonGroup;
     // using LibreAudioButtonWidget::Corner kCornerLeft = LibreAudioButtonWidget::kCornerLeft;
@@ -25,7 +25,7 @@ class LibreAudioButtonGroupWidget : public LibreAudioContainerSubWidget<LibreAud
 
 public:
     explicit LibreAudioButtonGroupWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerSubWidget(parent)
+        : LibreAudioContainerWidget(parent)
     {
     }
 

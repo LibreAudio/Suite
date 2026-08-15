@@ -11,7 +11,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioStageWidget final : public LibreAudioContainerSubWidget<LibreAudioReference::Stage, kVertical>
+class LibreAudioStageWidget final : public LibreAudioContainerWidget<LibreAudioReference::Stage, kVertical>
 {
     using R = LibreAudioReference::Stage;
 
@@ -22,7 +22,7 @@ class LibreAudioStageWidget final : public LibreAudioContainerSubWidget<LibreAud
 
 public:
     LibreAudioStageWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerSubWidget(parent)
+        : LibreAudioContainerWidget(parent)
     {
         fTopArea->setHeight(30 * fScaleFactor);
     }
@@ -62,7 +62,7 @@ private:
 
     void onPositionChanged(const PositionChangedEvent& ev) override
     {
-        LibreAudioContainerSubWidget::onPositionChanged(ev);
+        LibreAudioContainerWidget::onPositionChanged(ev);
 
         // const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
         // fLine->setAbsolutePos(ev.pos.getX() + border, ev.pos.getY() + border);
@@ -70,7 +70,7 @@ private:
 
     void onResize(const ResizeEvent& ev) final
     {
-        LibreAudioContainerSubWidget::onResize(ev);
+        LibreAudioContainerWidget::onResize(ev);
 
         // const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
         // fLine->setSize(ev.size.getWidth() - border, ev.size.getHeight() - border);

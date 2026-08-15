@@ -31,27 +31,18 @@ public:
     using ResizeEvent = typename BaseWidget::ResizeEvent;
 
     explicit LibreAudioContainerBaseWidget(LibreAudioWidget* const parent)
-        : BaseWidget(parent)
-    {
-        _initSize();
-    }
+        : BaseWidget(parent) {}
 
     explicit LibreAudioContainerBaseWidget(LibreAudioTopLevelWidget* const parent)
-        : BaseWidget(parent)
-    {
-        _initSize();
-    }
+        : BaseWidget(parent) {}
 
     explicit LibreAudioContainerBaseWidget(Window& windowToMapTo, LibreAudioUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface)
-    {
-        _initSize();
-    }
+        : BaseWidget(windowToMapTo, iface) {}
 
 protected:
-    std::unique_ptr<LibreAudioWidget> addSpacer()
+    std::unique_ptr<LibreAudioEmptyWidget<>> addSpacer()
     {
-        std::unique_ptr<LibreAudioWidget> widget { new LibreAudioEmptyWidget(this) };
+        std::unique_ptr<LibreAudioEmptyWidget<>> widget { new LibreAudioEmptyWidget(this) };
         Layout::widgets.push_back({ widget.get(), Expanding });
         return widget;
     }
@@ -67,35 +58,6 @@ protected:
             d_stderr2("Error: addWidget called with Fixed sizeHint but widget '%s' does not have a known size",
                       widget->getName());
         return widget;
-    }
-
-    void onNanoDisplay() override
-    {
-        const float w = BaseWidget::getWidth();
-        const float h = BaseWidget::getHeight();
-
-        BaseWidget::beginPath();
-
-        if constexpr (std::is_same_v<BaseWidget, LibreAudioWidget>)
-        {
-            if constexpr (R::borderRadius != 0)
-                BaseWidget::roundedRect(0, 0, w, h, R::borderRadius * this->fScaleFactor);
-            else
-                BaseWidget::rect(0, 0, w, h);
-
-            if constexpr (d_isNotZero(R::backgroundColor.alpha))
-            {
-                BaseWidget::fillColor(R::backgroundColor);
-                BaseWidget::fill();
-            }
-        }
-
-        if constexpr (R::border != 0 && d_isNotZero(R::borderColor.alpha))
-        {
-            BaseWidget::strokeColor(R::borderColor);
-            BaseWidget::strokeWidth(R::border * 2 * this->fScaleFactor);
-            BaseWidget::stroke();
-        }
     }
 
     void onResize(const ResizeEvent& ev) override
@@ -121,32 +83,22 @@ protected:
                           border + margin);
         }
     }
-
-private:
-    void _initSize()
-    {
-        if constexpr (R::width != 0)
-            BaseWidget::setWidth(d_roundToUnsignedInt(R::width * this->fScaleFactor));
-
-        if constexpr (R::height != 0)
-            BaseWidget::setHeight(d_roundToUnsignedInt(R::height * this->fScaleFactor));
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, LibreAudioOrientation orientation = kHorizontal>
-class LibreAudioContainerSubWidget : public LibreAudioContainerBaseWidget<LibreAudioWidget, R, orientation>
+class LibreAudioContainerWidget : public LibreAudioContainerBaseWidget<LibreAudioReferenceWidget<R>, R, orientation>
 {
 public:
-    using BaseWidget = LibreAudioContainerBaseWidget<LibreAudioWidget, R, orientation>;
+    using BaseWidget = LibreAudioContainerBaseWidget<LibreAudioReferenceWidget<R>, R, orientation>;
     using Layout = std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>;
     using PositionChangedEvent = typename BaseWidget::PositionChangedEvent;
 
-    explicit LibreAudioContainerSubWidget(LibreAudioWidget* const parent)
+    explicit LibreAudioContainerWidget(LibreAudioWidget* const parent)
         : BaseWidget(parent) {}
 
-    explicit LibreAudioContainerSubWidget(LibreAudioTopLevelWidget* const parent)
+    explicit LibreAudioContainerWidget(LibreAudioTopLevelWidget* const parent)
         : BaseWidget(parent) {}
 
 protected:
@@ -166,12 +118,12 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, LibreAudioOrientation orientation = kHorizontal>
-class LibreAudioContainerRootWidget : public LibreAudioContainerBaseWidget<LibreAudioTopLevelWidget, R, orientation>
+class LibreAudioRootContainerWidget : public LibreAudioContainerBaseWidget<LibreAudioTopLevelWidget, R, orientation>
 {
 public:
     using BaseWidget = LibreAudioContainerBaseWidget<LibreAudioTopLevelWidget, R, orientation>;
 
-    explicit LibreAudioContainerRootWidget(Window& windowToMapTo, LibreAudioUIWidgetInterface* const iface)
+    explicit LibreAudioRootContainerWidget(Window& windowToMapTo, LibreAudioUIWidgetInterface* const iface)
         : BaseWidget(windowToMapTo, iface) {}
 };
 

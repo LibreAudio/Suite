@@ -19,7 +19,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class KnobWidget = LibreAudioSmallKnobWidget>
-class LibreAudioKnobGroupWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::KnobGroup>
+class LibreAudioKnobGroupWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::KnobGroup>
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
@@ -39,7 +39,7 @@ public:
     explicit LibreAudioKnobGroupWidget(LibreAudioWidget* const parent,
                                        const std::vector<FaustParameter>& parameters,
                                        const uint32_t idOffset = 0)
-        : LibreAudioContainerSubWidget(parent),
+        : LibreAudioContainerWidget(parent),
           fParameters(parameters),
           fParametersOffset(idOffset)
     {
@@ -123,7 +123,7 @@ private:
 
     void addSpacer()
     {
-        std::unique_ptr<LibreAudioWidget> spacer { new LibreAudioEmptyWidget(this) };
+        std::unique_ptr<LibreAudioEmptyWidget<>> spacer { new LibreAudioEmptyWidget(this) };
         widgets.push_back({ spacer.get(), Expanding });
         fSpacers.emplace_back(std::move(spacer));
     }

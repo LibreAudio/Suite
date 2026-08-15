@@ -92,7 +92,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioPillToggleWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::PillToggle>,
+class LibreAudioPillToggleWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::PillToggle>,
                                    private ButtonEventHandler::Callback,
                                    private IdleCallback
 {
@@ -104,7 +104,7 @@ public:
     explicit LibreAudioPillToggleWidget(LibreAudioWidget* const parent,
                                         const FaustParameter& parameter,
                                         const uint32_t id)
-        : LibreAudioContainerSubWidget(parent)
+        : LibreAudioContainerWidget(parent)
     {
         addIdleCallback(this);
         setId(id);
@@ -188,7 +188,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioPillAreaWidget : public LibreAudioContainerSubWidget<LibreAudioReference::Widgets::PillArea>
+class LibreAudioPillAreaWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::PillArea>
 {
     using R = LibreAudioReference::Widgets::PillToggle;
 
@@ -199,7 +199,7 @@ class LibreAudioPillAreaWidget : public LibreAudioContainerSubWidget<LibreAudioR
 
 public:
     explicit LibreAudioPillAreaWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerSubWidget(parent)
+        : LibreAudioContainerWidget(parent)
     {
         const std::vector<FaustParameter>& parameters = getFaustParameters();
 
