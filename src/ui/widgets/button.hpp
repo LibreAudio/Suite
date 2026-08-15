@@ -25,7 +25,7 @@ protected:
     virtual const Color& getBackgroundColor() const noexcept
     {
         if (isCheckable())
-            return isChecked() ? R::foregroundColor : R::backgroundColor;
+            return isChecked() ? R::color : R::backgroundColor;
 
         return R::backgroundColor;
     }
@@ -33,12 +33,12 @@ protected:
     virtual const Color& getForegroundColor() const noexcept
     {
         if (! isEnabled())
-            return R::deactivatedColor;
+            return R::color﹫deactivated;
 
         if (isCheckable())
-            return isChecked() ? R::backgroundColor : R::foregroundColor;
+            return isChecked() ? R::backgroundColor : R::color;
 
-        return R::foregroundColor;
+        return R::color;
     }
 
     void onNanoDisplay() override
@@ -46,7 +46,10 @@ protected:
         const float w = getWidth();
         const float h = getHeight();
 
-        fillColor(getBackgroundColor());
+        const Color& bgcolor = getBackgroundColor();
+        DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(bgcolor.alpha, 1.f),);
+
+        fillColor(bgcolor);
 
         if (fCorner != 0)
         {
@@ -240,7 +243,7 @@ private:
 
     const Color& getForegroundColor() const noexcept final
     {
-        return isChecked() || isHovered() ? R::bypassForegroundColor : R::foregroundColor;
+        return isChecked() || isHovered() ? R::bypassForegroundColor : R::color;
     }
 };
 
