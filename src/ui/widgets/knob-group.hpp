@@ -51,27 +51,34 @@ public:
 
         addSpacer();
 
-        bool isDynamic = false;
-        uint32_t firstDynamicIndex = 0;
+        const char* lastDynamicContext = nullptr;
         for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
         {
             const FaustParameter& parameter = parameters[i];
             if (parameter.isEnumerator || parameter.isOutput) {
-                d_stdout("knob-group skipped parameter %s", parameter.label);
+                d_stdout("knob-group skipped parameter %s", parameter.name);
                 continue;
             }
+                d_stdout("knob-group check parameter %s", parameter.name);
             if (parameter.isDynamic)
             {
-                if (! isDynamic)
-                {
-                    isDynamic = true;
-                    firstDynamicIndex = i;
+                if (lastDynamicContext == nullptr) {
+                    lastDynamicContext = parameter.requirement.context;
+                    d_stdout("knob-group dynamic parameters started with context %s", parameter.requirement.context);
+                }
+                else if (std::strcmp(lastDynamicContext, parameter.requirement.context) != 0) {
+                    d_stdout("knob-group dynamic parameters have different context %s vs %s, hiding!", lastDynamicContext, parameter.requirement.context);
+                    continue;
+                } else {
+                    d_stdout("knob-group dynamic parameters have same context %s", parameter.requirement.context);
                 }
             }
-            else if (isDynamic)
+            else
             {
-                isDynamic = false;
-
+                if (lastDynamicContext != nullptr) {
+                    d_stdout("knob-group dynamic parameters have stopped");
+                    lastDynamicContext = nullptr;
+                }
             }
             std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
             widgets.push_back({ widget.get(), Fixed });

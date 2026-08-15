@@ -59,7 +59,7 @@ const std::vector<FaustParameter>& getFaustParameters()
             .requirement = {
                 .context = "{{w.meta.requires}}",
                 .symbol = "{{w.meta.requires[ : w.meta.requires.index(':')]}}",
-                .value = {{w.meta.requires[w.meta.requires.index(':') + 1 : ]}},
+                .value = {{w.meta.requires[w.meta.requires.index(':') + 1 : ]|int}},
             },
             {% else %}
             .requirement = {

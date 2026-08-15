@@ -191,8 +191,8 @@ adt_delayMs = uiAdt(hslider("[01]ADT Delay[style:knob][unit:ms][symbol:adt_delay
 adt_2voice  = uiAdt(hslider("[02]ADT Voices[style:knob][symbol:adt_2voice][label:Voices][requires:mode:0][accentcolor:02]",1,1,2,1)) -1;
 adt_rateHz  = uiAdt(hslider("[03]ADT Rate[style:knob][unit:Hz][symbol:adt_wow_rate][label:Rate][requires:mode:0][accentcolor:03][bracket:WOW]", 0.6, 0.05, 5, 0.01));
 adt_depthMs = uiAdt(hslider("[04]ADT Depth[style:knob][unit:ms][symbol:adt_wow_depth][label:Depth][requires:mode:0][accentcolor:03][bracket:WOW]", 2.5, 0, 10, 0.1)) :si.smoo;
-adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan][accentcolor:04]", 0, -1, 1, 0.01));
-adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width][label:Width][accentcolor:04]", 1, 0, 1, 0.01));
+adt_pan     = uiAdt(hslider("[05]ADT Pan[style:knob][symbol:adt_pan][label:Pan][requires:mode:0][accentcolor:04]", 0, -1, 1, 0.01));
+adt_width   = uiAdt(hslider("[06]ADT Width[style:knob][symbol:adt_width][label:Width][requires:mode:0_FIXME][accentcolor:04]", 1, 0, 1, 0.01));
 
 // second machine, derived from the single-voice settings
 adt_delay2  = adt_delayMs * 1.6 + 4;
