@@ -88,6 +88,13 @@ struct LibreAudioReference {
         static constexpr const uint margin = 3;
         static constexpr const uint width = 26;
 
+        struct Slider {
+            static constexpr const Color color = Colors::acc;
+            static constexpr const Color colorGradientStart = Colors::accGlow;
+            static constexpr const Color colorGradientStop { Colors::accGlow, 0.f };
+            static constexpr const uint height = 3;
+        };
+
         struct Tick {
             static constexpr const Color color { Colors::ink3, 0.15f };
             static constexpr const Color colorMaj { Colors::ink2, 0.26f };

@@ -30,6 +30,7 @@ public:
         setName(parameter.label);
         setCallback(this);
         setDefault(parameter.init);
+        setMouseDeceleration(500.f);
         setOrientation(Vertical);
         setRange(parameter.min, parameter.max);
         setStep(parameter.step);

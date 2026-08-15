@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "../base/base.hpp"
-#include "../base/interface.hpp"
+#include "../base/knob.hpp"
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -20,8 +19,7 @@ enum LibreAudioMeterWidgetType {
 };
 
 template<LibreAudioMeterWidgetType type>
-class LibreAudioMeterWidget final : public LibreAudioWidget,
-                                    private IdleCallback
+class LibreAudioMeterWidget final : public LibreAudioKnobWidget
 {
     using R = LibreAudioReference::Meter;
 
@@ -31,13 +29,22 @@ class LibreAudioMeterWidget final : public LibreAudioWidget,
     static constexpr const uint kParameterR = type == Input
         ? kParametersInputStart + common_input::kFaustParameterInput_peak_r
         : kParametersOutputStart + common_output::kFaustParameterOutput_peak_r - 1;
+    static constexpr const uint kParameterMeter = type == Input
+        ? kParametersInputStart + common_input::kFaustParameterInput_trim
+        : kParametersOutputStart + common_output::kFaustParameterOutput_trim - 1;
+
+    static const FaustParameter& getFaustParameter()
+    {
+        if constexpr (type == Input)
+            return common_input::getFaustParameters().at(common_input::kFaustParameterInput_trim);
+        else
+            return common_output::getFaustParameters().at(common_output::kFaustParameterOutput_trim);
+    }
 
 public:
     LibreAudioMeterWidget(LibreAudioWidget* const parent)
-        : LibreAudioWidget(parent)
+        : LibreAudioKnobWidget(parent, getFaustParameter(), kParameterMeter)
     {
-        addIdleCallback(this);
-
         if constexpr (R::width != 0)
             LibreAudioWidget::setWidth(d_roundToUnsignedInt(R::width * fScaleFactor));
 
@@ -48,11 +55,28 @@ public:
 private:
     // FIXME non-hardcoded
     static constexpr const float min = -70.0;
-    static constexpr const float max = 24.0;
-    static constexpr const float diff = max - min;
+    static constexpr const float max = 12.0;
+
+    static constexpr const float linearPointDB = -12.f;
+    static constexpr const float linearPointPC = 0.48f;
+
+    // NOTE major tick at 0dB, these are minor ticks
+    static constexpr const float ticks[] = { +12, +6, -12, -24, -36, -48 };
 
     float fValueL = min;
     float fValueR = min;
+
+    constexpr inline float db2height(const float db, const float height) const noexcept
+    {
+        if (db >= linearPointDB)
+        {
+            const float normalized = 1.f - d_clamp((db - linearPointDB) / (max - linearPointDB), 0.f, 1.f);
+            return (1.f - linearPointPC) * height * normalized;
+        }
+
+        const float normalized = 1.f - d_clamp(db / (min - linearPointDB), 0.f, 1.f);
+        return height - linearPointPC * height * normalized;
+    }
 
     void idleCallback() final
     {
@@ -76,6 +100,13 @@ private:
         const float w = getWidth();
         const float h = getHeight();
 
+        const float border = (R::border + R::margin) * fScaleFactor;
+        const float startx = border;
+        const float starty = border;
+        const float endx = w - startx;
+        const float endy = h - border;
+        const float mheight = h - starty;
+
         // ------------------------------------------------------------------------------------------------------------
         // draw background
 
@@ -92,36 +123,35 @@ private:
             fill();
         }
 
+        scissor(R::border * fScaleFactor,
+                R::border * fScaleFactor,
+                w - R::border * 2 * fScaleFactor,
+                h - R::border * 2 * fScaleFactor);
+
         // ------------------------------------------------------------------------------------------------------------
         // draw meters
 
         {
-            const float ts = (R::border + R::margin) * fScaleFactor;
-            const float tc = ts + (w - ts * 2) * 0.5f;
+            const float tc = startx + (w - startx * 2) * 0.5f;
             const float tw = R::Track::width * fScaleFactor - 0.5f * fScaleFactor;
 
             fillPaint(linearGradient(0, 0, 0, h, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            // scissor(R::border * fScaleFactor,
-            //         R::border * fScaleFactor,
-            //         w - R::border * 2 * fScaleFactor,
-            //         h - R::border * 2 * fScaleFactor);
-
             if (d_isNotEqual(fValueL, min))
             {
-                const float lh = (h - ts) * (1.f - (fValueL - min) / diff);
+                const float lh = db2height(fValueL, mheight);
 
                 beginPath();
-                rect(ts, ts + lh, tw, h - ts - lh);
+                rect(startx, startx + lh, tw, endy - lh);
                 fill();
             }
 
             if (d_isNotEqual(fValueR, min))
             {
-                const float rh = (h - ts) * (1.f - (fValueR - min) / diff);
+                const float rh = db2height(fValueR, mheight);
 
                 beginPath();
-                rect(tc + 0.5f, ts + rh, tw, h - ts - rh);
+                rect(tc + fScaleFactor * 0.5f, startx + rh, tw, endy - rh);
                 fill();
             }
         }
@@ -146,39 +176,47 @@ private:
         // ------------------------------------------------------------------------------------------------------------
         // draw ticks
 
+        strokeWidth(R::Tick::height * fScaleFactor);
+
+        // major
         {
-            const float ts = (R::border + R::margin) * fScaleFactor;
-            const float te = w - ts;
-
-            strokeWidth(R::Tick::height * fScaleFactor);
-
-            // major
-            const float tickMajor = h - (h * 0.74f - 2.4f * fScaleFactor);
             strokeColor(R::Tick::colorMaj);
+            const float tpos = db2height(0, mheight);
             beginPath();
-            moveTo(ts, tickMajor);
-            lineTo(te, tickMajor);
+            moveTo(startx, starty + tpos);
+            lineTo(endx, starty + tpos);
+            stroke();
+        }
+
+        // minor
+        strokeColor(R::Tick::color);
+        for (float tick : ticks)
+        {
+            const float tpos = db2height(tick, mheight);
+            beginPath();
+            moveTo(startx, starty + tpos);
+            lineTo(endx, starty + tpos);
+            stroke();
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // draw slider
+
+        {
+            const float tpos = db2height(fInterface->getParameterValue(kParameterMeter), mheight);
+
+            strokeColor(R::Slider::color);
+            strokeWidth(R::Slider::height * fScaleFactor);
+
+            beginPath();
+            moveTo(0, starty + tpos);
+            lineTo(w, starty + tpos);
             stroke();
 
-            // minor
-            const float ticks[] = {
-                h - (h * 1.00f - 5.0f * fScaleFactor),
-                h - (h * 0.87f - 3.7f * fScaleFactor),
-                h - (h * 0.48f + 0.2f * fScaleFactor),
-                h - (h * 0.24f + 2.6f * fScaleFactor),
-                h - (h * 0.14f + 3.6f * fScaleFactor),
-                h - (h * 0.06f + 4.3f * fScaleFactor),
-            };
-
-            strokeColor(R::Tick::color);
-
-            for (float tick : ticks)
-            {
-                beginPath();
-                moveTo(ts, tick);
-                lineTo(te, tick);
-                stroke();
-            }
+            beginPath();
+            rect(0, starty + tpos, w, endy - starty);
+            fillPaint(linearGradient(0, 0, 0, h, R::Slider::colorGradientStart, R::Slider::colorGradientStop));
+            fill();
         }
 
         // ------------------------------------------------------------------------------------------------------------
