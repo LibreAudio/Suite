@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base/image.hpp"
+#include "base/interface.hpp"
 #include "widgets/button.hpp"
 #include "widgets/button-group.hpp"
 // #include "widgets/knob.hpp"
