@@ -33,7 +33,7 @@ protected:
     virtual const Color& getForegroundColor() const noexcept
     {
         if (! isEnabled())
-            return R::color﹫deactivated;
+            return R::color〡deactivated;
 
         if (isCheckable())
             return isChecked() ? R::backgroundColor : R::color;
