@@ -7,11 +7,13 @@
 #include "../base/button.hpp"
 #include "../reference.hpp"
 
+#include "las-resources.h"
+
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint8_t corner, const uchar* imageData, uint imageDataSize, class R = LibreAudioReference::Widgets::Button>
+template<Corner corner, const uchar* imageData, uint imageDataSize, class R = LibreAudioReference::Widgets::Button>
 class LibreAudioImageButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
@@ -65,7 +67,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint8_t corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, class R = LibreAudioReference::Widgets::Button>
+template<Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, class R = LibreAudioReference::Widgets::Button>
 class LibreAudioDualImageButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
@@ -121,7 +123,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint8_t corner, const char _text[], class R = LibreAudioReference::Widgets::Button>
+template<Corner corner, const char _text[], class R = LibreAudioReference::Widgets::Button>
 class LibreAudioTextButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
@@ -156,7 +158,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint8_t corner>
+template<Corner corner>
 class LibreAudioBypassButtonWidget final : public LibreAudioImageButtonWidget<corner, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN, LibreAudioReference::Widgets::Button〡Bypass>
 {
     using R = LibreAudioReference::Widgets::Button〡Bypass;

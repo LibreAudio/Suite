@@ -41,19 +41,24 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 enum Corner : uint8_t {
-    kCornerNone = 0,
-    kCornerLeft = 0x1,
-    kCornerRight = 0x2,
-    kCornerBoth = 0x1 | 0x2,
+    kCornerNone,
+    kCornerLeft,
+    kCornerRight,
+    kCornerBoth,
 };
 
-template <class R, uint8_t corner>
+template <class R, Corner corner>
 class LibreAudioReferenceButtonWidget : public LibreAudioButtonWidget
 {
 public:
     explicit LibreAudioReferenceButtonWidget(LibreAudioWidget* const parent)
         : LibreAudioButtonWidget(parent)
     {
+        if constexpr (R::width != 0)
+            LibreAudioWidget::setWidth(d_roundToUnsignedInt(R::width * this->fScaleFactor));
+
+        if constexpr (R::height != 0)
+            LibreAudioWidget::setHeight(d_roundToUnsignedInt(R::height * this->fScaleFactor));
     }
 
 protected:
@@ -81,35 +86,48 @@ protected:
         const float w = getWidth();
         const float h = getHeight();
 
-        const Color& bgcolor = getBackgroundColor();
-        DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(bgcolor.alpha, 1.f),);
+        beginPath();
 
-        fillColor(bgcolor);
-
-        if constexpr (corner != 0)
-        {
-            beginPath();
+        if constexpr (corner != kCornerNone && R::borderRadius != 0)
             roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
-            fill();
+        else
+            rect(0, 0, w, h);
 
-            if constexpr ((corner & kCornerLeft) == 0)
+        const Color& bgcolor = getBackgroundColor();
+
+        if (d_isNotZero(bgcolor.alpha))
+        {
+            if constexpr (corner != kCornerNone && R::borderRadius != 0)
             {
-                beginPath();
-                rect(0, 0, w * 0.5f, h);
-                fill();
+                DISTRHO_CUSTOM_SAFE_ASSERT_RETURN("Buttons with corners must have opaque color",
+                                                  d_isEqual(bgcolor.alpha, 1.f),);
             }
-            if constexpr ((corner & kCornerRight) == 0)
+
+            fillColor(bgcolor);
+            fill();
+        }
+
+        if constexpr (R::border != 0 && d_isNotZero(R::borderColor.alpha))
+        {
+            strokeColor(R::borderColor);
+            strokeWidth(R::border * 2 * this->fScaleFactor);
+            stroke();
+        }
+
+        if constexpr (corner != kCornerNone && R::borderRadius != 0)
+        {
+            if constexpr (corner == kCornerLeft)
             {
                 beginPath();
                 rect(w * 0.5f, 0, w * 0.5f, h);
                 fill();
             }
-        }
-        else
-        {
-            beginPath();
-            rect(0, 0, w, h);
-            fill();
+            if constexpr (corner == kCornerRight)
+            {
+                beginPath();
+                rect(0, 0, w * 0.5f, h);
+                fill();
+            }
         }
     }
 };

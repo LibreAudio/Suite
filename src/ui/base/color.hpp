@@ -10,25 +10,20 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const float rgba[]>
+template<const float rgba[4]>
 class LibreAudioColorWidget final : public LibreAudioWidget
 {
     static constexpr const Color fColor = { rgba[0], rgba[1], rgba[2], rgba[3] };
 
 public:
     explicit LibreAudioColorWidget(LibreAudioWidget* const parent)
-        : LibreAudioWidget(parent)
-    {
-    }
+        : LibreAudioWidget(parent) {}
 
 protected:
     void onNanoDisplay() final
     {
-        const uint width = getWidth();
-        const uint height = getHeight();
-
         beginPath();
-        rect(0, 0, width, height);
+        rect(0, 0, getWidth(), getHeight());
         fillColor(fColor);
         fill();
     }

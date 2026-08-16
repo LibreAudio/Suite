@@ -37,6 +37,17 @@ struct LibreAudioReference {
         static constexpr const Color transparent { 0.f, 0.f, 0.f, 0.f };
     };
 
+    struct Zero {
+        static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color borderColor = Colors::transparent;
+        static constexpr const uint border = 0;
+        static constexpr const uint borderRadius = 0;
+        static constexpr const uint height = 0;
+        static constexpr const uint padding = 0;
+        static constexpr const uint margin = 0;
+        static constexpr const uint width = 0;
+    };
+
     struct Window {
         static constexpr const Color backgroundGradientStart { 0x2c, 0x2c, 0x34 };
         static constexpr const Color backgroundGradientStop { 0x2a, 0x2a, 0x2f };
@@ -46,15 +57,9 @@ struct LibreAudioReference {
         static constexpr const uint margin = Common::margin;
     };
 
-    struct TopBar {
-        static constexpr const Color backgroundColor = Colors::transparent;
-        static constexpr const Color borderColor = Colors::transparent;
-        static constexpr const uint border = 0;
-        static constexpr const uint borderRadius = 0;
+    struct TopBar : Zero {
         static constexpr const uint height = 28;
         static constexpr const uint padding = 20;
-        static constexpr const uint margin = 0;
-        static constexpr const uint width = 0;
         struct PluginName {
             static constexpr const Color color = Colors::acc;
             static constexpr const float fontSize = 14 * fontScaling;
@@ -67,24 +72,17 @@ struct LibreAudioReference {
         static constexpr const Color colorGradientStop = Colors::accGlow;
     };
 
-    struct MainArea {
+    struct MainArea : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
-        static constexpr const uint border = 0;
-        static constexpr const uint borderRadius = 0;
-        static constexpr const uint height = 0;
         static constexpr const uint padding = Common::margin;
-        static constexpr const uint margin = 0;
-        static constexpr const uint width = 0;
     };
 
-    struct Meter {
+    struct Meter : Zero {
         static constexpr const Color backgroundColor = Colors::track;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint border = 1;
         static constexpr const uint borderRadius = 7;
-        static constexpr const uint height = 0;
-        // static constexpr const uint padding = 0;
         static constexpr const uint margin = 3;
         static constexpr const uint width = 26;
 
@@ -109,26 +107,23 @@ struct LibreAudioReference {
         };
     };
 
-    struct Stage {
+    struct Stage : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         // static constexpr const Color backgroundColor = { 0x1b, 0x1c, 0x20 };
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint borderRadius = 7;
-        static constexpr const uint height = 0;
         static constexpr const uint margin = Common::margin;
         static constexpr const uint padding = Common::margin;
-        static constexpr const uint width = 0;
     };
 
     struct Widgets {
-        struct Button {
+        struct Button : Zero {
             static constexpr const Color backgroundColor = { 0x42, 0x42, 0x5a };
             static constexpr const Color color = Colors::acc;
             static constexpr const Color color〡deactivated = Colors::ink3;
             static constexpr const float fontSize = Common::fontSize;
             static constexpr const float letterSpacing = Common::letterSpacing;
-            static constexpr const uint border = 0;
             static constexpr const uint borderRadius = 6;
             static constexpr const uint margin = 6;
         };
@@ -138,25 +133,18 @@ struct LibreAudioReference {
             static constexpr const Color colorBypass = { 0xff, 0x5d, 0x5d };
         };
 
-        struct ButtonGroup {
+        struct ButtonGroup : Zero {
             static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.08f };
             static constexpr const Color borderColor = Colors::transparent;
-            static constexpr const uint border = 0;
             static constexpr const uint borderRadius = 6;
-            static constexpr const uint height = 0;
             static constexpr const uint padding = 1;
-            static constexpr const uint margin = 0;
-            static constexpr const uint width = 0;
         };
 
-        struct Knob {
+        struct Knob : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
             // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
-            static constexpr const uint border = 0;
-            static constexpr const uint borderRadius = 0;
             static constexpr const uint height = 58 + 20;
-            static constexpr const uint margin = 0;
             static constexpr const uint width = 58;
             struct Name {
                 static constexpr const Color color = Colors::acc;
@@ -177,14 +165,11 @@ struct LibreAudioReference {
             };
         };
 
-        struct EasyKnob {
+        struct EasyKnob : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
             // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
-            static constexpr const uint border = 0;
-            static constexpr const uint borderRadius = 0;
             static constexpr const uint height = (58 + 20) * 2;
-            static constexpr const uint margin = 0;
             static constexpr const uint width = 58 * 2;
             struct Name {
                 static constexpr const Color color = Colors::acc;
@@ -205,29 +190,18 @@ struct LibreAudioReference {
             };
         };
 
-        struct KnobGroup {
+        struct KnobGroup : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
-            static constexpr const uint border = 0;
-            static constexpr const uint borderRadius = 0;
-            static constexpr const uint height = 0;
-            static constexpr const uint padding = 0;
             static constexpr const uint margin = Common::margin;
-            static constexpr const uint width = 0;
         };
 
-        struct PillArea {
+        struct PillArea : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
-            static constexpr const uint border = 0;
-            static constexpr const uint borderRadius = 0;
-            static constexpr const uint height = 0;
-            static constexpr const uint margin = 0;
-            static constexpr const uint padding = 0;
-            static constexpr const uint width = 0;
         };
 
-        struct PillToggle {
+        struct PillToggle : Zero {
             static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07 };
             static constexpr const Color borderColor = { 0xff, 0xff, 0xff, 0.04 };
             // static constexpr const Color deactivatedColor = Colors::ink3;
@@ -236,22 +210,18 @@ struct LibreAudioReference {
             // static constexpr const float letterSpacing = Common::letterSpacing;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 8;
-            static constexpr const uint height = 0;
             static constexpr const uint margin = 1;
             static constexpr const uint padding = 2;
-            static constexpr const uint width = 0;
-            struct Cell {
+            struct Cell : Zero {
                 static constexpr const Color backgroundColor = Colors::transparent;
                 static constexpr const Color foregroundColor = Colors::ink2;
                 static constexpr const Color selectedBackgroundColor = { 0xff, 0xff, 0xff, 0.12 };
                 static constexpr const Color selectedForegroundColor = Colors::acc;
                 static constexpr const float fontSize = Common::fontSize;
                 static constexpr const float letterSpacing = Common::letterSpacing;
-                static constexpr const uint border = 0;
                 static constexpr const uint borderRadius = 6;
                 static constexpr const uint height = 26;
                 static constexpr const uint margin = 10;
-                static constexpr const uint width = 0;
             };
         };
     };
