@@ -16,11 +16,20 @@ class LibreAudioButtonWidget : public LibreAudioWidget,
                                public ButtonEventHandler
 {
 public:
+    enum Corner : uint8_t {
+        kCornerNone,
+        kCornerLeft,
+        kCornerRight,
+        kCornerBoth,
+    };
+
     explicit LibreAudioButtonWidget(LibreAudioWidget* const parent)
         : LibreAudioWidget(parent),
           ButtonEventHandler(this)
     {
     }
+
+    [[nodiscard]] virtual Corner getCorner() const noexcept = 0;
 
 private:
     bool onMouse(const Widget::MouseEvent& ev) final
@@ -40,14 +49,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-enum Corner : uint8_t {
-    kCornerNone,
-    kCornerLeft,
-    kCornerRight,
-    kCornerBoth,
-};
-
-template <class R, Corner corner>
+template <class R, LibreAudioButtonWidget::Corner corner>
 class LibreAudioReferenceButtonWidget : public LibreAudioButtonWidget
 {
 public:
@@ -59,6 +61,11 @@ public:
 
         if constexpr (R::height != 0)
             LibreAudioWidget::setHeight(d_roundToUnsignedInt(R::height * this->fScaleFactor));
+    }
+
+    [[nodiscard]] Corner getCorner() const noexcept final
+    {
+        return corner;
     }
 
 protected:
@@ -97,7 +104,7 @@ protected:
 
         if (d_isNotZero(bgcolor.alpha))
         {
-            if constexpr (corner != kCornerNone && R::borderRadius != 0)
+            if constexpr ((corner == kCornerLeft || corner == kCornerRight) && R::borderRadius != 0)
             {
                 DISTRHO_CUSTOM_SAFE_ASSERT_RETURN("Buttons with corners must have opaque color",
                                                   d_isEqual(bgcolor.alpha, 1.f),);

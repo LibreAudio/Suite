@@ -54,27 +54,27 @@ public:
             BaseWidget::addIdleCallback(callback);
     }
 
-    double getTime() const
+    [[nodiscard]] double getTime() const
     {
         return BaseWidget::getApp().getTime();
     }
 
-    bool timeEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
+    [[nodiscard]] bool timeEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
     {
         return d_isNotZero(lastTime) ? timeNow - lastTime >= wantedTime : false;
     }
 
-    bool timeEllapsed(const double lastTime, const double wantedTime) const
+    [[nodiscard]] bool timeEllapsed(const double lastTime, const double wantedTime) const
     {
         return timeEllapsed(lastTime, wantedTime, getTime());
     }
 
-    bool timeNotEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
+    [[nodiscard]] bool timeNotEllapsed(const double lastTime, const double wantedTime, const double timeNow) const noexcept
     {
         return d_isNotZero(lastTime) ? timeNow - lastTime < wantedTime : false;
     }
 
-    bool timeNotEllapsed(const double lastTime, const double wantedTime) const
+    [[nodiscard]] bool timeNotEllapsed(const double lastTime, const double wantedTime) const
     {
         return timeNotEllapsed(lastTime, wantedTime, getTime());
     }

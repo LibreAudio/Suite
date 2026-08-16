@@ -13,6 +13,8 @@
 
 #include "Layout.hpp"
 
+#include "las-resources.h"
+
 #include <memory>
 
 START_NAMESPACE_DISTRHO
@@ -82,6 +84,8 @@ public:
             }
             std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
             widgets.push_back({ widget.get(), Fixed });
+            if (widget->getSize().isNull())
+                d_stderr2("Error: addKnob called but widget '%s' does not have a known size", widget->getName());
             fKnobs.emplace_back(std::move(widget));
             addSpacer();
         }

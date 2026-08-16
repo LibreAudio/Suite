@@ -20,8 +20,6 @@ START_NAMESPACE_DISTRHO
 class LibreAudioButtonGroupWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::ButtonGroup>
 {
     using R = LibreAudioReference::Widgets::ButtonGroup;
-    // using LibreAudioButtonWidget::Corner kCornerLeft = LibreAudioButtonWidget::kCornerLeft;
-    // using LibreAudioButtonWidget::Corner kCornerRight = LibreAudioButtonWidget::kCornerRight;
 
 public:
     explicit LibreAudioButtonGroupWidget(LibreAudioWidget* const parent)
@@ -46,28 +44,35 @@ public:
                 static_cast<LibreAudioButtonWidget*>(widgetWithSizeHint.widget)->setCallback(callback);
             }
 
-            // if (numWidgets == 1)
-            // {
-            //     static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft | LibreAudioButtonWidget::kCornerRight);
-            // }
-            // else
-            // {
-            //     static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft);
-            //     static_cast<LibreAudioButtonWidget*>(widgets.back().widget)->setCorner(LibreAudioButtonWidget::kCornerRight);
-            // }
+            if (numWidgets == 1)
+            {
+                DISTRHO_CUSTOM_SAFE_ASSERT(
+                    "Single button must have corner = both",
+                    static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerBoth);
+            }
+            else
+            {
+                DISTRHO_CUSTOM_SAFE_ASSERT(
+                    "First button must have corner = left",
+                    static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerLeft);
+                DISTRHO_CUSTOM_SAFE_ASSERT(
+                    "First button must have corner = right",
+                    static_cast<LibreAudioButtonWidget*>(widgets.back().widget)->getCorner() == LibreAudioButtonWidget::kCornerRight);
+            }
         }
 
         LibreAudioWidget::setWidth(width);
     }
 
 protected:
-    template<class B,
-             SizeHint sizeHint = Fixed,
-             typename = std::enable_if_t<std::is_base_of_v<LibreAudioButtonWidget, B>>>
-    std::unique_ptr<LibreAudioButtonWidget> addButton()
+    template<class B, typename = std::enable_if_t<std::is_base_of_v<LibreAudioButtonWidget, B>>>
+    std::unique_ptr<LibreAudioButtonWidget> addButton(const uint id)
     {
         std::unique_ptr<LibreAudioButtonWidget> widget { new B(this) };
+        widget->setId(id);
         widgets.push_back({ widget.get(), Fixed });
+        if (widget->getSize().isNull())
+            d_stderr2("Error: addButton called but widget '%s' does not have a known size", widget->getName());
         return widget;
     }
 

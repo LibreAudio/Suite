@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "../base/button.hpp"
+#include "button.hpp"
 #include "../base/container.hpp"
-#include "../reference.hpp"
+#include "../base/interface.hpp"
 
 #include "LibreAudioParameters.hpp"
 #include "FaustParameters.hpp"
@@ -15,75 +15,43 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioBackgroundPillToggleCellWidget : public LibreAudioButtonWidget
+class LibreAudioBackgroundPillToggleCellWidget : public LibreAudioTextButtonWidget<LibreAudioButtonWidget::kCornerBoth,
+                                                                                   LibreAudioReference::Widgets::PillToggle::Cell>
 {
     using R = LibreAudioReference::Widgets::PillToggle::Cell;
+    using BaseWidget = LibreAudioTextButtonWidget<LibreAudioButtonWidget::kCornerBoth,
+                                                  LibreAudioReference::Widgets::PillToggle::Cell>;
 
 public:
     explicit LibreAudioBackgroundPillToggleCellWidget(LibreAudioWidget* const parent,
                                                       ButtonEventHandler::Callback* const callback,
                                                       const FaustParameterEnumerationValue& scalePoint)
-        : LibreAudioButtonWidget(parent),
+        : BaseWidget(parent, scalePoint.label),
           fScalePoint(scalePoint)
     {
-        setCallback(callback);
-        setCheckable(true);
-        setName(scalePoint.label);
-
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor) * 2;
-
-        Rectangle<float> bounds;
-        fontSize(R::fontSize * fScaleFactor);
-        textAlign(0);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
-        textBounds(0, 0, scalePoint.label, nullptr, bounds);
-        setWidth(bounds.getWidth() + margin);
+        BaseWidget::setCallback(callback);
+        BaseWidget::setCheckable(true);
+        // BaseWidget::setId(scalePoint.value);
+        BaseWidget::setName(scalePoint.label);
     }
 
-    int getValue() const noexcept
+    [[nodiscard]] int getValue() const noexcept
     {
         return fScalePoint.value;
     }
 
 protected:
-    const Color& getBackgroundColor() const noexcept
+    [[nodiscard]] const Color& getBackgroundColor() const noexcept override
     {
-        return isChecked() ? R::selectedBackgroundColor : R::backgroundColor;
+        return BaseWidget::isChecked() ? R::backgroundColor〡selected : R::backgroundColor;
     }
 
-    const Color& getForegroundColor() const noexcept
+    [[nodiscard]] const Color& getForegroundColor() const noexcept override
     {
-        // if (! isEnabled())
+        // if (! BaseWidget::isEnabled())
         //     return R::deactivatedColor;
 
-        return isChecked() ? R::selectedForegroundColor : R::foregroundColor;
-    }
-
-    void onNanoDisplay() override
-    {
-        const float w = getWidth();
-        const float h = getHeight();
-
-        fillColor(getBackgroundColor());
-
-        if constexpr (R::borderRadius != 0)
-        {
-            beginPath();
-            roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
-            fill();
-        }
-        else
-        {
-            beginPath();
-            rect(0, 0, w, h);
-            fill();
-        }
-
-        fillColor(getForegroundColor());
-        fontSize(R::fontSize * fScaleFactor);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
-        text(w * 0.5f, h * 0.5f, fScalePoint.label);
+        return BaseWidget::isChecked() ? R::color〡selected : R::color;
     }
 
 private:

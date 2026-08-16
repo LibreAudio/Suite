@@ -143,7 +143,7 @@ struct LibreAudioReference {
         struct Knob : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
-            // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
+            // static constexpr const Color color = { 0xff, 0xff, 0xff };
             static constexpr const uint height = 58 + 20;
             static constexpr const uint width = 58;
             struct Name {
@@ -168,7 +168,7 @@ struct LibreAudioReference {
         struct EasyKnob : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
-            // static constexpr const Color foregroundColor = { 0xff, 0xff, 0xff };
+            // static constexpr const Color color = { 0xff, 0xff, 0xff };
             static constexpr const uint height = (58 + 20) * 2;
             static constexpr const uint width = 58 * 2;
             struct Name {
@@ -205,7 +205,7 @@ struct LibreAudioReference {
             static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07 };
             static constexpr const Color borderColor = { 0xff, 0xff, 0xff, 0.04 };
             // static constexpr const Color deactivatedColor = Colors::ink3;
-            // static constexpr const Color foregroundColor = Colors::acc;
+            // static constexpr const Color color = Colors::acc;
             // static constexpr const float fontSize = Common::fontSize;
             // static constexpr const float letterSpacing = Common::letterSpacing;
             static constexpr const uint border = 1;
@@ -214,9 +214,10 @@ struct LibreAudioReference {
             static constexpr const uint padding = 2;
             struct Cell : Zero {
                 static constexpr const Color backgroundColor = Colors::transparent;
-                static constexpr const Color foregroundColor = Colors::ink2;
-                static constexpr const Color selectedBackgroundColor = { 0xff, 0xff, 0xff, 0.12 };
-                static constexpr const Color selectedForegroundColor = Colors::acc;
+                static constexpr const Color backgroundColor〡selected = { 0xff, 0xff, 0xff, 0.12 };
+                static constexpr const Color color = Colors::ink2;
+                static constexpr const Color color〡deactivated = Colors::ink3;
+                static constexpr const Color color〡selected = Colors::acc;
                 static constexpr const float fontSize = Common::fontSize;
                 static constexpr const float letterSpacing = Common::letterSpacing;
                 static constexpr const uint borderRadius = 6;

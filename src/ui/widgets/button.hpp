@@ -13,7 +13,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const uchar* imageData, uint imageDataSize, class R = LibreAudioReference::Widgets::Button>
+template<LibreAudioButtonWidget::Corner corner, const uchar* imageData, uint imageDataSize, class R = LibreAudioReference::Widgets::Button>
 class LibreAudioImageButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
@@ -67,7 +67,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, class R = LibreAudioReference::Widgets::Button>
+template<LibreAudioButtonWidget::Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, class R = LibreAudioReference::Widgets::Button>
 class LibreAudioDualImageButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
@@ -98,7 +98,7 @@ private:
         const float h = BaseWidget::getHeight();
     
         BaseWidget::save();
-        BaseWidget::globalTint(BaseWidget::getForegroundColor());
+        BaseWidget::globalTint(this->getForegroundColor());
     
         BaseWidget::beginPath();
         BaseWidget::rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
@@ -123,25 +123,29 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const char _text[], class R = LibreAudioReference::Widgets::Button>
+template<LibreAudioButtonWidget::Corner corner, class R = LibreAudioReference::Widgets::Button>
 class LibreAudioTextButtonWidget : public LibreAudioReferenceButtonWidget<R, corner>
 {
     using BaseWidget = LibreAudioReferenceButtonWidget<R, corner>;
 
 public:
-    explicit LibreAudioTextButtonWidget(LibreAudioWidget* const parent)
-        : BaseWidget(parent)
+    explicit LibreAudioTextButtonWidget(LibreAudioWidget* const parent, const char* const text)
+        : BaseWidget(parent),
+          fText(text)
     {
         const uint margin = d_roundToUnsignedInt(R::margin * this->fScaleFactor) * 2;
 
         Rectangle<float> bounds;
         BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
         BaseWidget::textAlign(0);
-        BaseWidget::textBounds(0, 0, _text, nullptr, bounds);
+        BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
+        BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
         BaseWidget::setWidth(bounds.getWidth() + margin);
     }
 
 private:
+    const char* const fText;
+
     void onNanoDisplay() final
     {
         BaseWidget::onNanoDisplay();
@@ -149,16 +153,29 @@ private:
         const float w = BaseWidget::getWidth();
         const float h = BaseWidget::getHeight();
     
-        BaseWidget::fillColor(BaseWidget::getForegroundColor());
+        BaseWidget::fillColor(this->getForegroundColor());
         BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
         BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::text(w * 0.5f, h * 0.5f, _text);
+        BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
+        BaseWidget::text(w * 0.5f, h * 0.5f, fText);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner>
+template<LibreAudioButtonWidget::Corner corner, const char _text[], class R = LibreAudioReference::Widgets::Button>
+class LibreAudioStaticTextButtonWidget : public LibreAudioTextButtonWidget<corner, R>
+{
+    using BaseWidget = LibreAudioTextButtonWidget<corner, R>;
+
+public:
+    explicit LibreAudioStaticTextButtonWidget(LibreAudioWidget* const parent)
+        : BaseWidget(parent, _text) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<LibreAudioButtonWidget::Corner corner>
 class LibreAudioBypassButtonWidget final : public LibreAudioImageButtonWidget<corner, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN, LibreAudioReference::Widgets::Button〡Bypass>
 {
     using R = LibreAudioReference::Widgets::Button〡Bypass;
@@ -172,12 +189,12 @@ public:
     }
 
 private:
-    const Color& getBackgroundColor() const noexcept final
+    [[nodiscard]] const Color& getBackgroundColor() const noexcept final
     {
         return BaseWidget::isChecked() ? R::backgroundColorBypass : R::backgroundColor;
     }
 
-    const Color& getForegroundColor() const noexcept final
+    [[nodiscard]] const Color& getForegroundColor() const noexcept final
     {
         return BaseWidget::isChecked() || BaseWidget::isHovered() ? R::colorBypass : R::color;
     }
