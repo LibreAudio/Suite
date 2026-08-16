@@ -5,7 +5,6 @@
 #pragma once
 
 #include "empty.hpp"
-#include "interface.hpp"
 
 #include "Layout.hpp"
 
@@ -13,6 +12,8 @@
 #include <type_traits>
 
 START_NAMESPACE_DISTRHO
+
+class LibreAudioUIWidgetInterface;
 
 // --------------------------------------------------------------------------------------------------------------------
 // widget container, with an horizontal or vertical layout for child widgets

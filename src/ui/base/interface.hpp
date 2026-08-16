@@ -32,7 +32,7 @@ public:
 
     virtual PageButton getCurrentPage() const noexcept = 0;
 
-    virtual float getParameterValue(const uint32_t index) const noexcept = 0;
+    virtual float getParameterValue(uint32_t index) const noexcept = 0;
 
     virtual bool canUndo() const noexcept = 0;
     virtual bool canRedo() const noexcept = 0;

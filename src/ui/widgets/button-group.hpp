@@ -46,15 +46,15 @@ public:
                 static_cast<LibreAudioButtonWidget*>(widgetWithSizeHint.widget)->setCallback(callback);
             }
 
-            if (numWidgets == 1)
-            {
-                static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft | LibreAudioButtonWidget::kCornerRight);
-            }
-            else
-            {
-                static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft);
-                static_cast<LibreAudioButtonWidget*>(widgets.back().widget)->setCorner(LibreAudioButtonWidget::kCornerRight);
-            }
+            // if (numWidgets == 1)
+            // {
+            //     static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft | LibreAudioButtonWidget::kCornerRight);
+            // }
+            // else
+            // {
+            //     static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->setCorner(LibreAudioButtonWidget::kCornerLeft);
+            //     static_cast<LibreAudioButtonWidget*>(widgets.back().widget)->setCorner(LibreAudioButtonWidget::kCornerRight);
+            // }
         }
 
         LibreAudioWidget::setWidth(width);

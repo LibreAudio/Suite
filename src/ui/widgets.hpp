@@ -49,8 +49,8 @@ class LibreAudioTopBarUndoRedoGroupWidget : public LibreAudioButtonGroupWidget,
                                             private ButtonEventHandler::Callback,
                                             private IdleCallback
 {
-    std::unique_ptr<LibreAudioButtonWidget> fUndo = addButton<LibreAudioImageButtonWidget<IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>>();
-    std::unique_ptr<LibreAudioButtonWidget> fRedo = addButton<LibreAudioImageButtonWidget<IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fUndo = addButton<LibreAudioImageButtonWidget<kCornerLeft, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fRedo = addButton<LibreAudioImageButtonWidget<kCornerRight, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN>>();
 
 public:
     explicit LibreAudioTopBarUndoRedoGroupWidget(LibreAudioWidget* const parent)
@@ -102,11 +102,11 @@ class LibreAudioTopBarSnapshotsGroupWidget : public LibreAudioButtonGroupWidget,
     static constexpr const char kTextC[] = "C";
     static constexpr const char kTextD[] = "D";
     std::unique_ptr<LibreAudioButtonWidget> fCopy = addButton<LibreAudioDualImageButtonWidget<
-        IMAGES_X_PNG_DATA, IMAGES_X_PNG_LEN, IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN>>();
-    std::unique_ptr<LibreAudioButtonWidget> fA = addButton<LibreAudioTextButtonWidget<kTextA>>();
-    std::unique_ptr<LibreAudioButtonWidget> fB = addButton<LibreAudioTextButtonWidget<kTextB>>();
-    std::unique_ptr<LibreAudioButtonWidget> fC = addButton<LibreAudioTextButtonWidget<kTextC>>();
-    std::unique_ptr<LibreAudioButtonWidget> fD = addButton<LibreAudioTextButtonWidget<kTextD>>();
+        kCornerLeft, IMAGES_X_PNG_DATA, IMAGES_X_PNG_LEN, IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fA = addButton<LibreAudioTextButtonWidget<kCornerNone, kTextA>>();
+    std::unique_ptr<LibreAudioButtonWidget> fB = addButton<LibreAudioTextButtonWidget<kCornerNone, kTextB>>();
+    std::unique_ptr<LibreAudioButtonWidget> fC = addButton<LibreAudioTextButtonWidget<kCornerNone, kTextC>>();
+    std::unique_ptr<LibreAudioButtonWidget> fD = addButton<LibreAudioTextButtonWidget<kCornerRight, kTextD>>();
 
 public:
     explicit LibreAudioTopBarSnapshotsGroupWidget(LibreAudioWidget* const parent)
@@ -184,8 +184,8 @@ class LibreAudioTopBarEasyExpertGroupWidget : public LibreAudioButtonGroupWidget
 {
     static constexpr const char kTextEasy[] = "Easy";
     static constexpr const char kTextExpert[] = "Expert";
-    std::unique_ptr<LibreAudioButtonWidget> fEasy = addButton<LibreAudioTextButtonWidget<kTextEasy>>();
-    std::unique_ptr<LibreAudioButtonWidget> fExpert = addButton<LibreAudioTextButtonWidget<kTextExpert>>();
+    std::unique_ptr<LibreAudioButtonWidget> fEasy = addButton<LibreAudioTextButtonWidget<kCornerLeft, kTextEasy>>();
+    std::unique_ptr<LibreAudioButtonWidget> fExpert = addButton<LibreAudioTextButtonWidget<kCornerRight, kTextExpert>>();
 
 public:
     explicit LibreAudioTopBarEasyExpertGroupWidget(LibreAudioWidget* const parent)
@@ -238,8 +238,8 @@ class LibreAudioTopBarMenuPowerGroupWidget : public LibreAudioButtonGroupWidget,
                                              private ButtonEventHandler::Callback,
                                              private IdleCallback
 {
-    std::unique_ptr<LibreAudioButtonWidget> fMenu = addButton<LibreAudioImageButtonWidget<IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN>>();
-    std::unique_ptr<LibreAudioButtonWidget> fPower = addButton<LibreAudioBypassButtonWidget>();
+    std::unique_ptr<LibreAudioButtonWidget> fMenu = addButton<LibreAudioImageButtonWidget<kCornerLeft, IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN>>();
+    std::unique_ptr<LibreAudioButtonWidget> fPower = addButton<LibreAudioBypassButtonWidget<kCornerRight>>();
 
 public:
     explicit LibreAudioTopBarMenuPowerGroupWidget(LibreAudioWidget* const parent)
