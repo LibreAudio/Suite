@@ -6,8 +6,8 @@
 
 #include "base/image.hpp"
 #include "base/interface.hpp"
+#include "base/button-group.hpp"
 #include "widgets/button.hpp"
-#include "widgets/button-group.hpp"
 // #include "widgets/knob.hpp"
 // #include "widgets/knob-group.hpp"
 // #include "widgets/line.hpp"
@@ -43,6 +43,7 @@ enum WidgetIds {
 // --------------------------------------------------------------------------------------------------------------------
 
 using LibreAudioTopBarLogoWidget = LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+using LibreAudioButtonGroupWidget = LibreAudioReferenceButtonGroupWidget<LibreAudioReference::Widgets::ButtonGroup>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

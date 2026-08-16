@@ -22,7 +22,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class KnobWidget = LibreAudioSmallKnobWidget>
-class LibreAudioKnobGroupWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::KnobGroup>
+class LibreAudioKnobGroupWidget : public LibreAudioReferenceContainerWidget<LibreAudioReference::Widgets::KnobGroup>
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
@@ -42,7 +42,7 @@ public:
     explicit LibreAudioKnobGroupWidget(LibreAudioWidget* const parent,
                                        const std::vector<FaustParameter>& parameters,
                                        const uint32_t idOffset = 0)
-        : LibreAudioContainerWidget(parent),
+        : LibreAudioReferenceContainerWidget(parent),
           fParameters(parameters),
           fParametersOffset(idOffset)
     {
@@ -225,13 +225,13 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioEasyKnobsGroupWidget final : public LibreAudioContainerWidget<LibreAudioReference::Widgets::KnobGroup>
+class LibreAudioEasyKnobsGroupWidget final : public LibreAudioReferenceContainerWidget<LibreAudioReference::Widgets::KnobGroup>
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
 public:
     explicit LibreAudioEasyKnobsGroupWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+        : LibreAudioReferenceContainerWidget<R>(parent)
     {
         addSpacer();
 

@@ -30,7 +30,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioTopBar : public LibreAudioContainerWidget<LibreAudioReference::TopBar>
+class LibreAudioTopBar : public LibreAudioReferenceContainerWidget<LibreAudioReference::TopBar>
 {
     std::unique_ptr<LibreAudioTopBarLogoWidget> fLogo = addWidget<LibreAudioTopBarLogoWidget>();
     std::unique_ptr<LibreAudioTopBarNameWidget> fPluginName = addWidget<LibreAudioTopBarNameWidget>();
@@ -42,14 +42,14 @@ class LibreAudioTopBar : public LibreAudioContainerWidget<LibreAudioReference::T
 
 public:
     LibreAudioTopBar(LibreAudioTopLevelWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+        : LibreAudioReferenceContainerWidget(parent)
     {
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioMainArea : public LibreAudioContainerWidget<LibreAudioReference::MainArea>
+class LibreAudioMainArea : public LibreAudioReferenceContainerWidget<LibreAudioReference::MainArea>
 {
     std::unique_ptr<LibreAudioWidget> fMetersIn = addWidget<LibreAudioMeterWidget<Input>>();
     std::unique_ptr<LibreAudioStageWidget> fStage = addWidget<LibreAudioStageWidget, Expanding>();
@@ -57,7 +57,7 @@ class LibreAudioMainArea : public LibreAudioContainerWidget<LibreAudioReference:
 
 public:
     LibreAudioMainArea(LibreAudioTopLevelWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+        : LibreAudioReferenceContainerWidget(parent)
     {
     }
 
@@ -74,7 +74,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioRootWidget : public LibreAudioRootContainerWidget<LibreAudioReference::Window, kVertical>
+class LibreAudioRootWidget : public LibreAudioReferenceContainerTopLevelWidget<LibreAudioReference::Window, kVertical>
 {
     using R = LibreAudioReference::Window;
 
@@ -83,7 +83,7 @@ class LibreAudioRootWidget : public LibreAudioRootContainerWidget<LibreAudioRefe
 
 public:
     LibreAudioRootWidget(Window& window, LibreAudioUIWidgetInterface* const iface)
-        : LibreAudioRootContainerWidget(window, iface)
+        : LibreAudioReferenceContainerTopLevelWidget(window, iface)
     {
         createFontFromMemory("Saira Semi Condensed (Regular)",
                              FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_DATA,

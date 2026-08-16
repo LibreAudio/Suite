@@ -11,7 +11,7 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioEasyStageWidget final : public LibreAudioContainerWidget<LibreAudioReference::Stage, kVertical>
+class LibreAudioEasyStageWidget final : public LibreAudioReferenceContainerWidget<LibreAudioReference::Stage, kVertical>
 {
     using R = LibreAudioReference::Stage;
 
@@ -21,7 +21,7 @@ class LibreAudioEasyStageWidget final : public LibreAudioContainerWidget<LibreAu
 
 public:
     explicit LibreAudioEasyStageWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+        : LibreAudioReferenceContainerWidget(parent)
     {
     }
 
@@ -61,7 +61,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioExpertStageWidget final : public LibreAudioContainerWidget<LibreAudioReference::Stage, kVertical>
+class LibreAudioExpertStageWidget final : public LibreAudioReferenceContainerWidget<LibreAudioReference::Stage, kVertical>
 {
     using R = LibreAudioReference::Stage;
 
@@ -71,7 +71,7 @@ class LibreAudioExpertStageWidget final : public LibreAudioContainerWidget<Libre
 
 public:
     explicit LibreAudioExpertStageWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+        : LibreAudioReferenceContainerWidget(parent)
     {
         fTopArea->setHeight(30 * fScaleFactor);
     }

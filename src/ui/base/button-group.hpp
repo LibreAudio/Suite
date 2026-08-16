@@ -4,41 +4,34 @@
 
 #pragma once
 
-#include "../reference.hpp"
-#include "../base/button.hpp"
-#include "../base/container.hpp"
-
-#include "Layout.hpp"
-
-#include <memory>
-#include <type_traits>
+#include "button.hpp"
+#include "container.hpp"
 
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioButtonGroupWidget : public LibreAudioContainerWidget<LibreAudioReference::Widgets::ButtonGroup>
+template <class R>
+class LibreAudioReferenceButtonGroupWidget : public LibreAudioReferenceContainerWidget<R>
 {
-    using R = LibreAudioReference::Widgets::ButtonGroup;
-
 public:
-    explicit LibreAudioButtonGroupWidget(LibreAudioWidget* const parent)
-        : LibreAudioContainerWidget(parent)
+    explicit LibreAudioReferenceButtonGroupWidget(LibreAudioWidget* const parent)
+        : LibreAudioReferenceContainerWidget<R>(parent)
     {
     }
 
     void done(ButtonEventHandler::Callback* const callback)
     {
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
+        const uint border = d_roundToUnsignedInt(R::border * this->fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * this->fScaleFactor);
+        const uint padding = d_roundToUnsignedInt(R::padding * this->fScaleFactor);
 
         uint width = (border + margin) * 2;
-        if (const uint numWidgets = widgets.size())
+        if (const uint numWidgets = this->widgets.size())
         {
             width += padding * (numWidgets - 1);
 
-            for (const SubWidgetWithSizeHint& widgetWithSizeHint : widgets)
+            for (const SubWidgetWithSizeHint& widgetWithSizeHint : this->widgets)
             {
                 width += widgetWithSizeHint.widget->getWidth();
                 static_cast<LibreAudioButtonWidget*>(widgetWithSizeHint.widget)->setCallback(callback);
@@ -48,16 +41,16 @@ public:
             {
                 DISTRHO_CUSTOM_SAFE_ASSERT(
                     "Single button must have corner = both",
-                    static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerBoth);
+                    static_cast<LibreAudioButtonWidget*>(this->widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerBoth);
             }
             else
             {
                 DISTRHO_CUSTOM_SAFE_ASSERT(
                     "First button must have corner = left",
-                    static_cast<LibreAudioButtonWidget*>(widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerLeft);
+                    static_cast<LibreAudioButtonWidget*>(this->widgets.front().widget)->getCorner() == LibreAudioButtonWidget::kCornerLeft);
                 DISTRHO_CUSTOM_SAFE_ASSERT(
                     "First button must have corner = right",
-                    static_cast<LibreAudioButtonWidget*>(widgets.back().widget)->getCorner() == LibreAudioButtonWidget::kCornerRight);
+                    static_cast<LibreAudioButtonWidget*>(this->widgets.back().widget)->getCorner() == LibreAudioButtonWidget::kCornerRight);
             }
         }
 
@@ -70,7 +63,7 @@ protected:
     {
         std::unique_ptr<LibreAudioButtonWidget> widget { new B(this) };
         widget->setId(id);
-        widgets.push_back({ widget.get(), Fixed });
+        this->widgets.push_back({ widget.get(), Fixed });
         if (widget->getSize().isNull())
             d_stderr2("Error: addButton called but widget '%s' does not have a known size", widget->getName());
         return widget;

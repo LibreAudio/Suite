@@ -121,7 +121,7 @@ protected:
         beginPath();
 
         if constexpr (R::borderRadius != 0)
-            roundedRect(0, 0, w, h, R::borderRadius * this->fScaleFactor);
+            roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
         else
             rect(0, 0, w, h);
 
@@ -134,7 +134,7 @@ protected:
         if constexpr (R::border != 0 && d_isNotZero(R::borderColor.alpha))
         {
             strokeColor(R::borderColor);
-            strokeWidth(R::border * 2 * this->fScaleFactor);
+            strokeWidth(R::border * 2 * fScaleFactor);
             stroke();
         }
     }
@@ -143,10 +143,10 @@ private:
     void _initSize()
     {
         if constexpr (R::width != 0)
-            setWidth(d_roundToUnsignedInt(R::width * this->fScaleFactor));
+            setWidth(d_roundToUnsignedInt(R::width * fScaleFactor));
 
         if constexpr (R::height != 0)
-            setHeight(d_roundToUnsignedInt(R::height * this->fScaleFactor));
+            setHeight(d_roundToUnsignedInt(R::height * fScaleFactor));
     }
 };
 
