@@ -170,7 +170,7 @@ private:
     bool update()
     {
 #if 0
-#elif defined(LIBREAUDIO_PLUGIN__chorus) || 1
+#elif defined(LIBREAUDIO_PLUGIN__chorus)
         static_assert(kLabel == "chorus", "wrong plugin");
         // if constexpr (kLabel == "chorus")
         {
