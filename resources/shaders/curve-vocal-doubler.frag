@@ -25,30 +25,32 @@
 #define LPRES 0.0        /* low-pass resonance bump  (0 .. 1) */
 #define HPRES 0.0        /* high-pass resonance bump (0 .. 1) */
 
-// TODO
-#define R1   0.55  /* voice 1 trace rate, Hz */
-#define R2   0.85  /* voice 2 trace rate, Hz */
-
 /* standalone defaults (Shadertoy editor has no custom uniforms) */
 #ifndef LIBREAUDIO_HOSTED
-#define DEPTH 0.35    /* trace amplitude / wet depth (0 .. 1) */
-#define SHOWB 1.0     /* draw the 2nd voice? (0 or 1) - on in 1/3 Doubler & 2-voice ADT */
-#define LPHZ 7000.0   /* wet-EQ low-pass corner, Hz */
-#define HPHZ 20.0     /* wet-EQ high-pass corner, Hz */
-#define PRESENCE 0.62 /* presence bell (0 .. 1, 0.5 = flat), +-12 dB at 2 kHz */
-#define DEESS 0.6     /* De-Ess amount (0 .. 1) */
+#define R1       0.55   /* voice 1 trace rate, Hz */
+#define R2       0.85   /* voice 2 trace rate, Hz */
+#define DEPTH    0.35    /* trace amplitude / wet depth (0 .. 1) */
+#define SHOWB    1.0     /* draw the 2nd voice? (0 or 1) - on in 1/3 Doubler & 2-voice ADT */
+#define LPHZ     7000.0   /* wet-EQ low-pass corner, Hz */
+#define HPHZ     20.0     /* wet-EQ high-pass corner, Hz */
+#define PRESENCE 0.62    /* presence bell (0 .. 1, 0.5 = flat), +-12 dB at 2 kHz */
+#define DEESS    0.6     /* De-Ess amount (0 .. 1) */
 #else
 /* adjustable plugin parameters */
 uniform float u_adt_2voice;
 uniform float u_adt_wow_depth;
+uniform float u_adt_wow_rate;
 uniform float u_deess_amount;
 uniform float u_doubler_wander_depth;
+uniform float u_doubler_wander_rate;
 uniform float u_eq_hp;
 uniform float u_eq_lp;
 uniform float u_mode;
 uniform float u_presence;
 uniform float u_take_pitch;
 uniform float u_take_timing;
+#define R1 (u_mode == 0.0 ? (u_adt_wow_rate / 5.0) : u_mode == 1.0 ? (u_doubler_wander_rate / 2.0) : 0.55)
+#define R2 (u_mode == 0.0 ? (u_adt_wow_rate / 5.0 * 0.73) : u_mode == 1.0 ? (u_doubler_wander_rate / 2.0 * 1.21) : 0.85)
 #define DEPTH (u_mode == 0.0 ? (u_adt_wow_depth / 10.0) : u_mode == 1.0 ? (u_doubler_wander_depth / 25.0) : (u_take_timing / 80.0) + (u_take_pitch / 60.0))
 #define SHOWB (u_mode == 1.0 || (u_mode == 0.0 && u_adt_2voice == 2.0) ? 1.0 : 0.0)
 #define LPHZ u_eq_lp
