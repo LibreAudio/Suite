@@ -13,9 +13,7 @@
 #define DBMAX 26.0   /* top of the dB window */
 #define DBMIN -42.0  /* bottom of the dB window */
 #define WIN  2.0     /* time window shown, seconds */
-#define THICK 3.0    /* line thickness, pixels */
 #define GLOW 0.60    /* glow strength (0 .. 1) */
-#define GLOWW 7.0    /* glow radius, pixels */
 #define FILL 0.35    /* fill opacity between the two voices (0 .. 1) */
 #define FMIN 20.0    /* frequency axis min, Hz (left edge) */
 #define FMAX 10000.0 /* frequency axis max, Hz (right edge) */
@@ -33,6 +31,8 @@
 #define R1       0.55 /* LFO 1 rate, Hz (0.05 .. 5) */
 #define R2       0.85 /* LFO 2 rate, Hz (0.05 .. 5) */
 #define SHOWB    1.0  /* draw the 2nd trace? (0 or 1) */
+#define GLOWW    7.0  /* glow radius, pixels */
+#define THICK    3.0  /* line thickness, pixels */
 #else
 /* adjustable plugin parameters */
 uniform float u_ddepth;
@@ -50,6 +50,8 @@ uniform float u_rate2;
 #define R1 u_rate1
 #define R2 u_rate2
 #define SHOWB (u_mode == 1. || u_mode == 2. ? 1. : 0.)
+#define GLOWW (3.5 * iScaleFactor)
+#define THICK (1.5 * iScaleFactor)
 #endif
 
 #define TAU 6.28318530718
