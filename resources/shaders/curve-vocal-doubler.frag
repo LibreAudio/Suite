@@ -145,7 +145,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
 #ifndef LIBREAUDIO_HOSTED
         max(0.0, 0.6 * sin(TAU * fract(iTime * 4.0)) + 0.4 * sin(TAU * fract(iTime * 6.3) + 1.1));
 #else
-        env = 1.0 - u_deess_meter / 30.0;
+        env = u_deess_meter / 30.0;
 #endif
     }
 

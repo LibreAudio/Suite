@@ -10,72 +10,46 @@
    can't set custom uniforms), leave USE_DEFAULTS at 1 to use the constants.
    =========================================================================== */
 
-/* ---- adjustable parameters (drive these as uniform float from a host) ---- */
-uniform float uRate1;     // LFO 1 rate, Hz          (0.05 .. 5)
-uniform float uRate2;     // LFO 2 rate, Hz          (0.05 .. 5)
-uniform float uAmp1;      // LFO 1 amplitude, fraction of height
-uniform float uAmp2;      // LFO 2 amplitude, fraction of height
-uniform float uShowB;     // draw the 2nd trace?     (0 or 1)
-uniform float uLpHz;      // low-pass corner, Hz
-uniform float uHpHz;      // high-pass corner, Hz
-uniform float uLpRes;     // low-pass resonance bump  (0 .. 1)
-uniform float uHpRes;     // high-pass resonance bump (0 .. 1)
-uniform float uDeess;     // De-Ess amount           (0 .. 1)
-uniform float uDeessFreq; // De-Ess shelf crossover, Hz
-uniform float uDbMax;     // top of the dB window
-uniform float uDbMin;     // bottom of the dB window
-uniform float uWin;       // time window shown, seconds
-uniform float uThick;     // line thickness, pixels
-uniform float uGlow;      // glow strength (0 .. 1)
-uniform float uGlowWidth; // glow radius, pixels
-uniform float uFill;      // fill opacity between the two traces (0 .. 1)
-uniform float uFMin;      // frequency axis min, Hz (left edge)
-uniform float uFMax;      // frequency axis max, Hz (right edge)
+#define DBMAX 26.0   /* top of the dB window */
+#define DBMIN -42.0  /* bottom of the dB window */
+#define WIN  2.0     /* time window shown, seconds */
+#define THICK 3.0    /* line thickness, pixels */
+#define GLOW 0.60    /* glow strength (0 .. 1) */
+#define GLOWW 7.0    /* glow radius, pixels */
+#define FILL 0.35    /* fill opacity between the two voices (0 .. 1) */
+#define FMIN 20.0    /* frequency axis min, Hz (left edge) */
+#define FMAX 10000.0 /* frequency axis max, Hz (right edge) */
 
-/* ---- standalone defaults (Shadertoy editor has no custom uniforms) ------- */
-#define USE_DEFAULTS 1
-#if USE_DEFAULTS
-  #define R1   0.80
-  #define R2   0.50
-  #define AMP1 0.090
-  #define AMP2 0.067
-  #define SHOWB 1.0
-  #define LPHZ 7000.0
-  #define HPHZ 20.0
-  #define LPRES 0.0
-  #define HPRES 0.0
-  #define DEESS 0.5
-  #define DEESSFREQ 2000.0
-  #define DBMAX 26.0
-  #define DBMIN -42.0
-  #define WIN  2.0
-  #define THICK 3.0
-  #define GLOW 0.60
-  #define GLOWW 7.0
-  #define FILL 0.35
-  #define FMIN 20.0
-  #define FMAX 10000.0
+#define DEESSFREQ 3000.0 /* De-Ess shelf crossover, Hz */
+#define LPRES 0.0        /* low-pass resonance bump  (0 .. 1) */
+#define HPRES 0.0        /* high-pass resonance bump (0 .. 1) */
+
+/* standalone defaults (Shadertoy editor has no custom uniforms) */
+#ifndef LIBREAUDIO_HOSTED
+#define AMP      0.09 /* LFO amplitude, fraction of height */
+#define DEESS    0.5  /* De-Ess amount (0 .. 1) */
+#define HPHZ    20.0  /* high-pass corner, Hz */
+#define LPHZ  7000.0  /* low-pass corner, Hz */
+#define R1       0.55 /* LFO 1 rate, Hz (0.05 .. 5) */
+#define R2       0.85 /* LFO 2 rate, Hz (0.05 .. 5) */
+#define SHOWB    1.0  /* draw the 2nd trace? (0 or 1) */
 #else
-  #define R1   uRate1
-  #define R2   uRate2
-  #define AMP1 uAmp1
-  #define AMP2 uAmp2
-  #define SHOWB uShowB
-  #define LPHZ uLpHz
-  #define HPHZ uHpHz
-  #define LPRES uLpRes
-  #define HPRES uHpRes
-  #define DEESS uDeess
-  #define DEESSFREQ uDeessFreq
-  #define DBMAX uDbMax
-  #define DBMIN uDbMin
-  #define WIN  uWin
-  #define THICK uThick
-  #define GLOW uGlow
-  #define GLOWW uGlowWidth
-  #define FILL uFill
-  #define FMIN uFMin
-  #define FMAX uFMax
+/* adjustable plugin parameters */
+uniform float u_ddepth;
+uniform float u_deess_amount;
+uniform float u_deess_meter;
+uniform float u_hp_freq;
+uniform float u_lp_freq;
+uniform float u_mode;
+uniform float u_rate1;
+uniform float u_rate2;
+#define AMP (u_ddepth / 100.)
+#define DEESS (u_deess_amount / 10.)
+#define HPHZ u_hp_freq
+#define LPHZ u_lp_freq
+#define R1 u_rate1
+#define R2 u_rate2
+#define SHOWB (u_mode == 1. || u_mode == 2. ? 1. : 0.)
 #endif
 
 #define TAU 6.28318530718
@@ -150,9 +124,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
        reduction - downward only */
     float env = 0.0;
     if (DEESS > 0.001){
+#ifndef LIBREAUDIO_HOSTED
         float e1 = pow(max(0.0, sin(TAU * fract(iTime * 0.8))), 10.0);
         float e2 = pow(max(0.0, sin(TAU * fract(iTime * 1.9 + 1.1))), 14.0);
         env = min(1.0, 0.25 + e1 + 0.7 * e2);
+#else
+        env = u_deess_meter / 30.0;
+#endif
     }
 
     /* Scroll positions, wrapped to [0,1). Wrapping here is what keeps the sine
@@ -161,8 +139,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
     float ph1 = fract(R1 * iTime);
     float ph2 = fract(R2 * iTime + 0.25);
 
-    float y1 = traceY(t, env, R1, AMP1, ph1);
-    float y2 = traceY(t, env, R2, AMP2, ph2);
+    float y1 = traceY(t, env, R1, AMP, ph1);
+    float y2 = traceY(t, env, R2, AMP, ph2);
 
     /* Curve slope in pixels-of-y per pixel-of-x, by central difference one
        pixel either side. The filter skirts are ~160 dB/decade, so squeezed
@@ -171,9 +149,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
        broken. Central (not forward) difference so the DBMAX clamp kink stays
        symmetric. */
     float dtx = 1.0 / iResolution.x;
-    float s1 = (traceY(t + dtx, env, R1, AMP1, ph1) - traceY(t - dtx, env, R1, AMP1, ph1))
+    float s1 = (traceY(t + dtx, env, R1, AMP, ph1) - traceY(t - dtx, env, R1, AMP, ph1))
              * 0.5 * iResolution.y;
-    float s2 = (traceY(t + dtx, env, R2, AMP2, ph2) - traceY(t - dtx, env, R2, AMP2, ph2))
+    float s2 = (traceY(t + dtx, env, R2, AMP, ph2) - traceY(t - dtx, env, R2, AMP, ph2))
              * 0.5 * iResolution.y;
 
     /* perpendicular distance to each trace, in pixels */

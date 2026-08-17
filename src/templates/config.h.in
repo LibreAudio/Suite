@@ -54,5 +54,7 @@ enum FaustParameterList {
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 0
 #endif
 
+#define LIBREAUDIO_PLUGIN__{{id}}
+
 {% block HeaderEpilogue %}
 {% endblock %}

@@ -54,7 +54,7 @@ private:
 
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 
-            fillColor(R::Value::color);
+            fillColor(isEnabled() ? R::Value::color : fKnobStyle.colorDisabled);
             fontSize(R::Value::fontSize * fScaleFactor);
 
             if (*fParameter.unit == '\0')
@@ -68,14 +68,14 @@ private:
                 text(w * 0.4f, h, textBuffer);
 
                 // then unit on the right
-                fillColor(R::Unit::color);
+                fillColor(isEnabled() ? R::Unit::color : fKnobStyle.colorDisabled);
                 fontSize(R::Unit::fontSize * fScaleFactor);
                 text(w * 0.8f, h - (R::Value::fontSize - R::Unit::fontSize) * 0.5f * fScaleFactor, fParameter.unit);
             }
         }
         else
         {
-            fillColor(R::Name::color);
+            fillColor(isEnabled() ? R::Name::color : fKnobStyle.colorDisabled);
             fontSize(R::Name::fontSize * fScaleFactor);
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 
