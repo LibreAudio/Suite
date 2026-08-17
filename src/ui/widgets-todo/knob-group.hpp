@@ -22,11 +22,12 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class KnobWidget = LibreAudioSmallKnobWidget>
-class LibreAudioKnobGroupWidget : public LibreAudioReferenceContainerWidget<LibreAudioReference::Widgets::KnobGroup>
+class LibreAudioKnobGroupWidget : public LibreAudioReferenceContainerWidget<LibreAudioReference::Widgets::KnobGroup>,
+                                  private IdleCallback
 {
     using R = LibreAudioReference::Widgets::KnobGroup;
 
-    static constexpr const uint kMaxNumParameters = 10;
+    static constexpr const uint kMaxNumParameters = 5;
 
     std::vector<std::unique_ptr<KnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
@@ -38,10 +39,13 @@ class LibreAudioKnobGroupWidget : public LibreAudioReferenceContainerWidget<Libr
     };
     std::vector<Bracket> fBrackets;
 
+    static constexpr const std::string_view kLabel = DISTRHO_PLUGIN_LABEL;
+
 public:
     explicit LibreAudioKnobGroupWidget(LibreAudioWidget* const parent,
                                        const std::vector<FaustParameter>& parameters,
-                                       const uint32_t idOffset = 0)
+                                       const uint32_t idOffset = 0,
+                                       const uint32_t parameterOffset = 0)
         : LibreAudioReferenceContainerWidget(parent),
           fParameters(parameters),
           fParametersOffset(idOffset)
@@ -53,55 +57,56 @@ public:
 
         addSpacer();
 
-        const char* lastDynamicContext = nullptr;
-        for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumParameters * 2; ++i)
+        for (uint32_t i = parameterOffset, numVisibleWidgets = 0, count = parameters.size(); i < count && numVisibleWidgets < kMaxNumParameters; ++i)
         {
             const FaustParameter& parameter = parameters[i];
             if (parameter.isEnumerator || parameter.isOutput) {
                 d_stdout("knob-group skipped parameter %s", parameter.name);
                 continue;
             }
-                d_stdout("knob-group check parameter %s", parameter.name);
-            if (parameter.isDynamic)
-            {
-                if (lastDynamicContext == nullptr) {
-                    lastDynamicContext = parameter.requirement.context;
-                    d_stdout("knob-group dynamic parameters started with context %s", parameter.requirement.context);
-                }
-                else if (std::strcmp(lastDynamicContext, parameter.requirement.context) != 0) {
-                    d_stdout("knob-group dynamic parameters have different context %s vs %s, hiding!", lastDynamicContext, parameter.requirement.context);
-                    continue;
-                } else {
-                    d_stdout("knob-group dynamic parameters have same context %s", parameter.requirement.context);
-                }
-            }
-            else
-            {
-                if (lastDynamicContext != nullptr) {
-                    d_stdout("knob-group dynamic parameters have stopped");
-                    lastDynamicContext = nullptr;
-                }
-            }
             std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
             widgets.push_back({ widget.get(), Fixed });
             if (widget->getSize().isNull())
                 d_stderr2("Error: addKnob called but widget '%s' does not have a known size", widget->getName());
+
+            if constexpr (kLabel == "vocalDoubler")
+            {
+                if (std::strcmp(parameter.symbol, "adt_delay") == 0 ||
+                    std::strcmp(parameter.symbol, "adt_2voice") == 0 ||
+                    std::strcmp(parameter.symbol, "adt_wow_rate") == 0 ||
+                    std::strcmp(parameter.symbol, "adt_wow_depth") == 0 ||
+                    std::strcmp(parameter.symbol, "adt_pan") == 0 ||
+                    std::strcmp(parameter.symbol, "adt_width") == 0 ||
+                    std::strcmp(parameter.symbol, "doubler_base_delay") == 0 ||
+                    std::strcmp(parameter.symbol, "doubler_detune") == 0 ||
+                    std::strcmp(parameter.symbol, "doubler_wander_rate") == 0 ||
+                    std::strcmp(parameter.symbol, "doubler_wander_depth") == 0 ||
+                    std::strcmp(parameter.symbol, "doubler_width") == 0
+                    // std::strcmp(parameter.symbol, "take_base_delay") == 0 ||
+                    // std::strcmp(parameter.symbol, "take_timing") == 0 ||
+                    // std::strcmp(parameter.symbol, "take_pitch") == 0 ||
+                    // std::strcmp(parameter.symbol, "take_character") == 0 ||
+                    // std::strcmp(parameter.symbol, "take_width") == 0
+                )
+                {
+                    // widget->hide();
+                }
+                else
+                {
+                    ++numVisibleWidgets;
+                }
+            }
+            else
+            {
+                ++numVisibleWidgets;
+            }
+
             fKnobs.emplace_back(std::move(widget));
             addSpacer();
         }
 
-        // middle spacer
-        {
-            std::unique_ptr<LibreAudioWidget> spacer {
-                new LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>(this)
-            };
-            auto it = widgets.begin();
-            for (uint i = 0, middle = widgets.size() / 2; i < middle; ++i)
-                ++it;
-            widgets.insert(it, { spacer.get(), Fixed });
-
-            fSpacers.emplace_back(std::move(spacer));
-        }
+        update();
+        addIdleCallback(this);
 
         const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
@@ -114,36 +119,15 @@ public:
         else
             knobHeight = d_roundToUnsignedInt(fScaleFactor);
 
-        const char* lastBracket = "";
-        for (uint i = 0, size = fKnobs.size(); i < size; ++i)
-        {
-            const std::unique_ptr<KnobWidget>& knob = fKnobs[i];
-
-            const FaustParameter& parameter = fParameters.at(knob->getId() - fParametersOffset);
-
-            if (std::strcmp(parameter.bracket, lastBracket) != 0)
-            {
-                if (fBrackets.empty())
-                {
-                    fBrackets.push_back({ i, i, parameter.bracket });
-                }
-                else
-                {
-                    if (*lastBracket != '\0')
-                        fBrackets.back().end = i - 1;
-
-                    if (*parameter.bracket != '\0')
-                        fBrackets.push_back({ i, i, parameter.bracket });
-                }
-            }
-
-            lastBracket = parameter.bracket;
-        }
-
-        if (*lastBracket != '\0')
-            fBrackets.back().end = fKnobs.size() - 1;
-
         LibreAudioWidget::setHeight((border + margin) * 2 + knobHeight);
+    }
+
+    [[nodiscard]] uint32_t getLastKnobId() const
+    {
+        if (fKnobs.empty())
+            return 0;
+
+        return fKnobs.back()->getId();
     }
 
 private:
@@ -159,12 +143,95 @@ private:
 
     void addWidget() = delete;
 
+    void idleCallback() final
+    {
+        update();
+    }
+
+    [[nodiscard]] KnobWidget* getKnobById(const uint32_t id) const
+    {
+        for (const std::unique_ptr<KnobWidget>& knob : fKnobs)
+            if (KnobWidget* const knobPtr = knob.get(); knobPtr->getId() == id)
+                return knobPtr;
+
+        d_stderr2("getKnobById with invalid id %u", id);
+        return nullptr;
+    }
+
+    void update()
+    {
+        if constexpr (kLabel == "vocalDoubler")
+        {
+            if (fKnobs.front()->getId() != kParametersMainStart + vocalDoubler::kFaustParameterAdt_delay)
+                return;
+            static uint last_mode = -1;
+            const uint mode = d_roundToUnsignedInt(fInterface->getParameterValue(kParametersMainStart + vocalDoubler::kFaustParameterMode));
+            if (last_mode == mode)
+                return;
+            last_mode = mode;
+            d_stdout("mode %u", mode);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_delay)->setVisible(mode == 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_2voice)->setVisible(mode == 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_wow_rate)->setVisible(mode == 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_wow_depth)->setVisible(mode == 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_pan)->setVisible(mode == 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterAdt_width)->setVisible(mode == 0 && 0);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterDoubler_base_delay)->setVisible(mode == 1);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterDoubler_detune)->setVisible(mode == 1);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterDoubler_wander_rate)->setVisible(mode == 1);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterDoubler_wander_depth)->setVisible(mode == 1);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterDoubler_width)->setVisible(mode == 1);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterTake_base_delay)->setVisible(mode == 2);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterTake_timing)->setVisible(mode == 2);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterTake_pitch)->setVisible(mode == 2);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterTake_character)->setVisible(mode == 2);
+            getKnobById(kParametersMainStart + vocalDoubler::kFaustParameterTake_width)->setVisible(mode == 2);
+            // d_stdout("first done");
+
+            fBrackets.clear();
+            const char* lastBracket = "";
+            for (uint i = 0, size = fKnobs.size(); i < size; ++i)
+            {
+                const std::unique_ptr<KnobWidget>& knob = fKnobs[i];
+                if (! knob->isVisible())
+                    continue;
+
+                const FaustParameter& parameter = fParameters.at(knob->getId() - fParametersOffset);
+
+                if (std::strcmp(parameter.bracket, lastBracket) != 0)
+                {
+                    if (fBrackets.empty())
+                    {
+                        fBrackets.push_back({ i, i, parameter.bracket });
+                    }
+                    else
+                    {
+                        if (*lastBracket != '\0')
+                            fBrackets.back().end = i - 1;
+
+                        if (*parameter.bracket != '\0')
+                            fBrackets.push_back({ i, i, parameter.bracket });
+                    }
+                }
+
+                lastBracket = parameter.bracket;
+            }
+
+            if (*lastBracket != '\0')
+                fBrackets.back().end = fKnobs.size() - 1;
+
+            ResizeEvent ev;
+            ev.size = getSize();
+            onResize(ev);
+        }
+    }
+
     void onNanoDisplay() final
     {
         for (const Bracket& bracket : fBrackets)
         {
             const KnobWidget* const knobS = fKnobs[bracket.start].get();
-            const KnobWidget* const knobE = fKnobs[bracket.end - 1].get();
+            const KnobWidget* const knobE = fKnobs[bracket.end].get();
 
             const float lw = 2;
             const float sx = knobS->getAbsoluteX() - knobS->getWidth();
@@ -264,6 +331,8 @@ public:
         LibreAudioWidget::setHeight((border + margin) * 2 + knobHeight);
     }
 
+    void addWidget() = delete;
+
 private:
     std::vector<std::unique_ptr<LibreAudioKnobWidget>> fKnobs;
     std::vector<std::unique_ptr<LibreAudioWidget>> fSpacers;
@@ -274,17 +343,48 @@ private:
         widgets.push_back({ spacer.get(), Expanding });
         fSpacers.emplace_back(std::move(spacer));
     }
-
-    void addWidget() = delete;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LibreAudioExpertKnobsGroupWidget final : public LibreAudioKnobGroupWidget<>
+class LibreAudioExpertKnobsGroupWidget final : public LibreAudioReferenceContainerWidget<LibreAudioReference::Widgets::KnobGroup>
 {
+    using R = LibreAudioReference::Widgets::KnobGroup;
+    using BaseWidget = LibreAudioReferenceContainerWidget<R>;
+
 public:
     explicit LibreAudioExpertKnobsGroupWidget(LibreAudioWidget* const parent)
-        : LibreAudioKnobGroupWidget(parent, getFaustParameters(), kParametersMainStart) {}
+        : BaseWidget(parent)
+    {
+        const std::vector<FaustParameter>& parameters = getFaustParameters();
+
+        fKnobsLeft.reset(new LibreAudioKnobGroupWidget<>(this, parameters, kParametersMainStart, 0));
+        widgets.push_back({ fKnobsLeft.get(), Expanding });
+
+        fLogo.reset(new LibreAudioImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>(this));
+        widgets.push_back({ fLogo.get(), Fixed });
+
+        fKnobsRight.reset(new LibreAudioKnobGroupWidget<>(this, parameters, kParametersMainStart, fKnobsLeft->getLastKnobId() + 1 - kParametersMainStart));
+        widgets.push_back({ fKnobsRight.get(), Expanding });
+
+        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+        uint knobHeight;
+
+        if constexpr (R::height != 0)
+            knobHeight = R::height * fScaleFactor;
+        else
+            knobHeight = d_max(fKnobsLeft->getHeight(), fKnobsRight->getHeight());
+
+        BaseWidget::setHeight((border + margin) * 2 + knobHeight);
+    }
+
+    void addWidget() = delete;
+
+private:
+    std::unique_ptr<LibreAudioKnobGroupWidget<>> fKnobsLeft;
+    std::unique_ptr<LibreAudioWidget> fLogo;
+    std::unique_ptr<LibreAudioKnobGroupWidget<>> fKnobsRight;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
