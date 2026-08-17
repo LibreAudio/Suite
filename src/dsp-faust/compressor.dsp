@@ -6,10 +6,16 @@ declare license "GPL-3.0-or-later";
 declare name "Compressor";
 declare unique_id "LAco";
 
-// dry/wet is implemented by the host wrapper: this flag turns on the common
-// "Dry / Wet" parameter and the latency-compensated crossfade in
-// LibreAudioPlugin.cpp, so there is nothing to build here.
-declare drywet "true";
+// Dry/wet is built here rather than taken from the host wrapper, so the flag
+// stays off — leaving it on would stack the wrapper's common "Dry / Wet" on
+// top of this one and give the plugin two controls that do the same thing.
+//
+// The difference between the two is where the dry is tapped. The wrapper
+// crossfades against the plugin's *input*, upstream of the common Input
+// section; the control below taps the audio as this DSP receives it, so the
+// parallel path is the signal the compressor itself was handed. See the
+// Output section and `process` at the bottom.
+// declare drywet "true";
 
 import("stdfaust.lib");
 
@@ -26,7 +32,7 @@ Nch = 2;
 maxGR = -60; // meter floor, also the widest Range setting
 maxMeter = -20;
 
-maxLookaheadSamples = 19200; // 100 ms at 192 kHz
+maxLookaheadSamples = 9600; // 50 ms at 192 kHz
 
 //======================= GUI =======================
 
@@ -63,11 +69,12 @@ range = ctl_group(vslider("[3]Range[unit:dB][symbol:range]
       [tooltip: Ceiling on total gain reduction. The compressor never pulls
        the signal down by more than this, no matter how far over threshold]",
                           60, 0, 0 - maxGR, 0.1));
+rangeKnee = knee; 
 
-rangeKnee = ctl_group(vslider("[4]Range Knee[unit:dB][symbol:range_knee]
-      [tooltip: Softens the approach to the Range ceiling the same way Knee
-       softens the approach to the threshold. 0 = hard clamp]",
-                              6, 0, 24, 0.1));
+// rangeKnee = ctl_group(vslider("[4]Range Knee[unit:dB][symbol:range_knee]
+//       [tooltip: Softens the approach to the Range ceiling the same way Knee
+//        softens the approach to the threshold. 0 = hard clamp]",
+//                               6, 0, 24, 0.1));
 
 // Per-channel depth trims. Channel 1 is left or mid and channel 2 is right or
 // side, depending on the Mid / Side switch, hence the paired labels.
@@ -116,28 +123,45 @@ hold = env_group(vslider("[2]Hold[unit:ms][symbol:hold]
 release = env_group(vslider("[3]Release[unit:ms][scale:log][symbol:release]
       [tooltip: How fast the gain moves back up toward a lighter reduction. Read
        as a 1/e time constant at Release Curve +1, or as the time to cover 20 dB
-       at Release Curve 0 and below]",
+       at Release Curve 0 and below. With Release S-Curve on it is the time to
+       cover 20 dB at every Release Curve setting, and shallower recoveries
+       take proportionally less]",
                             150, 1, 2000, 0.1)) * 0.001;
 
 releaseCurve = env_group(vslider("[4]Release Curve[symbol:release_curve]
       [tooltip: Shape of the release ramp. +1 = exponential, analog-style: lets
        go quickly then a long tail, and Release reads as a time constant.
-       0 = straight line in dB. -1 = hangs, then lets go all at once]",
+       0 = straight line in dB. -1 = hangs, then lets go all at once.
+       With Release S-Curve on this slides where the ramp is steepest instead]",
                                  1, -1, 1, 0.01));
 
-autoRelease = env_group(vslider("[5]Auto Release[unit:%][symbol:auto_release]
+releaseS = env_group(checkbox("[5]Release S-Curve[symbol:release_s]
+      [tooltip: Eases the release out of the reduction and back into unity
+       instead of running at full speed at one end. Release Curve still pushes
+       and pulls it, sliding the steep part of the ramp between roughly 1 dB
+       and 20 dB from the target - late and abrupt at -1, early and gentle at
+       +1 - but both ends keep the soft landing. Affects release only]"));
+
+autoRelease = env_group(vslider("[6]Auto Release[unit:%][symbol:auto_release]
       [tooltip: Program dependence. Stretches Release in proportion to how much
        reduction has been sustained recently, so isolated peaks let go quickly
        while a loud passage releases slowly and stops pumping. 0% = fixed]",
                                 0, 0, 100, 1)) / 100;
 
-lookaheadMs = env_group(vslider("[6]Lookahead[unit:ms][symbol:lookahead]
+lookaheadMs = env_group(vslider("[7]Lookahead[unit:ms][symbol:lookahead]
       [tooltip: Delays the audio so the gain is already down when the transient
        arrives. Reported to the host as latency and compensated. 0 = off]",
-                                0, 0, 100, 0.1));
+                                0, 0, 50, 0.1));
 
 holdSamples      = hold * ma.SR;
-lookaheadSamples = int(lookaheadMs * ma.SR / 1000) : latency_meter;
+
+// Two names for one number. The dry side of the Dry/Wet mix has to be delayed
+// by the same lookahead as the wet, but it must not carry the meter with it:
+// latency_meter is a widget, and reusing the metered version would declare a
+// second bargraph with the same symbol, which is what the build reads the
+// plugin's reported latency off.
+lookaheadDelay   = int(lookaheadMs * ma.SR / 1000);
+lookaheadSamples = lookaheadDelay : latency_meter;
 
 // How far back Auto Release looks, and how much sustained reduction it takes
 // to double the release time.
@@ -156,6 +180,70 @@ curveRef = 20;
 // exponential tail would asymptote forever instead of settling. Clamping the
 // distance is equivalent and cheaper than clamping the result.
 curveBound = 8;
+
+// ---- S-curve release ----
+// See the Ballistics section for the rate law.
+//
+// The one thing this shape needs that the power law does not is a sense of
+// scale. An S has to be slow, then fast, then slow, and "then" only means
+// something relative to the length of the ramp: an inflection point fixed at
+// some number of dB from the target is either crossed or it is not, so the
+// same setting that gives a clean S on a 20 dB release gives a plain
+// exponential on a 4 dB one, which is most of what a compressor actually
+// does. Measured: with the inflection pinned 5 dB out, excursions under about
+// 3 dB came out with their steepest point at t = 0, i.e. no S at all.
+//
+// So the ramp is measured as a *fraction of its own span* instead, and the
+// span is carried in the loop below as sp. That makes the curve self-similar:
+// the same S at 2 dB as at 20 dB, only shorter.
+//
+// sPeakMid    where the ramp is steepest with Release Curve at 0, as a
+//             fraction of the span. 0.45 is just short of halfway.
+// sPeakSpread how far Release Curve slides that point. 1.8 spans 0.25 to 0.81
+//             of the way through - late and abrupt at -1, early and gentle at
+//             +1. It has to stay clear of both 0 and 1 or the S degenerates
+//             into a one-sided curve at the ends of the knob.
+// sBound      the same job curveBound does for the power law, but wider, and
+//             for a different reason: here it truncates the soft landing
+//             rather than stopping a runaway. At 8 the ramp is still at 80%
+//             of full speed when the clamp takes over and the ease-out is
+//             barely audible; 64 lets it get down to an eighth. The near
+//             branch decays toward zero instead of blowing up, so widening it
+//             is safe - the cost is only the last 1/64 of the span taking a
+//             little longer.
+// sSpanFloor  smallest span the shape is computed against, in dB. Keeps the
+//             division honest when the gain is sitting still.
+sPeakMid    = 0.45;
+sPeakSpread = 1.8;
+sBound      = 64;
+sSpanFloor  = 0.5;
+
+sPeak = sPeakMid * pow(sPeakSpread, releaseCurve);
+
+// How long the remembered span takes to fade once nothing is renewing it.
+// Tied to Release so it always outlasts the ramp it is measuring - a fixed
+// time constant would either forget mid-release at the slow end of the knob
+// or hold a stale span across separate events at the fast end.
+sSpanTau  = max(0.05, 4 * release);
+sSpanPole = ba.tau2pole(sSpanTau);
+
+// Timing normalisation. sNorm is the closed form of the raw shape's transit
+// time - the integral of 1/sShape from w = 1 down to the clamp, plus the
+// clamped remainder - so dividing it back out fixes the total. Release then
+// means the same thing it means at Release Curve 0 in the power law, the time
+// to cover curveRef dB, and Release Curve reshapes the ramp without also
+// retiming it. Because w is a fraction of the span, that scales: a 5 dB
+// release takes a quarter as long as a 20 dB one, at constant dB per second.
+sNorm = sPeak * (log(sBound) + 1) / 2 + (1 + 1 / (sBound * sBound)) / (4 * sPeak);
+
+// Rate multiplier: a hump in the fraction of the span still to go, peaking at
+// sPeak. It is the harmonic mean of the two power-law extremes - w^-1 far
+// from the target, w^+1 near it - which is exactly why it inherits the slow
+// start of Release Curve -1 and the slow finish of +1 in one ramp.
+sShape(dist, span) = sNorm * 2 * sPeak * w / (sPeak * sPeak + w * w)
+with {
+    w = min(1, max(1 / sBound, dist / span));
+};
 
 //---- detector ----
 
@@ -217,11 +305,39 @@ scRes = 0.7; // shelf Q for the tilt pair — flat, no bump at the pivot
 
 //---- output ----
 
-makeupDb = out_group(vslider("[0]Makeup[unit:dB][symbol:makeup]
+// Ordered to follow the audio path: colour, then makeup, then the blend.
+
+satDepth = out_group(vslider("[0]Drive[unit:%][symbol:drive]
+      [tooltip: How much harmonic colour the output stage adds, scaled by how
+       hard the compressor is working. At 0% it is an exact bypass, and it
+       stays one at any setting while the compressor is idle - the drive is
+       tied to gain reduction, so a passage that is not being compressed is
+       not being coloured either. Only the low band is saturated, so the top
+       end stays clean]",
+                             0, 0, 50, 1)) / 100 : si.smoo;
+
+satBias = 0.75;
+      // out_group(vslider("[1]Bias[unit:%][symbol:bias]
+      // [tooltip: Shifts the harmonic series the colour generates. 0% is a
+      //  symmetric curve and gives odd harmonics only - the harder, more
+      //  console-like sound. Turning it up makes the curve asymmetric and brings
+      //  in even harmonics, which read as warmth rather than edge. No effect at
+      //  Drive 0%]",
+      //                       0, 0, 100, 1)) / 100 : si.smoo;
+
+makeupDb = out_group(vslider("[2]Makeup[unit:dB][symbol:makeup]
       [tooltip: Output trim, to put back the level the compressor took away.
-       Applied after the gain stage, so it lifts the whole signal and does not
-       feed back into the detector or change where the threshold sits]",
+       Applied after the gain stage and after the colour, so it lifts the whole
+       signal and does not feed back into the detector, change where the
+       threshold sits, or change how hard the output stage is driven]",
                              0, -12, 24, 0.1));
+
+drywet = out_group(vslider("[3]Dry / Wet[unit:%][symbol:drywet]
+      [tooltip: Blend of the compressed signal against the untouched input, for
+       parallel compression. 100% = compressor only, 0% = bypassed. The dry
+       side is delayed to match Lookahead, so the two stay phase aligned and
+       the blend never combs]",
+                           100, 0, 100, 1)) / 100 : si.smoo;
 
 // Smoothed because it multiplies the audio directly. The compression controls
 // need no such treatment: they move the ballistics' *target*, and the attack
@@ -333,13 +449,43 @@ with {
 // that way, this compressor measurably froze at 0.0001 dB of reduction.
 // Distance carries no progress, so there is nothing for a reversal to reset.
 //
+// Release S-Curve swaps that power of m for a different function of the same
+// distance, and changes nothing else:
+//
+//     step per sample = (curveRef / (time * SR)) * sNorm * 2f w / (f^2 + w^2)
+//
+// with w = the fraction of the span still to go and f = where in that span
+// the ramp is steepest, which is what Release Curve now sets. The shape is
+// the harmonic mean of the m = -1 and m = +1 laws, so it starts slow like one
+// and lands slow like the other, and Release Curve slides the fast part
+// between them. Measured on a 20 dB release, the steepest point moves from
+// 9% of the way through at +1 to 76% at -1, and holds that spread down to 5 dB
+// excursions; total time stays within 15% of the knob across the whole range,
+// where the power law's +1 setting takes three times its nominal.
+//
+// Because the switch is ANDed with the release half, an attack always takes
+// the power law. Verified as bit-identical, though only once the detector is
+// given a ripple-free signal - on ordinary material the level ripples, the
+// envelope micro-releases inside the attack, and those samples do differ,
+// which is the release law doing its job rather than a leak.
+//
 // Hold freezes the gain while the target is trying to release, until the
 // counter runs out. Any renewed attack resets the counter, so hold always
 // measures from the most recent deepest point.
+//
+// The S-curve release is the one shape that needs more than the current
+// distance, because "halfway" is only meaningful against a total. sp carries
+// that total: a peak-hold of the distance with a slow decay, which reads as
+// the depth of the excursion currently being released. It is deliberately a
+// peak-hold rather than a latch on the release edge - with peak detection the
+// target reverses constantly, and a latch would re-arm on every one of those
+// reversals and collapse the span to the ripple. Note this is still not
+// progress: the rate stays strictly positive at every distance, so there is
+// nothing here that a reversal can freeze.
 
-ballistics = loop ~ si.bus(2) : (_, !)
+ballistics = loop ~ si.bus(3) : (_, !, !)
 with {
-    loop(y, hc, target) = ny, nhc
+    loop(y, hc, sp, target) = ny, nhc, nsp
     with {
         diff = target - y;
         dist = abs(diff);
@@ -347,6 +493,8 @@ with {
 
         nhc     = select2(atk, min(holdSamples, hc + 1), 0);
         holding = (diff > 0) * (nhc < holdSamples);
+
+        nsp = max(sSpanFloor, max(dist, sp * sSpanPole));
 
         // Program dependence, read off the compressor's own recent history:
         // a slow average of how much reduction has been in effect. A lone
@@ -365,7 +513,25 @@ with {
         // toward its time-constant meaning, which diverges at m = 1.
         norm = 1 / (1 - min(0, m));
         rate = norm * curveRef / max(ma.EPSILON, tSec * ma.SR);
-        step = rate * pow(min(curveBound, max(1 / curveBound, dist / curveRef)), m);
+
+        // The S-curve is an alternative shape for the same rate law, not an
+        // alternative envelope: it swaps out the distance-to-step function and
+        // nothing else, so hold, Auto Release and the never-overshoot clamp
+        // below all keep working untouched. Release side only - the switch is
+        // ANDed with the release half, so an attack always uses the power law
+        // whatever the checkbox says.
+        //
+        // The two are selected as finished steps rather than as shapes sharing
+        // one rate, so that the power-law branch stays the exact expression it
+        // always was. Factoring norm out of rate to share it would reassociate
+        // the multiply, and a last-bit change inside a recursive envelope does
+        // not stay a last-bit change: measured over two seconds it random-walks
+        // to about 1e-4 relative. Inaudible, but it would make this switch look
+        // like it alters the sound when it is off.
+        powStep = rate * pow(min(curveBound, max(1 / curveBound, dist / curveRef)), m);
+        sStep   = curveRef / max(ma.EPSILON, tSec * ma.SR) * sShape(dist, nsp);
+
+        step = select2(releaseS * (1 - atk), powStep, sStep);
 
         // never step past the target, so short times land exactly on it
         // instead of chattering around it
@@ -440,6 +606,112 @@ msEnc(l, r) = select2(msOn, l, (l + r) * 0.5),
 msDec(m, s) = select2(msOn, m, m + s),
               select2(msOn, s, m - s);
 
+//======================= Output colour =======================
+// A saturating output stage, sitting after the gain and the mid/side decode
+// and before makeup, driven by how hard the compressor is working rather than
+// by a knob of its own.
+//
+// Band-limited on purpose, and not only for the reason it sounds like. A
+// waveshaper generates harmonics at multiples of whatever it is fed, and any
+// of those above Nyquist fold back down as inharmonic tones - the fizz that
+// makes cheap saturation sound cheap. Restricting the shaper to the low band
+// means the harmonics it can produce mostly land below Nyquist to begin with,
+// so no oversampling is needed to keep it clean. It is also what the hardware
+// being imitated actually does: transformers and tubes saturate in the low
+// and low-mid range and leave the top comparatively alone.
+//
+// The obvious alternative was Faust's antialiased nonlinearities, aanl.lib.
+// Measured at 48 kHz they cost 5 dB at 15 kHz and 12 dB at 20 kHz at every
+// level, because first-order ADAA is a two-point average as well as a
+// half-sample delay; and below about -50 dBFS the difference quotient loses
+// conditioning in single precision and emits more junk than signal (119% of
+// the fundamental at 1 kHz at -60 dBFS). The half-sample delay would also
+// have broken the dry path's phase alignment. A band split has none of that.
+// Known characteristic, not a defect: the shaper works on absolute level, so
+// the same Drive colours a hot signal much more than a quiet one. Measured at
+// a constant 9 dB of reduction and Bias 0, total distortion runs 7.3% at
+// -6 dBFS, 2.2% at -12, 0.37% at -20 and 0.01% at -40. The gain reduction
+// sets how far the drive is turned up; the level still decides how much of
+// that drive the signal actually meets, exactly as an output stage does.
+// Referencing the drive to Threshold instead would make it level-independent,
+// at the cost of tying the colour to a control that is nominally about when
+// the compressor starts working.
+satXover    = 800;   // Hz - crossover; only what is below this gets shaped
+satOrder    = 1;      // lowpass order for the split
+satRefDb    = 12;     // gain reduction at which the drive reaches full
+satDriveMax = 64;     // shaper drive at Drive 100% and satRefDb of reduction
+satBiasMax  = 0.7;    // offset into the curve at Bias 100%
+
+// The knob is squared on its way to that ceiling. Raising the ceiling alone
+// would have made the control useless below about a tenth of its travel: the
+// distortion a shaper produces goes with roughly the square of the drive, so
+// a linear map to 64 puts everything from transparent to obvious inside the
+// first 10% and spends the remaining 90% on degrees of destruction. Squaring
+// spreads it out - the knob's midpoint lands on 16, twice the whole range
+// this had before, and the bottom third stays fine enough to use as polish.
+satDriveCurve(depth) = depth * depth;
+
+// One drive for both channels, taken from the deeper of the two reductions.
+// Per-channel drive would let left and right saturate by different amounts
+// whenever Link is below 100% or the Scale trims are uneven, and a nonlinearity
+// harder on one side than the other pulls the image toward the quieter one.
+// Measured with Link 0% and the Scale trims 100/40, turning Drive from 0 to
+// 100% moves the left/right balance of the fundamental by 0.002 dB.
+//
+// The two channels still end up with slightly different harmonic content -
+// 3.9% against 5.2% in that same test - because they arrive at the output
+// stage at different levels and the shaper acts on level. That is a timbre
+// difference rather than a pan shift, and it is what a pair of output stages
+// fed at different levels would do anyway.
+satDriveOf(grDb) = satDriveCurve(satDepth) * satDriveMax * min(1, (0 - grDb) / satRefDb);
+
+// tanh with an offset, and the offset's own output subtracted back off.
+//
+// That subtraction is what makes the asymmetry usable: shifting a signal into
+// the bend of a curve is how even harmonics are produced, but it also shifts
+// the output, and a waveshaper with a DC step on its output is a click every
+// time the drive moves. Removing tanh(d*b) analytically pins the curve through
+// the origin exactly, so there is no DC to filter off afterwards and no need
+// for a blocker in the path.
+//
+// Dividing by d*(1 - tb^2) restores unity small-signal gain: the curve's slope
+// at the origin is d*sech^2(d*b), and sech^2 = 1 - tanh^2. Without it, Bias
+// would read as a volume drop as much as a change in flavour.
+// Bias also has to give back some drive as it takes on asymmetry. Offsetting
+// into the bend of the curve does not merely change which harmonics appear,
+// it moves the signal onto a steeper part of the curve and produces more of
+// everything: measured, turning Bias up at a fixed Drive multiplied total
+// distortion by about fourteen. A control that is supposed to change flavour
+// reading as a second, louder drive knob is not what was wanted. Backing the
+// drive off in proportion holds the total roughly level, so Bias tips the
+// balance from odd to even at a constant intensity.
+satBiasComp = 2;
+
+satShape(d, x) = (ma.tanh(dd * (x + b)) - tb) / (dd * (1 - tb * tb))
+with {
+    b  = satBias * satBiasMax;
+    dd = max(1e-6, d / (1 + satBiasComp * satBias));   // 1e-6 only keeps the
+    tb = ma.tanh(dd * b);                              // division defined;
+};                                                     // d = 0 is handled below
+
+// The select is what makes Drive 0 - and an idle compressor at any Drive - a
+// bit-exact bypass rather than merely a quiet one. It matters because the
+// band split does not reconstruct exactly in floating point: low + (x - low)
+// is within an ulp of x, not equal to it, so leaving the split in circuit at
+// zero drive would leave a residue that no setting could null. Nothing clicks
+// at the boundary because the shaper tends to the identity as d tends to 0.
+satColour(d, x) = select2(d > 0, x, coloured)
+with {
+    low      = fi.lowpass(satOrder, satXover, x);
+    high     = x - low;
+    coloured = satShape(d, low) + high;
+};
+
+satStage(l, r, gr0, gr1) = satColour(d, l), satColour(d, r)
+with {
+    d = satDriveOf(min(gr0, gr1));
+};
+
 //======================= compressor engine =======================
 // 2*Nch in, Nch out: 1-2 audio, 3-4 external sidechain. Both pairs go through
 // the same mid/side encode, so with M/S engaged the side band is detected
@@ -451,16 +723,55 @@ msDec(m, s) = select2(msOn, m, m + s),
 // delayed either, and needs no delay line of its own - it is only ever looked
 // at, never heard.
 
+// The second split keeps the gain reductions alive past the point where they
+// are applied, so the output stage can be driven by them: the left branch is
+// the audio as before, the right branch drops each channel's audio and keeps
+// its gr, giving satStage [L, R, gr0, gr1].
 compressorSC = si.bus(2 * Nch)
              :  (msEnc, msEnc)
              <: (grComputeN,
                  (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadSamples)), par(i, Nch, !)))
              :  ro.interleave(Nch, 2)
-             :  par(i, Nch, applyGain(i))
-             :  msDec
+             <: ((par(i, Nch, applyGain(i)) : msDec), par(i, Nch, (_, !)))
+             :  satStage
              :  par(i, Nch, *(makeupGain));
 
 applyGain(i, grDb, x) = x * (grDb : chanMeter(i) : ba.db2linear);
+
+//======================= Dry/wet =======================
+// Sits at the very end of the audio path, after makeup, so Makeup trims the
+// compressed signal on its way into the blend the way the fader on a parallel
+// bus would. Everything upstream — mid/side, Scale, Range — stays on the wet
+// side only; the dry is the audio exactly as this DSP received it.
+//
+// Linear crossfade, not equal-power. Dry and wet here are the *same* signal
+// with different gain envelopes, so they sum coherently and a 3 dB law would
+// bulge to +3 dB in the middle of the knob. The linear law holds unity for a
+// compressor doing nothing and is also what the wrapper's own dry/wet uses.
+//
+// The dry is delayed to match the wet's lookahead. Without it the blend is a
+// comb filter with up to 50 ms of offset — the one thing parallel compression
+// must not do, and the reason the wrapper keeps a latency buffer for its
+// version of this control.
+
+dryWetMix = (par(i, Nch, de.delay(maxLookaheadSamples, lookaheadDelay)), si.bus(Nch))
+          : ro.interleave(Nch, 2)
+          : par(i, Nch, blend)
+with {
+    // si.smoo is a one-pole whose fixed point is 0.001/(1-0.999) evaluated in
+    // single precision, and that lands 1.7e-5 short of 1 rather than on it.
+    // Taken literally, Dry/Wet at 100% would leave the untouched input mixed
+    // in at -95 dB for as long as the plugin runs. Inaudible, but "compressor
+    // only" ought to mean it, and it is the kind of residue that shows up as
+    // an unexplained null-test failure years later. Scaling the control by a
+    // hair and clamping puts the top of the travel exactly on 1; the 0.01%
+    // this shifts the middle of the knob by is far below the resolution of
+    // the control itself. The bottom needs no such help - the same one-pole
+    // decays to a true zero, so 0% is already an exact bypass.
+    dw = min(1, drywet * 1.0001);
+
+    blend(d, w) = d * (1 - dw) + w * dw;
+};
 
 //======================= process =======================
 // Temporary 2-in front end. `_,_ <: si.bus(4)` fans out as [L, R, L, R], so
@@ -469,6 +780,7 @@ applyGain(i, grDb, x) = x * (grDb : chanMeter(i) : ba.db2linear);
 // sidechain path stays live and testable; only the source is stubbed.
 //
 // To open the real inputs once DPF has a sidechain port group, replace the
-// body below with `compressorSC`.
+// inner `si.bus(Nch) <: compressorSC` with `compressorSC` and widen the outer
+// split to hand the dry tap the audio pair only.
 
-process = si.bus(Nch) <: compressorSC;
+process = si.bus(Nch) <: (si.bus(Nch), (si.bus(Nch) <: compressorSC)) : dryWetMix;
