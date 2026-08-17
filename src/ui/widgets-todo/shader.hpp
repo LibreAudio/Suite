@@ -57,18 +57,14 @@ class LibreAudioBackgroundShaderWidget final : public LibreAudioShaderBaseWidget
 public:
     explicit LibreAudioBackgroundShaderWidget(TopLevelWidget* const parent, LibreAudioUIWidgetInterface* const iface)
         : LibreAudioShaderBaseWidget(parent, iface),
-          fParent(parent)
+          fParent(parent),
+          fScaleFactor(parent->getScaleFactor()),
+          fStartTime(parent->getApp().getTime())
     {
         // 8ms was 125 Hz: on a 60 Hz display more than half of those frames were rendered
         // and then thrown away. The shader widgets all cover the same area, so the window
         // redraws at whichever callback is fastest -- this has to stay in step with them.
         parent->addIdleCallback(this, 16);
-
-        // iTime must stay small: it is uploaded as a 32-bit float, and pugl's macOS puglGetTime
-        // returns time since system boot (the X11 one subtracts world->startTime, so it is already
-        // relative there). After a couple of weeks of uptime a single float ulp at TAU * rate * iTime
-        // is bigger than half a radian, which quantises animated phases into visible steps.
-        fStartTime = getApp().getTime();
 
        #ifdef DISTRHO_OS_WINDOWS
         if (! initGL())
@@ -179,6 +175,7 @@ public:
         gl3.program = program;
         gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
+        gl3.iScaleFactor = glGetUniformLocation(program, "iScaleFactor");
         gl3.iTime = glGetUniformLocation(program, "iTime");
 
         gl3.dpfBounds = glGetAttribLocation(program, "_dpf_bounds");
@@ -234,7 +231,7 @@ private:
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
         glUniform3f(gl3.iMouse, fMouseX.next(), fMouseY.next(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
-
+        glUniform1f(gl3.iScaleFactor, fScaleFactor);
         glUniform1f(gl3.iTime, static_cast<float>(getApp().getTime() - fStartTime));
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
 
@@ -311,12 +308,14 @@ private:
         GLint dpfPosition;
         GLint iMouse;
         GLint iResolution;
+        GLint iScaleFactor;
         GLint iTime;
         GLint* parameterValues;
     } gl3 = {};
 
     TopLevelWidget* const fParent;
-    double fStartTime = 0.0;
+    const float fScaleFactor;
+    const double fStartTime;
     bool fFirstResize = true;
     LinearValueSmoother fMouseX;
     LinearValueSmoother fMouseY;

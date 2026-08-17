@@ -12,6 +12,7 @@ uniform vec2 _dpf_position;
 uniform sampler2D iChannel0;
 uniform vec3 iMouse;
 uniform vec3 iResolution;
+uniform float iScaleFactor;
 uniform float iTime;
 
 // forward declaration of ShaderToy entry point
