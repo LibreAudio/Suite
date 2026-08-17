@@ -36,8 +36,8 @@ const float STEPS = 24.;
 // Aurora palette. Each trail colour is its tint sunk into the near-black base by
 // `darkening`: 0 leaves the tint untouched, 1 collapses it into the base. 0.6 is the
 // "40% over #0a0a0d" mix. Raise it to pull the whole aurora down without shifting hue.
-const vec3 baseTop = vec3(0.0392, 0.0392, 0.0510); // #0a0a0d
-const vec3 baseBottom = vec3(0.05,0.05,0.05); //white
+const vec3 baseTop = vec3(0.1, 0.1, 0.1); 
+const vec3 baseBottom = vec3(0.0,0.0,0.0);
 
 #ifndef LIBREAUDIO_HOSTED
 const vec3 tintLow  = vec3(0.7647, 0.8510, 1.0000); // #c3d9ff, the prominent colour
