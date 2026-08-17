@@ -41,6 +41,7 @@ uniform float u_adt_2voice;
 uniform float u_adt_wow_depth;
 uniform float u_adt_wow_rate;
 uniform float u_deess_amount;
+uniform float u_deess_meter;
 uniform float u_doubler_wander_depth;
 uniform float u_doubler_wander_rate;
 uniform float u_eq_hp;
@@ -141,7 +142,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
        reduction, faster pump than the chorus, matching v8 */
     float env = 0.0;
     if (DEESS > 0.001){
-        env = max(0.0, 0.6 * sin(TAU * fract(iTime * 4.0)) + 0.4 * sin(TAU * fract(iTime * 6.3) + 1.1));
+#ifndef LIBREAUDIO_HOSTED
+        max(0.0, 0.6 * sin(TAU * fract(iTime * 4.0)) + 0.4 * sin(TAU * fract(iTime * 6.3) + 1.1));
+#else
+        env = 1.0 - u_deess_meter / 30.0;
+#endif
     }
 
     /* trace amplitudes, in height fractions (plugin: a1 = 4 + depth*10 px @210, a2 = 0.75*a1) */
