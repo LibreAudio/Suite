@@ -23,6 +23,13 @@
 	direction. But this was not required for this demo and would be trivial to fix.
 */
 
+uniform vec3 baseTop;
+uniform vec3 baseBottom;
+
+#define baseTop vec3(0.0392, 0.0392, 0.0510)
+#define baseBottom vec3(0.05,0.05,0.05)
+
+
 #define time iTime
 
 // Camera pitch in radians. The bottom of the frame looks 21 degrees (0.37 rad) below
@@ -38,7 +45,8 @@ const float STEPS = 24.;
 // Aurora palette. Each trail colour is its tint sunk into the near-black base by
 // `darkening`: 0 leaves the tint untouched, 1 collapses it into the base. 0.6 is the
 // "40% over #0a0a0d" mix. Raise it to pull the whole aurora down without shifting hue.
-const vec3 baseDark = vec3(0.0392, 0.0392, 0.0510); // #0a0a0d
+// const vec3 baseTop = vec3(0.0392, 0.0392, 0.0510); // #0a0a0d
+// const vec3 baseBottom = vec3(0.05,0.05,0.05); //white
 const vec3 tintLow  = vec3(0.7647, 0.8510, 1.0000); // #c3d9ff, the prominent colour
 const vec3 tintHigh = vec3(0.8549, 0.7569, 0.9529); // #dac1f3, the trail tops
 const float darkening = 0.3;
@@ -90,8 +98,8 @@ vec4 aurora(vec3 ro, vec3 rd)
     // multiply. The dither scales with slice thickness, since thicker slices band more.
     // (the palette mix lives here rather than at file scope: GLSL will not take a
     // built-in call in a global initializer)
-    vec3 colLow  = mix(tintLow,  baseDark, darkening);
-    vec3 colHigh = mix(tintHigh, baseDark, darkening);
+    vec3 colLow  = mix(tintLow,  baseTop, darkening);
+    vec3 colHigh = mix(tintHigh, baseTop, darkening);
 
     float ofs = 0.006*sstep*hash21(gl_FragCoord.xy);
     float istride = 1./(rd.y*2.+0.4);
@@ -124,8 +132,8 @@ vec3 bg(in vec3 rd)
 {
     float sd = dot(normalize(vec3(-0.5, -0.6, 0.9)), rd)*0.5+0.5;
     sd = pow(sd, 5.);
-    vec3 col = mix(vec3(0.05,0.1,0.2), vec3(0.1,0.05,0.2), sd);
-    return col*.63;
+    vec3 col = mix(baseTop, baseBottom, sd);
+    return col*.60;
 }
 //-----------------------------------------------------------
 
