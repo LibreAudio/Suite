@@ -30,14 +30,14 @@ public:
 
     virtual ~LibreAudioUIWidgetInterface() = default;
 
-    virtual PageButton getCurrentPage() const noexcept = 0;
+    [[nodiscard]] virtual PageButton getCurrentPage() const noexcept = 0;
 
-    virtual float getParameterValue(uint32_t index) const noexcept = 0;
+    [[nodiscard]] virtual float getParameterValue(uint32_t index) const noexcept = 0;
 
-    virtual bool canUndo() const noexcept = 0;
-    virtual bool canRedo() const noexcept = 0;
-    virtual bool isCopyingSnapshot() const noexcept = 0;
-    virtual uint8_t getCurrentSnapshot() const noexcept = 0;
+    [[nodiscard]] virtual bool canUndo() const noexcept = 0;
+    [[nodiscard]] virtual bool canRedo() const noexcept = 0;
+    [[nodiscard]] virtual bool isCopyingSnapshot() const noexcept = 0;
+    [[nodiscard]] virtual uint8_t getCurrentSnapshot() const noexcept = 0;
 
     virtual void undo() = 0;
     virtual void redo() = 0;

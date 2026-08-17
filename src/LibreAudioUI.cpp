@@ -6,10 +6,10 @@
 
 #include "ui/reference.hpp"
 #include "ui/base/container.hpp"
-#include "ui/widgets/meter.hpp"
-#include "ui/widgets/shader.hpp"
-#include "ui/widgets/stage.hpp"
-#include "ui/widgets/top-bar-name.hpp"
+#include "ui/widgets-todo/meter.hpp"
+#include "ui/widgets-todo/shader.hpp"
+#include "ui/widgets-todo/stage.hpp"
+#include "ui/widgets-todo/top-bar-name.hpp"
 
 // #include "LibreAudioParameters.hpp"
 // #include "LibreAudioStates.hpp"
