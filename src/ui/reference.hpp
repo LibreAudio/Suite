@@ -12,10 +12,8 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 struct LibreAudioReference {
-    static constexpr const float fontScaling = 1.75;
-
     struct Common {
-        static constexpr const float fontSize = 13 * fontScaling;
+        static constexpr const float fontSize = 19;
         static constexpr const float letterSpacing = fontSize * 0.01;
         static constexpr const uint margin = 12;
     };
@@ -62,7 +60,7 @@ struct LibreAudioReference {
         static constexpr const uint padding = 20;
         struct PluginName {
             static constexpr const Color color = Colors::acc;
-            static constexpr const float fontSize = 14 * fontScaling;
+            static constexpr const float fontSize = 22;
             static constexpr const float letterSpacing = fontSize * 0.05;
         };
     };
@@ -148,18 +146,18 @@ struct LibreAudioReference {
             static constexpr const uint width = 58;
             struct Name {
                 static constexpr const Color color = Colors::acc;
-                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float fontSize = 17;
                 static constexpr const float letterSpacing = Common::letterSpacing;
                 // text-shadow
             };
             struct Value {
                 static constexpr const Color color = Colors::ink2;
-                static constexpr const float fontSize = 12 * fontScaling;
+                static constexpr const float fontSize = 15;
                 // font-mono
             };
             struct Unit {
                 static constexpr const Color color = Colors::ink3;
-                static constexpr const float fontSize = 9.5 * fontScaling;
+                static constexpr const float fontSize = 14;
                 static constexpr const float letterSpacing = fontSize * 0.02;
                 // font-ui
             };
@@ -169,22 +167,22 @@ struct LibreAudioReference {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
             // static constexpr const Color color = { 0xff, 0xff, 0xff };
-            static constexpr const uint height = (58 + 20) * 2;
-            static constexpr const uint width = 58 * 2;
+            static constexpr const uint height = (68 + 20) * 2;
+            static constexpr const uint width = 68 * 2;
             struct Name {
                 static constexpr const Color color = Colors::acc;
-                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float fontSize = 23;
                 static constexpr const float letterSpacing = Common::letterSpacing;
                 // text-shadow
             };
             struct Value {
                 static constexpr const Color color = Colors::ink2;
-                static constexpr const float fontSize = 12 * fontScaling * 2;
+                static constexpr const float fontSize = 20;
                 // font-mono
             };
             struct Unit {
                 static constexpr const Color color = Colors::ink3;
-                static constexpr const float fontSize = 9.5 * fontScaling * 2;
+                static constexpr const float fontSize = 19;
                 static constexpr const float letterSpacing = fontSize * 0.02;
                 // font-ui
             };
@@ -218,11 +216,11 @@ struct LibreAudioReference {
                 static constexpr const Color color = Colors::ink2;
                 static constexpr const Color color〡deactivated = Colors::ink3;
                 static constexpr const Color color〡selected = Colors::acc;
-                static constexpr const float fontSize = Common::fontSize;
+                static constexpr const float fontSize = 17;
                 static constexpr const float letterSpacing = Common::letterSpacing;
                 static constexpr const uint borderRadius = 6;
                 static constexpr const uint height = 26;
-                static constexpr const uint margin = 10;
+                static constexpr const uint margin = 9;
             };
         };
     };

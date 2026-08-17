@@ -85,15 +85,14 @@ public:
     LibreAudioRootWidget(Window& window, LibreAudioUIWidgetInterface* const iface)
         : LibreAudioReferenceContainerTopLevelWidget(window, iface)
     {
-        createFontFromMemory("Saira Semi Condensed (Regular)",
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_DATA,
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_LEN,
+        createFontFromMemory("regular",
+                             FONTS_INTER_18PT_REGULAR_TTF_DATA,
+                             FONTS_INTER_18PT_REGULAR_TTF_LEN,
                              false);
-        createFontFromMemory("Saira Semi Condensed (SemiBold)",
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_DATA,
-                             FONTS_SAIRASEMICONDENSED_SEMIBOLD_TTF_LEN,
+        createFontFromMemory("mono",
+                             FONTS_SPLINESANSMONO_REGULAR_TTF_DATA,
+                             FONTS_SPLINESANSMONO_REGULAR_TTF_LEN,
                              false);
-        fontFace("Saira Semi Condensed (Regular)");
 
         fTopBar = addWidget<LibreAudioTopBar>();
         fMainArea = addWidget<LibreAudioMainArea, Expanding>();

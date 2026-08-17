@@ -174,7 +174,19 @@ public:
         fToggles.reserve(kMaxNumToggles);
         fSpacers.reserve(kMaxNumToggles + 1);
 
-        addSpacer();
+        uint8_t numPills = 0;
+        for (uint32_t i = 0, count = parameters.size(); i < count; ++i)
+        {
+            const FaustParameter& parameter = parameters[i];
+            if (! parameter.isEnumerator || parameter.isOutput) {
+                d_stdout("pill area skipped parameter %s", parameter.label);
+                continue;
+            }
+            ++numPills;
+        }
+
+        if (numPills == 1)
+            addSpacer();
 
         for (uint32_t i = 0, count = parameters.size(); i < count && widgets.size() < kMaxNumToggles * 2; ++i)
         {
@@ -187,8 +199,16 @@ public:
             std::unique_ptr<LibreAudioPillToggleWidget> widget { new LibreAudioPillToggleWidget(this, parameter, kParametersMainStart + i) };
             widgets.push_back({ widget.get(), Fixed });
             fToggles.emplace_back(std::move(widget));
-            addSpacer();
+
+            if (numPills == 2)
+            {
+                numPills = 0;
+                addSpacer();
+            }
         }
+
+        if (numPills == 1)
+            addSpacer();
 
         const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);

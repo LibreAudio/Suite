@@ -55,6 +55,7 @@ private:
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 
             fillColor(isEnabled() ? R::Value::color : fKnobStyle.colorDisabled);
+            fontFace("mono");
             fontSize(R::Value::fontSize * fScaleFactor);
 
             if (*fParameter.unit == '\0')

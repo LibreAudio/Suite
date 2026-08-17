@@ -31,6 +31,10 @@ set(COMMON_FLAGS "${COMMON_FLAGS} -ffinite-math-only")
 set(COMMON_FLAGS "${COMMON_FLAGS} -DDISTRHO_NAMESPACE=LibreAudioSuiteDISTRHO")
 set(COMMON_FLAGS "${COMMON_FLAGS} -DDGL_NAMESPACE=LibreAudioSuiteDGL")
 
+# configure nanovg
+set(COMMON_FLAGS "${COMMON_FLAGS} -DDGL_USE_NANOVG_FBO")
+set(COMMON_FLAGS "${COMMON_FLAGS} -DNVG_FONT_TEXTURE_FLAGS=NVG_IMAGE_NEAREST")
+
 # base tuning, SSE2 or NEON required
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
   set(COMMON_FLAGS "${COMMON_FLAGS} -mtune=generic -msse -msse2 -mfpmath=sse")
