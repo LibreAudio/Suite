@@ -112,7 +112,7 @@ uiTone(x)   = uiBottom(hgroup("[4]Tone",  x));
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
 // Pills
-mode        = uiMode(nentry("[01]mode[style:radio{'I':0;'II':1;'I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
+mode        = uiMode(nentry("[01]mode[style:radio{'Juno I':0;'Juno II':1;'Juno I+II':2;'Dimension D':3;'Ensemble':4}][symbol:mode]", 0, 0, 4, 1)) : int;
 true_stereo = uiMode(nentry("[02]stereo[style:radio{'Mono':0;'True Stereo':1}][symbol:stereo]", 0, 0, 1, 1)) : int;
 
 // Parameters
@@ -128,8 +128,8 @@ detune      = uiBottomLeft(hslider("[16]Detune [style:knob][unit:%][symbol:detun
 hflim_amount = uiBottomRight(hslider("[21]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
 hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
-hp_freq     = uiBottomRight(hslider("[22]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][accentcolor:06][bracket:TONE]",    1,    1,   20000,  1));
-lp_freq     = uiBottomRight(hslider("[23]LowPass [style:knob][unit:Hz][scale:log][symbol:lp_freq][label:LowPass][accentcolor:06][bracket:TONE]",    20000, 1,  20000, 1));
+hp_freq     = uiBottomRight(hslider("[22]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][accentcolor:06][bracket:TONE]",    1,    20,   20000,  1));
+lp_freq     = uiBottomRight(hslider("[23]LowPass [style:knob][unit:Hz][scale:log][symbol:lp_freq][label:LowPass][accentcolor:06][bracket:TONE]",    20000, 20,  20000, 1));
 
 width       = uiBottomRight(hslider("[24]Width [style:knob][unit:%][symbol:width][accentcolor:04][label:Width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
 drywet      = uiBottomRight(hslider("[25]Dry-Wet [style:knob][unit:%][symbol:drywet][label:Dry-Wet][accentcolor:01][easy]",50,0,100,1)) / 100;
@@ -272,15 +272,6 @@ hfLimThreshAt0 =   -2;  hfLimThreshAt100 =   -14; // dB   - how far the high ban
 hfLimRatioAt0  =    2;  hfLimRatioAt100  =     8; //      - how hard the excess is squeezed
 hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total reduction; 0 at the bottom makes 0% a true bypass
 
-// Level independence cuts both ways: a ratio detector fires on near-silence
-// just as happily as on a sibilant, because room tone, hiss and denormals are
-// spectrally flat — i.e. brighter than voice — so their high/low ratio looks
-// exactly like an "s". An absolute gate settles it: below the floor nothing is
-// touched at all, and reduction fades in over the knee above it. Not amount-
-// dependent; these are "is there signal here" numbers, not taste.
-hfLimGateDb   = -60;  // dBFS - floor; below this the limiter idles
-hfLimGateKnee =  12;  // dB   - fade-in range above the floor (full effect at -48)
-
 lerp(a, b, t) = a + (b - a) * t;
 
 // Defaults to 0, i.e. a true bypass, because a chorus is not a vocal-only
@@ -309,27 +300,15 @@ with {
     low  = (lowL  + lowR)  * 0.5;
     high = (highL + highR) * 0.5;
 
-    // The EPSILON floor is not cosmetic: on a truly silent input both envelopes
-    // are 0, log10(0) is -inf, and diff comes out NaN.
-    envDb(att, rel) = an.amp_follower_ar(att, rel) : max(ma.EPSILON) : ba.linear2db;
-
-    hiDb  = high : envDb(0.001, 0.03);
-    refDb = low  : envDb(0.001, 0.03);
-
-    // Broadband level of the same mono sum the detector uses, for the gate only.
-    // Released slower than the ratio detector so the gate stays open through the
-    // tail of a word instead of chattering across the threshold.
-    inDb = low + high : envDb(0.001, 0.1);
-    gate = min(1, max(0, (inDb - hfLimGateDb) / hfLimGateKnee));
+    hiDb  = high : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
+    refDb = low  : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
 
     // dB the high band sticks out above the body band, relative to normal
     // voice spectral tilt; only the excess over threshold is limited
     diff   = hiDb - refDb;
     excess = max(0, diff - hflim_thresh);
 
-    // Gating the reduction rather than the detector keeps the meter honest: it
-    // reads 0 when nothing is being done.
-    reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range) * gate;
+    reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range);
     gr = ba.db2linear(0 - reductionDb);
 
     outL = lowL + highL * gr;
