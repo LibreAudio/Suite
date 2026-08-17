@@ -23,15 +23,6 @@
 	direction. But this was not required for this demo and would be trivial to fix.
 */
 
-uniform vec3 baseTop;
-uniform vec3 baseBottom;
-
-#define baseTop vec3(0.0392, 0.0392, 0.0510)
-#define baseBottom vec3(0.05,0.05,0.05)
-
-
-#define time iTime
-
 // Camera pitch in radians. The bottom of the frame looks 21 degrees (0.37 rad) below
 // the view axis, so anything past that keeps the horizon off screen; past ~1.4 the
 // aurora ends up behind the camera.
@@ -45,10 +36,20 @@ const float STEPS = 24.;
 // Aurora palette. Each trail colour is its tint sunk into the near-black base by
 // `darkening`: 0 leaves the tint untouched, 1 collapses it into the base. 0.6 is the
 // "40% over #0a0a0d" mix. Raise it to pull the whole aurora down without shifting hue.
-// const vec3 baseTop = vec3(0.0392, 0.0392, 0.0510); // #0a0a0d
-// const vec3 baseBottom = vec3(0.05,0.05,0.05); //white
+const vec3 baseTop = vec3(0.0392, 0.0392, 0.0510); // #0a0a0d
+const vec3 baseBottom = vec3(0.05,0.05,0.05); //white
+
+#ifndef LIBREAUDIO_HOSTED
 const vec3 tintLow  = vec3(0.7647, 0.8510, 1.0000); // #c3d9ff, the prominent colour
 const vec3 tintHigh = vec3(0.8549, 0.7569, 0.9529); // #dac1f3, the trail tops
+#else
+uniform float u_input_peak_L;
+uniform float u_input_peak_R;
+float input_peak = 1.0 - clamp((max(u_input_peak_L, u_input_peak_R) - 24.0) / -114.0, 0.0, 0.5);
+vec3 tintLow  = vec3(0.7647, 0.8510, 1.0000) * input_peak; // #c3d9ff, the prominent colour
+vec3 tintHigh = vec3(0.8549, 0.7569, 0.9529) * input_peak; // #dac1f3, the trail tops
+#endif
+
 const float darkening = 0.3;
 
 mat2 mm2(in float a){float c = cos(a), s = sin(a);return mat2(c,s,-s,c);}
@@ -103,7 +104,7 @@ vec4 aurora(vec3 ro, vec3 rd)
 
     float ofs = 0.006*sstep*hash21(gl_FragCoord.xy);
     float istride = 1./(rd.y*2.+0.4);
-    mat2 spdRot = mm2(time*0.06);
+    mat2 spdRot = mm2(iTime*0.06);
     float w = exp2(-2.5);
     float wDecay = exp2(-0.065*sstep);
 
@@ -147,7 +148,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rd = normalize(vec3(p,1.3));
 
     rd.yz *= mm2(pitch);
-    rd.xz *= mm2(sin(time*0.05)*0.2);
+    rd.xz *= mm2(sin(iTime*0.05)*0.2);
     
     vec3 col = bg(rd);
 
