@@ -128,7 +128,7 @@ detune      = uiBottomLeft(hslider("[16]Detune [style:knob][unit:%][symbol:detun
 hflim_amount = uiBottomRight(hslider("[21]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
 hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
-hp_freq     = uiBottomRight(hslider("[22]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][accentcolor:06][bracket:TONE]",    1,    20,   20000,  1));
+hp_freq     = uiBottomRight(hslider("[22]HighPass [style:knob][unit:Hz][scale:log][symbol:hp_freq][label:HighPass][accentcolor:06][bracket:TONE]",    20,    20,   20000,  1));
 lp_freq     = uiBottomRight(hslider("[23]LowPass [style:knob][unit:Hz][scale:log][symbol:lp_freq][label:LowPass][accentcolor:06][bracket:TONE]",    20000, 20,  20000, 1));
 
 width       = uiBottomRight(hslider("[24]Width [style:knob][unit:%][symbol:width][accentcolor:04][label:Width]",     100.0,   0.0, 200.0,  1.0))  / 100;  // stereo width: 0% mono, 100% unmodified, 200% double width
