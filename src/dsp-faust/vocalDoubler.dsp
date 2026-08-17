@@ -134,6 +134,15 @@ hfLimThreshAt0 =   -2;  hfLimThreshAt100 =   -14; // dB   - how far the high ban
 hfLimRatioAt0  =    2;  hfLimRatioAt100  =     8; //      - how hard the excess is squeezed
 hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB   - ceiling on total reduction; 0 at the bottom makes 0% a true bypass
 
+// Level independence cuts both ways: a ratio detector fires on near-silence
+// just as happily as on a sibilant, because room tone, hiss and denormals are
+// spectrally flat — i.e. brighter than voice — so their high/low ratio looks
+// exactly like an "s". An absolute gate settles it: below the floor nothing is
+// touched at all, and reduction fades in over the knee above it. Not amount-
+// dependent; these are "is there signal here" numbers, not taste.
+hfLimGateDb   = -60;  // dBFS - floor; below this the limiter idles
+hfLimGateKnee =  12;  // dB   - fade-in range above the floor (full effect at -48)
+
 lerp(a, b, t) = a + (b - a) * t;
 
 hflim_amount = uiBottomRight(hslider("[31]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 50, 0, 100, 1)) / 100;
@@ -149,15 +158,27 @@ with {
     low  = fi.lowpass(4, hflim_split, x);
     high = x - low; // complementary split: low+high reconstructs x exactly at unity gain
 
-    hiDb  = high : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
-    refDb = low  : an.amp_follower_ar(0.001, 0.03) : ba.linear2db;
+    // The EPSILON floor is not cosmetic: on a truly silent input both envelopes
+    // are 0, log10(0) is -inf, and diff comes out NaN.
+    envDb(att, rel) = an.amp_follower_ar(att, rel) : max(ma.EPSILON) : ba.linear2db;
+
+    hiDb  = high : envDb(0.001, 0.03);
+    refDb = low  : envDb(0.001, 0.03);
+
+    // Broadband level, for the gate only. Released slower than the ratio
+    // detector so the gate stays open through the tail of a word instead of
+    // chattering across the threshold.
+    inDb = x : envDb(0.001, 0.1);
+    gate = min(1, max(0, (inDb - hfLimGateDb) / hfLimGateKnee));
 
     // dB the high band sticks out above the body band, relative to normal
     // voice spectral tilt; only the excess over threshold is limited
     diff   = hiDb - refDb;
     excess = max(0, diff - hflim_thresh);
 
-    reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range);
+    // Gating the reduction rather than the detector keeps the meter honest: it
+    // reads 0 when nothing is being done.
+    reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range) * gate;
     gr = ba.db2linear(0 - reductionDb);
 };
 
