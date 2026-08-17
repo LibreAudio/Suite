@@ -11,72 +11,45 @@
    can't set custom uniforms), leave USE_DEFAULTS at 1 to use the constants.
    =========================================================================== */
 
-/* ---- adjustable parameters (drive these as uniform float from a host) ---- */
-uniform float uRate1;     // voice 1 trace rate, Hz
-uniform float uRate2;     // voice 2 trace rate, Hz
-uniform float uDepth;     // trace amplitude / wet depth (0 .. 1)
-uniform float uShowB;     // draw the 2nd voice? (0 or 1) - on in 1/3 Doubler & 2-voice ADT
-uniform float uLpHz;      // wet-EQ low-pass corner, Hz
-uniform float uHpHz;      // wet-EQ high-pass corner, Hz
-uniform float uLpRes;     // low-pass resonance bump  (0 .. 1)
-uniform float uHpRes;     // high-pass resonance bump (0 .. 1)
-uniform float uPresence;  // presence bell (0 .. 1, 0.5 = flat), +-12 dB at 2 kHz
-uniform float uDeess;     // De-Ess amount (0 .. 1)
-uniform float uDeessFreq; // De-Ess shelf crossover, Hz
-uniform float uDbMax;     // top of the dB window
-uniform float uDbMin;     // bottom of the dB window
-uniform float uWin;       // time window shown, seconds
-uniform float uThick;     // line thickness, pixels
-uniform float uGlow;      // glow strength (0 .. 1)
-uniform float uGlowWidth; // glow radius, pixels
-uniform float uFill;      // fill opacity between the two voices (0 .. 1)
-uniform float uFMin;      // frequency axis min, Hz (left edge)
-uniform float uFMax;      // frequency axis max, Hz (right edge)
+#define DBMAX 18.0   /* top of the dB window */
+#define DBMIN -42.0  /* bottom of the dB window */
+#define WIN  2.0     /* time window shown, seconds */
+#define THICK 3.0    /* line thickness, pixels */
+#define GLOW 0.60    /* glow strength (0 .. 1) */
+#define GLOWW 7.0    /* glow radius, pixels */
+#define FILL 0.35    /* fill opacity between the two voices (0 .. 1) */
+#define FMIN 20.0    /* frequency axis min, Hz (left edge) */
+#define FMAX 10000.0 /* frequency axis max, Hz (right edge) */
 
-/* ---- standalone defaults (Shadertoy editor has no custom uniforms) ------- */
-#define USE_DEFAULTS 1
-#if USE_DEFAULTS
-  #define R1   0.55
-  #define R2   0.85
-  #define DEPTH 0.35
-  #define SHOWB 1.0
-  #define LPHZ 7000.0
-  #define HPHZ 20.0
-  #define LPRES 0.0
-  #define HPRES 0.0
-  #define PRESENCE 0.62
-  #define DEESS 0.6
-  #define DEESSFREQ 3000.0
-  #define DBMAX 18.0
-  #define DBMIN -42.0
-  #define WIN  2.0
-  #define THICK 3.0
-  #define GLOW 0.60
-  #define GLOWW 7.0
-  #define FILL 0.35
-  #define FMIN 20.0
-  #define FMAX 10000.0
+#define DEESSFREQ 3000.0 /* De-Ess shelf crossover, Hz */
+#define LPRES 0.0        /* low-pass resonance bump  (0 .. 1) */
+#define HPRES 0.0        /* high-pass resonance bump (0 .. 1) */
+
+// TODO
+#define R1   0.55  /* voice 1 trace rate, Hz */
+#define R2   0.85  /* voice 2 trace rate, Hz */
+#define DEPTH 0.35 /* trace amplitude / wet depth (0 .. 1) */
+
+/* standalone defaults (Shadertoy editor has no custom uniforms) */
+#ifndef LIBREAUDIO_HOSTED
+#define SHOWB 1.0     /* draw the 2nd voice? (0 or 1) - on in 1/3 Doubler & 2-voice ADT */
+#define LPHZ 7000.0   /* wet-EQ low-pass corner, Hz */
+#define HPHZ 20.0     /* wet-EQ high-pass corner, Hz */
+#define PRESENCE 0.62 /* presence bell (0 .. 1, 0.5 = flat), +-12 dB at 2 kHz */
+#define DEESS 0.6     /* De-Ess amount (0 .. 1) */
 #else
-  #define R1   uRate1
-  #define R2   uRate2
-  #define DEPTH uDepth
-  #define SHOWB uShowB
-  #define LPHZ uLpHz
-  #define HPHZ uHpHz
-  #define LPRES uLpRes
-  #define HPRES uHpRes
-  #define PRESENCE uPresence
-  #define DEESS uDeess
-  #define DEESSFREQ uDeessFreq
-  #define DBMAX uDbMax
-  #define DBMIN uDbMin
-  #define WIN  uWin
-  #define THICK uThick
-  #define GLOW uGlow
-  #define GLOWW uGlowWidth
-  #define FILL uFill
-  #define FMIN uFMin
-  #define FMAX uFMax
+/* adjustable plugin parameters */
+uniform float u_mode;
+uniform float u_adt_2voice;
+uniform float u_eq_lp;
+uniform float u_eq_hp;
+uniform float u_presence;
+uniform float u_deess_amount;
+#define SHOWB (u_mode == 1.0 || (u_mode == 0.0 && u_adt_2voice == 2.0) ? 1.0 : 0.0)
+#define LPHZ u_eq_lp
+#define HPHZ u_eq_hp
+#define PRESENCE ((u_presence + 12.0) / 24.0)
+#define DEESS (u_deess_amount * 0.01)
 #endif
 
 #define TAU 6.28318530718

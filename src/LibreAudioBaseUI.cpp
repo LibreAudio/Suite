@@ -122,6 +122,16 @@ bool LibreAudioBaseUI::isParameterOutputOrTrigger(const uint32_t i)
         false;
 }
 
+const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noexcept
+{
+    return
+        index >= kParametersMainStart ? kFaustParameters[index - kParametersMainStart].symbol :
+        index >= kParametersOutputStart ? kFaustParametersOut[index - kParametersOutputStart + kCommonIOParameters].symbol :
+        index >= kParametersInputStart ? kFaustParametersIn[index - kParametersInputStart].symbol :
+        nullptr;
+
+}
+
 // --------------------------------------------------------------------------------------------------------------------
 // DSP/Plugin Callbacks
 

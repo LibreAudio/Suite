@@ -32,6 +32,8 @@ public:
 
     [[nodiscard]] virtual PageButton getCurrentPage() const noexcept = 0;
 
+    [[nodiscard]] virtual uint32_t getParameterCount() const noexcept = 0;
+    [[nodiscard]] virtual const char* getParameterSymbol(uint32_t index) const noexcept = 0;
     [[nodiscard]] virtual float getParameterValue(uint32_t index) const noexcept = 0;
 
     [[nodiscard]] virtual bool canUndo() const noexcept = 0;

@@ -6,12 +6,11 @@
 
 #include "../base/interface.hpp"
 
-#include "LibreAudioParameters.hpp"
-
 #include "OpenGL-include.hpp"
 #include "SubWidget.hpp"
 #include "TopLevelWidget.hpp"
 
+#include "extra/String.hpp"
 #include "extra/ValueSmoother.hpp"
 
 #include "las-resources.h"
@@ -97,6 +96,7 @@ public:
            #else
             "#define LIBREAUDIO_GL2\n"
            #endif
+            "#define LIBREAUDIO_HOSTED\n"
         ;
 
         static constexpr const char* const vertexSource[] = {
@@ -180,11 +180,23 @@ public:
         gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
         gl3.iTime = glGetUniformLocation(program, "iTime");
-        gl3.hpHz = glGetUniformLocation(program, "hpHz");
 
         gl3.dpfBounds = glGetAttribLocation(program, "_dpf_bounds");
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
+
+        if (const uint32_t count = fInterface->getParameterCount())
+        {
+            gl3.parameterValues = new GLint[count];
+            String symbol;
+
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                symbol = "u_";
+                symbol += fInterface->getParameterSymbol(i);
+                gl3.parameterValues[i] = glGetUniformLocation(program, symbol);
+            }
+        }
 
         fMouseX.setSampleRate(1.0 / 0.008);
         fMouseX.setTimeConstant(0.5);
@@ -200,6 +212,7 @@ public:
         if (gl3.program == 0)
             return;
 
+        delete[] gl3.parameterValues;
         glDeleteProgram(gl3.program);
     }
 
@@ -225,8 +238,14 @@ private:
         glUniform1f(gl3.iTime, static_cast<float>(getApp().getTime() - fStartTime));
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
 
-        if (gl3.hpHz != 0)
-            glUniform1f(gl3.hpHz, (fInterface->getParameterValue(kParametersMainStart + 2) - 0.25f) * 0.05f * 500.0);
+        if (const uint32_t count = fInterface->getParameterCount())
+        {
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                if (gl3.parameterValues[i] != 0)
+                    glUniform1f(gl3.parameterValues[i], fInterface->getParameterValue(i));
+            }
+        }
 
         static const constexpr GLfloat vertices[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
         glBindBuffer(GL_ARRAY_BUFFER, gl3.buffers[0]);
@@ -293,7 +312,7 @@ private:
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
-        GLint hpHz;
+        GLint* parameterValues;
     } gl3 = {};
 
     TopLevelWidget* const fParent;

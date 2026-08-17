@@ -37,7 +37,9 @@ protected:
 
     [[nodiscard]] PageButton getCurrentPage() const noexcept final { return fPage; }
 
-    [[nodiscard]] float getParameterValue(const uint32_t index) const noexcept final { return fParameterValues[index]; }
+    [[nodiscard]] uint32_t getParameterCount() const noexcept final { return kParameterCount; }
+    [[nodiscard]] const char* getParameterSymbol(uint32_t index) const noexcept final;
+    [[nodiscard]] float getParameterValue(uint32_t index) const noexcept final { return fParameterValues[index]; }
 
     [[nodiscard]] bool canUndo() const noexcept final { return fSnapshots.canUndo(); }
     [[nodiscard]] bool canRedo() const noexcept final { return fSnapshots.canRedo(); }
