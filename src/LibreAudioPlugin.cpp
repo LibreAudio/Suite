@@ -571,11 +571,11 @@ bool LibreAudioPlugin::run()
                 max[c] = v;
     }
 
-    char strbuf[9 * DISTRHO_PLUGIN_NUM_OUTPUTS + DISTRHO_PLUGIN_NUM_OUTPUTS + 1];
+    char strbuf[10 * DISTRHO_PLUGIN_NUM_OUTPUTS + 2];
     {
         const ScopedSafeLocale ssl;
         for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-            std::snprintf(strbuf + 9 * c, sizeof(strbuf), "%.6f ", max[c]);
+            std::snprintf(strbuf + 9 * c, 10, "%.6f ", max[c]);
     }
     *(strbuf + DISTRHO_PLUGIN_NUM_OUTPUTS * 9 - 1) = '\0';
     updateStateValue(kStateKeys[kStateAudioPeakValues], strbuf);
