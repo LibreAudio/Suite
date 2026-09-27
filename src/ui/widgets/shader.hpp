@@ -4,63 +4,18 @@
 
 #pragma once
 
-#include "../_lab/interface.hpp"
-
-#include "Application.hpp"
-#include "SubWidget.hpp"
-#include "TopLevelWidget.hpp"
-
-#include "extra/String.hpp"
-#include "extra/ValueSmoother.hpp"
-
-#include "las-resources.h"
-
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <vector>
-
-#include "OpenGL-include.hpp"
-
-#ifdef DISTRHO_OS_WINDOWS
-#include "extra/Windows-include.h"
-extern "C" {
-__declspec(dllimport) PROC WINAPI wglGetProcAddress(LPCSTR);
-}
-#endif
+#include "shader-clean.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ShaderBaseWidget : public SubWidget
-{
-public:
-    explicit ShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : SubWidget(parent),
-          fInterface(iface) {}
-
-    void setBorderRadius(const float borderRadius) noexcept
-    {
-        if (d_isEqual(fBorderRadius, borderRadius))
-            return;
-        fBorderRadius = borderRadius;
-        repaint();
-    }
-
-protected:
-    LabUIWidgetInterface* const fInterface;
-    float fBorderRadius = 0.f;
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 template<const char src[], uint size>
-class BackgroundShaderWidget final : public ShaderBaseWidget,
-                                     public IdleCallback
+class BotShaderWidget final : public ShaderBaseWidget,
+                              public IdleCallback
 {
 public:
-    explicit BackgroundShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+    explicit BotShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
         : ShaderBaseWidget(parent, iface),
           fParent(parent)
     {
@@ -95,6 +50,7 @@ public:
            #else
             "#define LIBREAUDIO_GL2\n"
            #endif
+            "#define LIBREAUDIO_HOSTED_BOT\n"
             "#define LIBREAUDIO_HOSTED\n"
         ;
 
@@ -273,7 +229,7 @@ public:
         fMouseY.setTimeConstant(0.5);
     }
 
-    ~BackgroundShaderWidget() final
+    ~BotShaderWidget() final
     {
         fParent->removeIdleCallback(this);
 

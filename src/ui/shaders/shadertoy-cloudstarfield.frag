@@ -76,7 +76,7 @@ const float starOcclusion  = 0.;  // how much the clouds hide the stars behind t
 // Overall output brightness, 0..1. In the plugin it tracks the input peak meters
 // so the clouds brighten with the signal; standalone it is a flat 1.0, since the
 // Shadertoy editor has no custom uniforms.
-#ifndef LIBREAUDIO_HOSTED
+#ifndef LIBREAUDIO_HOSTED_BOT
 #define brightness 0.0
 #else
 // Peak of the two input meters in dBFS, smoothed by the host over two different
@@ -272,7 +272,7 @@ float starSlice(vec2 sp, float z, float seed)
 //         = min * iTime + (max - min) * integral of level dt.
 float starPhase()
 {
-#ifdef LIBREAUDIO_HOSTED
+#ifdef LIBREAUDIO_HOSTED_BOT
     return starSpeedMin * iTime + (starSpeedMax - starSpeedMin) * iLevelSlowTime;
 #else
     return iTime * mix(starSpeedMin, starSpeedMax, 0.5);
