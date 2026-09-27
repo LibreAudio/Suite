@@ -571,7 +571,7 @@ bool LibreAudioPlugin::run()
                 max[c] = v;
     }
 
-    char strbuf[9 * DISTRHO_PLUGIN_NUM_OUTPUTS + 2];
+    char strbuf[9 * DISTRHO_PLUGIN_NUM_OUTPUTS + DISTRHO_PLUGIN_NUM_OUTPUTS + 1];
     {
         const ScopedSafeLocale ssl;
         for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
