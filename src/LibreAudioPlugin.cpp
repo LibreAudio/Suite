@@ -336,14 +336,14 @@ void LibreAudioPlugin::activate()
         updateStateValue(kStateKeys[kStateAudioPeakBufferSize], bufsizestr);
     }
 
-    startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
+    // startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
    #endif
 }
 
 void LibreAudioPlugin::deactivate()
 {
    #ifdef LIBREAUDIO_CUSTOM_UI
-    stopRunner();
+    // stopRunner();
     fRunnerBuffer.deleteBuffer();
    #endif
 }
