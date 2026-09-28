@@ -1,0 +1,354 @@
+//=============================================================================
+// eq.lib - the filter sections of EQ42 (eq.dsp), as building blocks for EQs
+// with any number of bands.
+//
+// Faust port of x42-eq / fil4.lv2 - https://github.com/x42/fil4.lv2
+//   (C) Robin Gareus, filter sections (C) Fons Adriaensen, GPL-2+.
+//
+// Usage, N bands log-spaced over 20 Hz - 20 kHz:
+//   eq = library("eq.lib");
+//   band(k) = vgroup("[%2k] Band %k", eq.bellUI(k, 20 * pow(1000, (k - 0.5) / N)));
+//   process = eq.msEnc : hgroup("EQ", seq(i, N, band(i + 1))) : eq.msDec;
+//
+// Every section comes in three layers:
+//   * the mono filter, taking plain parameter signals
+//       bell,   lowshelf,   highshelf,   highpass,   lowpass
+//   * a mid/side pair with a Stereo/Mid/Side selector, 2->2
+//       bellMS, lowshelfMS, highshelfMS, highpassMS, lowpassMS
+//   * the pair bound to its UI widgets, 2->2
+//       bellUI, lowshelfUI, highshelfUI, highpassUI, lowpassUI
+// highpass42 and lowpass42 are fil4's fixed 12 dB/oct filters, used by EQ42;
+// they come as mono filter and mid/side pair only.
+// The UI layer takes (k, fdef): section k, default frequency fdef; k goes into
+// every widget symbol, so sections of one type can be repeated freely.
+// The UI layer puts its widgets in no group; wrap it in one to lay it out.
+// Order groups with a zero-padded index ("[%2k]"): UI order is lexicographic.
+//=============================================================================
+
+import("stdfaust.lib");
+
+TWOPI = 2.0 * ma.PI;
+DN    = 1e-10;   // Fil4Paramsect anti-denormal offset
+
+clip(lo, hi, x) = max(lo, min(hi, x));
+
+// One-pole parameter smoother, adapted from si.smoo in two ways that both
+// mirror what iir_interpolate() does in the original C:
+//   * it starts *at* the parameter value rather than ramping up from zero.
+//     Faust's smoothers are zero-initialised, which would sweep every frequency
+//     up from DC and every gain up from silence for the first second after load
+//     - and a gain near zero makes the 1/sqrt(g) bandwidth rule in the bell
+//     explode. Holding the pole at 0 for the first sample latches instead.
+//   * it snaps to the target once within SMOOTOL, so a parked parameter sits on
+//     exactly its set value instead of dithering by an ulp forever. That is what
+//     makes a band at 0 dB a bit-exact bypass rather than an almost-bypass.
+// The pole is si.smoo's, so the time constant is unchanged.
+SMOOTOL = 1e-6;
+smoo = step ~ _
+with {
+    c = (1.0 - 44.1 / ma.SR) * (ba.time > 0);
+    step(y, x) = select2(abs(x - y) <= SMOOTOL * max(1.0, abs(x)),
+                         (1.0 - c) * x + c * y,
+                         x);
+};
+
+//------------------------------------------------------------------ mid/side
+// Sections run in the mid/side domain: encode once before the chain, decode
+// once after it. Stereo is the same filter engaged on both halves, which is
+// identical to filtering L and R. The scaling matches common/input.dsp and
+// common/output.dsp.
+msEnc(l, r) = (l + r) * 0.5, (l - r) * 0.5;
+msDec(m, s) = m + s, m - s;
+
+// channel selector: 0 = Stereo, 1 = Mid, 2 = Side
+midSel (mode) = mode != 2;   // engaged for Stereo and Mid
+sideSel(mode) = mode != 1;   // engaged for Stereo and Side
+
+//--------------------------------------------------------------------- bell
+// Fil4Paramsect, src/filters.h: Fons Adriaensen's normalised 2nd-order allpass
+// ladder, very low coefficient sensitivity at low frequencies.
+// Transfer function of the realisation below:
+//   H(z) = [D(z) + G(1 - z^-2)] / D(z),  D(z) = 1 + s1(1+s2)z^-1 + s2 z^-2
+//   G = 0.5(g-1)(1-s2)
+// Bandwidth is scaled by 7*f/sqrt(g): the section widens with frequency and
+// narrows with gain, which is what gives fil4 its musical boost/cut shapes.
+// `on` interpolates the gain to 0 dB, an exact bypass.
+bell(freq, band, gdb, on) = (step ~ (_, _)) : (!, !, _)
+with {
+    g  = ba.db2linear(on * gdb) : smoo;
+    f  = clip(0.0002, 0.4998, freq / ma.SR) : smoo;
+    b  = (band : smoo) * 7.0 * f / sqrt(g);
+    s1 = 0 - cos(TWOPI * f);
+    s2 = (1.0 - b) / (1.0 + b);
+    a  = 0.5 * (g - 1.0);
+
+    step(z1, z2, x) = z1n, z2n, out
+    with {
+        y0  = x - s2 * z2;
+        out = x - a * (z2 + s2 * y0 - x);
+        y   = y0 - s1 * z1;
+        z2n = z1 + s1 * y;
+        z1n = y + DN;
+    };
+};
+
+// One bell on mid and one on side; the selector disengages a half through its
+// gain, which is phase-coherent where a dry/wet crossfade would comb. The
+// disengaged half keeps running, so its state is warm when switched back.
+bellMS(freq, band, gdb, on, mode) = bell(freq, band, gdb, on * midSel (mode)),
+                                    bell(freq, band, gdb, on * sideSel(mode));
+
+// Bell band k bound to its widgets, default frequency `fdef`. Every band roams
+// the full 20 Hz - 20 kHz range (fil4 boxes each section into a narrower
+// window). Symbols band_on<k>, band_freq<k>, band_q<k>, band_gain<k>,
+// band_ms<k>.
+bellUI(k, fdef) = bellMS(freq, bw, gain, on, mode)
+with {
+    on   = checkbox("[0] Band %k [symbol:band_on%k][label:On]");
+    freq = hslider("[1] Band %k Frequency [style:knob][unit:Hz][scale:log][symbol:band_freq%k][label:Freq][accentcolor:02]",
+                   fdef, 20, 20000, 1);
+    bw   = hslider("[2] Band %k Bandwidth [style:knob][symbol:band_q%k][label:BW][accentcolor:03]", 0.5, 0.0625, 4, 0.01);
+    gain = hslider("[3] Band %k Gain [style:knob][unit:dB][symbol:band_gain%k][label:Gain][accentcolor:01]", 0, -18, 18, 0.1);
+    mode = nentry("[4] Band %k Channel [style:radio{'Stereo':0;'Mid':1;'Side':2}][symbol:band_ms%k][label:Channel]", 0, 0, 2, 1) : int;
+};
+
+//------------------------------------------------------------------- shelves
+// RBJ shelving biquads, coefficients and topology per src/iir.h.
+// Transposed direct form II, exactly as iir_compute (src/iir.h) runs it.
+tdf2(b0, b1, b2, a1, a2) = (biq ~ (_, _)) : (!, !, _)
+with {
+    biq(y1, y2, x) = y1n, y2n, y
+    with {
+        y   = b0 * x + y1;
+        y1n = b1 * x - a1 * y + y2;
+        y2n = b2 * x - a2 * y;
+    };
+};
+
+// iir_interpolate clamps: freq to [0.0004,0.47]*SR, q to [0.25,2]
+shelfF(freq) = clip(0.0004 * ma.SR, 0.4700 * ma.SR, freq) : smoo;
+shelfQ(q)    = clip(0.25, 2.0, q) : smoo;
+// user bandwidth [2^-4 .. 4] mapped to [2^-3/2 .. 2], per process_channel()
+shelfQmap(q) = 0.2129 + q / 2.25;
+
+// iir_calc_lowshelf (src/iir.h), `gain` linear
+lowshelfL(freq, q, gain) = tdf2(b0/a0, b1/a0, b2/a0, a1/a0, a2/a0)
+with {
+    w0 = TWOPI * shelfF(freq) / ma.SR;
+    cw = cos(w0);
+    A  = sqrt(gain);
+    As = sqrt(A);
+    al = sin(w0) / 2.0 / shelfQ(q);
+    b0 =      A * ((A+1) - (A-1)*cw + 2*As*al);
+    b1 =  2 * A * ((A-1) - (A+1)*cw);
+    b2 =      A * ((A+1) - (A-1)*cw - 2*As*al);
+    a0 =          (A+1) + (A-1)*cw + 2*As*al;
+    a1 =  0 - 2 * ((A-1) + (A+1)*cw);
+    a2 =          (A+1) + (A-1)*cw - 2*As*al;
+};
+
+// iir_calc_highshelf (src/iir.h), `gain` linear
+highshelfL(freq, q, gain) = tdf2(b0/a0, b1/a0, b2/a0, a1/a0, a2/a0)
+with {
+    w0 = TWOPI * shelfF(freq) / ma.SR;
+    cw = cos(w0);
+    A  = sqrt(gain);
+    As = sqrt(A);
+    al = sin(w0) / 2.0 / shelfQ(q);
+    b0 =      A * ((A+1) + (A-1)*cw + 2*As*al);
+    b1 = -2 * A * ((A-1) + (A+1)*cw);
+    b2 =      A * ((A+1) + (A-1)*cw - 2*As*al);
+    a0 =          (A+1) - (A-1)*cw + 2*As*al;
+    a1 =  2 *     ((A-1) - (A+1)*cw);
+    a2 =          (A+1) - (A-1)*cw - 2*As*al;
+};
+
+// `q` is the user bandwidth, `gdb` the gain in dB; `on` interpolates the gain to
+// 0 dB, an exact bypass.
+lowshelf (freq, q, gdb, on) = lowshelfL (freq, shelfQmap(q), ba.db2linear(on*gdb) : smoo);
+highshelf(freq, q, gdb, on) = highshelfL(freq, shelfQmap(q), ba.db2linear(on*gdb) : smoo);
+
+// mid/side pairs, disengaged through their gain like bellMS
+lowshelfMS (freq, q, gdb, on, mode) = lowshelf (freq, q, gdb, on * midSel (mode)),
+                                      lowshelf (freq, q, gdb, on * sideSel(mode));
+highshelfMS(freq, q, gdb, on, mode) = highshelf(freq, q, gdb, on * midSel (mode)),
+                                      highshelf(freq, q, gdb, on * sideSel(mode));
+
+// Low shelf k and high shelf k bound to their widgets, default frequency
+// `fdef`. Symbols ls_on<k>, ls_freq<k>, ls_q<k>, ls_gain<k>, ls_ms<k> and the
+// same with hs_. Frequency ranges are fil4's: 25 - 400 Hz low, 1 - 16 kHz high.
+lowshelfUI(k, fdef) = lowshelfMS(freq, bw, gain, on, mode)
+with {
+    on   = checkbox("[0] Lowshelf %k [symbol:ls_on%k][label:On]");
+    freq = hslider("[1] Lowshelf %k Frequency [style:knob][unit:Hz][scale:log][symbol:ls_freq%k][label:Freq][accentcolor:02]", fdef, 25, 400, 1);
+    bw   = hslider("[2] Lowshelf %k Bandwidth [style:knob][symbol:ls_q%k][label:BW][accentcolor:03]", 1.0, 0.0625, 4, 0.01);
+    gain = hslider("[3] Lowshelf %k Gain [style:knob][unit:dB][symbol:ls_gain%k][label:Gain][accentcolor:01]", 0, -18, 18, 0.1);
+    mode = nentry("[4] Lowshelf %k Channel [style:radio{'Stereo':0;'Mid':1;'Side':2}][symbol:ls_ms%k][label:Channel]", 0, 0, 2, 1) : int;
+};
+
+highshelfUI(k, fdef) = highshelfMS(freq, bw, gain, on, mode)
+with {
+    on   = checkbox("[0] Highshelf %k [symbol:hs_on%k][label:On]");
+    freq = hslider("[1] Highshelf %k Frequency [style:knob][unit:Hz][scale:log][symbol:hs_freq%k][label:Freq][accentcolor:02]", fdef, 1000, 16000, 1);
+    bw   = hslider("[2] Highshelf %k Bandwidth [style:knob][symbol:hs_q%k][label:BW][accentcolor:03]", 1.0, 0.0625, 4, 0.01);
+    gain = hslider("[3] Highshelf %k Gain [style:knob][unit:dB][symbol:hs_gain%k][label:Gain][accentcolor:01]", 0, -18, 18, 0.1);
+    mode = nentry("[4] Highshelf %k Channel [style:radio{'Stereo':0;'Mid':1;'Side':2}][symbol:hs_ms%k][label:Channel]", 0, 0, 2, 1) : int;
+};
+
+//------------------------------------------------------- fil4 pass filters
+// fil4's own 12 dB/oct highpass and lowpass, as EQ42 runs them.
+
+// highpass42: src/hip.h. Two cascaded one-pole DC blockers, pole `a`, with (y2 - z2) fed
+// back into the input: the difference between the outputs of the two stages is
+// the resonance signal. `g` compensates the passband droop the feedback causes.
+//   RESHP(x) = 0.7 + 0.78*tanh(1.82*(x - 0.8)), clamped to [0, 1.6]
+highpass42(freq, res) = (hp ~ si.bus(3)) : (!, !, _)
+with {
+    fr = clip(5.0, ma.SR / 12.0, freq) : smoo;
+    w  = fr / ma.SR;
+    a  = exp(0 - TWOPI * w);
+    q  = clip(0.0, 1.6, 0.7 + 0.78 * ma.tanh(1.82 * (res - 0.8))) : smoo;
+    g  = 1.0 + w + 2.0 * q * w;
+    m1 = g / a;
+    m2 = g * q;
+
+    hp(z1, z2, y2, x) = z1n, z2n, y2n
+    with {
+        z1n = m1 * x - m2 * (y2 - z2);
+        z2n = a * (z2 + z1n - z1);
+        y2n = a * (y2 + z2n - z2);
+    };
+};
+
+// lowpass42: src/lop.h. Four one-poles in series; the first pair (coefficient `a`, set to
+// the corner) carries the resonance feedback, the second pair (coefficient `b`,
+// set way up at 0.25*SR + 0.5*fs) supplies the extra slope. The corner is
+// pulled down by sqrt(1+fb) so the resonant peak stays put, and `tg` tapers
+// the feedback off as the corner approaches Nyquist.
+//   RESLP(x) = 3 * x^3.20772, clamped to [0, 9]
+lowpass42(freq, res) = ((lp ~ si.bus(4)) : (!, !, !, _))
+                     : highshelfL(ma.SR / 3.0, 0.444, 0.5)
+with {
+    fb = clip(0.0, 9.0, 3.0 * pow(res, 3.20772)) : smoo;
+    fr = clip(630.0, min(20000.0, 0.4998 * ma.SR), freq) : smoo;
+    fs = fr / sqrt(1.0 + fb);
+    a  = lopAlpha(fs);
+    b  = lopAlpha(0.25 * ma.SR + 0.5 * fs);
+    w2 = 4.0 * fr / ma.SR;
+    w3 = fr / (0.25 * ma.SR + 0.5 + fr);
+    r  = fb * (1.0 + w3*w3) / (1.0 + w2*w2);
+
+    lp(z1, z2, z3, z4, x) = z1n, z2n, z3n, z4n
+    with {
+        in  = (1.0 + r) * x - z2 * r;
+        z1n = z1 + a * (in  - z1);
+        z2n = z2 + a * (z1n - z2);
+        z3n = z3 + b * (z2n - z3);
+        z4n = z4 + b * (z3n - z4);
+    };
+};
+
+lopAlpha(f) = 1.0 - exp(0 - TWOPI * clip(0.0002, 0.4998, f / ma.SR));
+
+// Dry/wet crossfade: the on-off of filters that have no gain to morph to an
+// exact bypass.
+xfade(on, F) = _ <: (_, F) : si.interpolate(on : smoo);
+
+// mid/side pairs, each half disengaged by crossfading to dry
+highpass42MS(freq, res, on, mode) = xfade(on * midSel (mode), highpass42(freq, res)),
+                                    xfade(on * sideSel(mode), highpass42(freq, res));
+lowpass42MS (freq, res, on, mode) = xfade(on * midSel (mode), lowpass42(freq, res)),
+                                    xfade(on * sideSel(mode), lowpass42(freq, res));
+
+//-------------------------------------------------- switchable pass filters
+// 6/12/18/24 dB/oct (order 1-4) highpass and lowpass, cascades of
+// zero-delay-feedback one-pole and state-variable sections (Zavalishin's
+// topology-preserving transform): trapezoidal integrators with the frequency
+// prewarped, so the corner lands exactly and the filters stay stable under
+// fast modulation.
+//
+// At res = 0 every order is a Butterworth filter, maximally flat and -3 dB at
+// `freq`. Resonance multiplies the Q of the highest-Q section by RESMAX^res,
+// which lifts the response at `freq` by the same factor for every order:
+// -3 dB at res = 0, +15 dB at res = 1. Order 1 has a single real pole and
+// cannot resonate, so `res` has no effect there.
+//
+// All four orders run all the time and their outputs are crossfaded by the
+// smoothed `order` selector, so switching the slope does not click.
+RESMAX = 8.0;
+
+// prewarped integrator gain for corner `freq` in Hz
+tptG(freq) = tan(ma.PI * clip(0.0002, 0.49, freq / ma.SR));
+
+// one-pole section, outputs (lp, hp)
+tpt1(g) = (step ~ _) : (!, _, _)
+with {
+    step(s, x) = s + 2.0 * v, lp, x - lp
+    with {
+        v  = (x - s) * g / (1.0 + g);
+        lp = v + s;
+    };
+};
+
+// state-variable section, quality `q`, outputs (lp, hp)
+tpt2(g, q) = (step ~ (_, _)) : (!, !, _, _)
+with {
+    k  = 1.0 / q;
+    a1 = 1.0 / (1.0 + g * (g + k));
+    a2 = g * a1;
+    a3 = g * a2;
+
+    step(ic1, ic2, x) = 2.0 * v1 - ic1, 2.0 * v2 - ic2, v2, x - k * v1 - v2
+    with {
+        v3 = x - ic2;
+        v1 = a1 * ic1 + a2 * v3;
+        v2 = ic2 + a2 * ic1 + a3 * v3;
+    };
+};
+
+// `tap` picks the output of each section: lpTap or hpTap
+lpTap = _, !;
+hpTap = !, _;
+
+// Butterworth section Q per order; the last section of each carries resonance
+passFilter(tap, freq, res, order) = _ <: par(i, 4, cascade(i + 1) : *(w(i + 1))) :> _
+with {
+    g = tptG(freq : smoo);
+    m = pow(RESMAX, clip(0.0, 1.0, res) : smoo);
+    w(n) = (order == n) : smoo;
+
+    cascade(1) = tpt1(g) : tap;
+    cascade(2) = tpt2(g, 0.70711 * m) : tap;
+    cascade(3) = tpt1(g) : tap : tpt2(g, 1.0 * m) : tap;
+    cascade(4) = tpt2(g, 0.54120) : tap : tpt2(g, 1.30656 * m) : tap;
+};
+
+highpass(freq, res, order) = passFilter(hpTap, freq, res, order);
+lowpass (freq, res, order) = passFilter(lpTap, freq, res, order);
+
+// mid/side pairs, each half disengaged by crossfading to dry
+highpassMS(freq, res, order, on, mode) = xfade(on * midSel (mode), highpass(freq, res, order)),
+                                         xfade(on * sideSel(mode), highpass(freq, res, order));
+lowpassMS (freq, res, order, on, mode) = xfade(on * midSel (mode), lowpass (freq, res, order)),
+                                         xfade(on * sideSel(mode), lowpass (freq, res, order));
+
+// Highpass k and lowpass k bound to their widgets, default frequency `fdef`,
+// 20 Hz - 20 kHz, 12 dB/oct. Symbols hp_on<k>, hp_freq<k>, hp_q<k>,
+// hp_slope<k>, hp_ms<k> and the same with lp_.
+highpassUI(k, fdef) = highpassMS(freq, res, order, on, mode)
+with {
+    on    = checkbox("[0] Highpass %k [symbol:hp_on%k][label:On]");
+    freq  = hslider("[1] Highpass %k Frequency [style:knob][unit:Hz][scale:log][symbol:hp_freq%k][label:Freq][accentcolor:02]", fdef, 20, 20000, 1);
+    res   = hslider("[2] Highpass %k Resonance [style:knob][symbol:hp_q%k][label:Res][accentcolor:03]", 0, 0, 1, 0.01);
+    order = nentry("[3] Highpass %k Slope [style:radio{'6 dB':1;'12 dB':2;'18 dB':3;'24 dB':4}][symbol:hp_slope%k][label:Slope]", 2, 1, 4, 1) : int;
+    mode  = nentry("[4] Highpass %k Channel [style:radio{'Stereo':0;'Mid':1;'Side':2}][symbol:hp_ms%k][label:Channel]", 0, 0, 2, 1) : int;
+};
+
+lowpassUI(k, fdef) = lowpassMS(freq, res, order, on, mode)
+with {
+    on    = checkbox("[0] Lowpass %k [symbol:lp_on%k][label:On]");
+    freq  = hslider("[1] Lowpass %k Frequency [style:knob][unit:Hz][scale:log][symbol:lp_freq%k][label:Freq][accentcolor:02]", fdef, 20, 20000, 1);
+    res   = hslider("[2] Lowpass %k Resonance [style:knob][symbol:lp_q%k][label:Res][accentcolor:03]", 0, 0, 1, 0.01);
+    order = nentry("[3] Lowpass %k Slope [style:radio{'6 dB':1;'12 dB':2;'18 dB':3;'24 dB':4}][symbol:lp_slope%k][label:Slope]", 2, 1, 4, 1) : int;
+    mode  = nentry("[4] Lowpass %k Channel [style:radio{'Stereo':0;'Mid':1;'Side':2}][symbol:lp_ms%k][label:Channel]", 0, 0, 2, 1) : int;
+};
