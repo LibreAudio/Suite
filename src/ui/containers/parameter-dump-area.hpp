@@ -47,6 +47,11 @@ public:
         updateSize(true);
     }
 
+    float getBorderRadius() const noexcept
+    {
+        return R::borderRadius * fScaleFactor;
+    }
+
 private:
     void addKnobGroup(const uint offset)
     {
@@ -97,20 +102,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ParameterDumpArea : public ReferenceContainerWidget<Reference::MainArea>
-{
-   #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<Widget> fMetersIn = addWidget<GainMeterWidget<Input>>();
-   #endif
-    std::shared_ptr<ParameterDumpStageWidget> fStage = addWidget<ParameterDumpStageWidget, Expanding>();
-   #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<Widget> fMetersOut = addWidget<GainMeterWidget<Output>>();
-   #endif
-
-public:
-    ParameterDumpArea(LabTopLevelWidget* const parent)
-        : ReferenceContainerWidget(parent) {}
-};
+using ParameterDumpArea = MainAreaContainerWidget<ParameterDumpStageWidget>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

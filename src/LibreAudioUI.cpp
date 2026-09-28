@@ -13,48 +13,6 @@
 
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace LibreAudio {
-
-class RootWidgetWithShaders final : public RootWidget<TopBar, MainArea<>>
-{
-    using BaseWidget = RootWidget<TopBar, MainArea<>>;
-
-    std::list<ShaderBaseWidget*> fShaders;
-
-public:
-    RootWidgetWithShaders(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWidget(window, iface)
-    {
-    }
-
-    void setup(const std::list<ShaderBaseWidget*> &shaders)
-    {
-        fShaders = shaders;
-        updateSize(false);
-    }
-
-private:
-    void updateSize(const bool updateChildren) final
-    {
-        BaseWidget::updateSize(updateChildren);
-
-        const Point<int> pos = fMainArea->getMainAreaAbsolutePos();
-        const Size<uint> size = fMainArea->getMainAreaSize();
-        const float borderRadius = fMainArea->getMainAreaBorderRadius();
-
-        for (ShaderBaseWidget* const sw : fShaders)
-        {
-            sw->setAbsolutePos(pos);
-            sw->setSize(size);
-            sw->setBorderRadius(borderRadius);
-        }
-    }
-};
-
-} /* namespace LibreAudio */
-
-// --------------------------------------------------------------------------------------------------------------------
-
 START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -95,13 +53,14 @@ public:
 
             fShaderLine->toFront();
 
+            createRootWidget<LibreAudio::TopBar, LibreAudio::MainAreaContainerWidget<>>();
+
             const std::list<LibreAudio::ShaderBaseWidget*> shaders = {
                 fShaderBackground.get(),
                 fShaderAnalyser.get(),
                 fShaderLine.get(),
             };
-            createRootWidget<LibreAudio::RootWidgetWithShaders>();
-            static_cast<LibreAudio::RootWidgetWithShaders*>(fRootWidget.get())->setup(shaders);
+            fRootWidget->enableShaders(shaders);
         }
         else
         {

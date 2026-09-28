@@ -7,6 +7,7 @@
 #include "ui/_lab/color.hpp"
 
 #include "ui/reference.hpp"
+#include "ui/containers/main-area.hpp"
 #include "ui/widgets/toggle-switch.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -57,7 +58,7 @@ class LibreAudioUI : public LibreAudioBaseUI
     };
 
     // static constexpr const float kColor[] = { 0.3f, 0.1f, 0.05f, 1.f };
-    using MainAreaWidget = LabReferenceWidget<ReferenceMainArea>;
+    using MainAreaWidget = LibreAudio::MainAreaContainerWidget<LabReferenceWidget<ReferenceMainArea>>;
 
 public:
     LibreAudioUI()

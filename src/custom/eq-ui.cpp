@@ -4,6 +4,7 @@
 
 #include "LibreAudioBaseUI.hpp"
 
+#include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/gain-meter.hpp"
 #include "ui/widgets/shader.hpp"
@@ -88,79 +89,10 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EqMainArea : public ReferenceContainerWidget<Reference::MainArea>
-{
-    using R = Reference::MainArea;
-    using BaseWidget = ReferenceContainerWidget<R>;
-
-    std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();
-    std::shared_ptr<EqWidget> fEq = addWidget<EqWidget, Expanding>();
-    std::shared_ptr<LabWidget> fMetersOut = addWidget<GainMeterWidget<Output>>();
-
-public:
-    EqMainArea(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    [[nodiscard]] Point<int> getMiddleAreaAbsolutePos() const noexcept
-    {
-        return fEq->getAbsolutePos();
-    }
-
-    [[nodiscard]] Size<uint> getMiddleAreaSize() const noexcept
-    {
-        return fEq->getSize();
-    }
-
-    [[nodiscard]] float getMiddleAreaBorderRadius() const noexcept
-    {
-        return fEq->getBorderRadius();
-    }
-};
+using EqMainArea = MainAreaContainerWidget<EqWidget>;
+using EqRootWidget = RootWidget<TopBar, EqMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
-
-class EqRootWidget final : public RootWidget<TopBar, EqMainArea>
-{
-    using BaseWidget = RootWidget<TopBar, EqMainArea>;
-
-    ShaderBaseWidget* fShaderBackground = nullptr;
-    BotShaderBaseWidget* fShaderAnalyser = nullptr;
-
-public:
-    EqRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWidget(window, iface) {}
-
-    void setup(ShaderBaseWidget* const background, BotShaderBaseWidget* const analyser)
-    {
-        fShaderBackground = background;
-        fShaderAnalyser = analyser;
-        updateSize(false);
-    }
-
-private:
-    void updateSize(const bool updateChildren) final
-    {
-        BaseWidget::updateSize(updateChildren);
-
-        const Point<int> pos = fMainArea->getMiddleAreaAbsolutePos();
-        const Size<uint> size = fMainArea->getMiddleAreaSize();
-        const float borderRadius = fMainArea->getMiddleAreaBorderRadius();
-
-        if (fShaderBackground != nullptr)
-        {
-            fShaderBackground->setAbsolutePos(pos);
-            fShaderBackground->setSize(size);
-            fShaderBackground->setBorderRadius(borderRadius);
-        }
-
-        if (fShaderAnalyser != nullptr)
-        {
-            fShaderAnalyser->setAbsolutePos(pos);
-            fShaderAnalyser->setSize(size);
-            fShaderAnalyser->setBorderRadius(borderRadius);
-        }
-    }
-};
 
 } /* namespace LibreAudio */
 
@@ -186,8 +118,10 @@ public:
                                                               SHADERS_ANALYSER_FFT_FRAG_LEN>(this, this));
 
         createRootWidget<LibreAudio::EqRootWidget>();
-        static_cast<LibreAudio::EqRootWidget*>(fRootWidget.get())->setup(fShaderBackground.get(),
-                                                                         fShaderAnalyser.get());
+
+        static_cast<LibreAudio::EqRootWidget*>(fRootWidget.get())->enableShaders({
+            fShaderBackground.get(), fShaderAnalyser.get()
+        });
     }
 
 private:

@@ -310,6 +310,11 @@ public:
         updateReferenceSize<R>();
     }
 
+    float getBorderRadius() const noexcept
+    {
+        return R::borderRadius * fScaleFactor;
+    }
+
 protected:
     void onNanoDisplay() override
     {

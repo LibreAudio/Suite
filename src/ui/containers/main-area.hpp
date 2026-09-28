@@ -16,20 +16,12 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class StageWidget = StageWidget<>>
-class MainArea : public ReferenceContainerWidget<Reference::MainArea>
+class MainAreaContainerWidget : public ReferenceContainerWidget<Reference::MainArea>
 {
     using BaseWidget = ReferenceContainerWidget<Reference::MainArea>;
 
-   #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();
-   #endif
-    std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
-   #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<LabWidget> fMetersOut = addWidget<GainMeterWidget<Output>>();
-   #endif
-
 public:
-    MainArea(LabTopLevelWidget* const parent)
+    MainAreaContainerWidget(LabTopLevelWidget* const parent)
         : BaseWidget(parent) {}
 
     [[nodiscard]] Point<int> getMainAreaAbsolutePos() const noexcept
@@ -46,6 +38,15 @@ public:
     {
         return fStage->getBorderRadius();
     }
+
+protected:
+   #if LIBREAUDIO_WANT_COMMON_IO
+    std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();
+   #endif
+    std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
+   #if LIBREAUDIO_WANT_COMMON_IO
+    std::shared_ptr<LabWidget> fMetersOut = addWidget<GainMeterWidget<Output>>();
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------

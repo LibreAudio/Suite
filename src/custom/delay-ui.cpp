@@ -6,6 +6,7 @@
 
 #include "ui/reference.hpp"
 #include "ui/containers/frame.hpp"
+#include "ui/containers/main-area.hpp"
 #include "ui/containers/stage.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/dual-slider.hpp"
@@ -406,18 +407,11 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayMainArea : public ReferenceContainerWidget<Reference::MainArea>
+class DelayMainArea final : public MainAreaContainerWidget<StageWidget<EasyStageWidget, DelayExpertPageWidget>>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::MainArea>;
-    using DelayStageWidget = StageWidget<EasyStageWidget, DelayExpertPageWidget>;
-
-    std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();
-    std::shared_ptr<DelayStageWidget> fStage = addWidget<DelayStageWidget, Expanding>();
-    std::shared_ptr<LabWidget> fMetersOut = addWidget<GainMeterWidget<Output>>();
-
 public:
     DelayMainArea(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
+        : MainAreaContainerWidget(parent) {}
 
     void setScopeZoom(DelayScopeZoom* const zoom) noexcept
     {
@@ -448,8 +442,6 @@ class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
     using BaseWidget = RootWidget<TopBar, DelayMainArea>;
 
     Page fLastPage = kPageEasy;
-    ShaderBaseWidget* fShaderBackground = nullptr;
-    BotShaderBaseWidget* fShaderScope = nullptr;
     DelayScopeZoom fScopeZoom;
 
 public:
@@ -459,18 +451,16 @@ public:
         addIdleCallback(this);
     }
 
-    void setup(ShaderBaseWidget* const background, BotShaderBaseWidget* const scope)
+    void enableShaders(const std::list<ShaderBaseWidget*>& shaders) final
     {
-        fShaderBackground = background;
-        fShaderScope = scope;
-
         // one zoom, read by the shader and by the labels drawn over it
         fMainArea->setScopeZoom(&fScopeZoom);
-        fShaderScope->setCustomUniform("iSpan", [this] {
+
+        static_cast<LibreAudio::BotShaderBaseWidget*>(shaders.back())->setCustomUniform("iSpan", [this] {
             return fScopeZoom.span(DelayScopeModel(fInterface).level, getApp().getTime());
         });
 
-        updateSize(false);
+        BaseWidget::enableShaders(shaders);
     }
 
 private:
@@ -480,31 +470,6 @@ private:
         {
             fLastPage = page;
             updateSize(false);
-        }
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        BaseWidget::updateSize(updateChildren);
-
-        const Point<int> pos = fMainArea->getMiddleAreaAbsolutePos(fLastPage);
-        const Size<uint> size = fMainArea->getMiddleAreaSize(fLastPage);
-        const float borderRadius = fMainArea->getMiddleAreaBorderRadius(fLastPage);
-
-        if (fShaderBackground != nullptr)
-        {
-            fShaderBackground->setAbsolutePos(pos);
-            fShaderBackground->setSize(size);
-            fShaderBackground->setBorderRadius(borderRadius);
-        }
-
-        // the tap scope lives in the expert page's centre well only
-        if (fShaderScope != nullptr)
-        {
-            fShaderScope->setVisible(fLastPage == kPageExpert);
-            fShaderScope->setAbsolutePos(pos);
-            fShaderScope->setSize(size);
-            fShaderScope->setBorderRadius(borderRadius);
         }
     }
 };
@@ -534,8 +499,9 @@ public:
                                                            SHADERS_CURVE_DELAY_FRAG_LEN>(this, this));
 
         createRootWidget<LibreAudio::DelayRootWidget>();
-        static_cast<LibreAudio::DelayRootWidget*>(fRootWidget.get())->setup(fShaderBackground.get(),
-                                                                            fShaderScope.get());
+        static_cast<LibreAudio::DelayRootWidget*>(fRootWidget.get())->enableShaders({
+            fShaderBackground.get(), fShaderScope.get()
+        });
     }
 
 private:
