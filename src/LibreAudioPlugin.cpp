@@ -336,14 +336,14 @@ void LibreAudioPlugin::activate()
         updateStateValue(kStateKeys[kStateAudioPeakBufferSize], bufsizestr);
     }
 
-    // startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
+    startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
    #endif
 }
 
 void LibreAudioPlugin::deactivate()
 {
    #ifdef LIBREAUDIO_CUSTOM_UI
-    // stopRunner();
+    stopRunner();
     fRunnerBuffer.deleteBuffer();
    #endif
 }
@@ -432,13 +432,11 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
             {
-               #ifndef _DARKGLASS_DEVICE_PABLITO
                 // optimize for non-denormal usage
                 if (!std::isfinite(inputs[c][i + j]))
                     __builtin_unreachable();
                 if (!std::isfinite(outputs[c][i + j]))
                     __builtin_unreachable();
-               #endif
 
                #ifdef LIBREAUDIO_CUSTOM_UI
                 fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
