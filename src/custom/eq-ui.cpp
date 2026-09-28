@@ -1733,7 +1733,7 @@ private:
         }
 
         const double now = getTime();
-        const float dt = fLastIdleTime > 0.0 ? static_cast<float>(std::min(now - fLastIdleTime, 0.1)) : 0.f;
+        const float dt = fLastIdleTime > 0.0 ? std::min<float>(now - fLastIdleTime, 0.1) : 0.f;
         fLastIdleTime = now;
 
         // range follows the curve smoothly, the prototype's 0.16 per frame at 60 fps
