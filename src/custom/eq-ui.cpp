@@ -37,7 +37,6 @@ static constexpr const float kGainLimit = 24.f;
 static constexpr const float kDisplayPadTop = 24.f;
 static constexpr const float kDisplayPadBottom = 40.f;
 
-static constexpr const float kGap = 10.f;
 static constexpr const float kPianoHeight = 26.f;
 static constexpr const float kPianoBlackHeight = 15.f;
 static constexpr const float kBarHeight = 62.f;
@@ -51,8 +50,6 @@ static constexpr const float kIconGap = 8.f;
 static constexpr const float kMenuButtonWidth = 26.f;
 static constexpr const float kMenuButtonHeight = 24.f;
 
-// the display is drawn see-through, so the analyser shader underneath shows
-static constexpr const float kPanelAlpha = 0.72f;
 
 static constexpr const double kDoubleClickTime = 0.4;
 static constexpr const double kAddDebounceTime = 0.45;
@@ -74,9 +71,6 @@ namespace EqColors {
     static constexpr const Color darker { 0x17, 0x17, 0x1b };
     static constexpr const Color blackKey { 0x13, 0x13, 0x16 };
     static constexpr const Color whiteKey { 0x3a, 0x3b, 0x42 };
-    static constexpr const Color panelTop { 0x19, 0x1a, 0x1e };
-    static constexpr const Color panelBottom { 0x1e, 0x1f, 0x24 };
-    static constexpr const Color fftDark { 0x10, 0x12, 0x17 };
     static constexpr const Color menu { 0x1e, 0x1f, 0x24, 0.96f };
     static constexpr const Color tipTop { 0x23, 0x23, 0x27 };
     static constexpr const Color tipBottom { 0x2a, 0x2a, 0x30 };
@@ -289,11 +283,15 @@ struct EqResponse {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EqWidget final : public LabReferenceWidget<Reference::Stage>,
+class EqWidget final : public LabReferenceWidget<Reference::TransparentStage>,
                        private IdleCallback
 {
-    using R = Reference::Stage;
+    using R = Reference::TransparentStage;
     using BaseWidget = LabReferenceWidget<R>;
+
+    // the curve display is the stage well, the piano roll sits bare under it, the option bar in a frame
+    using WellRef = Reference::Stage;
+    using FrameRef = Reference::OpaqueStage;
 
 public:
     enum class Analyser : uint8_t { Pre, Post, Off };
@@ -316,7 +314,7 @@ public:
 
     [[nodiscard]] float getDisplayBorderRadius() const noexcept
     {
-        return 8.f * fScaleFactor;
+        return WellRef::borderRadius * fScaleFactor;
     }
 
     [[nodiscard]] bool isAnalyserVisible() const noexcept
@@ -535,20 +533,19 @@ private:
     // ----------------------------------------------------------------------------------------------------------------
     // layout, in widget px
 
-    [[nodiscard]] Box layoutInner() const noexcept
+    [[nodiscard]] float gap() const noexcept
     {
-        const float pad = R::padding * fScaleFactor;
-        return { pad, pad, getWidth() - pad * 2.f, getHeight() - pad * 2.f };
+        return Reference::Common::margin * fScaleFactor;
     }
 
     [[nodiscard]] Box layoutDisplay() const noexcept
     {
         const float s = fScaleFactor;
-        Box d = layoutInner();
+        Box d { 0.f, 0.f, static_cast<float>(getWidth()), static_cast<float>(getHeight()) };
         if (fShowPiano)
-            d.h -= (kPianoHeight + kGap) * s;
+            d.h -= kPianoHeight * s + gap();
         if (fShowControls)
-            d.h -= (kBarHeight + kGap) * s;
+            d.h -= kBarHeight * s + gap();
         d.h = std::max(d.h, 80.f * s);
         return d;
     }
@@ -556,13 +553,13 @@ private:
     [[nodiscard]] Box layoutPiano() const noexcept
     {
         const Box d = layoutDisplay();
-        return { d.x, d.y + d.h + kGap * fScaleFactor, d.w, kPianoHeight * fScaleFactor };
+        return { d.x, d.y + d.h + gap(), d.w, kPianoHeight * fScaleFactor };
     }
 
     [[nodiscard]] Box layoutBar() const noexcept
     {
         const Box d = fShowPiano ? layoutPiano() : layoutDisplay();
-        return { d.x, d.y + d.h + kGap * fScaleFactor, d.w, kBarHeight * fScaleFactor };
+        return { d.x, d.y + d.h + gap(), d.w, kBarHeight * fScaleFactor };
     }
 
     // the row of number boxes in the middle of the option bar: arrow, gain, freq, Q, arrow
@@ -857,26 +854,51 @@ private:
 
     void onNanoDisplay() final
     {
-        drawReferenceBackground<R, kCornerBoth>();
-
         const bool on = ! isBypassed();
 
         drawDisplay(on);
         drawCaptions();
+        drawWellBorder<WellRef>(layoutDisplay());
 
         if (fShowPiano)
             drawPiano(on);
 
         if (fShowControls)
+        {
+            drawFrame<FrameRef>(layoutBar());
             drawBar(on);
+        }
 
         if (fMenuOpen)
             drawMenu();
 
         if (fShowPiano)
             drawPianoTip();
+    }
 
-        drawReferenceBorder<R>();
+    // like drawReferenceBackground and drawReferenceBorder, for an area of this widget
+    template <class Ref>
+    void drawFrame(const Box& b)
+    {
+        beginPath();
+        roundedRect(b.x, b.y, b.w, b.h, Ref::borderRadius * fScaleFactor);
+        fillColor(Ref::backgroundColor);
+        fill();
+
+        drawWellBorder<Ref>(b);
+    }
+
+    template <class Ref>
+    void drawWellBorder(const Box& b)
+    {
+        const float border = std::max(1, d_roundToIntPositive(Ref::border * fScaleFactor));
+        const float half = border * 0.5f;
+
+        beginPath();
+        roundedRect(b.x + half, b.y + half, b.w - border, b.h - border, Ref::borderRadius * fScaleFactor - half);
+        strokeColor(Ref::borderColor);
+        strokeWidth(border);
+        stroke();
     }
 
     void drawDisplay(const bool on)
@@ -885,29 +907,9 @@ private:
         const Plot p = plot();
         const float y0 = p.yOf(0.f);
 
-        // panel
-        beginPath();
-        roundedRect(p.x, p.y, p.w, p.h, getDisplayBorderRadius());
-        fillPaint(linearGradient(0, p.y, 0, p.y + p.h,
-                                 withAlpha(EqColors::panelTop, kPanelAlpha), withAlpha(EqColors::panelBottom, kPanelAlpha)));
-        fill();
-
+        // no panel: the background and analyser shaders fill the well
         save();
         scissor(p.x, p.y, p.w, p.h);
-
-        // darkening towards the bottom, where the analyser sits
-        {
-            const float top = p.y + p.h - 170.f * s;
-            const float mid = top + 170.f * s * 0.58f;
-            beginPath();
-            rect(p.x, top, p.w, mid - top);
-            fillPaint(linearGradient(0, top, 0, mid, withAlpha(EqColors::fftDark, 0.f), withAlpha(EqColors::fftDark, 0.55f)));
-            fill();
-            beginPath();
-            rect(p.x, mid, p.w, p.y + p.h - mid);
-            fillPaint(linearGradient(0, mid, 0, p.y + p.h, withAlpha(EqColors::fftDark, 0.55f), withAlpha(EqColors::fftDark, 0.86f)));
-            fill();
-        }
 
         // frequency grid: 2..9 of every decade faint, 100 / 1k / 10k stronger
         strokeWidth(1.f);
@@ -1395,21 +1397,6 @@ private:
     {
         const float s = fScaleFactor;
         const Box bar = layoutBar();
-
-        // glass frame
-        beginPath();
-        roundedRect(bar.x, bar.y, bar.w, bar.h, 10.f * s);
-        fillColor(Color(1.f, 1.f, 1.f, 0.05f));
-        fill();
-        strokeColor(Color(1.f, 1.f, 1.f, 0.05f));
-        strokeWidth(1.f);
-        stroke();
-
-        beginPath();
-        moveTo(bar.x + 10.f * s, bar.y + 0.5f);
-        lineTo(bar.x + bar.w - 10.f * s, bar.y + 0.5f);
-        strokeColor(Color(1.f, 1.f, 1.f, 0.12f));
-        stroke();
 
         EqBand* const b = barBand();
 
@@ -2370,8 +2357,8 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The background shader fills the stage as usual; the analyser shader sits under the curve display only, and
-// follows it as the piano and option bar are shown or hidden.
+// Both shaders sit in the curve display's well only, and follow it as the piano and option bar frames under it are
+// shown or hidden.
 
 class EqRootWidget final : public RootBaseWidget,
                            private IdleCallback
@@ -2410,9 +2397,9 @@ private:
             return;
 
         ShaderBaseWidget* const background = fShaders.front();
-        background->setAbsolutePos(fMainArea->getMainAreaAbsolutePos());
-        background->setSize(fMainArea->getMainAreaSize());
-        background->setBorderRadius(fMainArea->getMainAreaBorderRadius());
+        background->setAbsolutePos(fLastDisplayArea.getPos());
+        background->setSize(Size<uint>(fLastDisplayArea.getWidth(), fLastDisplayArea.getHeight()));
+        background->setBorderRadius(fMainArea->getDisplayBorderRadius());
 
         if (fShaders.size() < 2)
             return;
