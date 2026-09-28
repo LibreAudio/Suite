@@ -80,7 +80,8 @@ public:
         const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
 
-        glGenBuffers(2, gl3.buffers);
+        glGenBuffers(std::size(gl3.buffers), gl3.buffers);
+        glGenTextures(std::size(gl3.textures), gl3.textures);
 
         static constexpr const char kShaderHeader[] =
            #if defined(DGL_USE_GLES3)
@@ -176,6 +177,7 @@ public:
         }
 
         gl3.program = program;
+        gl3.iChannel0 = glGetUniformLocation(program, "iChannel0");
         gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
         gl3.iTime = glGetUniformLocation(program, "iTime");
@@ -184,6 +186,35 @@ public:
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
         gl3.dpfScaleFactor = glGetUniformLocation(program, "_dpf_scale_factor");
+
+        {
+            fTestData.resize(512 * 4, 0);
+
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); // GL_CLAMP_TO_EDGE
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+            static constexpr const float trans[] = { 0.f, 0.f, 0.f, 0.f };
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, trans);
+
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            glTexImage2D(GL_TEXTURE_2D,
+                         0,
+                         GL_RGBA16F,
+                         fTestData.size() / 4,
+                         1,
+                         0,
+                         GL_RGBA,
+                         GL_FLOAT,
+                         fTestData.data());
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
 
         if (const uint32_t count = fInterface->getParameterCount())
         {
@@ -212,6 +243,9 @@ public:
             return;
 
         delete[] gl3.parameterValues;
+
+        glDeleteBuffers(std::size(gl3.buffers), gl3.buffers);
+        glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
     }
@@ -269,6 +303,23 @@ private:
         glUniform3f(gl3.iResolution, width, height, 0.f);
         glUniform1f(gl3.iTime, time);
 
+        glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+        for (uint32_t i = 0, s = fTestData.size(); i < s; ++i)
+            fTestData[i] = std::fmod(time + (float(i) / s), 1);
+
+        glTexSubImage2D(GL_TEXTURE_2D,
+                        0,
+                        0,
+                        0,
+                        fTestData.size() / 4,
+                        1,
+                        GL_RGBA,
+                        GL_FLOAT,
+                        fTestData.data());
+
+        glUniform1i(gl3.iChannel0, 0);
+
         if (const uint32_t count = fInterface->getParameterCount())
         {
             for (uint32_t i = 0; i < count; ++i)
@@ -293,8 +344,9 @@ private:
         glDisableVertexAttribArray(gl3.dpfBounds);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        glBindTexture(GL_TEXTURE_2D, 0);
+
         glUseProgram(0);
-        repaint();
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -322,11 +374,13 @@ private:
 
     struct {
         GLuint buffers[2];
+        GLuint textures[1];
         GLuint program;
         GLint dpfBounds;
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
+        GLint iChannel0;
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
@@ -338,6 +392,8 @@ private:
     double fAverageTime = 0;
     double fLastTime = 0;
     const double fStartTime = getApp().getTime();
+
+    std::vector<float> fTestData;
 
     bool fPendingDisplay = true;
     bool fFirstResize = true;

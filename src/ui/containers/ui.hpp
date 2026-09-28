@@ -19,13 +19,18 @@ template<class RootWidget,
          uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
 class UI : public LibreAudioBaseUI
 {
-    const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
-        new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
+    const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
+        new BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
     };
 
-    const std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderAnalyser {
-        new LibreAudio::BotShaderWidget<shaderSrc, shaderSrcSize>(this, this)
+    static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
+    using AnalyzerShaderW = std::conditional_t<label == "dualGain",
+                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize>,
+                                               BotShaderWidget<shaderSrc, shaderSrcSize>>;
+
+    const std::unique_ptr<ShaderBaseWidget> fShaderAnalyser {
+        new AnalyzerShaderW(this, this)
     };
 
 public:
