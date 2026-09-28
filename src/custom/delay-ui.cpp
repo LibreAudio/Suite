@@ -5,6 +5,7 @@
 #include "LibreAudioBaseUI.hpp"
 
 #include "ui/reference.hpp"
+#include "ui/containers/frame.hpp"
 #include "ui/containers/stage.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/dual-slider.hpp"
@@ -178,81 +179,13 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
     using R = Reference::TransparentStage;
     using BaseWidget = ReferenceContainerWidget<R, kHorizontal>;
 
-    template<class R>
-    class Controls : public ReferenceContainerWidget<R, kVertical>
-    {
-        using BaseWidget = ReferenceContainerWidget<R, kVertical>;
-        using Layout = typename BaseWidget::Layout;
-
-        std::list<std::shared_ptr<LabWidget>> fWidgets;
-
-        struct TextReference : Reference::Zero {
-            static constexpr const Color color = Reference::Colors::ink2;
-            static constexpr const float fontSize = 12;
-            static constexpr const float letterSpacing = fontSize * 0.01;
-            static constexpr const uint margin = 0;
-        };
-
-    public:
-        explicit Controls(LabWidget* const parent)
-            : BaseWidget(parent) {}
-
-        template <FaustParameterIndex parameterA, FaustParameterIndex parameterB>
-        void addDualSlider()
-        {
-            std::shared_ptr<LabWidget> widget { new DualSliderWidget<parameterA, parameterB>(this) };
-            Layout::widgets.push_back({ widget.get(), Fixed });
-            fWidgets.emplace_back(std::move(widget));
-        }
-
-        void addPillToggle(const FaustParameterIndex parameter)
-        {
-            std::shared_ptr<LabWidget> widget { new PillAreaWidget<1>(this, parameter) };
-            Layout::widgets.push_back({ widget.get(), Fixed });
-            fWidgets.emplace_back(std::move(widget));
-        }
-
-        template<class W, uint maxNumParameters>
-        std::shared_ptr<KnobGroupWidget<W, maxNumParameters>> addKnobGroup(const FaustParameterIndex parameterStart)
-        {
-            std::shared_ptr<KnobGroupWidget<W, maxNumParameters>> widget {
-                new KnobGroupWidget<W, maxNumParameters>(this, kParametersMainStart, parameterStart, maxNumParameters <= 2)
-            };
-            Layout::widgets.push_back({ widget.get(), Fixed });
-            fWidgets.push_back(widget);
-            return widget;
-        }
-
-        void addSpacer()
-        {
-            std::shared_ptr<LabWidget> spacer { new LabEmptyWidget(this) };
-            Layout::widgets.push_back({ spacer.get(), Expanding });
-            fWidgets.emplace_back(std::move(spacer));
-        }
-
-        void addText(const char* const text)
-        {
-            std::shared_ptr<LabWidget> spacer { new TextButtonWidget<kCornerNone, TextReference, kVertical>(this, text) };
-            Layout::widgets.push_back({ spacer.get(), Fixed });
-            fWidgets.emplace_back(std::move(spacer));
-        }
-
-        std::shared_ptr<LabWidget> getWidgetById(const uint32_t parameter) const noexcept
-        {
-            for (const std::shared_ptr<LabWidget>& widget : fWidgets)
-                if (widget->getId() == parameter)
-                    return widget;
-
-            return {};
-        }
-    };
-
     struct RowRef : Reference::OpaqueStage {
         static constexpr const uint padding = 0;
     };
 
     struct SmallRowRef : Reference::OpaqueSmallStage {
         static constexpr const uint padding = 0;
+        static constexpr const uint height = 100;
     };
 
     class ControlsColumn : public ReferenceContainerWidget<Reference::TransparentStage, kVertical>
@@ -261,21 +194,11 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
 
     public:
         explicit ControlsColumn(LabWidget* const parent)
-            : BaseWidget(parent)
-        {
-        }
+            : BaseWidget(parent) {}
 
     protected:
-        std::shared_ptr<Controls<RowRef>> fTop = addWidget<Controls<RowRef>, Expanding>();
-        std::shared_ptr<Controls<SmallRowRef>> fBottom = addWidget<Controls<SmallRowRef>>();
-
-        void updateSize(const bool updateChildren) final
-        {
-            // FIXME
-            static_cast<LabWidget*>(fBottom.get())->setHeight(100 * fScaleFactor);
-
-            BaseWidget::updateSize(updateChildren);
-        }
+        std::shared_ptr<FrameContainerReferenceWidget<RowRef>> fTop = addWidget<FrameContainerReferenceWidget<RowRef>, Expanding>();
+        std::shared_ptr<FrameContainerReferenceWidget<SmallRowRef>> fBottom = addWidget<FrameContainerReferenceWidget<SmallRowRef>>();
     };
 
     class ControlsColumnLeft : public ControlsColumn,
