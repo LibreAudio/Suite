@@ -8,6 +8,8 @@
 
 #include "LibreAudioParameters.hpp"
 
+#include "OpenGL.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -641,10 +643,11 @@ private:
             return y + padT + (dbMax - std::clamp(db, -dbMax, dbMax)) / (2.f * dbMax) * hUse;
         }
 
-        // the curve itself may run off the bottom, the display clips it
+        // The curve itself may run off either edge and the display clips it. Capping it at the top of the range
+        // instead flattens a curve that outgrows the range into a line there, until the auto range catches up.
         [[nodiscard]] float yCurve(const float db) const noexcept
         {
-            return std::clamp(y + padT + (dbMax - std::min(db, dbMax)) / (2.f * dbMax) * hUse, y + padT, y + h + 400.f);
+            return std::clamp(y + padT + (dbMax - db) / (2.f * dbMax) * hUse, y - 400.f, y + h + 400.f);
         }
 
         [[nodiscard]] float dbAt(const float py) const noexcept
@@ -760,6 +763,20 @@ private:
         }
     }
 
+    // NanoVG fills a single-contour shape it judges convex with a triangle fan, and judges it convex when every
+    // corner turns the same way. The curve's near-straight stretches turn by almost nothing, so rounding can make a
+    // slightly wavy fill pass as convex, and for that frame the fan spills a sliver outside the shape. A second,
+    // tiny contour outside the display's scissor makes NanoVG take its stencil fill, correct for any shape, and is
+    // clipped away itself.
+    void forceStencilFill(const Box& clip)
+    {
+        const float x = clip.x - 20.f, y = clip.y - 20.f;
+        moveTo(x, y);
+        lineTo(x + 4.f, y);
+        lineTo(x, y + 4.f);
+        closePath();
+    }
+
     // Fills between two polylines (or down to a flat line when `bottom` is empty) through the rainbow.
     void fillRainbow(const std::vector<float>& xs, const std::vector<float>& top, const std::vector<float>& bottom,
                      const float flatY, const float x0, const float w, const float alpha)
@@ -787,6 +804,7 @@ private:
                     lineTo(xs[i], bottom[i]);
             }
             closePath();
+            forceStencilFill(layoutDisplay());
 
             fillPaint(linearGradient(x0 + w * k / segs, 0, x0 + w * (k + 1) / segs, 0,
                                      withAlpha(EqColors::rainbow[k], alpha),
@@ -854,6 +872,15 @@ private:
 
     void onNanoDisplay() final
     {
+        // NanoVG's stencil fills (the curve's, for one) take the stencil buffer to be all zero and leave it that way,
+        // but DPF only clears colour and depth each frame, and a new window's stencil starts out undefined. Whatever
+        // was left in it would be painted by the first fill that reaches over it -- a line flashing up the first
+        // time a node is dragged across the display after the plugin opens. The clear runs now, before NanoVG sends
+        // this frame's draws at its end.
+        glStencilMask(0xff);
+        glClearStencil(0);
+        glClear(GL_STENCIL_BUFFER_BIT);
+
         const bool on = ! isBypassed();
 
         drawDisplay(on);
@@ -929,13 +956,19 @@ private:
             }
         }
 
-        // alternate 1 dB stripes, faded out with the range
+        // Alternate 1 dB stripes. While the range zooms its edge sits between whole dB, and the stripe cut there
+        // fades in with how much of it shows -- drawn at full strength, a sub-pixel sliver of it flickers as a line.
+        // A stripe with no height (at an odd range, the one starting at the edge) is not drawn at all: NanoVG turns
+        // the flat rectangle into a stencil fill that leaves a hairline in the stencil buffer, which the next
+        // stencil fill reaching over it -- the curve's -- then paints.
         {
             const int steps = static_cast<int>(std::floor(p.dbMax));
-            fillColor(Color(1.f, 1.f, 1.f, 0.028f));
             for (int k = 1; k < steps + 1; k += 2)
             {
                 const float lo = static_cast<float>(k), hi = std::min(static_cast<float>(k + 1), p.dbMax);
+                if (std::abs(p.yOf(hi) - p.yOf(lo)) < 0.5f)
+                    continue;
+                fillColor(Color(1.f, 1.f, 1.f, 0.028f * std::clamp(hi - lo, 0.f, 1.f)));
                 for (const float sign : { 1.f, -1.f })
                 {
                     const float ya = p.yOf(sign * lo), yb = p.yOf(sign * hi);
@@ -993,6 +1026,7 @@ private:
             lineTo(xs[steps], y0);
             lineTo(xs[0], y0);
             closePath();
+            forceStencilFill(layoutDisplay());
             fillColor(withAlpha(EqColors::off, 0.1f));
             fill();
 
