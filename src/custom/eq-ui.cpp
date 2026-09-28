@@ -25,9 +25,8 @@ namespace LibreAudio {
 // eq.dsp parameters yet. The prototype lets bands be added and removed freely, the DSP has a fixed set of eight
 // sections, so wiring the two together is a separate step.
 //
-// Geometry is in prototype px, which map 1:1 to plugin px at scale 1 (the prototype is 910 px wide, like the window).
-// Text is drawn kTextScale larger, matching how the other widgets of the suite size their text against the
-// prototypes, and whatever is laid out around text grows with it.
+// Geometry is in prototype px, 1:1 with plugin px at scale 1. Text is drawn kTextScale larger, as the suite's other
+// widgets size text against their prototypes, and whatever is laid out around text grows with it.
 
 static constexpr const float kTextScale = 1.4f;
 
@@ -307,7 +306,7 @@ public:
         addIdleCallback(this);
     }
 
-    // where the curve display sits, for the analyser shader underneath it
+    // where the curve display sits, for the shaders underneath it
     [[nodiscard]] Rectangle<int> getDisplayArea() const noexcept
     {
         const Box d = layoutDisplay();
@@ -643,8 +642,7 @@ private:
             return y + padT + (dbMax - std::clamp(db, -dbMax, dbMax)) / (2.f * dbMax) * hUse;
         }
 
-        // The curve itself may run off either edge and the display clips it. Capping it at the top of the range
-        // instead flattens a curve that outgrows the range into a line there, until the auto range catches up.
+        // the curve may run past any edge of the display, which clips it
         [[nodiscard]] float yCurve(const float db) const noexcept
         {
             return std::clamp(y + padT + (dbMax - db) / (2.f * dbMax) * hUse, y - 400.f, y + h + 400.f);
@@ -763,11 +761,9 @@ private:
         }
     }
 
-    // NanoVG fills a single-contour shape it judges convex with a triangle fan, and judges it convex when every
-    // corner turns the same way. The curve's near-straight stretches turn by almost nothing, so rounding can make a
-    // slightly wavy fill pass as convex, and for that frame the fan spills a sliver outside the shape. A second,
-    // tiny contour outside the display's scissor makes NanoVG take its stencil fill, correct for any shape, and is
-    // clipped away itself.
+    // Adds a tiny contour outside the display's scissor to the current path, so NanoVG fills it with its stencil
+    // method, exact for any shape. A single contour it judges convex is filled as a triangle fan instead, and the
+    // curve's near-straight stretches can pass a slightly wavy shape as convex.
     void forceStencilFill(const Box& clip)
     {
         const float x = clip.x - 20.f, y = clip.y - 20.f;
@@ -872,11 +868,9 @@ private:
 
     void onNanoDisplay() final
     {
-        // NanoVG's stencil fills (the curve's, for one) take the stencil buffer to be all zero and leave it that way,
-        // but DPF only clears colour and depth each frame, and a new window's stencil starts out undefined. Whatever
-        // was left in it would be painted by the first fill that reaches over it -- a line flashing up the first
-        // time a node is dragged across the display after the plugin opens. The clear runs now, before NanoVG sends
-        // this frame's draws at its end.
+        // NanoVG's stencil fills expect a zeroed stencil buffer, and DPF clears only colour and depth each frame, so
+        // it is cleared here; anything left in it would be painted by the curve fill. This runs before NanoVG sends
+        // the frame's draws, at its end.
         glStencilMask(0xff);
         glClearStencil(0);
         glClear(GL_STENCIL_BUFFER_BIT);
@@ -934,7 +928,7 @@ private:
         const Plot p = plot();
         const float y0 = p.yOf(0.f);
 
-        // no panel: the background and analyser shaders fill the well
+        // the background and analyser shaders fill the well, this draws on top of them
         save();
         scissor(p.x, p.y, p.w, p.h);
 
@@ -956,11 +950,9 @@ private:
             }
         }
 
-        // Alternate 1 dB stripes. While the range zooms its edge sits between whole dB, and the stripe cut there
-        // fades in with how much of it shows -- drawn at full strength, a sub-pixel sliver of it flickers as a line.
-        // A stripe with no height (at an odd range, the one starting at the edge) is not drawn at all: NanoVG turns
-        // the flat rectangle into a stencil fill that leaves a hairline in the stencil buffer, which the next
-        // stencil fill reaching over it -- the curve's -- then paints.
+        // Alternate 1 dB stripes. The stripe cut by the range edge fades with how much of it shows, so it grows in
+        // smoothly while the range zooms. Stripes under half a pixel are skipped: NanoVG fills a flat rectangle as
+        // a stencil fill that leaves a hairline in the stencil buffer for the curve fill to paint.
         {
             const int steps = static_cast<int>(std::floor(p.dbMax));
             for (int k = 1; k < steps + 1; k += 2)
@@ -1005,9 +997,8 @@ private:
                 ys[i] = p.yCurve(EqResponse::totalDb(f, fBands, EqChannel::Mid));
         }
 
-        // The display clips to a rectangle, but its corners are rounded: the fills are kept inside the corners by
-        // pulling their edge in wherever it would cross one. The curve is sampled about once per pixel across, so
-        // the clamped edge follows the corner arc.
+        // The display's scissor is rectangular, so the fills are clamped inside its rounded corners. With about one
+        // sample per pixel across, the clamped edge follows the corner arc.
         const float radius = getDisplayBorderRadius();
         const auto insideCorners = [&](const std::vector<float>& ysIn) {
             std::vector<float> out(ysIn);
