@@ -1005,24 +1005,43 @@ private:
                 ys[i] = p.yCurve(EqResponse::totalDb(f, fBands, EqChannel::Mid));
         }
 
+        // The display clips to a rectangle, but its corners are rounded: the fills are kept inside the corners by
+        // pulling their edge in wherever it would cross one. The curve is sampled about once per pixel across, so
+        // the clamped edge follows the corner arc.
+        const float radius = getDisplayBorderRadius();
+        const auto insideCorners = [&](const std::vector<float>& ysIn) {
+            std::vector<float> out(ysIn);
+            for (size_t i = 0; i < out.size(); ++i)
+            {
+                const float dx = std::min(xs[i] - p.x, p.x + p.w - xs[i]);
+                if (dx >= radius)
+                    continue;
+                const float c = radius - std::max(dx, 0.f);
+                const float inset = radius - std::sqrt(std::max(radius * radius - c * c, 0.f));
+                out[i] = std::clamp(out[i], p.y + inset, p.y + p.h - inset);
+            }
+            return out;
+        };
+        const std::vector<float> ymFill = insideCorners(ym);
+
         if (on)
         {
-            fillRainbow(xs, ym, {}, y0, p.x, p.w, 0.18f);
+            fillRainbow(xs, ymFill, {}, y0, p.x, p.w, 0.18f);
             strokeRainbow(xs, ym, p.x, p.w, 6.f * s, 0.12f);
             strokeRainbow(xs, ym, p.x, p.w, 2.2f * s, 1.f);
 
             if (split)
             {
-                fillRainbow(xs, ym, ys, 0.f, p.x, p.w, 0.09f);
+                fillRainbow(xs, ymFill, insideCorners(ys), 0.f, p.x, p.w, 0.09f);
                 strokeDashedRainbow(xs, ys, p.x, p.w, 3.f * s, 1.3f * s, 0.85f);
             }
         }
         else
         {
             beginPath();
-            moveTo(xs[0], ym[0]);
+            moveTo(xs[0], ymFill[0]);
             for (int i = 1; i <= steps; ++i)
-                lineTo(xs[i], ym[i]);
+                lineTo(xs[i], ymFill[i]);
             lineTo(xs[steps], y0);
             lineTo(xs[0], y0);
             closePath();
