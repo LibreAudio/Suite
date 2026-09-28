@@ -205,7 +205,7 @@ public:
 
             glTexImage2D(GL_TEXTURE_2D,
                          0,
-                         GL_RGBA16F,
+                         GL_RGBA16F_ARB,
                          fTestData.size() / 4,
                          1,
                          0,
