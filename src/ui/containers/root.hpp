@@ -38,7 +38,7 @@ public:
                              false);
     }
 
-    virtual void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
+    void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
     {
         fShaders = shaders;
         updateSize(false);

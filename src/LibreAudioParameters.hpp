@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "src/DistrhoDefines.h"
+#include "config.h"
+#include "DistrhoDetails.hpp"
 
 #if LIBREAUDIO_WANT_COMMON_IO
 #include "common_input-parameters.hpp"

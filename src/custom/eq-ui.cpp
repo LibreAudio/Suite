@@ -2,14 +2,11 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "LibreAudioBaseUI.hpp"
-
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
-#include "ui/widgets/gain-meter.hpp"
-#include "ui/widgets/shader.hpp"
+#include "ui/containers/ui.hpp"
 
-#include "eq-parameters.hpp"
+#include "LibreAudioParameters.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -100,41 +97,9 @@ using EqRootWidget = RootWidget<TopBar, EqMainArea>;
 
 START_NAMESPACE_DISTRHO
 
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioUI : public LibreAudioBaseUI
-{
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderAnalyser;
-
-public:
-    LibreAudioUI()
-        : LibreAudioBaseUI()
-    {
-        fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
-                                                                SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
-
-        fShaderAnalyser.reset(new LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA,
-                                                              SHADERS_ANALYSER_FFT_FRAG_LEN>(this, this));
-
-        createRootWidget<LibreAudio::EqRootWidget>();
-
-        static_cast<LibreAudio::EqRootWidget*>(fRootWidget.get())->enableShaders({
-            fShaderBackground.get(), fShaderAnalyser.get()
-        });
-    }
-
-private:
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 UI* createUI()
 {
-    return new LibreAudioUI();
+    return new LibreAudio::UI<LibreAudio::EqRootWidget>();
 }
-
-// --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO

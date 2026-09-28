@@ -5,8 +5,8 @@
 #pragma once
 
 // #include "base.hpp"
-#include "../containers/root.hpp"
-#include "../containers/stage.hpp"
+#include "root.hpp"
+#include "stage.hpp"
 #if LIBREAUDIO_WANT_COMMON_IO
 #include "../widgets/gain-meter.hpp"
 #endif

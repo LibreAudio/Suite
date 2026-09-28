@@ -2,18 +2,14 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "LibreAudioBaseUI.hpp"
-
 #include "ui/reference.hpp"
 #include "ui/containers/frame.hpp"
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/stage.hpp"
 #include "ui/containers/top-bar.hpp"
-#include "ui/widgets/dual-slider.hpp"
-#include "ui/widgets/gain-meter.hpp"
-#include "ui/widgets/shader.hpp"
+#include "ui/containers/ui.hpp"
 
-#include "delay-parameters.hpp"
+#include "LibreAudioParameters.hpp"
 
 #include <algorithm>
 #include <array>
@@ -436,31 +432,36 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
+class DelayRootWidget final : public RootBaseWidget,
                               private IdleCallback
 {
-    using BaseWidget = RootWidget<TopBar, DelayMainArea>;
+    std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
+    std::shared_ptr<DelayMainArea> fMainArea = addWidget<DelayMainArea, Expanding>();
 
     Page fLastPage = kPageEasy;
+    BotShaderBaseWidget* fShaderExpert = nullptr;
     DelayScopeZoom fScopeZoom;
 
 public:
     DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWidget(window, iface)
+        : RootBaseWidget(window, iface)
     {
         addIdleCallback(this);
     }
 
-    void enableShaders(const std::list<ShaderBaseWidget*>& shaders) final
+    void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
     {
+        fShaderExpert = static_cast<LibreAudio::BotShaderBaseWidget*>(shaders.back());
+
         // one zoom, read by the shader and by the labels drawn over it
         fMainArea->setScopeZoom(&fScopeZoom);
 
-        static_cast<LibreAudio::BotShaderBaseWidget*>(shaders.back())->setCustomUniform("iSpan", [this] {
+        fShaderExpert->setCustomUniform("iSpan", [this] {
             return fScopeZoom.span(DelayScopeModel(fInterface).level, getApp().getTime());
         });
+        fShaderExpert->setVisible(getCurrentPage(fInterface) == kPageExpert);
 
-        BaseWidget::enableShaders(shaders);
+        RootBaseWidget::enableShaders(shaders);
     }
 
 private:
@@ -468,8 +469,27 @@ private:
     {
         if (const Page page = getCurrentPage(fInterface); fLastPage != page)
         {
+            if (fShaderExpert != nullptr)
+                fShaderExpert->setVisible(page == kPageExpert);
+
             fLastPage = page;
             updateSize(false);
+        }
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        RootBaseWidget::updateSize(updateChildren);
+
+        const Point<int> pos = fMainArea->getMiddleAreaAbsolutePos(fLastPage);
+        const Size<uint> size = fMainArea->getMiddleAreaSize(fLastPage);
+        const float borderRadius = fMainArea->getMiddleAreaBorderRadius(fLastPage);
+
+        for (ShaderBaseWidget* const sw : fShaders)
+        {
+            sw->setAbsolutePos(pos);
+            sw->setSize(size);
+            sw->setBorderRadius(borderRadius);
         }
     }
 };
@@ -480,41 +500,11 @@ private:
 
 START_NAMESPACE_DISTRHO
 
-// --------------------------------------------------------------------------------------------------------------------
-
-class LibreAudioUI : public LibreAudioBaseUI
-{
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderScope;
-
-public:
-    LibreAudioUI()
-        : LibreAudioBaseUI()
-    {
-        fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
-                                                                SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
-
-        // above the starfield, below the root widget and the labels it draws over the scope
-        fShaderScope.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA,
-                                                           SHADERS_CURVE_DELAY_FRAG_LEN>(this, this));
-
-        createRootWidget<LibreAudio::DelayRootWidget>();
-        static_cast<LibreAudio::DelayRootWidget*>(fRootWidget.get())->enableShaders({
-            fShaderBackground.get(), fShaderScope.get()
-        });
-    }
-
-private:
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 UI* createUI()
 {
-    return new LibreAudioUI();
+    return new LibreAudio::UI<LibreAudio::DelayRootWidget,
+                              SHADERS_CURVE_DELAY_FRAG_DATA,
+                              SHADERS_CURVE_DELAY_FRAG_LEN>();
 }
-
-// --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO
