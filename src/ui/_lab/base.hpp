@@ -310,7 +310,7 @@ public:
         updateReferenceSize<R>();
     }
 
-    float getBorderRadius() const noexcept
+    [[nodiscard]] float getBorderRadius() const noexcept
     {
         return R::borderRadius * fScaleFactor;
     }

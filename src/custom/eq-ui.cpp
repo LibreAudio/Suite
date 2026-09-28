@@ -28,11 +28,6 @@ public:
             fParamValues[i] = fInterface->getParameterValue(kParametersMainStart + i);
     }
 
-    [[nodiscard]] float getBorderRadius() const noexcept
-    {
-        return R::borderRadius * fScaleFactor;
-    }
-
 private:
     float fParamValues[kFaustParameterCount];
 
