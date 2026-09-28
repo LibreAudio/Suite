@@ -603,12 +603,12 @@ public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        fShaderBackground.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
-                                                                       SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
+        fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
+                                                                SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
 
         // above the starfield, below the root widget and the labels it draws over the scope
-        fShaderScope.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA,
-                                                                  SHADERS_CURVE_DELAY_FRAG_LEN>(this, this));
+        fShaderScope.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA,
+                                                           SHADERS_CURVE_DELAY_FRAG_LEN>(this, this));
 
         createRootWidget<LibreAudio::DelayRootWidget>();
         static_cast<LibreAudio::DelayRootWidget*>(fRootWidget.get())->setup(fShaderBackground.get(),

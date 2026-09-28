@@ -72,26 +72,26 @@ public:
         static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
 
         if constexpr (label == "chorus")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN>(this, this));
         else if constexpr (label == "djFilter")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN>(this, this));
         else if constexpr (label == "limiter")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA, SHADERS_CURVE_LIMITER_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA, SHADERS_CURVE_LIMITER_FRAG_LEN>(this, this));
         else if constexpr (label == "mbComp5")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_MB_COMP5_FRAG_DATA, SHADERS_CURVE_MB_COMP5_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_MB_COMP5_FRAG_DATA, SHADERS_CURVE_MB_COMP5_FRAG_LEN>(this, this));
         else if constexpr (label == "springReverb")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN>(this, this));
         else if constexpr (label == "tiltEQ")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN>(this, this));
         else if constexpr (label == "vocalDoubler")
-            fShaderLine.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN>(this, this));
+            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN>(this, this));
 
         if (fShaderLine)
         {
-            fShaderBackground.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
+            fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
 
             // spectrum overlay: above the background, below the response curves
-            fShaderAnalyser.reset(new LibreAudio::BackgroundShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN>(this, this));
+            fShaderAnalyser.reset(new LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN>(this, this));
 
             fShaderLine->toFront();
 
