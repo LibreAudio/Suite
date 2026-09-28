@@ -39,6 +39,7 @@ static constexpr const float kDisplayPadTop = 24.f;
 static constexpr const float kDisplayPadBottom = 40.f;
 
 static constexpr const float kPianoHeight = 26.f;
+static constexpr const float kRegionsHeight = 20.f;
 static constexpr const float kPianoBlackHeight = 15.f;
 static constexpr const float kBarHeight = 62.f;
 static constexpr const float kBoxWidth = 92.f;
@@ -89,6 +90,25 @@ namespace EqColors {
         { 0xd2, 0xfd, 0xd3 }, { 0xb8, 0xec, 0xff }, { 0xf2, 0xf0, 0xb0 }, { 0xff, 0xdc, 0xf5 },
     }};
 }
+
+// --------------------------------------------------------------------------------------------------------------------
+// The frequency regions named in the row above the piano roll, low to high. Each runs up to the next one's start,
+// the last to the top of the display.
+
+struct EqRegion {
+    const char* name;
+    float from;
+};
+
+static constexpr const std::array<EqRegion, 7> kRegions {{
+    { "SUB", 10.f },
+    { "BASS", 40.f },
+    { "FUNDAMENTALS", 120.f },
+    { "MIDS", 400.f },
+    { "SH", 1200.f },
+    { "SSS", 3500.f },
+    { "SPARKLE", 10000.f },
+}};
 
 // --------------------------------------------------------------------------------------------------------------------
 // One EQ band, and the analog-prototype magnitude model the display draws it with.
@@ -363,6 +383,7 @@ private:
     enum Caption : uint8_t {
         kCaptionReset,
         kCaptionControls,
+        kCaptionRegions,
         kCaptionPiano,
         kCaptionAnalyser,
         kCaptionRange,
@@ -379,8 +400,9 @@ private:
 
     Analyser fAnalyser = Analyser::Post;
     uint8_t fRangeIndex = 4;
-    bool fShowPiano = true;
-    bool fShowControls = true;
+    bool fShowPiano = false;
+    bool fShowRegions = false;
+    bool fShowControls = false;
     float fDbView = 3.f;
 
     // pointer state
@@ -542,6 +564,8 @@ private:
     {
         const float s = fScaleFactor;
         Box d { 0.f, 0.f, static_cast<float>(getWidth()), static_cast<float>(getHeight()) };
+        if (fShowRegions)
+            d.h -= kRegionsHeight * s + gap();
         if (fShowPiano)
             d.h -= kPianoHeight * s + gap();
         if (fShowControls)
@@ -550,15 +574,21 @@ private:
         return d;
     }
 
-    [[nodiscard]] Box layoutPiano() const noexcept
+    [[nodiscard]] Box layoutRegions() const noexcept
     {
         const Box d = layoutDisplay();
-        return { d.x, d.y + d.h + gap(), d.w, kPianoHeight * fScaleFactor };
+        return { d.x, d.y + d.h + gap(), d.w, kRegionsHeight * fScaleFactor };
+    }
+
+    [[nodiscard]] Box layoutPiano() const noexcept
+    {
+        const Box above = fShowRegions ? layoutRegions() : layoutDisplay();
+        return { above.x, above.y + above.h + gap(), above.w, kPianoHeight * fScaleFactor };
     }
 
     [[nodiscard]] Box layoutBar() const noexcept
     {
-        const Box d = fShowPiano ? layoutPiano() : layoutDisplay();
+        const Box d = fShowPiano ? layoutPiano() : fShowRegions ? layoutRegions() : layoutDisplay();
         return { d.x, d.y + d.h + gap(), d.w, kBarHeight * fScaleFactor };
     }
 
@@ -880,6 +910,9 @@ private:
         drawCaptions();
         drawWellBorder<WellRef>(layoutDisplay());
 
+        if (fShowRegions)
+            drawRegions();
+
         if (fShowPiano)
             drawPiano(on);
 
@@ -1095,8 +1128,9 @@ private:
         if (fGhostX >= 0.f && on && fDrag.kind == DragKind::None)
         {
             const float gx = std::clamp(fGhostX, p.x + 14.f * s, p.x + p.w - 14.f * s);
-            const Box icon { gx - 10.8f * s, y0 + 9.f * s, 18.f * 1.2f * s, 12.f * 1.2f * s };
-            strokeTypeIcon(EqResponse::typeAt((fGhostX - p.x) / p.w), icon, withAlpha(EqColors::ink2, 0.28f), 1.f * s);
+            const float ih = 12.f * 1.2f * s;
+            const Box icon { gx - 10.8f * s, y0 - 9.f * s - ih, 18.f * 1.2f * s, ih };
+            strokeTypeIcon(EqResponse::typeAt((fGhostX - p.x) / p.w), icon, withAlpha(EqColors::ink2, 0.5f), 1.f * s);
         }
 
         // the hovered or selected band on its own, faded out around 0 dB where it would sit on the sum
@@ -1288,10 +1322,11 @@ private:
         }
 
         {
-            const float wc = textWidth("controls"), wp = textWidth("piano");
-            const float x = d.x + (d.w - wc - gap - wp) * 0.5f;
+            const float wc = textWidth("controls"), wr = textWidth("ranges"), wp = textWidth("piano");
+            const float x = d.x + (d.w - wc - wr - wp - gap * 2.f) * 0.5f;
             clickable(kCaptionControls, x, wc, "controls", fShowControls);
-            clickable(kCaptionPiano, x + wc + gap, wp, "piano", fShowPiano);
+            clickable(kCaptionRegions, x + wc + gap, wr, "ranges", fShowRegions);
+            clickable(kCaptionPiano, x + wc + wr + gap * 2.f, wp, "piano", fShowPiano);
         }
 
         {
@@ -1319,6 +1354,73 @@ private:
         caption(d.x + EqResponse::freqToNorm(100.f) * d.w + 4.f * s, d.y + 8.f * s, ALIGN_LEFT | ALIGN_TOP, "100", EqColors::ink3);
         caption(d.x + EqResponse::freqToNorm(1000.f) * d.w + 4.f * s, d.y + 8.f * s, ALIGN_LEFT | ALIGN_TOP, "1k", EqColors::ink3);
         caption(d.x + EqResponse::freqToNorm(10000.f) * d.w + 4.f * s, d.y + 8.f * s, ALIGN_LEFT | ALIGN_TOP, "10k", EqColors::ink3);
+    }
+
+    // the named frequency regions, on the display's frequency scale
+    void drawRegions()
+    {
+        const float s = fScaleFactor;
+        const Box row = layoutRegions();
+        const float r = 6.f * s;
+
+        drawRaisedShadow(row, r);
+
+        beginPath();
+        roundedRect(row.x, row.y, row.w, row.h, r);
+        fillColor(Color(1.f, 1.f, 1.f, 0.05f));
+        fill();
+
+        save();
+        scissor(row.x, row.y, row.w, row.h);
+
+        setFont("regular", 7.5f, 0.11f);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+
+        for (size_t i = 0; i < kRegions.size(); ++i)
+        {
+            const float x0 = row.x + EqResponse::freqToNorm(kRegions[i].from) * row.w;
+            const float x1 = i + 1 < kRegions.size() ? row.x + EqResponse::freqToNorm(kRegions[i + 1].from) * row.w
+                                                     : row.x + row.w;
+
+            // tinted with the rainbow colour the curve has at the region's centre, in the row's rounded shape
+            save();
+            intersectScissor(x0, row.y, x1 - x0, row.h);
+            beginPath();
+            roundedRect(row.x, row.y, row.w, row.h, r);
+            fillColor(withAlpha(rainbowAt(((x0 + x1) * 0.5f - row.x) / row.w), 0.5f));
+            fill();
+            restore();
+
+            // separator, engraved: a dark line with a light one beside it
+            if (i > 0)
+            {
+                const float sx = std::round(x0) + 0.5f;
+                strokeWidth(1.f);
+
+                beginPath();
+                moveTo(sx, row.y);
+                lineTo(sx, row.y + row.h);
+                strokeColor(Color(0.f, 0.f, 0.f, 0.45f));
+                stroke();
+
+                beginPath();
+                moveTo(sx + 1.f, row.y);
+                lineTo(sx + 1.f, row.y + row.h);
+                strokeColor(Color(1.f, 1.f, 1.f, 0.25f));
+                stroke();
+            }
+
+            // names that do not fit their region are left out
+            if (textWidth(kRegions[i].name) <= x1 - x0 - 8.f * s)
+            {
+                fillColor(EqColors::dark);
+                text((x0 + x1) * 0.5f, row.y + row.h * 0.5f, kRegions[i].name, nullptr);
+            }
+        }
+
+        restore();
+
+        drawRaisedEdges(row, r);
     }
 
     // x of a note's centre on the keyboard strip
@@ -1949,6 +2051,9 @@ private:
                 break;
             case kCaptionControls:
                 fShowControls = ! fShowControls;
+                break;
+            case kCaptionRegions:
+                fShowRegions = ! fShowRegions;
                 break;
             case kCaptionPiano:
                 fShowPiano = ! fShowPiano;
