@@ -1,12 +1,16 @@
 // -*-Faust-*-
+
 // Based on Airwindows Compresaturator by Chris Johnson (MIT).
 // Accumulated waveshaper overspill controls gain reduction.
+
+// For some parts of this file, a large language model was involved as a coding assistant.
+// The ideas, the design decisions and the listening behind it are purely human.
 
 declare author "Klaus Scheuermann";
 declare description "";
 declare license "GPL-3.0-or-later";
-declare name "Compresaturator";
-declare unique_id "LAcp";
+declare name "Glue Bus";
+declare unique_id "LAgb";
 
 import("stdfaust.lib");
 
