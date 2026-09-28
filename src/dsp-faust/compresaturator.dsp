@@ -1,4 +1,6 @@
 // -*-Faust-*-
+// Based on Airwindows Compresaturator by Chris Johnson (MIT).
+// Accumulated waveshaper overspill controls gain reduction.
 
 declare author "Klaus Scheuermann";
 declare description "";
@@ -6,110 +8,30 @@ declare license "GPL-3.0-or-later";
 declare name "Compresaturator";
 declare unique_id "LAcp";
 
-// Dry / Wet is built here rather than taken from the wrapper: leaving the flag
-// on would stack the wrapper's common control on top of this one and give the
-// plugin two knobs that do the same thing. Unlike clipper.dsp, which has to
-// delay its dry tap to meet an oversampler, this plugin is zero-latency, so the
-// blend below is a plain crossfade against the untouched input.
-// declare drywet "true";
-
-// Port of airwindows' Compresaturator (Chris Johnson, MIT licence,
-// plugins/WinVST/Compresaturator). Translated from the double-precision
-// processDoubleReplacing path, which is the one modern hosts run and the
-// only one of the two that is free of the float path's copy-paste slips
-// (there, targetWidth and overspill are shared between the channels and the
-// buffer is read one sample past where it was written).
-//
-// The idea: saturate, then *pay for* the saturation with gain reduction.
-//
-// Every sample is pushed through a sin() waveshaper, and the difference
-// between what went in and what came out -- the "overspill", the part of the
-// waveform the shaper refused to pass -- is pushed into a delay line. The
-// running sum of the last `lastWidth` overspills is `padFactor`, and that sum
-// is what turns down the input gain on the next sample. So the compressor has
-// no threshold, no ratio and no detector: the amount it ducks is exactly the
-// amount of distortion it just produced. Clean material sums to nothing and
-// passes through untouched; only material that is actually clipping the shaper
-// generates any reduction at all.
-//
-// What makes it sound the way it does is that the window length is not fixed.
-// Each sample the window is compared against a *randomly scaled* target width
-// and grows or shrinks by one sample. Growing is done by simply not dropping
-// the trailing sample, so the sum is never rewritten -- the release is smooth
-// because the buffer is being subdivided more finely rather than recomputed.
-// The randomness smears what would otherwise be a periodic window-length
-// artefact into noise. And when the shaper is driven past pi/2, into outright
-// distortion rather than saturation, the target width collapses from Expand to
-// 8 samples, so the window sprints shorter and the reduction arrives fast.
-// That is the whole attack mechanism: hard transients shorten the window,
-// everything else lets it drift wide again.
-//
-// One deliberate deviation from the original: Expand is set in milliseconds,
-// not samples. Airwindows sizes the window in samples, so the same setting
-// covers half the time at 96k as it does at 48k and the plugin quietly gets
-// faster as the session rate goes up. Converting at the control keeps the
-// window the same *duration* everywhere, so a patch means the same thing at
-// any rate.
-//
-// That conversion is not quite the whole job. satComp carries a `/3000` term
-// which is calibrated in samples, and it ends up squared in the reduction --
-// once scaling the overspill on the way into the buffer, once scaling the
-// running mean on the way out. Feeding it the real sample count would make the
-// amount of gain reduction climb with the session rate: measured at Expand
-// 10 ms, Clamp 100%, Drive +12, it runs 8.1 dB at 44.1k against 11.1 dB at
-// 192k. So satComp is fed the window length in samples *at a reference rate*
-// instead, leaving Clamp meaning the same thing everywhere. Only the window
-// itself follows the real rate. The same measurement then reads 8.2 dB against
-// 7.6 dB.
-//
-// The ~0.6 dB left over is three constants that are still counted in samples
-// and not converted: the 50-sample floor under widestRange, panicWidth, and
-// minWidth. They are all the original's. They bite hardest at the bottom of the
-// Expand range -- at 1 ms the floor alone is the difference between 44 and 50
-// samples at 44.1k -- and converting them too would be a deeper change than
-// this one. At the 3 ms default the reduction holds to 0.03 dB over
-// 44.1k..192k, so this only shows up at the extremes.
-
 import("stdfaust.lib");
 
 Nch = 2;
 
-// Expand is in milliseconds but the window is counted in samples, so the delay
-// lines have to be sized for the worst case: the top of the Expand range at the
-// highest sample rate we expect to see. Running above maxSR is not an error --
-// the window simply stops widening past maxWidth, so the longest Expand
-// settings quietly cover less time than the dial says.
+// Delay-buffer capacity.
 maxSR = 192000;
 maxMs = 10;
 maxWidth = int(maxMs * maxSR / 1000);
 
-// The rate airwindows calibrated the `/3000` term at. Only satComp is measured
-// against this; the window itself is always in real samples.
+// Reference rate for overspill scaling; the window uses the host rate.
 refSR = 48000;
 
-// Above this the shaper is no longer saturating but folding the waveform over,
-// so the window starts chasing `panicWidth` instead of the Expand setting.
-satLimit = 1.57079633;  // pi/2, spelled as the original spells it
+// Inputs above pi/2 shorten the compression window.
+satLimit = 1.57079633;
 panicWidth = 8;
 
-// Floor on the window. The random target can ask for zero, and a window of
-// zero would divide padFactor by nothing in variSpeed.
 minWidth = 2;
 
-process = si.bus(Nch) <: (si.bus(Nch), wetChain) : dryWetMix;
+process = si.bus(Nch) <: (si.bus(Nch), wetChain) : dryWetMix
+        : (latency_meter, _);
 
-wetChain = msEnc : satStereo : msDec : par(i, Nch, *(makeupGain));
+wetChain = transStage : msEnc : satSelect : msDec : par(i, Nch, *(makeupGain));
 
-// Mid / Side, as a smoothed crossfade between the two matrices rather than a
-// switch, so toggling it does not click. Lifted from clipper.dsp.
-//
-// At msAmt 0 both are the identity and the pair passing through the saturator
-// is L/R untouched. At 1 the encode is M = (L+R)/2, S = (L-R)/2 and the decode
-// is its exact inverse, L = M+S, R = M-S. Mid-transition the round trip is not
-// quite unity, but it is over in a few milliseconds.
-//
-// Makeup sits after the decode. It commutes with it either way -- the same
-// scalar on both channels -- but it reads as an output trim in L/R there.
+// Smooth the L/R-to-M/S transition.
 msAmt = msOn : si.smoo;
 
 msEnc(l, r) = l + (0.5 * (l + r) - l) * msAmt,
@@ -118,298 +40,439 @@ msEnc(l, r) = l + (0.5 * (l + r) - l) * msAmt,
 msDec(m, s) = m + ((m + s) - m) * msAmt,
               s + ((m - s) - s) * msAmt;
 
-// The dry tap is the plugin input and the whole wet chain -- Makeup and the
-// Drive compensation included -- sits on the other side, mirroring what the
-// wrapper's version would have blended.
-dryWetMix = ro.interleave(Nch, 2) : par(i, Nch, blend)
+// Internal dry/wet mix with latency compensation.
+dryWetMix = (par(i, Nch, de.delay(OSTAPS, osLatency)), si.bus(Nch))
+          : ro.interleave(Nch, 2) : par(i, Nch, blend)
 with {
-    // Straight from clipper.dsp: si.smoo is a one-pole whose fixed point,
-    // evaluated in single precision, lands a hair short of 1 rather than on it.
-    // Taken literally, Dry / Wet at 100% would leave the untouched input mixed
-    // in around -95 dB for as long as the plugin runs. Scaling by a hair and
-    // clamping puts the top of the travel exactly on 1; the bottom needs no
-    // help, since the same one-pole decays to a true zero.
+
+    // Ensure 100% wet despite float rounding in si.smoo.
     dw = min(1, drywet * 1.0001);
 
     blend(d, w) = d * (1 - dw) + w * dw;
 };
 
-//---------------------------------- GUI --------------------------------------
+// Controls
 
-comp_group(x) = vgroup("Compresaturator", x);
-knob_group(x) = comp_group(hgroup("[0]Controls", x));
-meter_group(x) = comp_group(vgroup("[1]Meters", x));
+comp_group(x)   = vgroup("Compresaturator", x);
+top_group(x)    = comp_group(hgroup("[0]Compressor", x));
+red_group(x)    = top_group(vgroup("[0]Reduction", x));
+clamp_group(x)  = top_group(x);
+sat_group(x)    = top_group(vgroup("[2]Saturation", x));
+trans_group(x)  = comp_group(hgroup("[2]Transients", x));
+low_group(x)    = trans_group(hgroup("[0]Low Shelf", x));
+high_group(x)   = trans_group(hgroup("[1]High Shelf", x));
+knob_group(x)   = comp_group(hgroup("[1]Controls", x));
+hidden_group(x) = comp_group(hgroup("[3]Hidden",x));
 
-driveDb = knob_group(vslider("[0]Drive[unit:dB][symbol:drive]
+channel_group(x)= knob_group(hgroup("[0]Channels", x));
+output_group(x) = knob_group(hgroup("[2]Output", x));
+
+driveDb = knob_group(vslider("[1]Drive[style:knob][unit:dB][symbol:drive]
       [tooltip: Input gain into the saturator. More Drive means more overspill, which means more compression -- the two are the same control here.]",
       0, -12, 12, 0.1));
 
 drive = driveDb : ba.db2linear : si.smoo;
 
-// The original's Clamp is B*2, then boosted by the window width: a wide window
-// spreads the same overspill over more samples, so without this a long Expand
-// would quietly mean less compression.
-clamp = knob_group(vslider("[1]Clamp[unit:%][symbol:clamp]
-      [tooltip: How hard the accumulated overspill pushes back on the input gain. 0% saturates without compressing at all.]",
-      50, 0, 100, 0.1)) * 0.02;
+compSat = clamp_group(vslider("[1]Comp / Sat[style:knob][symbol:comp_sat]
+      [tooltip: Left compresses: the overspill pushes the input gain back as hard as it can. Right only saturates. The level drop that compression causes is made up automatically, so the two ends sit at a similar loudness.]",
+      0, -1, 1, 0.01));
 
-// Smoothed here rather than on Clamp alone, so that dragging Expand -- which
-// scales this too -- does not step the gain reduction either.
+// Macro endpoints: -1 = full compression, +1 = saturation only.
+clamp = (1 - compSat) * 50 * 0.02;
+
+// Static loudness correction for 1 ms Expand and -20 LUFS input.
+macroCompDb = d * (0.1609 * c + 0.4725 * c * c) + 0.0038 * d * d
+with {
+    d = max(0, driveDb);
+    c = 1 - (compSat + 1) * 0.5;
+};
+
 satComp = clamp * (1.0 + widestRangeRef / 3000.0) : si.smoo;
 
-// Log-scaled because the bottom of this range is where the character lives:
-// the step from 1 to 2 ms changes the sound far more than 8 to 10 does.
-//
-// The 50-sample floor is the original's, and it is what the bottom of this
-// range is scaled against: 1 ms is 48 samples at 44.1/48k, so the dial bottoms
-// out at very slightly over 1 ms there and reaches the full 1 ms from 50k up.
-expandMs = knob_group(vslider("[2]Expand[unit:ms][scale:log][symbol:expand]
-      [tooltip: Widest the overspill window is allowed to grow. Short is grabby and aggressive, long is a slow squash that mostly gets out of the way.]",
-      3, 1, maxMs, 0.1));
+expandMs = 1;
 
-// The window the buffer actually chases, in real samples...
+// Host-rate window, with a 50-sample minimum.
 widestRange = expandMs * ma.SR / 1000.0 : max(50) : min(maxWidth) : int;
 
-// ...and the same window measured at refSR, which is what satComp is calibrated
-// against. See the note at the top on why these two are not the same number.
+// Keep overspill scaling independent of the host sample rate.
 widestRangeRef = expandMs * refSR / 1000.0 : max(50);
 
-// Note Link ties together whatever pair reaches the saturator, so with Mid /
-// Side engaged it ties mid to side rather than left to right. That is rarely
-// what you want: the side channel is normally much the quieter of the two and
-// saturates far less, so forcing the mid's reduction onto it just ducks the
-// sides and narrows the image. Back Link off when working in M/S.
-//
-// Stereo link. 0% is the original -- airwindows keeps entirely separate L/R
-// buffers and lets the two channels duck by different amounts. 100% is the
-// convention the rest of this suite defaults to (see clipper.dsp and
-// upwardCompressor.dsp): both channels take the larger of the two reductions,
-// so a hit on one side cannot drag the image across. See satStereo for why the
-// blend has to happen inside the loop rather than on the way out.
-link = knob_group(vslider("[3]Link[unit:%][symbol:link]
+// In M/S mode, Link couples mid and side.
+link = channel_group(vslider("[2]Link[style:knob][unit:%][symbol:link]
       [tooltip: 0% lets each channel compress on its own, as the original does. 100% ducks both by the same amount, holding the stereo image still.]",
       100, 0, 100, 1)) / 100 : si.smoo;
 
-msOn = knob_group(checkbox("[4]Mid / Side[symbol:mid_side]
+msOn = channel_group(checkbox("[3]Mid / Side[symbol:mid_side]
       [tooltip: Saturate and compress mid and side instead of left and right. The two meters then read mid and side. Link ties whichever pair is being processed, so back it off in this mode.]"));
 
-// A +/-12 dB trim, where the original had a 0..100% attenuator that could only
-// cut (and could mute outright). Symmetrical around unity is the more useful
-// shape given that it also has to be able to cancel the Drive compensation;
-// muting is Dry / Wet's job or the host's.
-makeupDb = knob_group(vslider("[5]Makeup[unit:dB][symbol:makeup]
+makeupDb = output_group(vslider("[7]Makeup[style:knob][unit:dB][symbol:makeup]
       [tooltip: Output trim, to put back the level the saturator and the compressor took away. Applied to the wet path only, before the dry/wet mix.]",
       0, -12, 12, 0.1));
 
-// Drive compensation, always on: the wet path is backed off by exactly the
-// Drive, so Drive stops being a level control and becomes purely "how hard is
-// the shaper hit". Whatever level change is left over is the saturation and the
-// compression doing their job, which is the thing you actually want to hear
-// when you reach for Drive.
-//
-// There is no switch for this. If you want the original's uncompensated
-// behaviour, the two controls are arithmetically the same knob -- set Makeup
-// equal to Drive and the exponent below is zero, i.e. unity. That is also why
-// Makeup spans the same +/-12 as Drive rather than some other range.
-//
-// Where the compensation is exact and where it is not, measured on
-// tone-plus-noise at 48k against the level at Drive 0:
-//
-//   * Anything not already saturating: exact. At -31 dBFS in it holds to 0.5 dB
-//     across the whole -12..+12 range, at any Clamp, because the drive passes
-//     1:1 and comes straight back out.
-//   * Cutting: within 0.1 dB, except on material loud enough to have been
-//     saturating at Drive 0 already, where it comes back up to 1.5 dB *louder*.
-//     Backing the drive off unsaturates the signal, so it returns slightly more
-//     than it took. Erring loud on a cut is the harmless direction.
-//   * Boosting into saturation: over-compensates, and this is the real limit.
-//     At -5 dBFS in, Clamp 50%, Drive +12 the plugin only gets 4.7 dB louder on
-//     its own, so backing off the full 12 leaves it 7.3 dB down. That is the
-//     worst case measured. With the compensation permanently in circuit this is
-//     the one case that needs a hand on Makeup.
-//
-// That last case is the honest limit of a Drive-only correction: past the knee
-// the gain that fails to come through is eaten partly by the compressor and
-// partly by the sin() shaper, and neither is a function of Drive. Undoing the
-// compressor's share would need makeup driven off variSpeed, which is a
-// different control -- it would flatten the compression as well.
-//
-// Folded into the makeup gain rather than given its own multiplier, and applied
-// to the wet path only, so a partial Dry / Wet does not attenuate the dry side.
-makeupGain = ba.db2linear(makeupDb - driveDb) : si.smoo;
+// Wet-path trim, inverse Drive gain and macro compensation.
+makeupGain = ba.db2linear(makeupDb - driveDb + macroCompDb) : si.smoo;
 
-// 0% is an exact bypass, 100% is the saturator alone. See dryWetMix for why the
-// top of the travel needs a nudge to be exact and the bottom does not.
-drywet = knob_group(vslider("[6]Dry / Wet[unit:%][symbol:drywet]
+drywet = output_group(vslider("[8]Dry / Wet[style:knob][unit:%][symbol:drywet]
       [tooltip: Blend of the saturated signal against the untouched input, for parallel compression. 100% = saturator only, 0% = bypassed.]",
       100, 0, 100, 1)) / 100 : si.smoo;
 
-// The plugin takes level off the signal in two separate places, and they are
-// worth seeing apart rather than as one number:
-//
-//   Reduction  -- what the compressor did, i.e. variSpeed. Slow, program
-//                 dependent, driven by the accumulated overspill.
-//   Saturation -- what the sin() shaper did to the sample in front of it,
-//                 measured across the shaper alone (shaped against rect), so
-//                 it is independent of whatever the compressor had already
-//                 taken off. Fast, and it is the part the Drive compensation
-//                 cannot undo.
-//
-// Read them as "which stage is eating the boost", not as a budget that adds up
-// to the level change. Both are peak-held instantaneous figures while the level
-// change is an average, so on peaky material Saturation reads well above the
-// drop it actually causes: 11.8 dB on the bar against a 7.2 dB RMS drop, at
-// -5 dBFS in, Clamp 0%, Drive +12. What they do report reliably is the split --
-// at Clamp 0% Reduction sits at exactly zero and Saturation carries all of it;
-// on quieter material at Clamp 100% it is the other way round (6.2 dB against
-// 0.6 dB). That is the same split the Drive compensation note above describes,
-// and it is what tells you whether that compensation is about to over-correct.
-//
-// Same top on both scales so the bars are directly comparable by eye.
-maxRed = 24;
+osFactor = output_group(nentry("[9]Oversampling[symbol:oversampling]
+      [style:radio{'Off':0;'2x':1;'4x':2;'8x':3}]
+      [tooltip: Runs the saturator at a multiple of the sample rate, so the harmonics it generates do not fold back down as aliasing. Off is zero-latency; any factor adds 40 samples, which the host compensates.]",
+      0, 0, 3, 1)) : int;
 
-// Pins the bar instead of letting it run off the end.
+// The wrapper uses latency_samples and its maximum for latency reporting.
+maxLatency = 64;
+latency_meter = attach(_, osLatency :
+    hidden_group(hbargraph("[10]latency_samples[symbol:latency_samples][label:Latency]",
+                         0, maxLatency)));
+
+maxRed = 6;
+
 satFloor = ba.db2linear(0 - maxRed);
 
-// Peak-hold with exponential decay. The UI reads the parameter once per block,
-// so an instantaneous value would show whichever sample the block happened to
-// end on -- fine for the slow compressor figure, useless for the shaper, which
-// swings from nothing at the zero crossings to its maximum at every peak.
+// Peak hold with exponential decay for block-rate UI reads.
 meterHold = max ~ *(ba.tau2pole(0.3));
 
-redMeter1 = meter_group(hbargraph("[0]Reduction 1[unit:dB][symbol:reduction_1]", 0, maxRed));
-redMeter2 = meter_group(hbargraph("[1]Reduction 2[unit:dB][symbol:reduction_2]", 0, maxRed));
+redMeter1 = red_group(hbargraph("[0]Reduction 1[unit:dB][symbol:reduction_1]", 0, maxRed));
+redMeter2 = red_group(hbargraph("[1]Reduction 2[unit:dB][symbol:reduction_2]", 0, maxRed));
 
-satMeter1 = meter_group(hbargraph("[2]Saturation 1[unit:dB][symbol:saturation_1]", 0, maxRed));
-satMeter2 = meter_group(hbargraph("[3]Saturation 2[unit:dB][symbol:saturation_2]", 0, maxRed));
+satMeter1 = sat_group(hbargraph("[0]Saturation 1[unit:dB][symbol:saturation_1]", 0, maxRed));
+satMeter2 = sat_group(hbargraph("[1]Saturation 2[unit:dB][symbol:saturation_2]", 0, maxRed));
 
-//---------------------------------- DSP --------------------------------------
+// Transient shelves
 
-// Both channels live in one recursion, carrying six fed-back signals
-// (padFactor, lastWidth and the last overspill, twice) rather than two lots of
-// three. That is what stereo linking costs here.
-//
-// The link cannot be done on the way out. variSpeed sets the gain going *into*
-// the shaper, so it decides how much overspill the next sample generates and
-// therefore what the detector integrates next. Applying a linked gain while
-// each channel's detector went on integrating its own unlinked one would leave
-// the two permanently disagreeing. So the blend happens before either channel
-// is touched, and each detector then evolves from the gain that was actually
-// applied to it.
-//
-// Doing it there is also what makes the link symmetrical: variSpeed depends
-// only on the *previous* state, so both channels' figures are available before
-// either is processed and neither has to see a one-sample-stale version of the
-// other.
-//
-// Everything else stays per-channel and unlinked, exactly as the original has
-// it: separate overspill, separate delay lines, and separate decorrelated noise
-// driving the window walk. Even at Link 100% the two windows drift apart; what
-// is shared is only how far the gain ducks.
-//
-// Assumes exactly 2 channels.
-satStereo = (step ~ si.bus(6)) : (!, !, !, !, !, !, _, _)
+lowFreq = low_group(vslider("[1]Low Freq[style:knob][unit:Hz][scale:log][symbol:low_freq]
+      [tooltip: Corner of the low shelf the low transient gain acts on.]",
+      80, 40, 1000, 1)) : si.smoo;
+
+lowAttack = low_group(vslider("[2]Low Attack[style:knob][unit:%][symbol:low_attack]
+      [tooltip: Pushes (positive) or softens (negative) the leading edge of every hit in the low shelf.]",
+      0, -100, 100, 1)) / 100 : si.smoo;
+
+lowSustain = low_group(vslider("[3]Low Sustain[style:knob][unit:%][symbol:low_sustain]
+      [tooltip: Lifts (positive) or shortens (negative) the tail of every hit in the low shelf.]",
+      0, -100, 100, 1)) / 100 : si.smoo;
+
+highFreq = high_group(vslider("[0]High Freq[style:knob][unit:Hz][scale:log][symbol:high_freq]
+      [tooltip: Corner of the high shelf the high transient gain acts on.]",
+      5000, 1000, 16000, 1)) : si.smoo;
+
+highAttack = high_group(vslider("[1]High Attack[style:knob][unit:%][symbol:high_attack]
+      [tooltip: Pushes (positive) or softens (negative) the leading edge of every hit in the high shelf.]",
+      0, -100, 100, 1)) / 100 : si.smoo;
+
+highSustain = high_group(vslider("[2]High Sustain[style:knob][unit:%][symbol:high_sustain]
+      [tooltip: Lifts (positive) or shortens (negative) the tail of every hit in the high shelf.]",
+      0, -100, 100, 1)) / 100 : si.smoo;
+
+oneSample = 1.0 / float(ma.SR);
+
+// Detector times in milliseconds, floored at one sample.
+attackTime = 15  : *(0.001) : max(oneSample);
+
+sustainTime = 200 : *(0.001) : max(oneSample);
+
+maxTransRange = 24;
+
+transRange = 12;
+
+shelfQ = 0.707;
+
+detFloorDb = -90;
+detFloorLin = ba.db2linear(detFloorDb);
+detRelease = 0.050;
+gainSmoothTau = 0.0005;
+
+lowGainMeter  = low_group(hbargraph("[0]Low Transient[unit:dB][symbol:low_transient]",
+                                      0 - maxTransRange, maxTransRange));
+highGainMeter = high_group(hbargraph("[3]High Transient[unit:dB][symbol:high_transient]",
+                                      0 - maxTransRange, maxTransRange));
+
+// Separate band detectors; both channels share the shelf gains.
+transStage(l, r) = attach(shelves(l), lowDb : lowGainMeter)
+                 : attach(_, highDb : highGainMeter),
+                   shelves(r)
 with {
-    step(pf0, lw0, sp0, pf1, lw1, sp1, x0, x1) =
-        (chan(no.noises(2, 0), redMeter1, satMeter1, vsL(v0), pf0, lw0, sp0, x0),
-         chan(no.noises(2, 1), redMeter2, satMeter2, vsL(v1), pf1, lw1, sp1, x1))
-        // each chan gives (padFactor, lastWidth, s, out); regroup so the six
-        // state signals lead, in the order the feedback bus expects, and the
-        // two audio outputs trail
-        : route(8, 8, 1,1, 2,2, 3,3, 5,4, 6,5, 7,6, 4,7, 8,8)
+
+    lowBand  = fi.svf.lp(lowFreq, shelfQ);
+    highBand = fi.svf.hp(highFreq, shelfQ);
+
+    // Sum rectified channels to avoid stereo cancellation.
+    levelDb(band) = abs(l : band) + abs(r : band)
+                  : si.onePoleSwitching(oneSample, detRelease)
+                  : max(detFloorLin)
+                  : ba.linear2db
+                  : -(detFloorDb);
+
+    lagAttack  = si.smooth(ba.tau2pole(attackTime));
+    lagSustain = si.onePoleSwitching(oneSample, sustainTime);
+
+    // Limit shelf gain, then smooth in dB.
+    shelfDb(band, atk, sus) = transRange * ma.tanh((atk * dAttack + sus * dSustain) / transRange)
+                            : si.smooth(ba.tau2pole(gainSmoothTau))
     with {
-        // The reduction each channel would apply on its own. Never below 1:
-        // this only ever turns down.
+        lvl      = levelDb(band);
+        dAttack  = max(0, lvl - (lvl : lagAttack));
+        dSustain = max(0, (lvl : lagSustain) - lvl);
+    };
+
+    lowDb  = shelfDb(lowBand, lowAttack, lowSustain);
+    highDb = shelfDb(highBand, highAttack, highSustain);
+
+    shelves = fi.svf.ls(lowFreq, shelfQ, lowDb) : fi.svf.hs(highFreq, shelfQ, highDb);
+};
+
+// Saturator
+// L parallel phases share one host-rate state per channel.
+
+satStereo(L) = (step ~ si.bus(6)) : (si.block(6), si.bus(2 * L + 4))
+with {
+    step(pf0, lw0, sp0, pf1, lw1, sp1) =
+        (chan(L, no.noises(2, 0), vsL(v0), pf0, lw0, sp0),
+         chan(L, no.noises(2, 1), vsL(v1), pf1, lw1, sp1))
+
+        // Feedback state first, then audio and meters.
+        : route(N, N, (1, 1), (2, 2), (3, 3),
+                      (K + 1, 4), (K + 2, 5), (K + 3, 6),
+                      par(p, L, (4 + p, 7 + p)),
+                      par(p, L, (K + 4 + p, 7 + L + p)),
+                      (4 + L, 7 + 2 * L), (5 + L, 8 + 2 * L),
+                      (K + 4 + L, 9 + 2 * L), (K + 5 + L, 10 + 2 * L))
+    with {
+        K = 5 + L;
+        N = 2 * K;
+
         vs(pf, lw) = max(1.0, 1.0 + (pf / max(minWidth, lw)) * satComp);
 
         v0 = vs(pf0, lw0);
         v1 = vs(pf1, lw1);
 
-        // Blend each channel's own figure towards the larger of the two, which
-        // is the same shape upwardCompressor.dsp and clipper.dsp use. Linking
-        // can therefore only ever duck a channel further, never less.
+        // Link toward the stronger reduction.
         vsL(v) = v + link * (max(v0, v1) - v);
     };
 };
 
-// One channel, given the reduction it has been told to apply. `rnd` is this
-// channel's decorrelated noise source, and redMeter / satMeter its two bargraphs.
-//
-// The three fed-back signals are padFactor, lastWidth and the overspill that
-// was just written to the delay line. Overspill has to travel round the loop
-// because it depends on padFactor, which depends on overspill: the delay line
-// is therefore read as `sPrev` delayed a further lastWidth-1 samples, the
-// recursion itself supplying the missing one.
-chan(rnd, redMeter, satMeter, variSpeed, pf, lw, sPrev, x) =
-    padFactor, lastWidth, s, out
+// Average phase overspill; use peak phase levels for window control.
+chan(L, rnd, variSpeed, pf, lw, sPrev) =
+    par(p, L, phase(p))
+
+    // Group phase outputs by signal: overspill, level, reduction, audio.
+    : route(4 * L, 4 * L, par(p, L, par(k, 4, (4 * p + k + 1, k * L + p + 1))))
+    : (ba.parallelMean(L), ba.parallelMax(L), ba.parallelMax(L), si.bus(L))
+    : (post, (_ <: redDb, _), si.bus(L))
+
+    // Output order: state, audio, meters.
+    : route(5 + L, 5 + L, (1, 1), (2, 2), (3, 3),
+                          (4, 4 + L), (5, 5 + L),
+                          par(p, L, (6 + p, 4 + p)))
 with {
-    // --- drive -------------------------------------------------------------
-    // Faust has no way to give a feedback signal a start value, so lw arrives
-    // as 0 on the very first sample; without this clamp the division in vs
-    // above would be 0/0. Everywhere else it is a no-op, since lastWidth is
-    // itself clamped to minWidth on the way out.
+
+    // Feedback state starts at zero.
     lwc = max(minWidth, lw);
 
-    totalgain = drive / variSpeed;
-    driven = x * totalgain;
+    redDb = ba.linear2db(variSpeed) : min(maxRed);
 
-    // `temp` is what the overspill is measured against. Cuts are applied to
-    // it, boosts are not -- the original's "no boosting beyond unity
-    // please" -- so pushing Drive up past 0 dB does not by itself invent
-    // overspill out of a signal that was not saturating before.
-    temp = select2(totalgain < 1.0, x, driven);
+    // Interpolate reduction across phases.
+    phase(p, x) = s1, rect, satGr, out
+    with {
+        w = float(p + 1) / L;
+        gain = variSpeed * w + variSpeed' * (1.0 - w);
 
-    // --- shaper ------------------------------------------------------------
-    rect = abs(driven);
-    shaped = sin(min(rect, satLimit));
+        totalgain = drive / gain;
+        driven = x * totalgain;
 
-    // sign(driven) * shaped, with driven == 0 landing on 0 either way.
-    // The reduction metered is the linked one, i.e. what was actually applied.
-    out = select2(driven < 0.0, shaped, -shaped)
-        : attach(_, ba.linear2db(variSpeed) : min(maxRed) : meterHold : redMeter)
-        : attach(_, satGr : meterHold : satMeter);
+        // Overspill reference follows gain cuts, but not boosts.
+        temp = select2(totalgain < 1.0, x, driven);
 
-    // How many dB the shaper is taking off this sample. Both sides are
-    // floored before dividing so that a sample sitting at zero reads as no
-    // saturation rather than 0/0: below the floor the ratio is 1 either way.
-    // sin(y) <= y for y >= 0, so this can only ever be positive.
-    satGr = 0 - ba.linear2db(max(satFloor, max(ma.EPSILON, shaped)
-                                          / max(ma.EPSILON, rect)));
+        rect = abs(driven);
+        shaped = sin(min(rect, satLimit));
 
-    // What the shaper would not pass. Goes negative when Drive is boosting
-    // (temp is then the un-boosted input, smaller than the shaped output),
-    // which is intended: padFactor is clamped at zero further down.
-    s = (abs(temp) - shaped) * satComp;
+        out = select2(driven < 0.0, shaped, -shaped);
 
-    // --- window ------------------------------------------------------------
-    // Past pi/2 we are distorting, not saturating: collapse the target so
-    // the window shrinks fast and the gain reduction catches up.
-    targetWidth = select2(rect > satLimit, widestRange, panicWidth);
+        // Floor both terms to avoid 0/0 at silence.
+        satGr = 0 - ba.linear2db(max(satFloor, max(ma.EPSILON, shaped)
+                                              / max(ma.EPSILON, rect)));
 
-    // Bleed padFactor away in near-silence, so a passage that ended in a
-    // burst of overspill does not hold the gain down through the gap.
-    pfDecayed = select2(rect < 0.01, pf, pf * 0.9999);
+        s1 = (abs(temp) - shaped) * satComp;
+    };
 
-    // Running sum: add the newest overspill, drop the trailing one -- but
-    // only when we are not growing. Growing means keeping the tail, which
-    // is why release never steps.
-    added = pfDecayed + s;
-    tapOld = tap(lwc);
-    tapNew = tap(shrunk);
-    shrunk = max(minWidth, lwc - 1);
+    post(s, rect) = padFactor, lastWidth, s
+    with {
 
-    // The random target: the window grows whenever a uniform draw scaled by
-    // targetWidth lands above the current width, so the drift is stochastic
-    // rather than a fixed ramp and leaves no periodic artefact behind.
-    expanding = (targetWidth * uniform) > lwc;
-    shrinking = targetWidth < lwc;
+        targetWidth = select2(rect > satLimit, widestRange, panicWidth);
 
-    lastWidth = select2(expanding, select2(shrinking, lwc, shrunk), lwc + 1)
-              : min(maxWidth) : int;
-    padFactor = select2(expanding, select2(shrinking, added - tapOld,
-                                           added - tapOld - tapNew), added)
-              : max(0.0);
+        // Release residual reduction in near-silence.
+        pfDecayed = select2(rect < 0.01, pf, pf * 0.9999);
+
+        added = pfDecayed + s;
+        tapOld = tap(lwc);
+        tapNew = tap(shrunk);
+        shrunk = max(minWidth, lwc - 1);
+
+        // Randomize window growth to avoid periodic modulation.
+        expanding = (targetWidth * uniform) > lwc;
+        shrinking = targetWidth < lwc;
+
+        lastWidth = select2(expanding, select2(shrinking, lwc, shrunk), lwc + 1)
+                  : min(maxWidth) : int;
+        // Keep the tail when growing; remove two samples when shrinking.
+        padFactor = select2(expanding, select2(shrinking, added - tapOld,
+                                               added - tapOld - tapNew), added)
+                  : max(0.0);
+    };
 
     uniform = (rnd + 1.0) * 0.5;
+    // Feedback supplies the remaining one-sample delay.
     tap(w) = de.delay(maxWidth, int(w) - 1, sPrev);
 };
+
+// Oversampling
+// Parallel polyphase streams run at the host rate.
+
+OSTAPS  = 40;   // Taps per phase and round-trip latency in host samples.
+OSDELAY = 20;   // Phase-0 delay.
+
+up(L)   = _ <: (@(OSDELAY), par(p, L - 1, fi.fir(hp(L, p + 1))));
+down(L) = (@(OSDELAY), par(j, L - 1, fi.fir(hp(L, L - 1 - j)) : mem)) :> /(L);
+
+osSat(L) = (up(L), up(L)) : satStereo(L) : (down(L), down(L), si.bus(4));
+
+// Run all factors to preserve state when switching.
+satSelect = _, _ <: (satStereo(1), osSat(2), osSat(4), osSat(8))
+          : route(24, 24, par(f, 4, par(k, 6, (6 * f + k + 1, 4 * k + f + 1))))
+          : par(k, 6, ba.selectn(4, osFactor))
+          : meters
+with {
+    meters(l, r, red0, sat0, red1, sat1) =
+        attach(attach(l, red0 : meterHold : redMeter1), sat0 : meterHold : satMeter1),
+        attach(attach(r, red1 : meterHold : redMeter2), sat1 : meterHold : satMeter2);
+};
+
+osLatency = select2(osFactor > 0, 0, OSTAPS);
+
+// Kaiser FIR, beta 8.68, cutoff at host Nyquist; unity DC gain per phase.
+// Phase 0 is a pure delay, handled by OSDELAY.
+hp(2, 1) = (
+      -4.37797177881e-05,  1.32549617198e-04, -3.02781836516e-04,  5.96906681537e-04,
+      -1.06950572975e-03,  1.78856600971e-03, -2.83678365476e-03,  4.31330283769e-03,
+      -6.33662513756e-03,  9.05001914332e-03, -1.26318474443e-02,  1.73153852784e-02,
+      -2.34273674458e-02,  3.14655455896e-02, -4.22646132617e-02,  5.73870875127e-02,
+      -8.01873632972e-02,  1.19430867794e-01, -2.07386721498e-01,  6.35007158559e-01,
+       6.35007158559e-01, -2.07386721498e-01,  1.19430867794e-01, -8.01873632972e-02,
+       5.73870875127e-02, -4.22646132617e-02,  3.14655455896e-02, -2.34273674458e-02,
+       1.73153852784e-02, -1.26318474443e-02,  9.05001914332e-03, -6.33662513756e-03,
+       4.31330283769e-03, -2.83678365476e-03,  1.78856600971e-03, -1.06950572975e-03,
+       5.96906681537e-04, -3.02781836516e-04,  1.32549617198e-04, -4.37797177881e-05);
+
+hp(4, 1) = (
+      -2.14894508149e-05,  7.36303681592e-05, -1.77104100382e-04,  3.59912708193e-04,
+      -6.58417687801e-04,  1.11824137361e-03, -1.79516162624e-03,  2.75622755283e-03,
+      -4.08154220788e-03,  5.86752411159e-03, -8.23311572781e-03,  1.13316821683e-02,
+      -1.53740399632e-02,  2.06742936260e-02, -2.77461215241e-02,  3.75233567197e-02,
+      -5.19358470099e-02,  7.57431173569e-02, -1.24653814479e-01,  2.98390647561e-01,
+       8.99752645352e-01, -1.77214487865e-01,  9.49850571143e-02, -6.21375712475e-02,
+       4.39582300018e-02, -3.22105465844e-02,  2.39442875389e-02, -1.78411885619e-02,
+       1.32184544300e-02, -9.67933121573e-03,  6.96928675184e-03, -4.91014613971e-03,
+       3.36776353522e-03, -2.23550422633e-03,  1.42565417993e-03, -8.64927793521e-04,
+       4.92078946753e-04, -2.56525808975e-04,  1.17385276571e-04, -4.25934528967e-05);
+hp(4, 2) = (
+      -4.37797177881e-05,  1.32549617198e-04, -3.02781836516e-04,  5.96906681537e-04,
+      -1.06950572975e-03,  1.78856600971e-03, -2.83678365476e-03,  4.31330283769e-03,
+      -6.33662513756e-03,  9.05001914332e-03, -1.26318474443e-02,  1.73153852784e-02,
+      -2.34273674458e-02,  3.14655455896e-02, -4.22646132617e-02,  5.73870875127e-02,
+      -8.01873632972e-02,  1.19430867794e-01, -2.07386721498e-01,  6.35007158559e-01,
+       6.35007158559e-01, -2.07386721498e-01,  1.19430867794e-01, -8.01873632972e-02,
+       5.73870875127e-02, -4.22646132617e-02,  3.14655455896e-02, -2.34273674458e-02,
+       1.73153852784e-02, -1.26318474443e-02,  9.05001914332e-03, -6.33662513756e-03,
+       4.31330283769e-03, -2.83678365476e-03,  1.78856600971e-03, -1.06950572975e-03,
+       5.96906681537e-04, -3.02781836516e-04,  1.32549617198e-04, -4.37797177881e-05);
+hp(4, 3) = (
+      -4.25934528967e-05,  1.17385276571e-04, -2.56525808975e-04,  4.92078946753e-04,
+      -8.64927793521e-04,  1.42565417993e-03, -2.23550422633e-03,  3.36776353522e-03,
+      -4.91014613971e-03,  6.96928675184e-03, -9.67933121573e-03,  1.32184544300e-02,
+      -1.78411885619e-02,  2.39442875389e-02, -3.22105465844e-02,  4.39582300018e-02,
+      -6.21375712475e-02,  9.49850571143e-02, -1.77214487865e-01,  8.99752645352e-01,
+       2.98390647561e-01, -1.24653814479e-01,  7.57431173569e-02, -5.19358470099e-02,
+       3.75233567197e-02, -2.77461215241e-02,  2.06742936260e-02, -1.53740399632e-02,
+       1.13316821683e-02, -8.23311572781e-03,  5.86752411159e-03, -4.08154220788e-03,
+       2.75622755283e-03, -1.79516162624e-03,  1.11824137361e-03, -6.58417687801e-04,
+       3.59912708193e-04, -1.77104100382e-04,  7.36303681592e-05, -2.14894508149e-05);
+
+hp(8, 1) = (
+      -9.46018969446e-06,  3.50667645661e-05, -8.68518308623e-05,  1.79441191382e-04,
+      -3.31920416670e-04,  5.68327793787e-04, -9.18134081817e-04,  1.41682117445e-03,
+      -2.10678287128e-03,  3.03895597505e-03, -4.27591871362e-03,  5.89782570319e-03,
+      -8.01387129876e-03,  1.07849973115e-02, -1.44711959951e-02,  1.95384830781e-02,
+      -2.69328147536e-02,  3.89264988873e-02, -6.26727946549e-02,  1.38130670659e-01,
+       9.74346591165e-01, -1.06887558318e-01,  5.47354558721e-02, -3.52626087754e-02,
+       2.47796605618e-02, -1.81031168114e-02,  1.34435206354e-02, -1.00189613626e-02,
+       7.43093536138e-03, -5.45094264796e-03,  3.93410179344e-03, -2.78002422638e-03,
+       1.91374287709e-03, -1.27600323913e-03,  8.18220418792e-04, -4.99843619673e-04,
+       2.86960393526e-04, -1.51505715063e-04,  7.07236996204e-05, -2.66917952592e-05);
+hp(8, 2) = (
+      -2.14894508149e-05,  7.36303681592e-05, -1.77104100382e-04,  3.59912708193e-04,
+      -6.58417687801e-04,  1.11824137361e-03, -1.79516162624e-03,  2.75622755283e-03,
+      -4.08154220788e-03,  5.86752411159e-03, -8.23311572781e-03,  1.13316821683e-02,
+      -1.53740399632e-02,  2.06742936260e-02, -2.77461215241e-02,  3.75233567197e-02,
+      -5.19358470099e-02,  7.57431173569e-02, -1.24653814479e-01,  2.98390647561e-01,
+       8.99752645352e-01, -1.77214487865e-01,  9.49850571143e-02, -6.21375712475e-02,
+       4.39582300018e-02, -3.22105465844e-02,  2.39442875389e-02, -1.78411885619e-02,
+       1.32184544300e-02, -9.67933121573e-03,  6.96928675184e-03, -4.91014613971e-03,
+       3.36776353522e-03, -2.23550422633e-03,  1.42565417993e-03, -8.64927793521e-04,
+       4.92078946753e-04, -2.56525808975e-04,  1.17385276571e-04, -4.25934528967e-05);
+hp(8, 3) = (
+      -3.39317592273e-05,  1.08782275504e-04, -2.54721756160e-04,  5.09633651278e-04,
+      -9.22476661180e-04,  1.55445192627e-03, -2.48018724302e-03,  3.78926443624e-03,
+      -5.58871924642e-03,  8.00765529090e-03, -1.12060412008e-02,  1.53915809851e-02,
+      -2.08524405949e-02,  2.80227261651e-02, -3.76212565021e-02,  5.09738332570e-02,
+      -7.08718931553e-02,  1.04395343349e-01, -1.76156100794e-01,  4.68662408851e-01,
+       7.83099856745e-01, -2.09788162540e-01,  1.16876574472e-01, -7.75135066887e-02,
+       5.51692746017e-02, -4.05340673391e-02,  3.01570454258e-02, -2.24630877120e-02,
+       1.66234805642e-02, -1.21503471941e-02,  8.72705867906e-03, -6.12974822752e-03,
+       4.18853766467e-03, -2.76766100721e-03,  1.75511644625e-03, -1.05725093279e-03,
+       5.95865602680e-04, -3.06519678793e-04,  1.37300431835e-04, -4.76705866007e-05);
+hp(8, 4) = (
+      -4.37797177881e-05,  1.32549617198e-04, -3.02781836516e-04,  5.96906681537e-04,
+      -1.06950572975e-03,  1.78856600971e-03, -2.83678365476e-03,  4.31330283769e-03,
+      -6.33662513756e-03,  9.05001914332e-03, -1.26318474443e-02,  1.73153852784e-02,
+      -2.34273674458e-02,  3.14655455896e-02, -4.22646132617e-02,  5.73870875127e-02,
+      -8.01873632972e-02,  1.19430867794e-01, -2.07386721498e-01,  6.35007158559e-01,
+       6.35007158559e-01, -2.07386721498e-01,  1.19430867794e-01, -8.01873632972e-02,
+       5.73870875127e-02, -4.22646132617e-02,  3.14655455896e-02, -2.34273674458e-02,
+       1.73153852784e-02, -1.26318474443e-02,  9.05001914332e-03, -6.33662513756e-03,
+       4.31330283769e-03, -2.83678365476e-03,  1.78856600971e-03, -1.06950572975e-03,
+       5.96906681537e-04, -3.02781836516e-04,  1.32549617198e-04, -4.37797177881e-05);
+hp(8, 5) = (
+      -4.76705866007e-05,  1.37300431835e-04, -3.06519678793e-04,  5.95865602680e-04,
+      -1.05725093279e-03,  1.75511644625e-03, -2.76766100721e-03,  4.18853766467e-03,
+      -6.12974822752e-03,  8.72705867906e-03, -1.21503471941e-02,  1.66234805642e-02,
+      -2.24630877120e-02,  3.01570454258e-02, -4.05340673391e-02,  5.51692746017e-02,
+      -7.75135066887e-02,  1.16876574472e-01, -2.09788162540e-01,  7.83099856745e-01,
+       4.68662408851e-01, -1.76156100794e-01,  1.04395343349e-01, -7.08718931553e-02,
+       5.09738332570e-02, -3.76212565021e-02,  2.80227261651e-02, -2.08524405949e-02,
+       1.53915809851e-02, -1.12060412008e-02,  8.00765529090e-03, -5.58871924642e-03,
+       3.78926443624e-03, -2.48018724302e-03,  1.55445192627e-03, -9.22476661180e-04,
+       5.09633651278e-04, -2.54721756160e-04,  1.08782275504e-04, -3.39317592273e-05);
+hp(8, 6) = (
+      -4.25934528967e-05,  1.17385276571e-04, -2.56525808975e-04,  4.92078946753e-04,
+      -8.64927793521e-04,  1.42565417993e-03, -2.23550422633e-03,  3.36776353522e-03,
+      -4.91014613971e-03,  6.96928675184e-03, -9.67933121573e-03,  1.32184544300e-02,
+      -1.78411885619e-02,  2.39442875389e-02, -3.22105465844e-02,  4.39582300018e-02,
+      -6.21375712475e-02,  9.49850571143e-02, -1.77214487865e-01,  8.99752645352e-01,
+       2.98390647561e-01, -1.24653814479e-01,  7.57431173569e-02, -5.19358470099e-02,
+       3.75233567197e-02, -2.77461215241e-02,  2.06742936260e-02, -1.53740399632e-02,
+       1.13316821683e-02, -8.23311572781e-03,  5.86752411159e-03, -4.08154220788e-03,
+       2.75622755283e-03, -1.79516162624e-03,  1.11824137361e-03, -6.58417687801e-04,
+       3.59912708193e-04, -1.77104100382e-04,  7.36303681592e-05, -2.14894508149e-05);
+hp(8, 7) = (
+      -2.66917952592e-05,  7.07236996204e-05, -1.51505715063e-04,  2.86960393526e-04,
+      -4.99843619673e-04,  8.18220418792e-04, -1.27600323913e-03,  1.91374287709e-03,
+      -2.78002422638e-03,  3.93410179344e-03, -5.45094264796e-03,  7.43093536138e-03,
+      -1.00189613626e-02,  1.34435206354e-02, -1.81031168114e-02,  2.47796605618e-02,
+      -3.52626087754e-02,  5.47354558721e-02, -1.06887558318e-01,  9.74346591165e-01,
+       1.38130670659e-01, -6.26727946549e-02,  3.89264988873e-02, -2.69328147536e-02,
+       1.95384830781e-02, -1.44711959951e-02,  1.07849973115e-02, -8.01387129876e-03,
+       5.89782570319e-03, -4.27591871362e-03,  3.03895597505e-03, -2.10678287128e-03,
+       1.41682117445e-03, -9.18134081817e-04,  5.68327793787e-04, -3.31920416670e-04,
+       1.79441191382e-04, -8.68518308623e-05,  3.50667645661e-05, -9.46018969446e-06);
