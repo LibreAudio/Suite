@@ -17,7 +17,7 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 class EqWidget final : public LabReferenceWidget<Reference::Stage>,
-                       protected IdleCallback
+                       private IdleCallback
 {
     using R = Reference::Stage;
     using BaseWidget = LabReferenceWidget<R>;
