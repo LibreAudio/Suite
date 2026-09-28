@@ -290,9 +290,8 @@ class EqWidget final : public LabReferenceWidget<Reference::TransparentStage>,
     using R = Reference::TransparentStage;
     using BaseWidget = LabReferenceWidget<R>;
 
-    // the curve display is the stage well, the piano roll sits bare under it, the option bar in a frame
+    // the curve display is the stage well, the piano roll sits bare under it, the option bar on a raised panel
     using WellRef = Reference::Stage;
-    using FrameRef = Reference::OpaqueStage;
 
 public:
     enum class Analyser : uint8_t { Pre, Post, Off };
@@ -886,7 +885,7 @@ private:
 
         if (fShowControls)
         {
-            drawFrame<FrameRef>(layoutBar());
+            drawRaisedPanel(layoutBar());
             drawBar(on);
         }
 
@@ -897,16 +896,58 @@ private:
             drawPianoTip();
     }
 
-    // like drawReferenceBackground and drawReferenceBorder, for an area of this widget
-    template <class Ref>
-    void drawFrame(const Box& b)
+    // The prototype's glass panel: a light tint over the window, lit along the top edge, shaded along the bottom,
+    // with a soft shadow underneath.
+    void drawRaisedPanel(const Box& b)
     {
+        const float r = 10.f * fScaleFactor;
+
+        drawRaisedShadow(b, r);
+
         beginPath();
-        roundedRect(b.x, b.y, b.w, b.h, Ref::borderRadius * fScaleFactor);
-        fillColor(Ref::backgroundColor);
+        roundedRect(b.x, b.y, b.w, b.h, r);
+        fillColor(Color(1.f, 1.f, 1.f, 0.05f));
         fill();
 
-        drawWellBorder<Ref>(b);
+        drawRaisedEdges(b, r);
+    }
+
+    // shadow under a raised shape: 4 px down, blurred 14 px, pulled in 6 px, left out where the shape is
+    void drawRaisedShadow(const Box& b, const float r)
+    {
+        const float s = fScaleFactor;
+
+        beginPath();
+        rect(b.x - 20.f * s, b.y, b.w + 40.f * s, b.h + 24.f * s);
+        roundedRect(b.x, b.y, b.w, b.h, r);
+        pathWinding(CW);
+        fillPaint(boxGradient(b.x + 6.f * s, b.y + 4.f * s + 6.f * s, b.w - 12.f * s, b.h - 12.f * s, r, 14.f * s,
+                              Color(0.f, 0.f, 0.f, 0.6f), Color(0.f, 0.f, 0.f, 0.f)));
+        fill();
+    }
+
+    // edges of a raised shape: top highlight, bottom shade, faint rim all around
+    void drawRaisedEdges(const Box& b, const float r)
+    {
+        const auto edge = [&](const float y0, const float y1, const Color& from, const Color& to) {
+            save();
+            intersectScissor(b.x, std::min(y0, y1), b.w, std::abs(y1 - y0));
+            beginPath();
+            roundedRect(b.x + 0.5f, b.y + 0.5f, b.w - 1.f, b.h - 1.f, r - 0.5f);
+            strokePaint(linearGradient(0, y0, 0, y1, from, to));
+            strokeWidth(1.f);
+            stroke();
+            restore();
+        };
+
+        edge(b.y, b.y + r, Color(1.f, 1.f, 1.f, 0.12f), Color(1.f, 1.f, 1.f, 0.f));
+        edge(b.y + b.h, b.y + b.h - r, Color(0.f, 0.f, 0.f, 0.22f), Color(0.f, 0.f, 0.f, 0.f));
+
+        beginPath();
+        roundedRect(b.x + 0.5f, b.y + 0.5f, b.w - 1.f, b.h - 1.f, r - 0.5f);
+        strokeColor(Color(1.f, 1.f, 1.f, 0.05f));
+        strokeWidth(1.f);
+        stroke();
     }
 
     template <class Ref>
@@ -1294,6 +1335,8 @@ private:
         const int m0 = static_cast<int>(std::ceil(EqResponse::midiOf(kFreqMin) - 0.5f));
         const int m1 = static_cast<int>(std::floor(EqResponse::midiOf(kFreqMax) + 0.5f));
 
+        drawRaisedShadow(k, 6.f * s);
+
         beginPath();
         roundedRect(k.x, k.y, k.w, k.h, 6.f * s);
         fillColor(EqColors::whiteKey);
@@ -1358,12 +1401,7 @@ private:
 
         restore();
 
-        // inset edge
-        beginPath();
-        roundedRect(k.x + 0.5f, k.y + 0.5f, k.w - 1.f, k.h - 1.f, 6.f * s);
-        strokeColor(Color(0.f, 0.f, 0.f, 0.45f));
-        strokeWidth(1.f);
-        stroke();
+        drawRaisedEdges(k, 6.f * s);
 
         // a dot per band, where its frequency really is
         for (const EqBand& b : fBands)
