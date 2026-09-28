@@ -526,7 +526,7 @@ class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
 
     Page fLastPage = kPageEasy;
     ShaderBaseWidget* fShaderBackground = nullptr;
-    ShaderBaseWidget* fShaderScope = nullptr;
+    BotShaderBaseWidget* fShaderScope = nullptr;
     DelayScopeZoom fScopeZoom;
 
 public:
@@ -536,7 +536,7 @@ public:
         addIdleCallback(this);
     }
 
-    void setup(ShaderBaseWidget* const background, ShaderBaseWidget* const scope)
+    void setup(ShaderBaseWidget* const background, BotShaderBaseWidget* const scope)
     {
         fShaderBackground = background;
         fShaderScope = scope;
@@ -597,7 +597,7 @@ START_NAMESPACE_DISTRHO
 class LibreAudioUI : public LibreAudioBaseUI
 {
     std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderScope;
+    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderScope;
 
 public:
     LibreAudioUI()

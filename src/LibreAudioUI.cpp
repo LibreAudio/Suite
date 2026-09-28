@@ -62,8 +62,8 @@ START_NAMESPACE_DISTRHO
 class LibreAudioUI : public LibreAudioBaseUI
 {
     std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderAnalyser;
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderLine;
+    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderAnalyser;
+    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderLine;
 
 public:
     LibreAudioUI()

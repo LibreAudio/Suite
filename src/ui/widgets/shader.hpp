@@ -6,17 +6,46 @@
 
 #include "shader-clean.hpp"
 
+#include <functional>
+#include <list>
+#include <string>
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class BotShaderBaseWidget : public ShaderBaseWidget
+{
+public:
+    explicit BotShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+        : ShaderBaseWidget(parent, iface) {}
+
+    // A float uniform that is not a parameter -- something only the UI knows, like an animation's progress.
+    // getter is asked once per repaint; a shader that does not declare the uniform simply never sees it.
+    void setCustomUniform(const char* const name, std::function<float()> getter)
+    {
+        fCustomUniforms.push_back(CustomUniform { name, -2, std::move(getter) });
+    }
+
+protected:
+    struct CustomUniform {
+        std::string name;
+        GLint location; // -2 until looked up
+        std::function<float()> getter;
+    };
+
+    std::list<CustomUniform> fCustomUniforms;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<const char src[], uint size>
-class BotShaderWidget final : public ShaderBaseWidget,
+class BotShaderWidget final : public BotShaderBaseWidget,
                               public IdleCallback
 {
 public:
     explicit BotShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : ShaderBaseWidget(parent, iface),
+        : BotShaderBaseWidget(parent, iface),
           fParent(parent)
     {
         // 8ms was 125 Hz: on a 60 Hz display more than half of those frames were rendered
@@ -324,7 +353,7 @@ private:
         for (CustomUniform& uniform : fCustomUniforms)
         {
             if (uniform.location == -2)
-                uniform.location = glGetUniformLocation(gl3.program, uniform.name);
+                uniform.location = glGetUniformLocation(gl3.program, uniform.name.c_str());
             if (uniform.location >= 0)
                 glUniform1f(uniform.location, uniform.getter());
         }
