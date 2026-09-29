@@ -60,6 +60,12 @@ template<const char src[], uint size>
 class BackgroundShaderWidget final : public ShaderBaseWidget,
                                      public IdleCallback
 {
+   #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
+    static constexpr const GLenum kSingleChannelFormat = GL_RED;
+   #else
+    static constexpr const GLenum kSingleChannelFormat =  GL_LUMINANCE;
+   #endif
+
 public:
     explicit BackgroundShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
         : ShaderBaseWidget(parent, iface),
@@ -88,12 +94,13 @@ public:
             "#version 300 es\n"
             "#define LIBREAUDIO_GL3\n"
            #elif defined(DGL_USE_GLES2)
-            "#version 100\n"
+            "#version 130\n"
             "#define LIBREAUDIO_GL2\n"
            #elif defined(DGL_USE_OPENGL3)
             "#version 150 core\n"
             "#define LIBREAUDIO_GL3\n"
-           #else
+            #else
+            "#version 130\n"
             "#define LIBREAUDIO_GL2\n"
            #endif
             "#define LIBREAUDIO_HOSTED\n"
@@ -177,7 +184,6 @@ public:
         }
 
         gl3.program = program;
-        gl3.iChannel0 = glGetUniformLocation(program, "iChannel0");
         gl3.iMouse = glGetUniformLocation(program, "iMouse");
         gl3.iResolution = glGetUniformLocation(program, "iResolution");
         gl3.iTime = glGetUniformLocation(program, "iTime");
@@ -186,9 +192,11 @@ public:
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
         gl3.dpfScaleFactor = glGetUniformLocation(program, "_dpf_scale_factor");
+        gl3.dpfWaveformData = glGetUniformLocation(program, "_dpf_waveform_data");
+        gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_waveform_start");
 
         {
-            fTestData.resize(512 * 4, 0);
+            fTestData.resize(512, 0.f);
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
@@ -206,10 +214,10 @@ public:
             glTexImage2D(GL_TEXTURE_2D,
                          0,
                          GL_RGBA16F_ARB,
-                         fTestData.size() / 4,
+                         fTestData.size(),
                          1,
                          0,
-                         GL_RGBA,
+                         kSingleChannelFormat,
                          GL_FLOAT,
                          fTestData.data());
 
@@ -248,6 +256,16 @@ public:
         glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
+    }
+
+    void push(const float value)
+    {
+        fTestData[fTestDataTail++] = value;
+
+        if (fTestDataTail == fTestData.size())
+            fTestDataTail = 0;
+
+        repaint();
     }
 
 private:
@@ -299,26 +317,25 @@ private:
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
         glUniform1f(gl3.dpfScaleFactor, fInterface->getScaleFactor());
 
+        glUniform1f(gl3.dpfWaveformStart,
+                    static_cast<float>(fTestData.size() - fTestDataTail - 1) / (fTestData.size() - 1));
+        // glUniform1f(gl3.dpfWaveformStart, 0);
+
         glUniform3f(gl3.iMouse, fMousePos.getX(), fMousePos.getY(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
         glUniform1f(gl3.iTime, time);
 
         glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
-        for (uint32_t i = 0, s = fTestData.size(); i < s; ++i)
-            fTestData[i] = std::fmod(time + (float(i) / s), 1);
-
         glTexSubImage2D(GL_TEXTURE_2D,
                         0,
                         0,
                         0,
-                        fTestData.size() / 4,
+                        fTestData.size(),
                         1,
-                        GL_RGBA,
+                        kSingleChannelFormat,
                         GL_FLOAT,
                         fTestData.data());
-
-        glUniform1i(gl3.iChannel0, 0);
 
         if (const uint32_t count = fInterface->getParameterCount())
         {
@@ -380,7 +397,8 @@ private:
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
-        GLint iChannel0;
+        GLint dpfWaveformData;
+        GLint dpfWaveformStart;
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
@@ -394,6 +412,8 @@ private:
     const double fStartTime = getApp().getTime();
 
     std::vector<float> fTestData;
+    uint32_t fTestDataTail = 0;
+    bool fTestDataFull = false;
 
     bool fPendingDisplay = true;
     bool fFirstResize = true;

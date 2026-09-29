@@ -270,6 +270,7 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
                 v2 = std::atof(value2.buffer() + sep + 1);
             }
 
+            audioPeaksReceived(v1, v2);
             // d_stdout("got peaks %f %f", v1, v2);
         }
 

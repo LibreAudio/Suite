@@ -10,7 +10,7 @@ uniform float _dpf_scale_factor;
 // ShaderToy variables
 // uniform float iBeat;
 // uniform vec4 iPeaks;
-uniform sampler2D iChannel0;
+// uniform sampler2D iChannel0;
 uniform vec3 iMouse;
 uniform vec3 iResolution;
 uniform float iTime;

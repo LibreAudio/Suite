@@ -17,7 +17,7 @@ namespace LibreAudio {
 template<class RootWidget,
          const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
          uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
-class UI : public LibreAudioBaseUI
+class UI final : public LibreAudioBaseUI
 {
     const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
         new BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
@@ -29,7 +29,7 @@ class UI : public LibreAudioBaseUI
                                                BackgroundShaderWidget<shaderSrc, shaderSrcSize>,
                                                BotShaderWidget<shaderSrc, shaderSrcSize>>;
 
-    const std::unique_ptr<ShaderBaseWidget> fShaderAnalyser {
+    const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
         new AnalyzerShaderW(this, this)
     };
 
@@ -41,6 +41,13 @@ public:
         static_cast<RootWidget*>(fRootWidget.get())->enableShaders({
             fShaderBackground.get(), fShaderAnalyser.get()
         });
+    }
+
+private:
+    void audioPeaksReceived(const float v1, const float v2) final
+    {
+        if constexpr (label == "dualGain")
+            fShaderAnalyser->push(std::max(v1, v2));
     }
 };
 
