@@ -77,7 +77,7 @@ private:
 
     float fScaleFactor = 1.f;
     double fRunnerRate = 0;
-    bool fIsMouseDown = false;
+    int32_t fNumParameterPressed = 0;
 
     [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
 
@@ -101,7 +101,6 @@ private:
     // Widget Callbacks
 
     void onNanoDisplay() final;
-    bool onMouse(const MouseEvent& ev) final;
     void onResize(const ResizeEvent& ev) final;
 
     // ----------------------------------------------------------------------------------------------------------------

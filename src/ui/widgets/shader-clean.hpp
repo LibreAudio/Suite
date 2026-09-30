@@ -100,7 +100,6 @@ public:
             "#version 150 core\n"
             "#define LIBREAUDIO_GL3\n"
             #else
-            "#version 130\n"
             "#define LIBREAUDIO_GL2\n"
            #endif
             "#define LIBREAUDIO_HOSTED\n"

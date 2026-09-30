@@ -138,7 +138,7 @@ const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noe
 
 void LibreAudioBaseUI::uiCrossing(const bool enter, CrossingMode)
 {
-    if (enter || fIsMouseDown)
+    if (enter || fNumParameterPressed != 0)
         return;
 
     // simulate moving mouse out of bounds when losing focus
@@ -452,14 +452,6 @@ void LibreAudioBaseUI::onNanoDisplay()
     }
 }
 
-bool LibreAudioBaseUI::onMouse(const MouseEvent& ev)
-{
-    if (ev.button == kMouseButtonLeft)
-        fIsMouseDown = ev.press;
-
-    return UI::onMouse(ev);
-}
-
 void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 {
     UI::onResize(ev);
@@ -475,6 +467,7 @@ void LibreAudioBaseUI::parameterControlPressed(const uint32_t index)
 {
     DISTRHO_SAFE_ASSERT_RETURN(! fParameterPressed[index],);
     fParameterPressed[index] = true;
+    ++fNumParameterPressed;
 
     switch (index)
     {
@@ -494,6 +487,7 @@ void LibreAudioBaseUI::parameterControlReleased(const uint32_t index)
 {
     DISTRHO_SAFE_ASSERT_RETURN(fParameterPressed[index],);
     fParameterPressed[index] = false;
+    --fNumParameterPressed;
 
     switch (index)
     {
