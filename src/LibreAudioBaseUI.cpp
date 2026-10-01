@@ -240,9 +240,23 @@ void LibreAudioBaseUI::parameterChanged(const uint32_t index, const float value)
     }
 }
 
+void LibreAudioBaseUI::setEditorSettings(const char* const value)
+{
+    if (fEditorSettings == value)
+        return;
+    fEditorSettings = value;
+    setState(kStateKeys[kStateEditorSettings], value);
+}
+
 void LibreAudioBaseUI::stateChanged(const char* const key, const char* const value)
 {
     using namespace LibreAudio;
+
+    if (std::strcmp(key, kStateKeys[kStateEditorSettings]) == 0)
+    {
+        fEditorSettings = value;
+        return;
+    }
 
     if (std::strcmp(key, kStateKeys[kStateAudioPeakBufferSize]) == 0)
     {

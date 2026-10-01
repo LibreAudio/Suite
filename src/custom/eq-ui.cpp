@@ -7,6 +7,7 @@
 #include "ui/containers/ui.hpp"
 
 #include "LibreAudioParameters.hpp"
+#include "eq/bell-response.hpp"
 
 #include "OpenGL.hpp"
 
@@ -15,15 +16,15 @@
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include <string>
 
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
-// Port of the "Equalizer v8" prototype. The bands live in this UI only for now: nothing here reads or writes the
-// eq.dsp parameters yet. The prototype lets bands be added and removed freely, the DSP has a fixed set of eight
-// sections, so wiring the two together is a separate step.
+// Dynamic native EQ: band numbers map to stable host parameter slots.
+// Bell DSP is implemented; the remaining filter shapes are reserved for later.
 //
 // Geometry is in prototype px, 1:1 with plugin px at scale 1. Text is drawn kTextScale larger, as the suite's other
 // widgets size text against their prototypes, and whatever is laid out around text grows with it.
@@ -129,7 +130,8 @@ struct EqBand {
     float freq, defFreq;
     float gain;
     float q, defQ;
-    float adaptiveQ;    // bells only: widens Q as gain rises, 0 = off
+    float adaptiveQ;    // bells only: increases Q as gain rises, 0 = off
+    float sampleRate = 48000.f;
     int slope;          // cuts only: 1..4, times 6 dB/oct
     Color color;
     double created;
@@ -179,48 +181,9 @@ struct EqResponse {
 
     static float bandDb(const float f, const EqBand& b) noexcept
     {
-        if (! b.on)
+        if (!b.on || b.type != EqBandType::Peak)
             return 0.f;
-
-        const float o = f / b.freq;
-
-        if (b.isCut())
-        {
-            const float base = b.type == EqBandType::HighPass
-                             ? -10.f * std::log10(1.f + std::pow(1.f / o, 2.f * b.slope))
-                             : -10.f * std::log10(1.f + std::pow(o, 2.f * b.slope));
-            const float lo = std::log(o) / 0.38f;
-            const float res = b.slope <= 1 ? 0.f : qToDb(b.q) * std::exp(-lo * lo);
-            return base + res;
-        }
-
-        const float q = b.type == EqBandType::Peak
-                      ? b.q * (1.f + b.adaptiveQ * (std::abs(b.gain) / 18.f) * 1.6f)
-                      : b.q;
-        const float a = std::pow(10.f, b.gain / 40.f);
-        const float o2 = o * o;
-        const float sa = std::sqrt(a);
-
-        switch (b.type)
-        {
-        case EqBandType::Peak: {
-            const float num = (1.f - o2) * (1.f - o2) + std::pow(a * o / q, 2.f);
-            const float den = (1.f - o2) * (1.f - o2) + std::pow(o / (a * q), 2.f);
-            return 10.f * std::log10(num / den);
-        }
-        case EqBandType::LowShelf: {
-            const float num = a * a * ((a - o2) * (a - o2) + std::pow(sa * o / q, 2.f));
-            const float den = (1.f - a * o2) * (1.f - a * o2) + std::pow(sa * o / q, 2.f);
-            return 10.f * std::log10(num / den);
-        }
-        case EqBandType::HighShelf: {
-            const float num = a * a * ((1.f - a * o2) * (1.f - a * o2) + std::pow(sa * o / q, 2.f));
-            const float den = (a - o2) * (a - o2) + std::pow(sa * o / q, 2.f);
-            return 10.f * std::log10(num / den);
-        }
-        default:
-            return 0.f;
-        }
+        return eq::bellResponse(f, b.freq, b.gain, b.q, b.adaptiveQ, b.sampleRate);
     }
 
     // the summed response of every band
@@ -245,11 +208,8 @@ struct EqResponse {
     // the type a new band gets, by where it lands across the display
     static EqBandType typeAt(const float t) noexcept
     {
-        return t < 0.1f ? EqBandType::HighPass
-             : t < 0.27f ? EqBandType::LowShelf
-             : t < 0.76f ? EqBandType::Peak
-             : t < 0.9f ? EqBandType::HighShelf
-             : EqBandType::LowPass;
+        (void)t;
+        return EqBandType::Peak;
     }
 
     static const char* typeName(const EqBandType type) noexcept
@@ -322,6 +282,8 @@ public:
         for (uint32_t i = 0; i < kFaustParameterCount; ++i)
             fParamValues[i] = fInterface->getParameterValue(kParametersMainStart + i);
 
+        restoreBands();
+        restoreEditorSettings();
         addIdleCallback(this);
     }
 
@@ -393,6 +355,7 @@ private:
     static constexpr const std::array<int, 5> kRanges { 3, 6, 12, 24, 0 }; // 0 = auto
 
     float fParamValues[kFaustParameterCount];
+    std::array<bool, kFaustParameterCount> fEditing {};
 
     std::vector<EqBand> fBands;
     uint32_t fBandSeq = 0;
@@ -404,6 +367,7 @@ private:
     bool fShowRegions = false;
     bool fShowControls = false;
     float fDbView = 3.f;
+    std::string fLastEditorSettings;
 
     // pointer state
     Drag fDrag;
@@ -436,6 +400,142 @@ private:
     [[nodiscard]] bool isBypassed() const noexcept
     {
         return fInterface->getParameterValue(kParametersCommonStart + kCommonParameterBypass) > 0.5f;
+    }
+
+    void saveEditorSettings()
+    {
+        char value[64];
+        std::snprintf(value, sizeof(value), "1 %d %d %d %u %u",
+                      int(fShowPiano), int(fShowRegions), int(fShowControls),
+                      unsigned(fRangeIndex), unsigned(fAnalyser));
+        fLastEditorSettings = value;
+        fInterface->setEditorSettings(value);
+    }
+
+    bool restoreEditorSettings()
+    {
+        const std::string value = fInterface->getEditorSettings();
+        if (value == fLastEditorSettings)
+            return false;
+        fLastEditorSettings = value;
+        if (value.empty())
+        {
+            fShowPiano = fShowRegions = fShowControls = false;
+            fRangeIndex = 4;
+            fAnalyser = Analyser::Post;
+            fDbView = targetDbMax();
+            return true;
+        }
+        int version, piano, regions, controls, range, analyser;
+        char trailing;
+        if (std::sscanf(value.c_str(), "%d %d %d %d %d %d %c",
+                        &version, &piano, &regions, &controls, &range, &analyser, &trailing) != 6 ||
+            version != 1 || piano < 0 || piano > 1 || regions < 0 || regions > 1 ||
+            controls < 0 || controls > 1 || range < 0 || range >= int(kRanges.size()) ||
+            analyser < 0 || analyser > 2)
+            return false;
+        fShowPiano = piano != 0;
+        fShowRegions = regions != 0;
+        fShowControls = controls != 0;
+        fRangeIndex = range;
+        fAnalyser = static_cast<Analyser>(analyser);
+        fDbView = targetDbMax();
+        return true;
+    }
+
+    // A scoped edit publishes every mutation path (mouse, drag and wheel).
+    struct BandEdit {
+        EqWidget& owner;
+        explicit BandEdit(EqWidget& widget) : owner(widget) { owner.readParameters(); }
+        ~BandEdit() { owner.publishBands(); }
+    };
+
+    void publishBands()
+    {
+        for (unsigned slot = 0; slot < eq::kBandCount; ++slot)
+        {
+            const auto it = std::find_if(fBands.begin(), fBands.end(),
+                                        [slot](const EqBand& b) { return b.n == int(slot + 1); });
+            const unsigned base = slot * eq::kBandStride;
+            auto send = [&](unsigned field, float value) {
+                const unsigned i = base + field;
+                if (fParamValues[i] == value) return;
+                fParamValues[i] = value;
+                if (!fEditing[i])
+                {
+                    fEditing[i] = true;
+                    fInterface->parameterControlPressed(kParametersMainStart + i);
+                }
+                fInterface->parameterControlModified(kParametersMainStart + i, value);
+            };
+            if (it == fBands.end()) { send(eq::kPresent, 0.f); continue; }
+            const EqBand& b = *it;
+            send(eq::kEnabled, b.on ? 1.f : 0.f);
+            send(eq::kType, float(b.type));
+            send(eq::kChannel, float(b.channel));
+            send(eq::kFrequency, b.freq);
+            send(eq::kGain, b.gain);
+            send(eq::kQ, b.q);
+            send(eq::kAdaptiveQ, b.adaptiveQ);
+            send(eq::kSlope, float(b.slope));
+            send(eq::kPresent, 1.f);
+        }
+        if (fDrag.kind == DragKind::None)
+            for (unsigned i = 0; i < fEditing.size(); ++i)
+                if (fEditing[i])
+                {
+                    fEditing[i] = false;
+                    fInterface->parameterControlReleased(kParametersMainStart + i);
+                }
+    }
+
+    bool readParameters()
+    {
+        bool changed = false;
+        for (unsigned i = 0; i < kFaustParameterCount; ++i)
+        {
+            const float value = fInterface->getParameterValue(kParametersMainStart + i);
+            if (fParamValues[i] == value) continue;
+            fParamValues[i] = value;
+            changed = true;
+        }
+        if (changed) restoreBands();
+        return changed;
+    }
+
+    void restoreBands()
+    {
+        for (unsigned slot = 0; slot < eq::kBandCount; ++slot)
+        {
+            const float* p = fParamValues + slot * eq::kBandStride;
+            auto it = std::find_if(fBands.begin(), fBands.end(),
+                                  [slot](const EqBand& b) { return b.n == int(slot + 1); });
+            if (p[eq::kPresent] < .5f)
+            {
+                if (it != fBands.end()) removeBand(it->id);
+                continue;
+            }
+            if (it == fBands.end())
+            {
+                EqBand b {};
+                b.id = ++fBandSeq;
+                b.n = slot + 1;
+                b.defFreq = p[eq::kFrequency];
+                b.defQ = 1.f;
+                b.color = EqColors::bands[slot % EqColors::bands.size()];
+                fBands.push_back(b);
+                it = fBands.end() - 1;
+            }
+            it->sampleRate = fInterface->getAudioSampleRate();
+            it->on = p[eq::kEnabled] > .5f;
+            it->type = static_cast<EqBandType>(int(p[eq::kType]));
+            it->channel = static_cast<EqChannel>(int(p[eq::kChannel]));
+            it->freq = p[eq::kFrequency];
+            it->gain = p[eq::kGain];
+            it->q = p[eq::kQ];
+            it->adaptiveQ = p[eq::kAdaptiveQ];
+            it->slope = int(p[eq::kSlope]);
+        }
     }
 
     EqBand* findBand(const uint32_t id) noexcept
@@ -476,6 +576,7 @@ private:
         b.slope = 2;
         b.color = EqColors::bands[(n - 1) % EqColors::bands.size()];
         b.created = getTime();
+        b.sampleRate = fInterface->getAudioSampleRate();
         applyTypeDefaults(b);
 
         fBands.push_back(b);
@@ -496,7 +597,7 @@ private:
 
     void setBandType(EqBand& b, const EqBandType type)
     {
-        if (b.type == type)
+        if (type != EqBandType::Peak || b.type == type)
             return;
 
         b.type = type;
@@ -1024,22 +1125,26 @@ private:
             }
         }
 
-        // Alternate 1 dB stripes. The stripe cut by the range edge fades with how much of it shows, so it grows in
-        // smoothly while the range zooms. Stripes under half a pixel are skipped: NanoVG fills a flat rectangle as
-        // a stencil fill that leaves a hairline in the stencil buffer for the curve fill to paint.
+        // Continue the 1 dB stripes through the display padding, beyond the
+        // labelled range. Clip and fade partial stripes only at the well edges.
         {
-            const int steps = static_cast<int>(std::floor(p.dbMax));
-            for (int k = 1; k < steps + 1; k += 2)
+            const float visibleDb = std::max(std::abs(p.dbAt(p.y)), std::abs(p.dbAt(p.y + p.h)));
+            const int steps = static_cast<int>(std::ceil(visibleDb));
+            const float stripeHeight = p.hUse / (2.f * p.dbMax);
+            for (int k = 1; k < steps; k += 2)
             {
-                const float lo = static_cast<float>(k), hi = std::min(static_cast<float>(k + 1), p.dbMax);
-                if (std::abs(p.yOf(hi) - p.yOf(lo)) < 0.5f)
-                    continue;
-                fillColor(Color(1.f, 1.f, 1.f, 0.028f * std::clamp(hi - lo, 0.f, 1.f)));
                 for (const float sign : { 1.f, -1.f })
                 {
-                    const float ya = p.yOf(sign * lo), yb = p.yOf(sign * hi);
+                    const float ya = p.yCurve(sign * k), yb = p.yCurve(sign * (k + 1));
+                    const float top = std::max(p.y, std::min(ya, yb));
+                    const float bottom = std::min(p.y + p.h, std::max(ya, yb));
+                    const float height = bottom - top;
+                    // Avoid degenerate NanoVG stencil fills leaving hairlines.
+                    if (height < 0.5f)
+                        continue;
+                    fillColor(Color(1.f, 1.f, 1.f, 0.028f * std::clamp(height / stripeHeight, 0.f, 1.f)));
                     beginPath();
-                    rect(p.x, std::min(ya, yb), p.w, std::abs(yb - ya));
+                    rect(p.x, top, p.w, height);
                     fill();
                 }
             }
@@ -1604,7 +1709,7 @@ private:
                 if (sel && lit)
                     glowDot(icons[i].x + icons[i].w * 0.5f, icons[i].y + icons[i].h * 0.5f, 4.f * s, 8.f * s, b->color, 0.25f);
                 const Color c = sel ? (lit ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
-                strokeTypeIcon(kBandTypes[i], icons[i], c, 1.2f * s * 22.f / 18.f);
+                strokeTypeIcon(kBandTypes[i], icons[i], kBandTypes[i] == EqBandType::Peak ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
             }
         }
 
@@ -1770,7 +1875,7 @@ private:
                 fill();
             }
             const Box icon { cell.x + (cell.w - 18.f * s) * 0.5f, cell.y + (cell.h - 12.f * s) * 0.5f, 18.f * s, 12.f * s };
-            strokeTypeIcon(kBandTypes[i], icon, sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
+            strokeTypeIcon(kBandTypes[i], icon, kBandTypes[i] != EqBandType::Peak ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
         }
 
         beginPath();
@@ -1820,19 +1925,14 @@ private:
 
     void idleCallback() override
     {
-        bool changed = false;
-
-        for (uint32_t i = 0; i < kFaustParameterCount; ++i)
-        {
-            if (const float value = fInterface->getParameterValue(kParametersMainStart + i); d_isNotEqual(fParamValues[i], value))
+        bool changed = readParameters();
+        changed |= restoreEditorSettings();
+        for (EqBand& b : fBands)
+            if (b.sampleRate != fInterface->getAudioSampleRate())
             {
-                fParamValues[i] = value;
-
-                // NOTE perhaps recalculate coeffs here?
-
+                b.sampleRate = fInterface->getAudioSampleRate();
                 changed = true;
             }
-        }
 
         const double now = getTime();
         const float dt = fLastIdleTime > 0.0 ? std::min<float>(now - fLastIdleTime, 0.1) : 0.f;
@@ -1962,6 +2062,7 @@ private:
 
     bool onMouse(const Widget::MouseEvent& ev) final
     {
+        const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
 
         if (! ev.press)
@@ -2038,6 +2139,7 @@ private:
 
     bool pressCaption(const float x, const float y)
     {
+        restoreEditorSettings();
         for (int i = 0; i < kCaptionCount; ++i)
         {
             if (! fCaptionBoxes[i].contains(x, y))
@@ -2065,6 +2167,7 @@ private:
                 fRangeIndex = (fRangeIndex + 1) % kRanges.size();
                 break;
             }
+            saveEditorSettings();
             return true;
         }
         return false;
@@ -2122,7 +2225,7 @@ private:
         }
 
         // empty space: a new band here, already being dragged
-        if (isBypassed())
+        if (isBypassed() || fBands.size() >= eq::kBandCount)
             return true;
 
         const double now = getTime();
@@ -2164,7 +2267,7 @@ private:
             return true;
         }
 
-        if (isBypassed())
+        if (isBypassed() || fBands.size() >= eq::kBandCount)
             return true;
 
         const double now = getTime();
@@ -2258,6 +2361,7 @@ private:
 
     bool onMotion(const Widget::MotionEvent& ev) final
     {
+        const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
 
         if (fDrag.kind != DragKind::None)
@@ -2448,6 +2552,7 @@ private:
 
     bool onScroll(const Widget::ScrollEvent& ev) final
     {
+        const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
         const float dir = ev.delta.getY() > 0.0 ? 1.f : ev.delta.getY() < 0.0 ? -1.f : 0.f;
         const float fine = (ev.mod & kModifierShift) != 0 ? 0.25f : 1.f;

@@ -22,6 +22,7 @@ enum States : uint8_t {
     kStateSnapshotValuesB,
     kStateSnapshotValuesC,
     kStateSnapshotValuesD,
+    kStateEditorSettings,
 #endif
     kStateCount,
 };
@@ -41,6 +42,7 @@ inline constexpr const char* kStateKeys[kStateCount] = {
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "b",
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "c",
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
+    "editor_settings",
 };
 
 inline constexpr const uint8_t kNumSnapshots = 4;

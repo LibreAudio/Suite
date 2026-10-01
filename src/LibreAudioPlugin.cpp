@@ -225,6 +225,9 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
     case kStateSnapshotValuesD:
         state.label = "Snapshot Values D";
         break;
+    case kStateEditorSettings:
+        state.label = "Editor Settings";
+        break;
     case kStateCount:
         break;
     }

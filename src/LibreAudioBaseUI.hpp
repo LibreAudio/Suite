@@ -6,6 +6,7 @@
 
 #include "DistrhoUI.hpp"
 #include "FaustParameter.hpp"
+#include <string>
 #include "LibreAudioSnapshots.hpp"
 
 #include "ui/base.hpp"
@@ -76,8 +77,14 @@ private:
     uint32_t fCurrentPreset = 0; // TODO
 
     float fScaleFactor = 1.f;
+    std::string fEditorSettings;
+    [[nodiscard]] const char* getEditorSettings() const noexcept final { return fEditorSettings.c_str(); }
+    void setEditorSettings(const char* value) final;
+
     double fRunnerRate = 0;
     bool fIsMouseDown = false;
+
+    [[nodiscard]] double getAudioSampleRate() const noexcept final { return getSampleRate(); }
 
     [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
 
