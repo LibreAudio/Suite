@@ -28,7 +28,7 @@
 
 #include <array>
 
-namespace {{id}} {
+namespace {{cid(id)}} {
 
 enum FaustParameterIndex {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}

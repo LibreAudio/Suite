@@ -16,14 +16,14 @@
 {% if fdrversioninfo is undefined or fdrversioninfo < (0, 2, 0) %}
 {{fail("This template is not compatible with faustdoctor version < 0.2.0.")}}
 {% endif %}
-{% if not (id is defined and id == cid(id)) %}
-{{fail("`id` is undefined or invalid.")}}
+{% if id is not defined %}
+{{fail("`id` is undefined.")}}
 {% endif %}
 {% endblock %}
 
 #include "{{id}}-dsp.hpp"
 
-#define FAUSTDR_BEGIN_NAMESPACE namespace {{id}} {
+#define FAUSTDR_BEGIN_NAMESPACE namespace {{cid(id)}} {
 #define FAUSTDR_END_NAMESPACE }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@
     | replace('#include <math.h>\n', '')
     | replace('\n\t\n', '\n\n')
     | replace(' \n', '\n')
-    | replace('\t' + id + '() {\n\t}', '\tLIBREAUDIO_EXTRA_METHODS\n\n\t' + id + '() = default;')
+    | replace('\t' + cid(id) + '() {\n\t}', '\tLIBREAUDIO_EXTRA_METHODS\n\n\t' + cid(id) + '() = default;')
     | replace('\t', '    ')
     | replace(' FAUSTDR_PRIVATE', 'private')
     | replace(' FAUSTDR_PROTECTED', 'protected')
@@ -65,7 +65,7 @@ FAUSTDR_BEGIN_NAMESPACE
 // --------------------------------------------------------------------------------------------------------------------
 // custom extensions to faust generated code
 
-inline float {{id}}::get(uint32_t index) const
+inline float {{cid(id)}}::get(uint32_t index) const
 {
     switch (index) {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}
@@ -77,7 +77,7 @@ inline float {{id}}::get(uint32_t index) const
     }
 }
 
-inline void {{id}}::set(uint32_t index, float value)
+inline void {{cid(id)}}::set(uint32_t index, float value)
 {
     switch (index) {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}
@@ -89,19 +89,19 @@ inline void {{id}}::set(uint32_t index, float value)
 }
 
 {% for w in active if w.symbol == "dpf_bpm" %}
-inline void {{id}}::setBPM(float value)
+inline void {{cid(id)}}::setBPM(float value)
 {
     {{w.varname}} = value;
 }
 {% endfor %}
 {% for w in active if w.symbol == "dpf_vad" %}
-inline void {{id}}::setVAD(float value)
+inline void {{cid(id)}}::setVAD(float value)
 {
     {{w.varname}} = value;
 }
 {% endfor %}
 {% for w in passive if w.symbol == "latency_samples" %}
-inline float {{id}}::latency() const
+inline float {{cid(id)}}::latency() const
 {
     return {{w.varname}};
 }
@@ -111,7 +111,7 @@ inline float {{id}}::latency() const
 
 FaustDSP* createDSP()
 {
-    return new {{id}};
+    return new {{cid(id)}};
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ START_NAMESPACE_DISTRHO
 
 FaustDSP* createDSP()
 {
-    return new {{id}}::{{id}};
+    return new {{cid(id)}}::{{cid(id)}};
 }
 
 END_NAMESPACE_DISTRHO

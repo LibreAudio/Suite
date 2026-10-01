@@ -8,6 +8,7 @@
 
 function(las_generate_faust_cpp TARGET)
   string(REPLACE "/" "_" OUTPUT ${TARGET})
+  string(REPLACE "-" "_" CLASS ${OUTPUT})
 
   add_custom_command(
     OUTPUT
@@ -20,7 +21,7 @@ function(las_generate_faust_cpp TARGET)
       -Did=${OUTPUT}
       ${VEC_ARGS}
       -X--in-place
-      -X--class-name -X${OUTPUT}
+      -X--class-name -X${CLASS}
       -X--super-class-name -XFaustDSP
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
