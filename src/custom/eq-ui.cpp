@@ -8,6 +8,7 @@
 
 #include "LibreAudioParameters.hpp"
 #include "eq/bell-response.hpp"
+#include "eq/highpass.hpp"
 
 #include "OpenGL.hpp"
 
@@ -24,7 +25,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 // Dynamic native EQ: band numbers map to stable host parameter slots.
-// Bell DSP is implemented; the remaining filter shapes are reserved for later.
+// Bell and Butterworth high-pass DSP are implemented; other shapes are reserved for later.
 //
 // Geometry is in prototype px, 1:1 with plugin px at scale 1. Text is drawn kTextScale larger, as the suite's other
 // widgets size text against their prototypes, and whatever is laid out around text grows with it.
@@ -180,9 +181,12 @@ struct EqResponse {
 
     static float bandDb(const float f, const EqBand& b) noexcept
     {
-        if (!b.on || b.type != EqBandType::Peak)
-            return 0.f;
-        return eq::bellResponse(f, b.freq, b.gain, b.q, b.adaptiveQ, b.sampleRate);
+        if (!b.on) return 0.f;
+        if (b.type == EqBandType::HighPass)
+            return eq::highPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
+        if (b.type == EqBandType::Peak)
+            return eq::bellResponse(f, b.freq, b.gain, b.q, b.adaptiveQ, b.sampleRate);
+        return 0.f;
     }
 
     // the summed response of every band
@@ -207,8 +211,7 @@ struct EqResponse {
     // the type a new band gets, by where it lands across the display
     static EqBandType typeAt(const float t) noexcept
     {
-        (void)t;
-        return EqBandType::Peak;
+        return t < 0.1f ? EqBandType::HighPass : EqBandType::Peak;
     }
 
     static const char* typeName(const EqBandType type) noexcept
@@ -528,6 +531,7 @@ private:
             it->sampleRate = fInterface->getAudioSampleRate();
             it->on = p[eq::kEnabled] > .5f;
             it->type = static_cast<EqBandType>(int(p[eq::kType]));
+            it->defQ = it->isCut() ? 0.707f : 1.f;
             it->channel = static_cast<EqChannel>(int(p[eq::kChannel]));
             it->freq = p[eq::kFrequency];
             it->gain = p[eq::kGain];
@@ -596,7 +600,7 @@ private:
 
     void setBandType(EqBand& b, const EqBandType type)
     {
-        if (type != EqBandType::Peak || b.type == type)
+        if ((type != EqBandType::Peak && type != EqBandType::HighPass) || b.type == type)
             return;
 
         b.type = type;
@@ -1709,7 +1713,7 @@ private:
                 if (sel && lit)
                     glowDot(icons[i].x + icons[i].w * 0.5f, icons[i].y + icons[i].h * 0.5f, 4.f * s, 8.f * s, b->color, 0.25f);
                 const Color c = sel ? (lit ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
-                strokeTypeIcon(kBandTypes[i], icons[i], kBandTypes[i] == EqBandType::Peak ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
+                strokeTypeIcon(kBandTypes[i], icons[i], (kBandTypes[i] == EqBandType::Peak || kBandTypes[i] == EqBandType::HighPass) ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
             }
         }
 
@@ -1875,7 +1879,7 @@ private:
                 fill();
             }
             const Box icon { cell.x + (cell.w - 18.f * s) * 0.5f, cell.y + (cell.h - 12.f * s) * 0.5f, 18.f * s, 12.f * s };
-            strokeTypeIcon(kBandTypes[i], icon, kBandTypes[i] != EqBandType::Peak ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
+            strokeTypeIcon(kBandTypes[i], icon, (kBandTypes[i] != EqBandType::Peak && kBandTypes[i] != EqBandType::HighPass) ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
         }
 
         beginPath();

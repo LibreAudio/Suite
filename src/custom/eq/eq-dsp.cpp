@@ -1,9 +1,10 @@
-// Libre Audio Suite — native dynamically processed bell bands.
+// Libre Audio Suite — native dynamically processed EQ bands.
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "eq-dsp.hpp"
 #include "eq-parameters.hpp"
 #include "bell-response.hpp"
 #include "x42-bell.hpp"
+#include "highpass.hpp"
 #include <array>
 
 namespace eq {
@@ -11,6 +12,7 @@ class DynamicEq final : public FaustDSP
 {
     struct Band {
         Fil4Paramsect filter[2];
+        HighPass highpass[2];
         float frequency = .02f, bandwidth = 1.f;
         float gain[2] = {1.f, 1.f};
         bool dirty = true;
@@ -45,12 +47,19 @@ public:
     void instanceClear() override
     {
         for (auto& band : bands)
+        {
             for (auto& filter : band.filter) filter.init();
+            for (auto& filter : band.highpass) filter.clear();
+        }
     }
     void instanceConstants(int sampleRate) override
     {
         rate = std::max(1, sampleRate);
-        for (auto& band : bands) band.dirty = true;
+        for (auto& band : bands)
+        {
+            band.dirty = true;
+            for (auto& filter : band.highpass) filter.setRate(rate);
+        }
         instanceClear();
     }
     void instanceInit(int sampleRate) override
@@ -74,17 +83,21 @@ public:
             const float gain = enabled ? std::pow(10.f, p[kGain] / 20.f) : 1.f;
             band.gain[0] = p[kChannel] == 2.f ? 1.f : gain;
             band.gain[1] = p[kChannel] == 1.f ? 1.f : gain;
+            const bool hp = p[kPresent] > .5f && p[kEnabled] > .5f && p[kType] == 0.f;
+            for (unsigned c = 0; c < 2; ++c)
+                band.highpass[c].configure(hp && p[kChannel] != (c == 0 ? 2.f : 1.f),
+                                           p[kFrequency], int(p[kSlope]), p[kQ], rate);
             band.dirty = false;
         }
 
-        // The active list includes bells fading back to unity. Once settled,
+        // The active list includes filters fading back to unity. Once settled,
         // disabled/removed/zero-gain bands consume no per-sample filter work.
         struct Active { Band* band; unsigned channel; };
         std::array<Active, kBandCount * 2> active;
         unsigned size = 0;
         for (auto& band : bands)
             for (unsigned c = 0; c < 2; ++c)
-                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f)
+                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active())
                     active[size++] = {&band, c};
         if (size == 0) return; // exact passthrough, without even an M/S round trip
 
@@ -102,7 +115,9 @@ public:
             {
                 auto& b = *active[i].band;
                 const unsigned c = active[i].channel;
-                b.filter[c].proc(n, signal[c], b.frequency, b.bandwidth, b.gain[c]);
+                if (b.gain[c] != 1.f || b.filter[c].g0() != 0.f)
+                    b.filter[c].proc(n, signal[c], b.frequency, b.bandwidth, b.gain[c]);
+                b.highpass[c].process(n, signal[c]);
             }
             for (int i = 0; i < n; ++i)
             {
