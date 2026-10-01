@@ -27,6 +27,11 @@ public:
     [[nodiscard]] virtual bool isButtonEnabled(uint32_t id) const noexcept = 0;
     [[nodiscard]] virtual bool isButtonChecked(uint32_t id) const noexcept = 0;
 
+    [[nodiscard]] virtual const char* getEditorSettings() const noexcept = 0;
+    virtual void setEditorSettings(const char* value) = 0;
+
+    [[nodiscard]] virtual double getAudioSampleRate() const noexcept = 0;
+
     [[nodiscard]] virtual float getScaleFactor() const noexcept = 0;
 };
 
