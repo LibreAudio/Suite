@@ -3,6 +3,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
+# faust libraries shared between plugins; every plugin is regenerated when one changes
+
+file(GLOB
+  LAS_FAUST_LIBS
+    CONFIGURE_DEPENDS
+      ${CMAKE_CURRENT_SOURCE_DIR}/dsp-faust/*.lib
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
 # function to generate $TARGET-dsp.{c,h}pp and $TARGET-parameters.{c,h}pp
 # used for common code and DPF plugins
 
@@ -25,6 +34,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${LAS_FAUST_LIBS}
       templates/dsp.cpp.in
     VERBATIM
   )
@@ -41,6 +51,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${LAS_FAUST_LIBS}
       templates/dsp.hpp.in
     VERBATIM
   )
@@ -57,6 +68,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${LAS_FAUST_LIBS}
       templates/parameters.hpp.in
     VERBATIM
   )
@@ -91,6 +103,7 @@ function(las_generate_faust_plugin TARGET)
     DEPENDS
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
       dsp-faust/${TARGET}.dsp
+      ${LAS_FAUST_LIBS}
       templates/config.h.in
     VERBATIM
   )
@@ -233,7 +246,21 @@ function(las_add_plugin LABEL)
     set(DSP_FILE LibreAudioPlugin.cpp)
   endif()
 
+  if("${LABEL}" STREQUAL "eq")
+    # Keep the shared plugin shell, but source EQ DSP and metadata entirely from C++.
+    set(MAIN_DSP_FILES custom/eq/eq-dsp.cpp custom/eq/eq-dsp.hpp)
+    set(MAIN_PARAMETER_FILE custom/eq/eq-parameters.hpp)
+    set(MAIN_CONFIG_FILE custom/eq/config.h)
+  else()
+    set(MAIN_DSP_FILES ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp)
+    set(MAIN_PARAMETER_FILE ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp)
+    set(MAIN_CONFIG_FILE ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h)
+  endif()
+
   set(UI_FILE custom/${LABEL}-ui.cpp)
+  if("${LABEL}" STREQUAL "mbComp5")
+    set(UI_FILE custom/mb5Comp-ui.cpp)
+  endif()
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_FILE}")
     set(UI_FILE LibreAudioUI.cpp)
   endif()
@@ -246,12 +273,11 @@ function(las_add_plugin LABEL)
         empty.c
         ${CMAKE_CURRENT_BINARY_DIR}/common_input-parameters.hpp
         ${CMAKE_CURRENT_BINARY_DIR}/common_output-parameters.hpp
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
+        ${MAIN_PARAMETER_FILE}
+        ${MAIN_CONFIG_FILE}
       FILES_DSP
         ${DSP_FILE}
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
+        ${MAIN_DSP_FILES}
       FILES_UI
         ${UI_FILE}
         LibreAudioBaseUI.cpp
@@ -280,18 +306,19 @@ function(las_add_plugin LABEL)
         lv2
       FILES_COMMON
         empty.c
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
+        ${MAIN_PARAMETER_FILE}
+        ${MAIN_CONFIG_FILE}
       FILES_DSP
         ${DSP_FILE}
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
-        ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
+        ${MAIN_DSP_FILES}
       ${EXTRA_ARGS}
     )
   endif()
 
-  las_generate_faust_cpp(${LABEL})
-  las_generate_faust_plugin(${LABEL})
+  if(NOT "${LABEL}" STREQUAL "eq")
+    las_generate_faust_cpp(${LABEL})
+    las_generate_faust_plugin(${LABEL})
+  endif()
 
   set_target_properties(${TARGET}
     PROPERTIES
@@ -311,9 +338,9 @@ function(las_add_plugin LABEL)
 
   target_include_directories(${TARGET}
     PUBLIC
+      custom/${LABEL}
       ${CMAKE_CURRENT_BINARY_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}
-      custom/${LABEL}
       .
   )
 
@@ -334,7 +361,12 @@ file(GLOB
 
 foreach(PLUGIN ${LIBREAUDIO_PLUGINS})
   string(REGEX REPLACE "^(.*)/(.*)\.dsp$" "\\2" PLUGIN "${PLUGIN}")
-  las_add_plugin(${PLUGIN})
+  if(NOT "${PLUGIN}" STREQUAL "eq")
+    las_add_plugin(${PLUGIN})
+  endif()
 endforeach()
+
+# Native EQ is available independently of the legacy Faust source.
+las_add_plugin(eq)
 
 # ---------------------------------------------------------------------------------------------------------------------
