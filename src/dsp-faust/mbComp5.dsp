@@ -29,7 +29,7 @@ Nch = 2;
 Nba = 5;
 
 maxGR    = -60;  // meter floor, also the widest Range setting
-maxMeter = -24;  // per-band gain reduction meter floor
+maxMeter = maxGR; // expose the full reduction to the native response display
 
 maxLookaheadSamples = 9600; // 50 ms at 192 kHz
 
@@ -264,10 +264,29 @@ lookaheadSamples = lookaheadDelay : latency_meter;
 // thing worth seeing here, and it is invisible in a single merged reading.
 // Both are the reduction actually applied - after Bypass and Listen have
 // scaled it, before Makeup adds back - so a bypassed or muted band reads 0.
-bandMeterM(n) = max(maxMeter) : mid_meters(hbargraph("[%n]Band %n M[unit:dB][symbol:gr_band%{n}_mid]",
+//
+// Display ballistics on the metered value only; the attach keeps the audio
+// path untouched. Negated so si.onePoleSwitching's rising edge is more
+// reduction: it catches onsets fast and falls back slowly.
+meterAtt = 0.005;
+meterRel = 0.15;
+meterBallistics = max(maxMeter) : neg : si.onePoleSwitching(meterAtt, meterRel) : neg
+with { neg = *(-1); };
+
+bandMeterM(n) = meterBallistics : mid_meters(hbargraph("[%n]Band %n M[unit:dB][symbol:gr_band%{n}_mid]",
                                                      maxMeter, 0));
-bandMeterS(n) = max(maxMeter) : side_meters(hbargraph("[%n]Band %n S[unit:dB][symbol:gr_band%{n}_side]",
+bandMeterS(n) = meterBallistics : side_meters(hbargraph("[%n]Band %n S[unit:dB][symbol:gr_band%{n}_side]",
                                                       maxMeter, 0));
+
+// Passive detector taps for the native UI's threshold meters. Append groups
+// after the existing GR meters to preserve their parameter identifiers.
+// Same ballistics as the GR meters, unnegated: here rising is louder.
+detectorMeter(c, n, x) = attach(x, max(-60, min(0, x))
+                                   : si.onePoleSwitching(meterAtt, meterRel) : meter)
+with {
+    meter = meter_group(hgroup("[2]Detector", hgroup("[%c]Channel %c",
+        hbargraph("[%n]Band %n[unit:dB][symbol:level_band%{n}_ch%c]", -60, 0))));
+};
 
 //======================= Level detector =======================
 // One reading rather than compressor.dsp's peak/RMS crossfade, because RMS
@@ -571,7 +590,7 @@ mergeAudio = route(Nch*Nba + Nch, Nch*(Nba + 1),
 // target, and it costs nothing to move past the links because a monotonic
 // limit commutes with a minimum.
 
-grCompute = par(c, Nch, bandSplit : par(b, Nba, levelDb))   // channel-major
+grCompute = par(c, Nch, bandSplit : par(b, Nba, levelDb : detectorMeter(c, b+1))) // channel-major
           : (thresh_array, ratio_array, si.bus(Nba * Nch))
           : ro.interleave(Nba, 2 + Nch)                     // (th, ratio, x..) per band
           : par(b, Nba, gcBand)                             // band-major

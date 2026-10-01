@@ -322,15 +322,16 @@ smoo(dflt, x) = (x - dflt) : si.smoo : +(dflt);
 
 //======================== the reverb =========================================
 
-// Four sections, left to right in signal order: what goes in, the early
-// reflections, the late tails, and the mix that comes out. Defined at file
-// scope rather than inside `reverb` so the de-esser, which lives further down,
-// can put its own control in the Input strip with the two cuts it belongs next
-// to.
-rev_group(x)  = hgroup("REVERB", x);
-in_group(x)   = rev_group(hgroup("[0] Input", x));
-dim_group(x)  = rev_group(vgroup("[1] Dimension", x));
-er_group(x)   = rev_group(vgroup("[2] Early Reflections", x));
+// Rows: ER beside Tail, Input/Output, then the hidden EQ bands and meters. Defined at file
+// scope so the de-esser and ducker can share the Input and Output groups.
+rev_group(x)  = vgroup("REVERB", x);
+top_group(x)  = rev_group(hgroup("[0] Top", x));
+er_group(x)   = top_group(vgroup("[0] ER", x));
+er_top(x)     = er_group(hgroup("[0]Top", x));
+er_bot(x)     = er_group(hgroup("[1]Bottom", x));
+er_meters(x)  = top_group(hgroup("[1] ER Meters", x));
+io_group(x)   = rev_group(hgroup("[2] Input/Output", x));
+in_group(x)   = io_group(hgroup("[0] Input", x));
 // The Tail section carries twelve controls, so it is a vgroup of two hgroups
 // rather than one long row. The split is by kind, not simply down the middle:
 // the top row is routing and time — what the tanks listen to, which tank, how
@@ -338,19 +339,21 @@ er_group(x)   = rev_group(vgroup("[2] Early Reflections", x));
 // texture. That keeps Bass Multiply, Bass Freq and HF Damping together, since
 // all three do the same job of making the decay frequency-dependent, and it
 // keeps Shape and Spread next to the Decay and Size they work against.
-tail_group(x) = rev_group(vgroup("[3] Tail", x));
+tail_group(x) = top_group(vgroup("[2] TAIL", x));
 tail_top(x)   = tail_group(hgroup("[0]Time", x));
 tail_bot(x)   = tail_group(hgroup("[1]Tone", x));
+tail_meters(x) = top_group(hgroup("[3] TAIL Meters", x));
 // Five bands side by side, each one a column of its own: Q on top, then Freq,
 // then Gain. The band's identity is the group label, so the controls inside it
 // only need to say which parameter they are.
-eq_group(x)   = rev_group(hgroup("[4] EQ", x));
+hidden_group(x) = rev_group(hgroup("[9] Hidden", x));
+eq_group(x)   = hidden_group(x);
 eq_ls(x)      = eq_group(vgroup("[0] Low Shelf", x));
 eq_b1(x)      = eq_group(vgroup("[1] Bell 1", x));
 eq_b2(x)      = eq_group(vgroup("[2] Bell 2", x));
 eq_b3(x)      = eq_group(vgroup("[3] Bell 3", x));
 eq_hs(x)      = eq_group(vgroup("[4] High Shelf", x));
-out_group(x)  = rev_group(hgroup("[5] Output", x));
+out_group(x)  = io_group(hgroup("[1] Output", x));
 
 uiMeters(x) = hgroup("[9]", x);
 
@@ -364,22 +367,22 @@ with {
 
     // Scales every tap time and every diffuser delay. This is the distance
     // cue: the first tap moves from ~6 ms (intimate) to ~23 ms (large hall).
-    size = er_group(hslider("[1] ER Size [style:knob] [symbol:er_size]",
+    size = er_top(hslider("[1] ER Size [style:knob] [symbol:er_size]",
                             1.0, 0.5, MAXSIZE, 0.001)) : smoo(1.0);
 
     // 0 = bare taps, 480L-style discrete reflections, good on drums.
     // 1 = fully smeared bloom, M7-style, good on vocals and strings.
-    diffusion = er_group(hslider("[2] ER Diffusion [style:knob] [symbol:er_diffusion]",
+    diffusion = er_top(hslider("[2] ER Diffusion [style:knob] [symbol:er_diffusion]",
                                  0.6, 0, 1, 0.001)) : smoo(0.6) : *(GMAX);
 
     // Cutoff of the first tap block; later blocks are darker by fixed ratios.
-    damp = er_group(hslider("[3] ER Damping [unit:Hz] [scale:log] [style:knob] [symbol:er_damping]",
+    damp = er_bot(hslider("[3] ER Damping [unit:Hz] [scale:log] [style:knob] [symbol:er_damping]",
                             7000, 800, 20000, 1)) : smoo(7000) : min(0.45 * ma.SR);
 
     // How much of each input reaches the opposite output. At 0 a hard-panned
     // source keeps its reflections on its own side; turning it up spreads the
     // pattern across the image.
-    spread = er_group(hslider("[4] ER Spread [unit:%] [style:knob] [symbol:er_spread]",
+    spread = er_bot(hslider("[4] ER Spread [unit:%] [style:knob] [symbol:er_spread]",
                               70, 0, 100, 1)) / 100 : smoo(0.70);
 
     // --- tail controls ---
@@ -458,16 +461,13 @@ with {
                                18000, 1000, 20000, 1)) : min(0.45 * ma.SR);
 
     // --- dimension ---
-    // The SDD-320's four-button switch, as a four-position dial. It steps the
-    // sweep depth only, so the buttons differ in width rather than in level.
-    dimsel = dim_group(hslider("[0] Dimension [style:knob] [symbol:dim]",
-                               1, 1, 4, 1)) - 1 : int;
-
-    // How much anti-phase wet is added. Nothing is taken away from the signal
-    // passing through, so this only ever adds; at 0 the stage is a bypass and
-    // that is where it starts.
-    dimwet = dim_group(hslider("[1] Wet [unit:%] [style:knob] [symbol:dim_wet]",
-                               0, 0, 100, 1)) / 100 : smoo(0.0);
+    // One macro blends continuously from SDD-320 mode 1 to mode 2 while
+    // raising the added anti-phase wet signal from 0 to 100%. Smooth both
+    // together; the default of 0 leaves the stage bypassed.
+    dimmacro = in_group(hslider("[5] Dimension [unit:%] [style:knob] [symbol:dim]",
+                                0, 0, 100, 0.1)) / 100 : smoo(0.0);
+    dimsel = 1 + dimmacro;
+    dimwet = dimmacro;
 
     // --- eq ---
     // A five band parametric on the wet path, after everything else: a low
@@ -554,18 +554,18 @@ with {
     // both together, so a master would only duplicate what two of these already
     // do. ER and Tail default 6 dB down, which puts the wet/dry balance within
     // half a dB of where the old 35% dry/wet default sat.
-    drylevel = out_group(vslider("[3] Dry [unit:dB] [symbol:dry_level]",
+    drylevel = out_group(hslider("[3] Dry [unit:dB] [style:knob] [symbol:dry_level]",
                                  0, -60, 12, 0.1)) : ba.db2linear : si.smoo;
-    erlevel = out_group(vslider("[4] ER [unit:dB] [symbol:er_level]",
+    erlevel = out_group(hslider("[4] ER [unit:dB] [style:knob] [symbol:er_level]",
                                 -6, -60, 12, 0.1)) : ba.db2linear : si.smoo;
-    er_meterL = out_group(vbargraph("[5] ER L [unit:dB] [symbol:er_meter_l]", -60, 12));
-    er_meterR = out_group(vbargraph("[6] ER R [unit:dB] [symbol:er_meter_r]", -60, 12));
+    er_meterL = er_meters(vbargraph("[0] ER L [unit:dB] [symbol:er_meter_l]", -60, 12));
+    er_meterR = er_meters(vbargraph("[1] ER R [unit:dB] [symbol:er_meter_r]", -60, 12));
 
-    taillevel = out_group(vslider("[7] Tail [unit:dB] [symbol:tail_level]",
+    taillevel = out_group(hslider("[7] Tail [unit:dB] [style:knob] [symbol:tail_level]",
                                   -6, -60, 12, 0.1)) : ba.db2linear : si.smoo;
 
-    tail_meterL = out_group(vbargraph("[8] Tail L [unit:dB] [symbol:tail_meter_l]", -60, 12));
-    tail_meterR = out_group(vbargraph("[9] Tail R [unit:dB] [symbol:tail_meter_r]", -60, 12));
+    tail_meterL = tail_meters(vbargraph("[0] Tail L [unit:dB] [symbol:tail_meter_l]", -60, 12));
+    tail_meterR = tail_meters(vbargraph("[1] Tail R [unit:dB] [symbol:tail_meter_r]", -60, 12));
 
     // Post-fader metering: each meter shows what its stage is actually putting
     // into the mix, so pulling a fader down moves its own meter. Both sit ahead
@@ -636,15 +636,14 @@ with {
     // tap matrix are fed the widened signal, so the reverb inherits the width
     // instead of having it painted on afterwards.
     //
-    // The signal passing through is untouched — the Wet control adds the side
+    // The signal passing through is untouched — the Dimension macro adds the side
     // content on top rather than crossfading to it, so at 0 the stage is
     // bit-identical to not being there.
     dimension(l, r) = l + wet, r - wet
     with {
         mono  = (l + r) * 0.5;
-        // Smoothed because the dial steps depth discontinuously, and a step in
-        // delay time is a click. The dial itself stays an integer.
-        depth = (DIM_DEPTH_BASE + dimsel * DIM_DEPTH_STEP) : smoo(DIM_DEPTH_BASE);
+        // The macro is already smoothed; modes 1–2 span 0.2–0.4 ms continuously.
+        depth = DIM_DEPTH_BASE + (dimsel - 1) * DIM_DEPTH_STEP;
         // os.osci rather than chorus.dsp's os.osc: same waveform, interpolated,
         // which is what everything else in this file uses to drive a delay.
         dt    = max(1.0, (DIM_DELAY + os.osci(DIM_RATE) * depth) * ma.SR);
@@ -903,7 +902,7 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB - ceiling on total reduc
 lerp(a, b, t) = a + (b - a) * t;
 
 hflim_amount = in_group(hslider("[0]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
-hflim_meter  = in_group(vbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 18));
+hflim_meter  = hidden_group(vbargraph("[5]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 18));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
@@ -1012,7 +1011,7 @@ duckRelAt0    = 0.300;  duckRelAt100    = 0.150;  // s
 
 duck_amount = out_group(hslider("[0] Duck [unit:%] [style:knob] [symbol:duck_amount]",
                                 0, 0, 100, 1)) / 100;
-duck_meter  = out_group(vbargraph("[1] Duck GR [unit:dB] [symbol:duck_meter]", 0, 18));
+duck_meter  = hidden_group(vbargraph("[6] Duck GR [unit:dB] [symbol:duck_meter]", 0, 18));
 
 duck_thresh = lerp(duckThreshAt0, duckThreshAt100, duck_amount);
 duck_ratio  = lerp(duckRatioAt0,  duckRatioAt100,  duck_amount);
