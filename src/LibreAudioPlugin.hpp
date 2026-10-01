@@ -12,6 +12,7 @@
 #include <atomic>
 
 #ifdef LIBREAUDIO_CUSTOM_UI
+#include "LibreAudioIPC.hpp"
 #include "extra/RingBuffer.hpp"
 #include "extra/Runner.hpp"
 #endif
@@ -177,6 +178,7 @@ private:
     void doUnmute();
 
    #ifdef LIBREAUDIO_CUSTOM_UI
+    LibreAudioIPC fIPC;
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
     bool run() final;

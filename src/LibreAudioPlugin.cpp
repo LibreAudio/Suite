@@ -201,12 +201,6 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
 
     switch (static_cast<States>(index))
     {
-    case kStateAudioPeakBufferSize:
-        state.label = "Audio Peaks Buffer Size";
-        break;
-    case kStateAudioPeakValues:
-        state.label = "Audio Peak Values";
-        break;
     case kStateMode:
         state.label = "Mode";
         break;
@@ -313,9 +307,25 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
 }
 
 #ifdef LIBREAUDIO_CUSTOM_UI
-void LibreAudioPlugin::setState(const char*, const char*)
+void LibreAudioPlugin::setState(const char* const key, const char* const value)
 {
-    // all states in LA plugins are UI-only
+    if (std::strcmp(key, kStateKeyFileMappingIPC) == 0)
+    {
+        if (value[0] == '\0')
+        {
+            stopRunner();
+            fRunnerBuffer.deleteBuffer();
+            fIPC.close();
+            return;
+        }
+
+        if (fIPC.connect(value))
+        {
+            fRunnerBufferSize = 128u;
+            fRunnerBuffer.createBuffer(fRunnerBufferSize * 32 * DISTRHO_PLUGIN_NUM_INPUTS * sizeof(float));
+            startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
+        }
+    }
 }
 #endif
 
@@ -325,27 +335,10 @@ void LibreAudioPlugin::setState(const char*, const char*)
 void LibreAudioPlugin::activate()
 {
     fCommonParameterValues[kCommonParameterReset] = 1.f;
-
-   #ifdef LIBREAUDIO_CUSTOM_UI
-    fRunnerBufferSize = std::max(getBufferSize(), 1024u);
-    fRunnerBuffer.createBuffer(fRunnerBufferSize * 32 * DISTRHO_PLUGIN_NUM_INPUTS * sizeof(float));
-
-    {
-        char bufsizestr[32];
-        std::snprintf(bufsizestr, sizeof(bufsizestr), "%u", fRunnerBufferSize);
-        updateStateValue(kStateKeys[kStateAudioPeakBufferSize], bufsizestr);
-    }
-
-    startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
-   #endif
 }
 
 void LibreAudioPlugin::deactivate()
 {
-   #ifdef LIBREAUDIO_CUSTOM_UI
-    stopRunner();
-    fRunnerBuffer.deleteBuffer();
-   #endif
 }
 
 void LibreAudioPlugin::run(const float** const inputs, float** const outputs, const uint32_t frames)
@@ -389,6 +382,9 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         const TimePosition& timePos = getTimePosition();
         fMainDSP->setBPM(timePos.bbt.beatsPerMinute);
     }
+   #endif
+   #ifdef LIBREAUDIO_CUSTOM_UI
+    const bool runnerStarted = fRunnerBuffer.getSize() != 0;
    #endif
 
     for (uint32_t i = 0, cycleFrames; i < frames; i += kInternalBlockSize)
@@ -439,7 +435,8 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
                     __builtin_unreachable();
 
                #ifdef LIBREAUDIO_CUSTOM_UI
-                fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
+                if (runnerStarted)
+                    fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
                #endif
 
                #if DISTRHO_PLUGIN_WANT_LATENCY
@@ -457,7 +454,8 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         }
 
        #ifdef LIBREAUDIO_CUSTOM_UI
-        fRunnerBuffer.commitWrite();
+        if (runnerStarted)
+            fRunnerBuffer.commitWrite();
        #endif
 
         if (fMuting.load() && d_isZero(fGlobalDryValue.peek()) && d_isZero(fGlobalWetValue.peek()))
@@ -569,16 +567,11 @@ bool LibreAudioPlugin::run()
                 max[c] = v;
     }
 
-    char strbuf[10 * DISTRHO_PLUGIN_NUM_OUTPUTS + 2];
-    {
-        const ScopedSafeLocale ssl;
-        for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-            std::snprintf(strbuf + 9 * c, 10, "%.6f ", max[c]);
-    }
-    *(strbuf + DISTRHO_PLUGIN_NUM_OUTPUTS * 9 - 1) = '\0';
-    updateStateValue(kStateKeys[kStateAudioPeakValues], strbuf);
+    if (fIPC.push(max))
+        return true;
 
-    return true;
+    fRunnerBuffer.deleteBuffer();
+    return false;
 }
 #endif
 

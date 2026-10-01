@@ -17,13 +17,16 @@ float data(float x)
     return c;
 }
 
+#define FILL 0.95
+#define GRAD 0.10
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
     vec2 uv = fragCoord / iResolution.xy;
 
     float px = data(uv.x);
     float poly = smoothstep(-1.0, 1.0, (px - uv.y) * iResolution.y);
-    float trans = uv.y;
+    float grad = FILL * pow(uv.y, GRAD);
 
-    fragColor = vec4(color * poly, poly * trans);
+    fragColor = vec4(color * poly, poly * grad);
 }

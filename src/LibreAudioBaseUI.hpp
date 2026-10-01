@@ -7,6 +7,7 @@
 #include "DistrhoUI.hpp"
 #include "FaustParameter.hpp"
 #include "LibreAudioSnapshots.hpp"
+#include "LibreAudioIPC.hpp"
 
 #include "ui/base.hpp"
 #include "ui/reference.hpp"
@@ -70,13 +71,14 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
+    LibreAudioIPC fIPC;
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
+    bool fFirstIdle = true;
 
     uint32_t fCurrentPreset = 0; // TODO
 
     float fScaleFactor = 1.f;
-    double fRunnerRate = 0;
     int32_t fNumParameterPressed = 0;
 
     [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
