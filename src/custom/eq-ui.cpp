@@ -36,8 +36,7 @@ static constexpr const float kFreqMax = 30000.f;
 static constexpr const float kGainLimit = 24.f;
 
 // display padding above and below the curve area
-static constexpr const float kDisplayPadTop = 24.f;
-static constexpr const float kDisplayPadBottom = 40.f;
+static constexpr const float kDisplayPadVertical = 32.f;
 
 static constexpr const float kPianoHeight = 26.f;
 static constexpr const float kRegionsHeight = 20.f;
@@ -788,8 +787,9 @@ private:
     {
         const float s = fScaleFactor;
         const Box d = layoutDisplay();
-        const float padT = kDisplayPadTop * s;
-        return { d.x, d.y, d.w, d.h, padT, std::max(40.f * s, d.h - padT - kDisplayPadBottom * s), fDbView };
+        const float hUse = std::max(40.f * s, d.h - 2.f * kDisplayPadVertical * s);
+        // Curve, nodes and zebra stripes share this centered dB mapping.
+        return { d.x, d.y, d.w, d.h, (d.h - hUse) * 0.5f, hUse, fDbView };
     }
 
     [[nodiscard]] static Point<float> nodePoint(const EqBand& b, const Plot& p) noexcept
@@ -1430,8 +1430,8 @@ private:
             const float wc = textWidth("controls"), wr = textWidth("ranges"), wp = textWidth("piano");
             const float x = d.x + (d.w - wc - wr - wp - gap * 2.f) * 0.5f;
             clickable(kCaptionControls, x, wc, "controls", fShowControls);
-            clickable(kCaptionRegions, x + wc + gap, wr, "ranges", fShowRegions);
-            clickable(kCaptionPiano, x + wc + wr + gap * 2.f, wp, "piano", fShowPiano);
+            clickable(kCaptionPiano, x + wc + gap, wp, "piano", fShowPiano);
+            clickable(kCaptionRegions, x + wc + wp + gap * 2.f, wr, "ranges", fShowRegions);
         }
 
         {
@@ -1440,11 +1440,11 @@ private:
                                          fAnalyser == Analyser::Post ? "analyser post" : "analyser off ";
             char range[16];
             if (kRanges[fRangeIndex] == 0)
-                std::snprintf(range, sizeof(range), "range auto  ");
+                std::snprintf(range, sizeof(range), "range auto");
             else
-                std::snprintf(range, sizeof(range), "range %2d dB", kRanges[fRangeIndex]);
+                std::snprintf(range, sizeof(range), "range %ddB", kRanges[fRangeIndex]);
 
-            const float wr = textWidth(range), wa = textWidth(analyser);
+            const float wr = textWidth("range auto"), wa = textWidth("analyser post");
             const float xr = d.x + d.w - 16.f * s - wr;
             clickable(kCaptionRange, xr, wr, range, false);
             clickable(kCaptionAnalyser, xr - gap - wa, wa, analyser, false);
@@ -1452,7 +1452,7 @@ private:
 
         // axis labels
         char buffer[16];
-        std::snprintf(buffer, sizeof(buffer), "\xc2\xb1%d dB", d_roundToInt(targetDbMax()));
+        std::snprintf(buffer, sizeof(buffer), "\xc2\xb1%ddB", d_roundToInt(targetDbMax()));
         caption(d.x + d.w - 10.f * s, d.y + 27.f * s, ALIGN_RIGHT | ALIGN_TOP, buffer, EqColors::ink3);
 
         caption(d.x + 10.f * s, d.y + 8.f * s, ALIGN_LEFT | ALIGN_TOP, "10", EqColors::ink3);
