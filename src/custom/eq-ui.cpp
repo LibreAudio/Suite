@@ -9,6 +9,7 @@
 #include "LibreAudioParameters.hpp"
 #include "eq/bell-response.hpp"
 #include "eq/highpass.hpp"
+#include "eq/ladder-highpass.hpp"
 
 #include "OpenGL.hpp"
 
@@ -25,7 +26,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 // Dynamic native EQ: band numbers map to stable host parameter slots.
-// Bell and Butterworth high-pass DSP are implemented; other shapes are reserved for later.
+// Bell, Butterworth and ladder high-pass DSP are implemented; other shapes are reserved for later.
 //
 // Geometry is in prototype px, 1:1 with plugin px at scale 1. Text is drawn kTextScale larger, as the suite's other
 // widgets size text against their prototypes, and whatever is laid out around text grows with it.
@@ -114,11 +115,11 @@ static constexpr const std::array<EqRegion, 7> kRegions {{
 // --------------------------------------------------------------------------------------------------------------------
 // One EQ band, and the analog-prototype magnitude model the display draws it with.
 
-enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass };
+enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass };
 enum class EqChannel : uint8_t { Stereo, Mid, Side };
 
-static constexpr const std::array<EqBandType, 5> kBandTypes {
-    EqBandType::HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::LowPass
+static constexpr const std::array<EqBandType, 6> kBandTypes {
+    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::LowPass
 };
 
 struct EqBand {
@@ -142,7 +143,7 @@ struct EqBand {
 
     [[nodiscard]] bool isCut() const noexcept
     {
-        return type == EqBandType::HighPass || type == EqBandType::LowPass;
+        return type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::LowPass;
     }
 
     // a 6 dB/oct cut has no resonance
@@ -182,6 +183,8 @@ struct EqResponse {
     static float bandDb(const float f, const EqBand& b) noexcept
     {
         if (!b.on) return 0.f;
+        if (b.type == EqBandType::LadderHighPass)
+            return eq::ladderHighPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
         if (b.type == EqBandType::HighPass)
             return eq::highPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
         if (b.type == EqBandType::Peak)
@@ -218,7 +221,8 @@ struct EqResponse {
     {
         switch (type)
         {
-        case EqBandType::HighPass: return "High Pass";
+        case EqBandType::HighPass: return "Butterworth HP";
+        case EqBandType::LadderHighPass: return "Ladder HP";
         case EqBandType::LowShelf: return "Low Shelf";
         case EqBandType::Peak: return "Bell";
         case EqBandType::HighShelf: return "High Shelf";
@@ -553,7 +557,7 @@ private:
     {
         if (b.isCut())
         {
-            b.slope = 2;
+            b.slope = b.type == EqBandType::LadderHighPass ? 4 : 2;
             b.q = b.defQ = 0.707f;
         }
         else
@@ -600,7 +604,7 @@ private:
 
     void setBandType(EqBand& b, const EqBandType type)
     {
-        if ((type != EqBandType::Peak && type != EqBandType::HighPass) || b.type == type)
+        if ((type != EqBandType::Peak && type != EqBandType::HighPass && type != EqBandType::LadderHighPass) || b.type == type)
             return;
 
         b.type = type;
@@ -724,15 +728,15 @@ private:
         return right ? bar.x + bar.w - side : bar.x + side;
     }
 
-    [[nodiscard]] std::array<Box, 5> layoutTypeIcons() const noexcept
+    [[nodiscard]] std::array<Box, kBandTypes.size()> layoutTypeIcons() const noexcept
     {
         const float s = fScaleFactor;
         const Box bar = layoutBar();
-        const float groupW = (kIconWidth * 5.f + kIconGap * 4.f) * s;
+        const float groupW = (kIconWidth * kBandTypes.size() + kIconGap * (kBandTypes.size() - 1)) * s;
         const float y = bar.y + (bar.h - kIconHeight * s) * 0.5f;
         float x = barSideCentre(false) - groupW * 0.5f;
 
-        std::array<Box, 5> icons;
+        std::array<Box, kBandTypes.size()> icons;
         for (Box& icon : icons)
         {
             icon = { x, y, kIconWidth * s, kIconHeight * s };
@@ -745,7 +749,7 @@ private:
     {
         const float s = fScaleFactor;
         const Box d = layoutDisplay();
-        const float w = (6.f + kMenuButtonWidth * 5.f + 4.f) * s;
+        const float w = (6.f + kMenuButtonWidth * kBandTypes.size() + (kBandTypes.size() - 1)) * s;
         const float h = (6.f + kMenuButtonHeight * 2.f + 5.f) * s;
         return {
             std::clamp(fMenuX - 34.f * s, d.x + 4.f * s, d.x + d.w - w - 4.f * s),
@@ -826,7 +830,7 @@ private:
         fill();
     }
 
-    // The five filter-shape icons, from the prototype's 18x12 SVG paths.
+    // Filter-shape icons in an 18x12 coordinate system.
     void typeIconPath(const EqBandType type, const float x, const float y, const float sx, const float sy)
     {
         const auto M = [&](const float a, const float b) { moveTo(x + a * sx, y + b * sy); };
@@ -840,6 +844,12 @@ private:
         {
         case EqBandType::HighPass:
             M(1.5f, 11.f); C(3.f, 11.f, 3.5f, 4.f, 6.5f, 4.f); L(16.5f, 4.f);
+            break;
+        case EqBandType::LadderHighPass:
+            // Steep high-pass with a resonant shoulder, marked with ladder rungs.
+            M(1.5f, 11.f); C(5.f, 11.f, 4.5f, 1.5f, 8.f, 1.5f);
+            C(10.f, 1.5f, 9.5f, 4.f, 12.f, 4.f); L(16.5f, 4.f);
+            M(2.f, 8.f); L(5.f, 8.f); M(3.f, 6.f); L(6.f, 6.f);
             break;
         case EqBandType::LowShelf:
             M(1.5f, 3.f); L(5.f, 3.f); C(7.5f, 3.f, 7.5f, 9.f, 10.f, 9.f); L(16.5f, 9.f);
@@ -1706,16 +1716,21 @@ private:
 
         // filter shapes on the left
         {
-            const std::array<Box, 5> icons = layoutTypeIcons();
+            const std::array<Box, kBandTypes.size()> icons = layoutTypeIcons();
             for (size_t i = 0; i < icons.size(); ++i)
             {
                 const bool sel = b->type == kBandTypes[i];
                 if (sel && lit)
                     glowDot(icons[i].x + icons[i].w * 0.5f, icons[i].y + icons[i].h * 0.5f, 4.f * s, 8.f * s, b->color, 0.25f);
                 const Color c = sel ? (lit ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
-                strokeTypeIcon(kBandTypes[i], icons[i], (kBandTypes[i] == EqBandType::Peak || kBandTypes[i] == EqBandType::HighPass) ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
+                strokeTypeIcon(kBandTypes[i], icons[i], (kBandTypes[i] == EqBandType::Peak || kBandTypes[i] == EqBandType::HighPass || kBandTypes[i] == EqBandType::LadderHighPass) ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
             }
         }
+
+        setFont("mono", 7.f);
+        textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
+        fillColor(EqColors::ink3);
+        text(barSideCentre(false), bar.y + bar.h - 5.f * s, EqResponse::typeName(b->type), nullptr);
 
         // arrows and number boxes in the middle
         {
@@ -1879,7 +1894,7 @@ private:
                 fill();
             }
             const Box icon { cell.x + (cell.w - 18.f * s) * 0.5f, cell.y + (cell.h - 12.f * s) * 0.5f, 18.f * s, 12.f * s };
-            strokeTypeIcon(kBandTypes[i], icon, (kBandTypes[i] != EqBandType::Peak && kBandTypes[i] != EqBandType::HighPass) ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
+            strokeTypeIcon(kBandTypes[i], icon, (kBandTypes[i] != EqBandType::Peak && kBandTypes[i] != EqBandType::HighPass && kBandTypes[i] != EqBandType::LadderHighPass) ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
         }
 
         beginPath();
@@ -2195,7 +2210,7 @@ private:
                     switch (hit.field)
                     {
                     case Field::Gain: b->gain = 0.f; break;
-                    case Field::Slope: b->slope = 2; break;
+                    case Field::Slope: b->slope = b->type == EqBandType::LadderHighPass ? 4 : 2; break;
                     case Field::Freq: b->freq = b->defFreq; break;
                     case Field::Q: b->q = b->defQ; break;
                     }
@@ -2298,7 +2313,7 @@ private:
         if (b == nullptr)
             return true;
 
-        const std::array<Box, 5> icons = layoutTypeIcons();
+        const std::array<Box, kBandTypes.size()> icons = layoutTypeIcons();
         for (size_t i = 0; i < icons.size(); ++i)
         {
             if (icons[i].contains(x, y))
@@ -2349,7 +2364,7 @@ private:
                 switch (field)
                 {
                 case Field::Gain: b->gain = 0.f; break;
-                case Field::Slope: b->slope = 2; break;
+                case Field::Slope: b->slope = b->type == EqBandType::LadderHighPass ? 4 : 2; break;
                 case Field::Freq: b->freq = b->defFreq; break;
                 case Field::Q: b->q = b->defQ; break;
                 }

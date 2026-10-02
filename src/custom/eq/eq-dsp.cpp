@@ -5,6 +5,7 @@
 #include "bell-response.hpp"
 #include "x42-bell.hpp"
 #include "highpass.hpp"
+#include "ladder-highpass.hpp"
 #include <array>
 
 namespace eq {
@@ -13,6 +14,8 @@ class DynamicEq final : public FaustDSP
     struct Band {
         Fil4Paramsect filter[2];
         HighPass highpass[2];
+        LadderHighPass ladder[2];
+        LadderHighPass ladderStereo[2];
         float frequency = .02f, bandwidth = 1.f;
         float gain[2] = {1.f, 1.f};
         bool dirty = true;
@@ -50,6 +53,8 @@ public:
         {
             for (auto& filter : band.filter) filter.init();
             for (auto& filter : band.highpass) filter.clear();
+            for (auto& filter : band.ladder) filter.clear();
+            for (auto& filter : band.ladderStereo) filter.clear();
         }
     }
     void instanceConstants(int sampleRate) override
@@ -59,6 +64,8 @@ public:
         {
             band.dirty = true;
             for (auto& filter : band.highpass) filter.setRate(rate);
+            for (auto& filter : band.ladder) filter.setRate(rate);
+            for (auto& filter : band.ladderStereo) filter.setRate(rate);
         }
         instanceClear();
     }
@@ -87,6 +94,14 @@ public:
             for (unsigned c = 0; c < 2; ++c)
                 band.highpass[c].configure(hp && p[kChannel] != (c == 0 ? 2.f : 1.f),
                                            p[kFrequency], int(p[kSlope]), p[kQ], rate);
+            const bool ladder = p[kPresent] > .5f && p[kEnabled] > .5f && p[kType] == 5.f;
+            for (unsigned c = 0; c < 2; ++c)
+            {
+                band.ladder[c].configure(ladder && p[kChannel] == (c == 0 ? 1.f : 2.f),
+                                         p[kFrequency], int(p[kSlope]), p[kQ], rate);
+                band.ladderStereo[c].configure(ladder && p[kChannel] == 0.f,
+                                               p[kFrequency], int(p[kSlope]), p[kQ], rate);
+            }
             band.dirty = false;
         }
 
@@ -97,7 +112,7 @@ public:
         unsigned size = 0;
         for (auto& band : bands)
             for (unsigned c = 0; c < 2; ++c)
-                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active())
+                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active() || band.ladder[c].active() || band.ladderStereo[0].active() || band.ladderStereo[1].active())
                     active[size++] = {&band, c};
         if (size == 0) return; // exact passthrough, without even an M/S round trip
 
@@ -118,6 +133,27 @@ public:
                 if (b.gain[c] != 1.f || b.filter[c].g0() != 0.f)
                     b.filter[c].proc(n, signal[c], b.frequency, b.bandwidth, b.gain[c]);
                 b.highpass[c].process(n, signal[c]);
+                b.ladder[c].process(n, signal[c]);
+                // Nonlinear stereo filtering must run on L/R, not M/S: those
+                // transforms commute only for linear processors. Separate state
+                // banks also let routing changes fade out without reinterpreting history.
+                if (c == 1 && (b.ladderStereo[0].active() || b.ladderStereo[1].active()))
+                {
+                    for (int j = 0; j < n; ++j)
+                    {
+                        const float m = signal[0][j], side = signal[1][j];
+                        signal[0][j] = m + side;
+                        signal[1][j] = m - side;
+                    }
+                    b.ladderStereo[0].process(n, signal[0]);
+                    b.ladderStereo[1].process(n, signal[1]);
+                    for (int j = 0; j < n; ++j)
+                    {
+                        const float l = signal[0][j], r = signal[1][j];
+                        signal[0][j] = .5f * (l + r);
+                        signal[1][j] = .5f * (l - r);
+                    }
+                }
             }
             for (int i = 0; i < n; ++i)
             {
