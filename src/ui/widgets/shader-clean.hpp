@@ -6,6 +6,8 @@
 
 #include "../_lab/interface.hpp"
 
+#include "LibreAudioIPC.hpp"
+
 #include "Application.hpp"
 #include "DistrhoUtils.hpp"
 #include "SubWidget.hpp"
@@ -195,7 +197,7 @@ public:
         gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_waveform_start");
 
         {
-            fTestData.resize(8192, 0.f);
+            fTestData.resize(kNumSamplePointsForWaveform, 0.f);
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 

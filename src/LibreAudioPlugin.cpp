@@ -321,9 +321,8 @@ void LibreAudioPlugin::setState(const char* const key, const char* const value)
 
         if (fIPC.connect(value))
         {
-            const double runnerBufferSize = getSampleRate() * 5 / 8192;
-            fRunnerBufferSize = runnerBufferSize;
-            fRunnerBuffer.createBuffer(runnerBufferSize * (sizeof(LibreAudioFifoType) * 32));
+            fRunnerBufferSize = getSampleRate() * kNumSecondsForWaveform / kNumSamplePointsForWaveform;
+            fRunnerBuffer.createBuffer(fRunnerBufferSize * (sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS * 32));
             startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
         }
     }

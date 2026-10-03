@@ -31,6 +31,9 @@ union LibreAudioFifoType {
 #error TODO
 #endif
 
+static constexpr const uint32_t kNumSecondsForWaveform = 8;
+static constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
+
 class LibreAudioIPC {
     static constexpr const uint32_t kFloatFifoSize = 2048;
 
