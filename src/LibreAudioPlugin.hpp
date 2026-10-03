@@ -11,12 +11,14 @@
 
 #include <atomic>
 
-#ifdef LIBREAUDIO_CUSTOM_UI
+#if LIBREAUDIO_WANT_GRAPH
 #include "LibreAudioIPC.hpp"
 #include "extra/RingBuffer.hpp"
 #include "extra/Runner.hpp"
 #endif
-
+#if LIBREAUDIO_WANT_GRAPH_ANALYZER
+#include "fft.hpp"
+#endif
 #if LIBREAUDIO_WANT_SPEECH_DETECTION
 #include "LibreAudioSpeechDetection.hpp"
 #endif
@@ -34,7 +36,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioPlugin : public Plugin
-                      #ifdef LIBREAUDIO_CUSTOM_UI
+                      #if LIBREAUDIO_WANT_GRAPH
                        , private Runner
                       #endif
 {
@@ -177,12 +179,17 @@ private:
     void doMute();
     void doUnmute();
 
-   #ifdef LIBREAUDIO_CUSTOM_UI
-    LibreAudioIPC fIPC;
+  #if LIBREAUDIO_WANT_GRAPH
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    FFTAnalysis fAnalysis;
+    LibreAudioAnalyzerIPC fIPC;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    LibreAudioWaveformIPC fIPC;
+   #endif
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
     bool run() final;
-   #endif
+  #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
     // called when deactivated or during run()

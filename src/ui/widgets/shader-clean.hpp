@@ -58,7 +58,7 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const char src[], uint size>
+template<const char src[], uint size, uint textureSize = 0>
 class BackgroundShaderWidget final : public ShaderBaseWidget,
                                      public IdleCallback
 {
@@ -73,9 +73,7 @@ public:
         : ShaderBaseWidget(parent, iface),
           fParent(parent)
     {
-        // use 8ms for double of 60fps (16.666ms) so that we don't miss a frame in the worst case scenario
-        // repaints are only requested after pending drawing completes, which ensures we don't bottleneck the system
-        parent->addIdleCallback(this, 8);
+        parent->addIdleCallback(this, 8); // FIXME kTargetIdleTimeMs
 
        #ifdef DISTRHO_OS_WINDOWS
         if (! initGL())
@@ -193,11 +191,13 @@ public:
         gl3.dpfBorderRadius = glGetUniformLocation(program, "_dpf_border_radius");
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
         gl3.dpfScaleFactor = glGetUniformLocation(program, "_dpf_scale_factor");
-        gl3.dpfWaveformData = glGetUniformLocation(program, "_dpf_waveform_data");
-        gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_waveform_start");
 
+        if constexpr (textureSize != 0)
         {
-            fTestData.resize(kNumSamplePointsForWaveform, 0.f);
+            gl3.dpfTexture = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_texture_start");
+
+            fTextureData.resize(textureSize, 0.f);
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
@@ -215,12 +215,12 @@ public:
             glTexImage2D(GL_TEXTURE_2D,
                          0,
                          GL_RGBA16F_ARB,
-                         fTestData.size(),
+                         textureSize,
                          1,
                          0,
                          kSingleChannelFormat,
                          GL_FLOAT,
-                         fTestData.data());
+                         fTextureData.data());
 
             glBindTexture(GL_TEXTURE_2D, 0);
         }
@@ -259,12 +259,19 @@ public:
         glDeleteProgram(gl3.program);
     }
 
-    void push(const float value)
+    std::enable_if_t<textureSize != 0, void> replace(const float values[])
     {
-        fTestData[fTestDataTail++] = value;
+        std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
 
-        if (fTestDataTail == fTestData.size())
-            fTestDataTail = 0;
+        repaint();
+    }
+
+    std::enable_if_t<textureSize != 0, void> push(const float value)
+    {
+        fTextureData[fTextureDataTail++] = value;
+
+        if (fTextureDataTail == fTextureData.size())
+            fTextureDataTail = 0;
 
         repaint();
     }
@@ -282,7 +289,7 @@ private:
         if (const double t = getApp().getTime(); t - last > 1)
         {
             last = t;
-            d_stdout("average paint time: %f", fAverageTime * 1000);
+            d_stdout("average repaint time: %f", fAverageTime * 1000);
         }
     }
 
@@ -318,25 +325,27 @@ private:
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
         glUniform1f(gl3.dpfScaleFactor, fInterface->getScaleFactor());
 
-        glUniform1f(gl3.dpfWaveformStart,
-                    static_cast<float>(fTestData.size() - fTestDataTail - 1) / (fTestData.size() - 1));
-        // glUniform1f(gl3.dpfWaveformStart, 0);
-
         glUniform3f(gl3.iMouse, fMousePos.getX(), fMousePos.getY(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
         glUniform1f(gl3.iTime, time);
 
-        glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+        if constexpr (textureSize != 0)
+        {
+            glUniform1f(gl3.dpfWaveformStart,
+                        static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
 
-        glTexSubImage2D(GL_TEXTURE_2D,
-                        0,
-                        0,
-                        0,
-                        fTestData.size(),
-                        1,
-                        kSingleChannelFormat,
-                        GL_FLOAT,
-                        fTestData.data());
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexSubImage2D(GL_TEXTURE_2D,
+                            0,
+                            0,
+                            0,
+                            textureSize,
+                            1,
+                            kSingleChannelFormat,
+                            GL_FLOAT,
+                            fTextureData.data());
+        }
 
         if (const uint32_t count = fInterface->getParameterCount())
         {
@@ -362,7 +371,8 @@ private:
         glDisableVertexAttribArray(gl3.dpfBounds);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        glBindTexture(GL_TEXTURE_2D, 0);
+        if constexpr (textureSize != 0)
+            glBindTexture(GL_TEXTURE_2D, 0);
 
         glUseProgram(0);
     }
@@ -398,7 +408,7 @@ private:
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
-        GLint dpfWaveformData;
+        GLint dpfTexture;
         GLint dpfWaveformStart;
         GLint iMouse;
         GLint iResolution;
@@ -412,9 +422,8 @@ private:
     double fLastTime = 0;
     const double fStartTime = getApp().getTime();
 
-    std::vector<float> fTestData;
-    uint32_t fTestDataTail = 0;
-    bool fTestDataFull = false;
+    std::vector<float> fTextureData;
+    uint32_t fTextureDataTail = 0;
 
     bool fPendingDisplay = true;
     bool fFirstResize = true;

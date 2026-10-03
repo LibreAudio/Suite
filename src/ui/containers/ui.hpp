@@ -24,9 +24,17 @@ class UI final : public LibreAudioBaseUI
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
     };
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
+   #else
+    static constexpr const uint32_t kTextureSize = 0;
+   #endif
+
     static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
     using AnalyzerShaderW = std::conditional_t<label == "dualGain",
-                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize>,
+                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
                                                BotShaderWidget<shaderSrc, shaderSrcSize>>;
 
     const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
@@ -44,15 +52,11 @@ public:
     }
 
 private:
-    void audioPeaksReceived(const LibreAudioFifoType& value) final
+    void audioPeaksReceived(const float v1, const float value2opt [[maybe_unused]]) final
     {
         if constexpr (label == "dualGain")
         {
-           #if defined(LIBREAUDIO_WAVEFORM_MONO)
-            fShaderAnalyser->push(value);
-           #elif defined(LIBREAUDIO_WAVEFORM_STEREO)
-            fShaderAnalyser->push(std::max(value.l, value.r));
-           #endif
+            fShaderAnalyser->push(std::max(v1, value2opt));
         }
     }
 };

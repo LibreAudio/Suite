@@ -263,6 +263,7 @@ function(las_add_plugin LABEL)
     target_link_libraries(${TARGET}-dsp
       PRIVATE
         las-dsp-common
+        PkgConfig::fftw3f
         nlohmann_json::nlohmann_json
         ${EXTRA_UI_LIBS}
     )

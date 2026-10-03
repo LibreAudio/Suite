@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "DistrhoPluginInfo.h"
-
 #include "dpf/Fifo.hpp"
 #include "dpf/SharedMemory.hpp"
+
+#include "fft.hpp"
 
 #include <array>
 
@@ -15,68 +15,156 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// #define LIBREAUDIO_WAVEFORM_MONO
-#define LIBREAUDIO_WAVEFORM_STEREO
+// Overall target frame-rate for graphs (FFT analyzer and Waveform)
+static constexpr const uint32_t kTargetFrameRate = 60;
 
-#if defined(LIBREAUDIO_WAVEFORM_MONO)
-using LibreAudioFifoType = float;
-#elif defined(LIBREAUDIO_WAVEFORM_STEREO)
-union LibreAudioFifoType {
-    float ptr[DISTRHO_PLUGIN_NUM_OUTPUTS];
-    struct {
-        float l, r;
-    };
-};
-#elif defined(LIBREAUDIO_WAVEFORM_FFT)
-#error TODO
-#endif
+// Idle time as double of target rate, so that we don't miss a frame in the worst case scenario
+// Repaints must only be requested after pending drawing completes, which ensures we don't bottleneck the system
+static constexpr const uint32_t kTargetIdleTimeMs = 1000 / (kTargetFrameRate * 2);
 
+// How many seconds the waveform area should hold
 static constexpr const uint32_t kNumSecondsForWaveform = 8;
+
+// How many samples to use
 static constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
 
-class LibreAudioIPC {
-    static constexpr const uint32_t kFloatFifoSize = 2048;
+// --------------------------------------------------------------------------------------------------------------------
 
-    using FifoT = Fifo<LibreAudioFifoType, kFloatFifoSize>;
-    using FifoControlT = FifoControl<LibreAudioFifoType, kFloatFifoSize>;
+class LibreAudioAnalyzerIPC {
+public:
+    static constexpr const uint32_t kNumBins = 256;
+    static constexpr const uint32_t kWindowSize = kNumBins * 16;
 
-    struct LineGraphFifos {
-        FifoT data;
-        bool closed;
-    };
-
-    FifoControlT lineGraph;
-    SharedMemory<LineGraphFifos> lineGraphData;
-    bool lineGraphActive = false;
+    static constexpr const float kResponseTimeSecs = 1.f;
 
 public:
+    LibreAudioAnalyzerIPC() = default;
+    ~LibreAudioAnalyzerIPC() = default;
+
     const char* create()
     {
-        DISTRHO_SAFE_ASSERT(! lineGraphActive);
+        DISTRHO_SAFE_ASSERT(! fSharedMem.isCreatedOrConnected());
 
-        if (! lineGraphData.create())
+        if (! fSharedMem.create())
             return nullptr;
 
-        LineGraphFifos* const fifos = lineGraphData.getDataPointer();
-        lineGraph.setFifo(&fifos->data, true);
-
-        return lineGraphData.getDataFilename();
+        return fSharedMem.getDataFilename();
     }
 
     bool connect(const char* const filename)
     {
-        if (lineGraphData.isCreatedOrConnected())
-        {
-            DISTRHO_SAFE_ASSERT(! lineGraphActive);
+        if (fSharedMem.isCreatedOrConnected())
+            fSharedMem.close();
 
-            lineGraph.setFifo(nullptr);
-            lineGraphData.close();
+        return fSharedMem.connect(filename) != nullptr;
+    }
+
+    void close()
+    {
+        fSharedMem.close();
+    }
+
+    bool isCreatedOrConnected() const noexcept
+    {
+        return fSharedMem.isCreatedOrConnected();
+    }
+
+    // adapted from https://github.com/x42/modspectre.lv2/blob/master/src/modspectre.c
+    // Copyright (C) 2017 Robin Gareus <robin@gareus.org>
+    // SPDX-License-Identifier: GPL-2.0-or-later
+    bool push(const FFTAnalysis& analysis)
+    {
+        static constexpr const uint32_t kDataSize = kWindowSize / 2;
+        static constexpr const float log1k = 6.907755279f;  // logf (1000);
+
+       #if defined(__GNUC__) && !defined(__clang__)
+        static constexpr const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
+       #else
+        const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
+       #endif
+
+        SharedData* const bins = fSharedMem.getDataPointer();
+
+        for (uint32_t b = 0; b < kNumBins; ++b)
+            bins->data[b] *= tc;
+
+        for (uint32_t i = 1; i < kDataSize - 1; ++i)
+        {
+            const float pab = analysis.powerAtBin(i);
+            if (pab <= FFTAnalysis::kSmallestValue)
+                continue;
+
+            const float frq = analysis.freqAtBin(i);
+            int b = kNumBins * std::logf (frq / 20.f) / log1k; // 20..20k
+            if (b >= kNumBins) {
+                continue;
+            }
+            if (b < 2) {
+                b = 1;
+            }
+            float pwr = 1.f - pab / FFTAnalysis::kSmallestValue;
+            if (pwr > bins->data[b]) {
+                bins->data[b] = pwr;
+            }
         }
 
-        if (LineGraphFifos* const fifos = lineGraphData.connect(filename))
+        return true;
+    }
+
+    float* get() noexcept
+    {
+        SharedData* const bins = fSharedMem.getDataPointer();
+        return bins->data;
+    }
+
+private:
+    struct SharedData {
+        float data[kNumBins];
+    };
+
+    SharedMemory<SharedData> fSharedMem;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<uint numChannels>
+class LibreAudioWaveformIPC {
+public:
+    struct ValueStructType {
+        float ptr[numChannels];
+    };
+    using ValueType = std::conditional_t<numChannels != 1, ValueStructType, float>;
+
+    LibreAudioWaveformIPC() = default;
+    ~LibreAudioWaveformIPC() = default;
+
+    const char* create()
+    {
+        DISTRHO_SAFE_ASSERT(! fFifoIsActive);
+
+        if (! fSharedMem.create())
+            return nullptr;
+
+        SharedData* const fifos = fSharedMem.getDataPointer();
+        fFifoControl.setFifo(&fifos->data, true);
+
+        return fSharedMem.getDataFilename();
+    }
+
+    bool connect(const char* const filename)
+    {
+        if (fSharedMem.isCreatedOrConnected())
         {
-            lineGraph.setFifo(&fifos->data);
-            lineGraphActive = true;
+            DISTRHO_SAFE_ASSERT(! fFifoIsActive);
+
+            fFifoControl.setFifo(nullptr);
+            fSharedMem.close();
+        }
+
+        if (SharedData* const fifos = fSharedMem.connect(filename))
+        {
+            fFifoControl.setFifo(&fifos->data);
+            fFifoIsActive = true;
             return true;
         }
 
@@ -85,54 +173,72 @@ public:
 
     void close()
     {
-        lineGraphActive = false;
+        fFifoIsActive = false;
 
-        if (lineGraphData.isCreatedOrConnected())
+        if (fSharedMem.isCreatedOrConnected())
         {
-            if (LineGraphFifos* const fifos = lineGraphData.getDataPointer(); fifos != nullptr)
+            if (SharedData* const fifos = fSharedMem.getDataPointer(); fifos != nullptr)
                 fifos->closed = true;
 
-            lineGraphData.close();
+            fSharedMem.close();
         }
     }
 
     bool isCreatedOrConnected() const noexcept
     {
-        return lineGraphData.isCreatedOrConnected();
+        return fSharedMem.isCreatedOrConnected();
     }
 
-    bool push(const LibreAudioFifoType& value)
+    bool push(const ValueType& value)
     {
-        DISTRHO_SAFE_ASSERT_RETURN(lineGraphActive, false);
+        DISTRHO_SAFE_ASSERT_RETURN(fFifoIsActive, false);
 
-        LineGraphFifos* const fifos = lineGraphData.getDataPointer();
+        SharedData* const fifos = fSharedMem.getDataPointer();
 
         if (fifos == nullptr)
         {
-            lineGraphActive = false;
+            fFifoIsActive = false;
             return false;
         }
         if (fifos->closed)
         {
-            lineGraphActive = false;
-            lineGraphData.close();
+            fFifoIsActive = false;
+            fSharedMem.close();
             return false;
         }
 
-        lineGraph.write(value);
+        fFifoControl.write(value);
 
         return true;
     }
 
-    bool read(LibreAudioFifoType& value)
+    bool read(ValueType& value)
     {
-        if (! lineGraph.canRead())
+        if (! fFifoControl.canRead())
             return false;
 
-        value = lineGraph.read();
+        value = fFifoControl.read();
         return true;
     }
+
+private:
+    static constexpr const uint32_t kFloatFifoSize = 2048;
+
+    using FifoT = Fifo<ValueType, kFloatFifoSize>;
+    using FifoControlT = FifoControl<ValueType, kFloatFifoSize>;
+
+    struct SharedData {
+        FifoT data;
+        bool closed;
+    };
+
+    FifoControlT fFifoControl;
+    SharedMemory<SharedData> fSharedMem;
+    bool fFifoIsActive = false;
 };
+
+// template class LibreAudioWaveformIPC<1>;
+// template class LibreAudioWaveformIPC<2>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

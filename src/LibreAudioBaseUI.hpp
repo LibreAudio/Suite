@@ -71,7 +71,8 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
-    LibreAudioIPC fIPC;
+    LibreAudioAnalyzerIPC fIPC;
+    // LibreAudioWaveformIPC fIPC;
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
     bool fFirstIdle = true;
@@ -97,7 +98,7 @@ private:
 
     void stateChanged(const char* key, const char* value) final;
 
-    virtual void audioPeaksReceived(const LibreAudioFifoType& value) {};
+    virtual void audioPeaksReceived(float v1, float v2opt) {};
 
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks

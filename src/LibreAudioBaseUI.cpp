@@ -167,10 +167,16 @@ void LibreAudioBaseUI::uiIdle()
     }
     else if (fIPC.isCreatedOrConnected())
     {
+       #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+        float* data = fIPC.get();
+        for (uint32_t i = 0; i < LibreAudioAnalyzerIPC::kNumBins; ++i)
+            audioPeaksReceived(data[i], 0.f);
+       #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
         LibreAudioFifoType value;
 
         while (fIPC.read(value))
             audioPeaksReceived(value);
+       #endif
     }
 
     fSnapshots.idle();

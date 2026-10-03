@@ -68,6 +68,19 @@
 
 #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
 
+#ifdef LIBREAUDIO_CUSTOM_UI
+#define LIBREAUDIO_WANT_GRAPH {{1 if "true" in (meta.graph_analyzer, meta.graph_waveform) else 0}}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER {{1 if meta.graph_analyzer == "true" else 0}}
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM {{1 if meta.graph_waveform == "true" else 0}}
+#define LIBREAUDIO_WANT_GRAPH_IO_MONO {{0 if meta.graph_stereo == "true" else 1}}
+#define LIBREAUDIO_WANT_GRAPH_IO_STEREO {{1 if meta.graph_stereo == "true" else 0}}
+#if LIBREAUDIO_WANT_GRAPH_ANALYZER && LIBREAUDIO_WANT_GRAPH_IO_STEREO
+#error analyzer must be mono
+#endif
+#else
+#define LIBREAUDIO_WANT_GRAPH 0
+#endif
+
 // FIXME remove this
 #define LIBREAUDIO_PLUGIN {{cid(id)}}
 
