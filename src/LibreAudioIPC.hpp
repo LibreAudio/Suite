@@ -6,7 +6,7 @@
 
 #include "DistrhoPluginInfo.h"
 
-#include "dpf/FloatFifo.hpp"
+#include "dpf/Fifo.hpp"
 #include "dpf/SharedMemory.hpp"
 
 #include <array>
@@ -41,7 +41,7 @@ public:
         LineGraphFifos* const fifos = lineGraphsData.getDataPointer();
 
         for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-            lineGraphs[i].setFloatFifo(&fifos->data[i], true);
+            lineGraphs[i].setFifo(&fifos->data[i], true);
 
         return lineGraphsData.getDataFilename();
     }
@@ -53,7 +53,7 @@ public:
             DISTRHO_SAFE_ASSERT(! lineGraphActive);
 
             for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-                lineGraphs[i].setFloatFifo(nullptr);
+                lineGraphs[i].setFifo(nullptr);
 
             lineGraphsData.close();
         }
@@ -61,7 +61,7 @@ public:
         if (LineGraphFifos* const fifos = lineGraphsData.connect(filename))
         {
             for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-                lineGraphs[i].setFloatFifo(&fifos->data[i]);
+                lineGraphs[i].setFifo(&fifos->data[i]);
 
             lineGraphActive = true;
             return true;

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DISTRHO_FLOAT_FIFO_HPP_INCLUDED
-#define DISTRHO_FLOAT_FIFO_HPP_INCLUDED
+#ifndef DISTRHO_FIFO_HPP_INCLUDED
+#define DISTRHO_FIFO_HPP_INCLUDED
 
 #include "DistrhoUtils.hpp"
 
@@ -24,14 +24,14 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 /**
-  Amount of float/audio samples in the buffer.
+  Data struct holding a FIFO (first-in, first-out), containing an arbitrary amount of elements of an arbitrary type.
  */
-template <uint32_t numSamples>
-struct FloatFifo {
+template <typename T, uint32_t numElements>
+struct Fifo {
    /**
       Fifo buffer data.
     */
-    float buffer[numSamples];
+    T buffer[numElements];
 
    /**
       Current reading position.
@@ -49,7 +49,7 @@ struct FloatFifo {
 // --------------------------------------------------------------------------------------------------------------------
 
 /**
-   DPF built-in FloatFifo class.
+   DPF built-in Fifo class.
    FloatFifoControl takes one fifo struct to take control over, and operates over it.
 
    This is meant for single-writer, single-reader type of control.
@@ -58,11 +58,11 @@ struct FloatFifo {
    Typically usage involves:
    ```
    // definition
-   FloatFifo fifoData;
-   FloatFifoControl fifo;
+   FloatFifo<32> fifoData;
+   FloatFifoControl<32> fifo;
 
    // assign fifo and clear data
-   fifo.setFloatFifo(&fifoData, true);
+   fifo.setFifo(&fifoData, true);
 
    // writing data
    fifo.write(0.0f);
@@ -70,31 +70,31 @@ struct FloatFifo {
    fifo.write(1.0f);
 
    // reading data
-   if (fifo.readSpace())
+   if (fifo.canRead())
    {
       const float value = fifo.read();
       // do something with "value"
    }
    ```
 
-   @see FloatFifo
+   @see Fifo
  */
-template <uint32_t numSamples>
-class FloatFifoControl
+template <typename T, uint32_t numElements>
+class FifoControl
 {
 public:
     /*
-     * Constructor for unitialized float fifo.
-     * A call to setFloatFifo is required to tied this control to a float fifo struct;
+     * Constructor for unitialized fifo.
+     * A call to setFifo is required to tied this control to a fifo struct;
      *
      */
-    FloatFifoControl()
+    FifoControl()
         : fifoPtr(nullptr) {}
 
     /*
      * Destructor.
      */
-    virtual ~FloatFifoControl() {}
+    ~FifoControl() {}
 
     // ----------------------------------------------------------------------------------------------------------------
     // check operations
@@ -108,7 +108,7 @@ public:
     // clear/reset operations
 
     /*
-     * Clear the entire float fifo data, marking the fifo as empty.
+     * Clear the entire fifo data, marking the fifo as empty.
      * Requires a fifo struct tied to this class.
      */
     void clearData() noexcept
@@ -116,37 +116,37 @@ public:
         DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != nullptr,);
 
         fifoPtr->readPosition = fifoPtr->writePosition = 0;
-        std::memset(fifoPtr->buffer, 0, sizeof(float)*numSamples);
+        std::memset(fifoPtr->buffer, 0, sizeof(T) * numElements);
     }
 
     // ----------------------------------------------------------------------------------------------------------------
 
     /*
-     * Tie this float fifo control to a float fifo struct, optionally clearing its data.
+     * Tie this fifo control to a fifo struct, optionally clearing its data.
      */
-    void setFloatFifo(FloatFifo<numSamples>* const floatFifo, const bool clearFifoData = true) noexcept
+    void setFifo(Fifo<T, numElements>* const fifo, const bool clearFifoData = true) noexcept
     {
-        DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != floatFifo,);
+        DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != fifo,);
 
-        fifoPtr = floatFifo;
+        fifoPtr = fifo;
 
-        if (clearFifoData && floatFifo != nullptr)
+        if (clearFifoData && fifo != nullptr)
             clearData();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
 
     /*
-     * Read one single sample.
+     * Read one single element.
      */
-    float read()
+    T read()
     {
         DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != nullptr, 0.0f);
 
         uint32_t readPosition = fifoPtr->readPosition;
-        const float ret = *(fifoPtr->buffer + readPosition);
+        const T ret = *(fifoPtr->buffer + readPosition);
 
-        if (++readPosition == numSamples)
+        if (++readPosition == numElements)
             readPosition = 0;
 
         fifoPtr->readPosition = readPosition;
@@ -154,9 +154,9 @@ public:
     }
 
     /*
-     * Write one single sample.
+     * Write one single element.
      */
-    void write(const float value)
+    void write(const T value)
     {
         DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != nullptr,);
 
@@ -164,7 +164,7 @@ public:
 
         *(fifoPtr->buffer + writePosition) = value;
 
-        if (++writePosition == numSamples)
+        if (++writePosition == numElements)
             writePosition = 0;
 
         fifoPtr->writePosition = writePosition;
@@ -174,14 +174,23 @@ public:
 
 private:
     /** Fifo struct pointer. */
-    FloatFifo<numSamples>* fifoPtr;
+    Fifo<T, numElements>* fifoPtr;
 
     DISTRHO_PREVENT_VIRTUAL_HEAP_ALLOCATION
-    DISTRHO_DECLARE_NON_COPYABLE(FloatFifoControl)
+    DISTRHO_DECLARE_NON_COPYABLE(FifoControl)
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+// export float type
+
+template <uint32_t numElements>
+using FloatFifo = Fifo<float, numElements>;
+
+template <uint32_t numElements>
+using FloatFifoControl = FifoControl<float, numElements>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO
 
-#endif // DISTRHO_FLOAT_FIFO_HPP_INCLUDED
+#endif // DISTRHO_FIFO_HPP_INCLUDED
