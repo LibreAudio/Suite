@@ -321,8 +321,9 @@ void LibreAudioPlugin::setState(const char* const key, const char* const value)
 
         if (fIPC.connect(value))
         {
-            fRunnerBufferSize = 128u;
-            fRunnerBuffer.createBuffer(fRunnerBufferSize * 32 * DISTRHO_PLUGIN_NUM_INPUTS * sizeof(float));
+            const double runnerBufferSize = getSampleRate() * 5 / 8192;
+            fRunnerBufferSize = runnerBufferSize;
+            fRunnerBuffer.createBuffer(runnerBufferSize * (sizeof(LibreAudioFifoType) * 32));
             startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
         }
     }
@@ -549,29 +550,38 @@ inline void LibreAudioPlugin::doUnmute()
 #ifdef LIBREAUDIO_CUSTOM_UI
 bool LibreAudioPlugin::run()
 {
-    const uint32_t numSamples = fRunnerBufferSize;
-    const uint32_t bufferSize = numSamples * DISTRHO_PLUGIN_NUM_OUTPUTS;
+    static constexpr const uint32_t kDataSize = sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS;
 
-    if (fRunnerBuffer.getReadableDataSize() < bufferSize * sizeof(float))
-        return true;
+    const uint32_t bufferSize = fRunnerBufferSize;
+    std::unique_ptr<float[]> data { new float[bufferSize * DISTRHO_PLUGIN_NUM_OUTPUTS] };
 
-    std::unique_ptr<float[]> data { new float[bufferSize] };
-    DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data.get(), bufferSize * sizeof(float)), false);
-
-    // TODO waveform, fft or other
-    std::array<float, DISTRHO_PLUGIN_NUM_OUTPUTS> max = {};
-    for (uint32_t i = 0; i < numSamples; ++i)
+    while (fRunnerBuffer.getReadableDataSize() >= bufferSize * kDataSize)
     {
-        for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-            if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > max[c])
-                max[c] = v;
+        DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data.get(), bufferSize * kDataSize), false);
+
+        // TODO waveform, fft or other
+        LibreAudioFifoType value = {};
+        for (uint32_t i = 0; i < bufferSize; ++i)
+        {
+           #if defined(LIBREAUDIO_WAVEFORM_MONO)
+            for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value)
+                    value = v;
+           #elif defined(LIBREAUDIO_WAVEFORM_STEREO)
+            for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+                if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value.ptr[c])
+                    value.ptr[c] = v;
+           #endif
+        }
+
+        if (! fIPC.push(value))
+        {
+            // fRunnerBuffer.deleteBuffer();
+            return false;
+        }
     }
 
-    if (fIPC.push(max))
-        return true;
-
-    fRunnerBuffer.deleteBuffer();
-    return false;
+    return true;
 }
 #endif
 

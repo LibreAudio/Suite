@@ -97,7 +97,7 @@ private:
 
     void stateChanged(const char* key, const char* value) final;
 
-    virtual void audioPeaksReceived(float v1, float v2) {};
+    virtual void audioPeaksReceived(const LibreAudioFifoType& value) {};
 
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks

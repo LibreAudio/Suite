@@ -15,19 +15,35 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// #define LIBREAUDIO_WAVEFORM_MONO
+#define LIBREAUDIO_WAVEFORM_STEREO
+
+#if defined(LIBREAUDIO_WAVEFORM_MONO)
+using LibreAudioFifoType = float;
+#elif defined(LIBREAUDIO_WAVEFORM_STEREO)
+union LibreAudioFifoType {
+    float ptr[DISTRHO_PLUGIN_NUM_OUTPUTS];
+    struct {
+        float l, r;
+    };
+};
+#elif defined(LIBREAUDIO_WAVEFORM_FFT)
+#error TODO
+#endif
+
 class LibreAudioIPC {
     static constexpr const uint32_t kFloatFifoSize = 2048;
 
-    using FloatFifoN = FloatFifo<kFloatFifoSize>;
-    using FloatFifoControlN = FloatFifoControl<kFloatFifoSize>;
+    using FifoT = Fifo<LibreAudioFifoType, kFloatFifoSize>;
+    using FifoControlT = FifoControl<LibreAudioFifoType, kFloatFifoSize>;
 
     struct LineGraphFifos {
-        FloatFifoN data[DISTRHO_PLUGIN_NUM_OUTPUTS];
+        FifoT data;
         bool closed;
     };
 
-    FloatFifoControlN lineGraphs[DISTRHO_PLUGIN_NUM_OUTPUTS];
-    SharedMemory<LineGraphFifos> lineGraphsData;
+    FifoControlT lineGraph;
+    SharedMemory<LineGraphFifos> lineGraphData;
     bool lineGraphActive = false;
 
 public:
@@ -35,34 +51,28 @@ public:
     {
         DISTRHO_SAFE_ASSERT(! lineGraphActive);
 
-        if (! lineGraphsData.create())
+        if (! lineGraphData.create())
             return nullptr;
 
-        LineGraphFifos* const fifos = lineGraphsData.getDataPointer();
+        LineGraphFifos* const fifos = lineGraphData.getDataPointer();
+        lineGraph.setFifo(&fifos->data, true);
 
-        for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-            lineGraphs[i].setFifo(&fifos->data[i], true);
-
-        return lineGraphsData.getDataFilename();
+        return lineGraphData.getDataFilename();
     }
 
     bool connect(const char* const filename)
     {
-        if (lineGraphsData.isCreatedOrConnected())
+        if (lineGraphData.isCreatedOrConnected())
         {
             DISTRHO_SAFE_ASSERT(! lineGraphActive);
 
-            for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-                lineGraphs[i].setFifo(nullptr);
-
-            lineGraphsData.close();
+            lineGraph.setFifo(nullptr);
+            lineGraphData.close();
         }
 
-        if (LineGraphFifos* const fifos = lineGraphsData.connect(filename))
+        if (LineGraphFifos* const fifos = lineGraphData.connect(filename))
         {
-            for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-                lineGraphs[i].setFifo(&fifos->data[i]);
-
+            lineGraph.setFifo(&fifos->data);
             lineGraphActive = true;
             return true;
         }
@@ -74,25 +84,25 @@ public:
     {
         lineGraphActive = false;
 
-        if (lineGraphsData.isCreatedOrConnected())
+        if (lineGraphData.isCreatedOrConnected())
         {
-            if (LineGraphFifos* const fifos = lineGraphsData.getDataPointer(); fifos != nullptr)
+            if (LineGraphFifos* const fifos = lineGraphData.getDataPointer(); fifos != nullptr)
                 fifos->closed = true;
 
-            lineGraphsData.close();
+            lineGraphData.close();
         }
     }
 
     bool isCreatedOrConnected() const noexcept
     {
-        return lineGraphsData.isCreatedOrConnected();
+        return lineGraphData.isCreatedOrConnected();
     }
 
-    bool push(const std::array<float, DISTRHO_PLUGIN_NUM_OUTPUTS>& values)
+    bool push(const LibreAudioFifoType& value)
     {
         DISTRHO_SAFE_ASSERT_RETURN(lineGraphActive, false);
 
-        LineGraphFifos* const fifos = lineGraphsData.getDataPointer();
+        LineGraphFifos* const fifos = lineGraphData.getDataPointer();
 
         if (fifos == nullptr)
         {
@@ -102,24 +112,21 @@ public:
         if (fifos->closed)
         {
             lineGraphActive = false;
-            lineGraphsData.close();
+            lineGraphData.close();
             return false;
         }
 
-        for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-            lineGraphs[i].write(values[i]);
+        lineGraph.write(value);
 
         return true;
     }
 
-    bool read(std::array<float, DISTRHO_PLUGIN_NUM_OUTPUTS>& values)
+    bool read(LibreAudioFifoType& value)
     {
-        if (! lineGraphs[0].canRead())
+        if (! lineGraph.canRead())
             return false;
 
-        for (uint8_t i = 0; i < DISTRHO_PLUGIN_NUM_OUTPUTS; ++i)
-            values[i] = lineGraphs[i].read();
-
+        value = lineGraph.read();
         return true;
     }
 };

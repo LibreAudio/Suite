@@ -167,10 +167,10 @@ void LibreAudioBaseUI::uiIdle()
     }
     else if (fIPC.isCreatedOrConnected())
     {
-        std::array<float, DISTRHO_PLUGIN_NUM_OUTPUTS> values;
+        LibreAudioFifoType value;
 
-        while (fIPC.read(values))
-            audioPeaksReceived(values[0], values[1]);
+        while (fIPC.read(value))
+            audioPeaksReceived(value);
     }
 
     fSnapshots.idle();

@@ -44,10 +44,16 @@ public:
     }
 
 private:
-    void audioPeaksReceived(const float v1, const float v2) final
+    void audioPeaksReceived(const LibreAudioFifoType& value) final
     {
         if constexpr (label == "dualGain")
-            fShaderAnalyser->push(std::max(v1, v2));
+        {
+           #if defined(LIBREAUDIO_WAVEFORM_MONO)
+            fShaderAnalyser->push(value);
+           #elif defined(LIBREAUDIO_WAVEFORM_STEREO)
+            fShaderAnalyser->push(std::max(value.l, value.r));
+           #endif
+        }
     }
 };
 

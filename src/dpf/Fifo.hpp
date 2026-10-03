@@ -141,7 +141,7 @@ public:
      */
     T read()
     {
-        DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != nullptr, 0.0f);
+        DISTRHO_SAFE_ASSERT_RETURN(fifoPtr != nullptr, {});
 
         uint32_t readPosition = fifoPtr->readPosition;
         const T ret = *(fifoPtr->buffer + readPosition);

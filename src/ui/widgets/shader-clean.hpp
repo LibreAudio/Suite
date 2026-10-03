@@ -195,7 +195,7 @@ public:
         gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_waveform_start");
 
         {
-            fTestData.resize(1024, 0.f);
+            fTestData.resize(8192, 0.f);
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
