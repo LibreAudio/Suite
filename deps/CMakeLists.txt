@@ -70,8 +70,6 @@ target_sources(las-rnnoise
     rnnoise-model-data/rnnoise_data.c
 )
 
-message("CMAKE_SYSTEM_PROCESSOR is ${CMAKE_SYSTEM_PROCESSOR}")
-
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
   target_compile_definitions(las-rnnoise
     PRIVATE
@@ -97,12 +95,6 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
     PROPERTIES
       COMPILE_FLAGS
         "-msse4.1"
-  )
-else()
-# if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv7)$")
-  target_compile_definitions(las-rnnoise
-    PUBLIC
-      __ARM_FEATURE_DOTPROD=0
   )
 endif()
 
