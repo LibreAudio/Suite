@@ -41,11 +41,14 @@ private:
     {
         BaseWidget::onNanoDisplay();
 
+        save();
+        fontFace("chillax");
         fillColor(R::color);
         fontSize(R::fontSize * fScaleFactor);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         textLetterSpacing(R::letterSpacing * fScaleFactor);
         text(getWidth() * 0.5f, getHeight() * 0.5f, fName);
+        restore();
     }
 
     void updateSize(const bool updateChildren) final
@@ -54,11 +57,14 @@ private:
         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
 
         Rectangle<float> bounds;
+        save();
+        fontFace("chillax");
         fontSize(R::fontSize * fScaleFactor);
         textAlign(0);
         textLetterSpacing(R::letterSpacing * fScaleFactor);
         textBounds(0, 0, fName, nullptr, bounds);
         setWidth(bounds.getWidth() + (border + margin) * 2);
+        restore();
 
         BaseWidget::updateSize(updateChildren);
     }

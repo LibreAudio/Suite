@@ -78,7 +78,7 @@ struct Reference {
 
     struct PluginName : Zero {
         static constexpr const Color color = Colors::acc1;
-        static constexpr const float fontSize = 20;
+        static constexpr const float fontSize = 22;
         static constexpr const float letterSpacing = fontSize * 0.05;
     };
 

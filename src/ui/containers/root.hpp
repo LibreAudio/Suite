@@ -32,6 +32,10 @@ public:
                              FONTS_INTER_18PT_REGULAR_TTF_DATA,
                              FONTS_INTER_18PT_REGULAR_TTF_LEN,
                              false);
+        createFontFromMemory("chillax",
+                             FONTS_CHILLAX_MEDIUM_TTF_DATA,
+                             FONTS_CHILLAX_MEDIUM_TTF_LEN,
+                             false);
         createFontFromMemory("mono",
                              FONTS_SPLINESANSMONO_REGULAR_TTF_DATA,
                              FONTS_SPLINESANSMONO_REGULAR_TTF_LEN,

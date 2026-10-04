@@ -10,6 +10,7 @@
 #include "../widgets/button.hpp"
 #include "../widgets/button-group.hpp"
 #include "../widgets/plugin-name.hpp"
+#include "../widgets/top-bar-logo.hpp"
 
 #include <array>
 
@@ -26,7 +27,7 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
 
     // ----------------------------------------------------------------------------------------------------------------
 
-    using LogoWidget = LabImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+    using LogoWidget = TopBarLogoWidget;
 
     // ----------------------------------------------------------------------------------------------------------------
 
