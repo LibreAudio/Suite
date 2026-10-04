@@ -29,10 +29,6 @@ endif()
 find_program(FAUST faust REQUIRED)
 find_program(FAUSTDR faustdr REQUIRED)
 
-# testing
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(fftw3f IMPORTED_TARGET REQUIRED fftw3f)
-
 #######################################################################################################################
 # common flags
 

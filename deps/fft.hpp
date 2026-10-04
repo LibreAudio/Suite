@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include <fftw3.h>
+struct kiss_fft_cpx_;
+typedef struct kiss_fft_state kiss_fft_state;
 
 class FFTAnalysis
 {
@@ -14,7 +15,7 @@ public:
 
     FFTAnalysis()
     {
-        _window_size = 0;
+        _fft = nullptr;
     }
 
     ~FFTAnalysis()
@@ -22,9 +23,9 @@ public:
         free();
     }
 
-    void init(uint32_t window_size, double rate, double fps);
+    void init(uint32_t window_size, double rate);
     void free();
-    bool run(uint32_t n_samples, float const* data);
+    void run(const float* data);
     float powerAtBin(int b) const;
     float freqAtBin(int b) const;
 
@@ -38,29 +39,24 @@ private:
         W_FLAT_TOP
     };
 
-    uint32_t   _window_size;
-    window_t   _window_type;
-    uint32_t   _data_size;
-    double     _rate;
-    double     _freq_per_bin;
-    double     _phasediff_step;
-    float*     _window;
-    float*     _fft_in;
-    float*     _fft_out;
-    float*     _power;
-    float*     _phase;
-    float*     _phase_h;
-    fftwf_plan _fftplan;
+    uint32_t        _window_size;
+    window_t        _window_type;
+    uint32_t        _data_size;
+    double          _freq_per_bin;
+    double          _phase_scale;
+    double          _phasediff_step;
+    float*          _window;
+    kiss_fft_cpx_*  _fft_in;
+    kiss_fft_cpx_*  _fft_out;
+    float*          _power;
+    float*          _phase;
+    float*          _phase_h;
+    kiss_fft_state* _fft;
 
-    float*   _ringbuf;
-    uint32_t _rboff;
-    uint32_t _smps;
-    uint32_t _sps;
-    uint32_t _step;
-    double   _phasediff_bin;
+    double _phasediff_bin;
 
     float* _genWindow();
     void _analyze();
     void _reset();
-    bool _run(uint32_t n_samples, float const* data);
+    void _run(uint32_t n_samples, float const* data);
 };

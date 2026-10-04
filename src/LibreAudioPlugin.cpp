@@ -27,7 +27,9 @@
 
 #include <cassert>
 
+#if LIBREAUDIO_WANT_GRAPH_ANALYZER
 #include "fft.cpp"
+#endif
 
 START_NAMESPACE_DISTRHO
 
@@ -334,7 +336,7 @@ void LibreAudioPlugin::setState(const char* const key [[maybe_unused]], const ch
            #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
             fRunnerBufferSize = getSampleRate() * kNumSecondsForWaveform / kNumSamplePointsForWaveform;
            #else
-            fRunnerBufferSize = 2048;
+            fRunnerBufferSize = LibreAudioAnalyzerIPC::kWindowSize;
            #endif
             fRunnerBuffer.createBuffer(fRunnerBufferSize * kDataSize * kBufferCycles);
             startRunner(kTargetIdleTimeMs);
@@ -588,7 +590,7 @@ bool LibreAudioPlugin::run()
     static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-    fAnalysis.init(LibreAudioAnalyzerIPC::kWindowSize, getSampleRate(), kTargetFrameRate);
+    fAnalysis.init(fRunnerBufferSize, getSampleRate());
    #endif
 
     const uint32_t bufferSize = fRunnerBufferSize;
@@ -599,8 +601,7 @@ bool LibreAudioPlugin::run()
         DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data.get(), bufferSize * kDataSize), false);
 
        #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-        if (! fAnalysis.run(bufferSize, data.get()))
-            return true;
+        fAnalysis.run(data.get());
 
         if (! fIPC.push(fAnalysis))
         {

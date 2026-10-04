@@ -14,7 +14,7 @@ set_target_properties(las-kiss-fft
 )
 
 target_compile_definitions(las-kiss-fft
-  PRIVATE
+  PUBLIC
     DISABLE_DEBUG_FLOAT
     FLOAT_APPROX
     RNNOISE_EXPORT=
@@ -22,7 +22,7 @@ target_compile_definitions(las-kiss-fft
 
 target_include_directories(las-kiss-fft
   PUBLIC
-    rnnoise/include
+    rnnoise/src
 )
 
 target_sources(las-kiss-fft
