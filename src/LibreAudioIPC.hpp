@@ -81,7 +81,7 @@ public:
 
         static constexpr const float log1k = 6.907755279f;  // logf (1000);
 
-       #if defined(__GNUC__) && !defined(__clang__)
+       #if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__clang__)
         static constexpr const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
        #else
         const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
