@@ -11,6 +11,10 @@
 #include <cstdio>
 #include <cstring>
 
+#ifndef M_PIf
+#define M_PIf static_cast<float>(M_PI)
+#endif
+
 #include "kiss_fft.h"
 
 struct kiss_fft_cpx_ : kiss_fft_cpx {};
