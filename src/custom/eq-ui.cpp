@@ -10,6 +10,8 @@
 #include "eq/bell-response.hpp"
 #include "eq/highpass.hpp"
 #include "eq/ladder-highpass.hpp"
+#include "eq/fil4-highpass.hpp"
+#include "eq/shelf.hpp"
 
 #include "OpenGL.hpp"
 
@@ -26,7 +28,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 // Dynamic native EQ: band numbers map to stable host parameter slots.
-// Bell, Butterworth and ladder high-pass DSP are implemented; other shapes are reserved for later.
+// Bell, shelves, three high-pass designs and Butterworth low-pass are implemented.
 //
 // Geometry is in prototype px, 1:1 with plugin px at scale 1. Text is drawn kTextScale larger, as the suite's other
 // widgets size text against their prototypes, and whatever is laid out around text grows with it.
@@ -34,11 +36,11 @@ namespace LibreAudio {
 static constexpr const float kTextScale = 1.4f;
 
 static constexpr const float kFreqMin = 10.f;
-static constexpr const float kFreqMax = 30000.f;
+static constexpr const float kFreqMax = 22000.f;
 static constexpr const float kGainLimit = 24.f;
 
 // display padding above and below the curve area
-static constexpr const float kDisplayPadVertical = 32.f;
+static constexpr const float kDisplayPadVertical = 40.f;
 
 static constexpr const float kPianoHeight = 26.f;
 static constexpr const float kRegionsHeight = 20.f;
@@ -115,11 +117,11 @@ static constexpr const std::array<EqRegion, 7> kRegions {{
 // --------------------------------------------------------------------------------------------------------------------
 // One EQ band, and the analog-prototype magnitude model the display draws it with.
 
-enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass };
+enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass, X42HighPass };
 enum class EqChannel : uint8_t { Stereo, Mid, Side };
 
-static constexpr const std::array<EqBandType, 6> kBandTypes {
-    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::LowPass
+static constexpr const std::array<EqBandType, 7> kBandTypes {
+    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::X42HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::LowPass
 };
 
 struct EqBand {
@@ -141,15 +143,23 @@ struct EqBand {
     float soloAlpha;
     float labelAlpha;
 
+    [[nodiscard]] bool isShelf() const noexcept
+    {
+        return type == EqBandType::LowShelf || type == EqBandType::HighShelf;
+    }
+
     [[nodiscard]] bool isCut() const noexcept
     {
-        return type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::LowPass;
+        return type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::X42HighPass || type == EqBandType::LowPass;
     }
+
+    int effectiveSlope() const noexcept { return type == EqBandType::X42HighPass ? 2 : slope; }
+    bool hasVariableSlope() const noexcept { return isCut() && type != EqBandType::X42HighPass; }
 
     // a 6 dB/oct cut has no resonance
     [[nodiscard]] bool hasQ() const noexcept
     {
-        return !isCut() || slope > 1;
+        return !isCut() || effectiveSlope() > 1;
     }
 };
 
@@ -164,14 +174,14 @@ struct EqResponse {
         return kFreqMin * std::pow(10.f, t * std::log10(kFreqMax / kFreqMin));
     }
 
-    static float qToNorm(const float q) noexcept
+    static float qToNorm(const float q, const EqBand& b) noexcept
     {
-        return std::log(q / 0.3f) / std::log(26.7f);
+        return std::log(q / 0.3f) / std::log((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f);
     }
 
-    static float normToQ(const float n) noexcept
+    static float normToQ(const float n, const EqBand& b) noexcept
     {
-        return 0.3f * std::pow(26.7f, n);
+        return 0.3f * std::pow((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f, n);
     }
 
     // resonance of a cut, as the dB it adds at the corner
@@ -183,10 +193,16 @@ struct EqResponse {
     static float bandDb(const float f, const EqBand& b) noexcept
     {
         if (!b.on) return 0.f;
+        if (b.type == EqBandType::X42HighPass)
+            return eq::x42HighPassResponse(f, b.freq, b.q, b.sampleRate);
         if (b.type == EqBandType::LadderHighPass)
             return eq::ladderHighPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
         if (b.type == EqBandType::HighPass)
             return eq::highPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
+        if (b.type == EqBandType::LowPass)
+            return eq::lowPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
+        if (b.isShelf())
+            return eq::shelfResponse(f, b.freq, b.gain, b.q, b.sampleRate, b.type == EqBandType::HighShelf);
         if (b.type == EqBandType::Peak)
             return eq::bellResponse(f, b.freq, b.gain, b.q, b.adaptiveQ, b.sampleRate);
         return 0.f;
@@ -214,7 +230,10 @@ struct EqResponse {
     // the type a new band gets, by where it lands across the display
     static EqBandType typeAt(const float t) noexcept
     {
-        return t < 0.1f ? EqBandType::HighPass : EqBandType::Peak;
+        return t < 0.1f ? EqBandType::HighPass
+             : t < 0.27f ? EqBandType::LowShelf
+             : t < 0.76f ? EqBandType::Peak
+             : t < 0.9f ? EqBandType::HighShelf : EqBandType::LowPass;
     }
 
     static const char* typeName(const EqBandType type) noexcept
@@ -223,10 +242,11 @@ struct EqResponse {
         {
         case EqBandType::HighPass: return "Butterworth HP";
         case EqBandType::LadderHighPass: return "Ladder HP";
+        case EqBandType::X42HighPass: return "x42 HP";
         case EqBandType::LowShelf: return "Low Shelf";
         case EqBandType::Peak: return "Bell";
         case EqBandType::HighShelf: return "High Shelf";
-        case EqBandType::LowPass: return "Low Pass";
+        case EqBandType::LowPass: return "Butterworth LP";
         }
         return "";
     }
@@ -535,7 +555,7 @@ private:
             it->sampleRate = fInterface->getAudioSampleRate();
             it->on = p[eq::kEnabled] > .5f;
             it->type = static_cast<EqBandType>(int(p[eq::kType]));
-            it->defQ = it->isCut() ? 0.707f : 1.f;
+            it->defQ = it->isCut() ? 0.707f : it->isShelf() ? 0.7f : 1.f;
             it->channel = static_cast<EqChannel>(int(p[eq::kChannel]));
             it->freq = p[eq::kFrequency];
             it->gain = p[eq::kGain];
@@ -604,10 +624,17 @@ private:
 
     void setBandType(EqBand& b, const EqBandType type)
     {
-        if ((type != EqBandType::Peak && type != EqBandType::HighPass && type != EqBandType::LadderHighPass) || b.type == type)
+        if (b.type == type)
             return;
 
+        // Changing the high-pass design must not reset the user's band settings.
+        const bool switchingHighPass =
+            (b.type == EqBandType::HighPass || b.type == EqBandType::LadderHighPass || b.type == EqBandType::X42HighPass) &&
+            (type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::X42HighPass);
         b.type = type;
+        if (switchingHighPass)
+            return;
+
         applyTypeDefaults(b);
         if (b.isCut())
             b.gain = 0.f;
@@ -850,6 +877,10 @@ private:
             M(1.5f, 11.f); C(5.f, 11.f, 4.5f, 1.5f, 8.f, 1.5f);
             C(10.f, 1.5f, 9.5f, 4.f, 12.f, 4.f); L(16.5f, 4.f);
             M(2.f, 8.f); L(5.f, 8.f); M(3.f, 6.f); L(6.f, 6.f);
+            break;
+        case EqBandType::X42HighPass:
+            M(1.5f, 11.f); C(4.f, 11.f, 5.f, 1.f, 8.f, 1.f);
+            C(10.f, 1.f, 10.f, 4.f, 13.f, 4.f); L(16.5f, 4.f);
             break;
         case EqBandType::LowShelf:
             M(1.5f, 3.f); L(5.f, 3.f); C(7.5f, 3.f, 7.5f, 9.f, 10.f, 9.f); L(16.5f, 9.f);
@@ -1361,52 +1392,59 @@ private:
         // values next to the node, each draggable on its own
         if (b.labelAlpha > 0.001f && ! dim)
         {
-            char buffer[32];
-            struct Row { Field field; char text[32]; } rows[3];
+            struct Value { Field field; char text[32]; float width; } values[3] {};
             int count = 0;
+
+            values[count].field = Field::Freq;
+            // Keep frequencies in Hz when omitting units, so 1k cannot read as 1Hz.
+            std::snprintf(values[count++].text, 32, "%.0f", b.freq);
 
             if (b.isCut())
             {
-                rows[count].field = Field::Slope;
-                std::snprintf(rows[count++].text, 32, "%d dB/oct", b.slope * 6);
+                values[count].field = Field::Slope;
+                std::snprintf(values[count++].text, 32, "%d", b.effectiveSlope() * 6);
             }
             else
             {
-                EqResponse::formatDb(buffer, sizeof(buffer), b.gain);
-                rows[count].field = Field::Gain;
-                std::snprintf(rows[count++].text, 32, "%s dB", buffer);
+                values[count].field = Field::Gain;
+                EqResponse::formatDb(values[count++].text, 32, b.gain);
             }
-
-            rows[count].field = Field::Freq;
-            EqResponse::formatFreq(rows[count++].text, 32, b.freq);
 
             if (b.hasQ())
             {
-                rows[count].field = Field::Q;
-                std::snprintf(rows[count++].text, 32, "Q %.2f", b.q);
+                values[count].field = Field::Q;
+                std::snprintf(values[count++].text, 32, "%.2f", b.q);
             }
 
-            const float rowH = 12.f * kTextScale * s;
-            const bool below = ! b.isCut() && b.gain < 0.f;
-            const float lx = std::clamp(x, p.x + 44.f * s, p.x + p.w - 44.f * s);
-            const float ly = below ? y + 16.f * s + rowH : y - 16.f * s - (count - 1) * rowH;
-
             setFont("mono", 10.f);
-            textAlign(ALIGN_CENTER | ALIGN_BASELINE);
+            textAlign(ALIGN_LEFT | ALIGN_BASELINE);
+
+            const float separatorWidth = 14.f * s;
+            const float rowH = 12.f * kTextScale * s;
+            float width = (count - 1) * separatorWidth;
+            for (int i = 0; i < count; ++i)
+                width += values[i].width = textWidth(values[i].text);
+
+            const bool below = ! b.isCut() && b.gain < 0.f;
+            float lx = std::clamp(x - width * 0.5f, p.x + 6.f * s,
+                                  std::max(p.x + 6.f * s, p.x + p.w - width - 6.f * s));
+            const float ly = below ? y + 26.f * s : y - 18.f * s;
 
             for (int i = 0; i < count; ++i)
             {
-                const float ry = ly + i * rowH;
-                const float tw = textWidth(rows[i].text);
+                const float tw = values[i].width;
                 const bool hot = fHoverLabel >= 0 && fHoverLabel == static_cast<int>(fLabelHits.size());
+                fLabelHits.push_back({ b.id, values[i].field,
+                                      { lx - 3.f * s, ly - rowH * 0.8f, tw + 6.f * s, rowH } });
 
-                fLabelHits.push_back({ b.id, rows[i].field, { lx - tw * 0.5f - 3.f * s, ry - rowH * 0.8f, tw + 6.f * s, rowH } });
-
-                // drop shadow, then the text
                 fillColor(Color(0.f, 0.f, 0.f, 0.6f * b.labelAlpha));
-                text(lx, ry + 1.f * s, rows[i].text, nullptr);
+                text(lx, ly + s, values[i].text, nullptr);
                 fillColor(withAlpha(hot ? Color(1.f, 1.f, 1.f) : b.color, 0.72f * b.labelAlpha));
-                text(lx, ry, rows[i].text, nullptr);
+                text(lx, ly, values[i].text, nullptr);
+                lx += tw;
+
+                if (i + 1 < count)
+                    lx += separatorWidth;
             }
         }
     }
@@ -1723,7 +1761,7 @@ private:
                 if (sel && lit)
                     glowDot(icons[i].x + icons[i].w * 0.5f, icons[i].y + icons[i].h * 0.5f, 4.f * s, 8.f * s, b->color, 0.25f);
                 const Color c = sel ? (lit ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
-                strokeTypeIcon(kBandTypes[i], icons[i], (kBandTypes[i] == EqBandType::Peak || kBandTypes[i] == EqBandType::HighPass || kBandTypes[i] == EqBandType::LadderHighPass) ? c : EqColors::off, 1.2f * s * 22.f / 18.f);
+                strokeTypeIcon(kBandTypes[i], icons[i], c, 1.2f * s * 22.f / 18.f);
             }
         }
 
@@ -1756,23 +1794,23 @@ private:
 
             if (b->isCut())
             {
-                std::snprintf(value, sizeof(value), "%d", b->slope * 6);
-                drawNumberBox(row[1], "SLOPE", value, "dB/oct", (b->slope - 1) / 3.f, *b, lit, true);
+                std::snprintf(value, sizeof(value), "%d", b->effectiveSlope() * 6);
+                drawNumberBox(row[2], "SLOPE", value, "dB/oct", (b->effectiveSlope() - 1) / 3.f, *b, lit, b->hasVariableSlope());
             }
             else
             {
                 EqResponse::formatDb(value, sizeof(value), b->gain);
-                drawNumberBox(row[1], "GAIN", value, "dB", (b->gain + kGainLimit) / (2.f * kGainLimit), *b, lit, true);
+                drawNumberBox(row[2], "GAIN", value, "dB", (b->gain + kGainLimit) / (2.f * kGainLimit), *b, lit, true);
             }
 
             EqResponse::formatFreq(value, sizeof(value), b->freq, false);
-            drawNumberBox(row[2], "FREQUENCY", value, b->freq >= 1000.f ? "kHz" : "Hz",
+            drawNumberBox(row[1], "FREQUENCY", value, b->freq >= 1000.f ? "kHz" : "Hz",
                           EqResponse::freqToNorm(b->freq), *b, lit, true);
 
             if (b->hasQ())
             {
                 std::snprintf(value, sizeof(value), "%.2f", b->q);
-                drawNumberBox(row[3], "Q", value, nullptr, EqResponse::qToNorm(b->q), *b, lit, true);
+                drawNumberBox(row[3], "Q", value, nullptr, EqResponse::qToNorm(b->q, *b), *b, lit, true);
             }
             else
             {
@@ -1894,7 +1932,7 @@ private:
                 fill();
             }
             const Box icon { cell.x + (cell.w - 18.f * s) * 0.5f, cell.y + (cell.h - 12.f * s) * 0.5f, 18.f * s, 12.f * s };
-            strokeTypeIcon(kBandTypes[i], icon, (kBandTypes[i] != EqBandType::Peak && kBandTypes[i] != EqBandType::HighPass && kBandTypes[i] != EqBandType::LadderHighPass) ? EqColors::off : sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
+            strokeTypeIcon(kBandTypes[i], icon, sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
         }
 
         beginPath();
@@ -2205,6 +2243,7 @@ private:
             {
                 fActive = b->id;
 
+                if (hit.field == Field::Slope && !b->hasVariableSlope()) return true;
                 if (isDoubleClick(kTargetLabel | (b->id << 2) | static_cast<uint32_t>(hit.field)))
                 {
                     switch (hit.field)
@@ -2346,7 +2385,7 @@ private:
             }
         }
 
-        static constexpr const Field kBoxFields[3] = { Field::Gain, Field::Freq, Field::Q };
+        static constexpr const Field kBoxFields[3] = { Field::Freq, Field::Gain, Field::Q };
 
         for (int i = 1; i <= 3; ++i)
         {
@@ -2356,6 +2395,7 @@ private:
             Field field = kBoxFields[i - 1];
             if (field == Field::Gain && b->isCut())
                 field = Field::Slope;
+            if (field == Field::Slope && !b->hasVariableSlope()) return true;
             if (field == Field::Q && ! b->hasQ())
                 return true;
 
@@ -2417,7 +2457,7 @@ private:
             else if (b.hasQ())
             {
                 const float db = EqResponse::qToDb(fDrag.q) + (fDrag.y - y) / p.hUse * 2.f * p.dbMax;
-                b.q = std::clamp(0.707f * std::pow(10.f, db / 20.f), EqResponse::normToQ(0.f), EqResponse::normToQ(1.f));
+                b.q = std::clamp(0.707f * std::pow(10.f, db / 20.f), EqResponse::normToQ(0.f, b), EqResponse::normToQ(1.f, b));
             }
             break;
 
@@ -2437,7 +2477,7 @@ private:
                                     kFreqMin, kFreqMax);
                 break;
             case Field::Q:
-                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q) + (fDrag.y - y) / p.h, 0.f, 1.f));
+                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q, b) + (fDrag.y - y) / p.h, 0.f, 1.f), b);
                 break;
             }
             break;
@@ -2460,7 +2500,7 @@ private:
                                     kFreqMin, kFreqMax);
                 break;
             case Field::Q:
-                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q) + dy / 420.f, 0.f, 1.f));
+                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q, b) + dy / 420.f, 0.f, 1.f), b);
                 break;
             }
             break;
@@ -2475,7 +2515,7 @@ private:
             if (! b.isCut())
                 b.gain = std::clamp(fDrag.gain + dy * 0.1f, -kGainLimit, kGainLimit);
             else if (b.hasQ())
-                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q) + dy / 300.f, 0.f, 1.f));
+                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q, b) + dy / 300.f, 0.f, 1.f), b);
             break;
         }
         }
@@ -2522,6 +2562,8 @@ private:
                 fHoverLabel = li;
                 fHoverNode = fLabelHits[li].id;
                 cursor = fLabelHits[li].field == Field::Freq ? kMouseCursorLeftRight : kMouseCursorUpDown;
+                if (const EqBand* b = findBand(fHoverNode); b && fLabelHits[li].field == Field::Slope && !b->hasVariableSlope())
+                    cursor = kMouseCursorArrow;
             }
             else if (const EqBand* const b = nodeAt(x, y))
             {
@@ -2545,9 +2587,9 @@ private:
         {
             const std::array<Box, 5> row = layoutBarRow();
             const EqBand* const b = barBand();
-            if (row[2].contains(x, y))
+            if (row[1].contains(x, y))
                 cursor = kMouseCursorLeftRight;
-            else if (row[1].contains(x, y) || (row[3].contains(x, y) && b->hasQ()))
+            else if ((row[2].contains(x, y) && (!b->isCut() || b->hasVariableSlope())) || (row[3].contains(x, y) && b->hasQ()))
                 cursor = kMouseCursorUpDown;
             else if (row[0].contains(x, y) || row[4].contains(x, y))
                 cursor = kMouseCursorHand;
@@ -2585,10 +2627,10 @@ private:
             if (EqBand* const b = nodeAt(x, y))
             {
                 fActive = b->id;
-                if (b->isCut())
+                if (b->hasVariableSlope())
                     b->slope = std::clamp(b->slope + static_cast<int>(dir), 1, 4);
                 else
-                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q) + dir * 0.05f, 0.f, 1.f));
+                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q, *b) + dir * 0.05f, 0.f, 1.f), *b);
                 repaint();
                 return true;
             }
@@ -2600,7 +2642,7 @@ private:
             if (EqBand* const b = pianoDotAt(x, y); b != nullptr && b->hasQ())
             {
                 fActive = b->id;
-                b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q) + dir * 0.05f * fine, 0.f, 1.f));
+                b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q, *b) + dir * 0.05f * fine, 0.f, 1.f), *b);
                 repaint();
                 return true;
             }
@@ -2612,21 +2654,22 @@ private:
             if (EqBand* const b = barBand())
             {
                 const std::array<Box, 5> row = layoutBarRow();
-                if (row[1].contains(x, y))
+                if (row[2].contains(x, y))
                 {
+                    if (b->isCut() && !b->hasVariableSlope()) return true;
                     if (b->isCut())
                         b->slope = std::clamp(b->slope + static_cast<int>(dir), 1, 4);
                     else
                         b->gain = std::clamp(b->gain + dir * 0.5f * fine, -kGainLimit, kGainLimit);
                 }
-                else if (row[2].contains(x, y))
+                else if (row[1].contains(x, y))
                 {
                     b->freq = std::clamp(EqResponse::normToFreq(std::clamp(EqResponse::freqToNorm(b->freq) + dir * 0.01f * fine, 0.f, 1.f)),
                                          kFreqMin, kFreqMax);
                 }
                 else if (row[3].contains(x, y) && b->hasQ())
                 {
-                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q) + dir * 0.02f * fine, 0.f, 1.f));
+                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q, *b) + dir * 0.02f * fine, 0.f, 1.f), *b);
                 }
                 else
                 {

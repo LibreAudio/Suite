@@ -6,6 +6,8 @@
 #include "x42-bell.hpp"
 #include "highpass.hpp"
 #include "ladder-highpass.hpp"
+#include "shelf.hpp"
+#include "fil4-highpass.hpp"
 #include <array>
 
 namespace eq {
@@ -14,6 +16,9 @@ class DynamicEq final : public FaustDSP
     struct Band {
         Fil4Paramsect filter[2];
         HighPass highpass[2];
+        LowPass lowpass[2];
+        X42HighPass x42highpass[2];
+        Shelf lowShelf[2], highShelf[2];
         LadderHighPass ladder[2];
         LadderHighPass ladderStereo[2];
         float frequency = .02f, bandwidth = 1.f;
@@ -53,6 +58,10 @@ public:
         {
             for (auto& filter : band.filter) filter.init();
             for (auto& filter : band.highpass) filter.clear();
+            for (auto& filter : band.lowpass) filter.clear();
+            for (auto& filter : band.x42highpass) filter.clear();
+            for (auto& filter : band.lowShelf) filter.clear();
+            for (auto& filter : band.highShelf) filter.clear();
             for (auto& filter : band.ladder) filter.clear();
             for (auto& filter : band.ladderStereo) filter.clear();
         }
@@ -64,6 +73,10 @@ public:
         {
             band.dirty = true;
             for (auto& filter : band.highpass) filter.setRate(rate);
+            for (auto& filter : band.lowpass) filter.setRate(rate);
+            for (auto& filter : band.x42highpass) filter.setRate(rate);
+            for (auto& filter : band.lowShelf) filter.setRate(rate, false);
+            for (auto& filter : band.highShelf) filter.setRate(rate, true);
             for (auto& filter : band.ladder) filter.setRate(rate);
             for (auto& filter : band.ladderStereo) filter.setRate(rate);
         }
@@ -102,6 +115,15 @@ public:
                 band.ladderStereo[c].configure(ladder && p[kChannel] == 0.f,
                                                p[kFrequency], int(p[kSlope]), p[kQ], rate);
             }
+            for (unsigned c = 0; c < 2; ++c)
+            {
+                const bool enabled = p[kPresent] > .5f && p[kEnabled] > .5f
+                                  && p[kChannel] != (c == 0 ? 2.f : 1.f);
+                band.lowpass[c].configure(enabled && p[kType] == 4.f, p[kFrequency], int(p[kSlope]), p[kQ], rate);
+                band.x42highpass[c].configure(enabled && p[kType] == 6.f, p[kFrequency], p[kQ]);
+                band.lowShelf[c].configure(enabled && p[kType] == 1.f, p[kFrequency], p[kGain], p[kQ]);
+                band.highShelf[c].configure(enabled && p[kType] == 3.f, p[kFrequency], p[kGain], p[kQ]);
+            }
             band.dirty = false;
         }
 
@@ -112,7 +134,8 @@ public:
         unsigned size = 0;
         for (auto& band : bands)
             for (unsigned c = 0; c < 2; ++c)
-                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active() || band.ladder[c].active() || band.ladderStereo[0].active() || band.ladderStereo[1].active())
+                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active() || band.lowpass[c].active() || band.ladder[c].active() || band.ladderStereo[0].active() || band.ladderStereo[1].active()
+                    || band.x42highpass[c].active() || band.lowShelf[c].active() || band.highShelf[c].active())
                     active[size++] = {&band, c};
         if (size == 0) return; // exact passthrough, without even an M/S round trip
 
@@ -132,7 +155,11 @@ public:
                 const unsigned c = active[i].channel;
                 if (b.gain[c] != 1.f || b.filter[c].g0() != 0.f)
                     b.filter[c].proc(n, signal[c], b.frequency, b.bandwidth, b.gain[c]);
+                b.lowShelf[c].process(n, signal[c]);
+                b.highShelf[c].process(n, signal[c]);
                 b.highpass[c].process(n, signal[c]);
+                b.lowpass[c].process(n, signal[c]);
+                b.x42highpass[c].process(n, signal[c]);
                 b.ladder[c].process(n, signal[c]);
                 // Nonlinear stereo filtering must run on L/R, not M/S: those
                 // transforms commute only for linear processors. Separate state

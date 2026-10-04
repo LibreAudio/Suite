@@ -35,10 +35,22 @@ inline float highPassResponse(float hz, float frequency, int order, float q, flo
     return float(10 * std::log10(std::max(1e-30, std::norm(h))));
 }
 
+inline float lowPassResponse(float hz, float frequency, int order, float q, float rate)
+{
+    if (hz >= rate * .5f) return -300.f;
+    const std::complex<double> s(0, std::tan(kPi * std::max(0.f, hz) / rate) / highPassG(frequency, rate));
+    std::complex<double> h(1, 0);
+    if (order & 1) h /= s + 1.;
+    if (order == 4) h /= s * s + 1.8477590650225735 * s + 1.;
+    if (order >= 2) h /= s * s + highPassDamping(order, q) * s + 1.;
+    return float(10 * std::log10(std::max(1e-30, std::norm(h))));
+}
+
 // Trapezoidal one-pole and state-variable sections. The SVF equations follow
 // the standard trapezoidal integrator formulation described by Andrew Simper:
 // https://www.cytomic.com/files/dsp/SvfLinearTrapOptimised.pdf
-class HighPass
+template<bool lowPass>
+class ButterworthCut
 {
     struct Pair {
         double z1 = 0, z2 = 0;
@@ -49,7 +61,7 @@ class HighPass
             const double lp = g * bp + z2;
             z1 = g * hp + bp;
             z2 = g * bp + lp;
-            return hp;
+            return lowPass ? lp : hp;
         }
     };
     Pair pairs[2];
@@ -108,7 +120,7 @@ public:
                 const double hp = (x - onePole) / (1 + g);
                 const double lp = g * hp + onePole;
                 onePole = g * hp + lp;
-                x = hp;
+                x = lowPass ? lp : hp;
             }
             if (order == 4) x = pairs[0].process(x, g, 1.8477590650225735);
             if (order >= 2) x = pairs[1].process(x, g, damping);
@@ -117,4 +129,6 @@ public:
         if (mix == 0) clearHistory();
     }
 };
+using HighPass = ButterworthCut<false>;
+using LowPass = ButterworthCut<true>;
 }
