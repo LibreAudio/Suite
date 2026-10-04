@@ -315,6 +315,8 @@ private:
 
     void onDisplay() final
     {
+        fPendingDisplay = false;
+
         const TopLevelWidget* const tlw = getTopLevelWidget();
 
         const uint width = getWidth();
