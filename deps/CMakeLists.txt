@@ -3,6 +3,34 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # ---------------------------------------------------------------------------------------------------------------------
+# kiss-fft library
+
+add_library(las-kiss-fft STATIC)
+
+set_target_properties(las-kiss-fft
+  PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_definitions(las-kiss-fft
+  PRIVATE
+    DISABLE_DEBUG_FLOAT
+    FLOAT_APPROX
+    RNNOISE_EXPORT=
+)
+
+target_include_directories(las-kiss-fft
+  PUBLIC
+    rnnoise/include
+)
+
+target_sources(las-kiss-fft
+  PRIVATE
+    rnnoise/src/kiss_fft.c
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
 # rnnoise library
 
 add_library(las-rnnoise STATIC)

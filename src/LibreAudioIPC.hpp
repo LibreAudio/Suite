@@ -83,10 +83,10 @@ public:
         const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
        #endif
 
-        SharedData* const bins = fSharedMem.getDataPointer();
+        SharedData* const data = fSharedMem.getDataPointer();
 
         for (uint32_t b = 0; b < kNumBins; ++b)
-            bins->data[b] *= tc;
+            data->bins[b] *= tc;
 
         for (uint32_t i = 1; i < kDataSize - 1; ++i)
         {
@@ -103,23 +103,29 @@ public:
                 b = 1;
             }
             float pwr = 1.f - pab / FFTAnalysis::kSmallestValue;
-            if (pwr > bins->data[b]) {
-                bins->data[b] = pwr;
+            if (pwr > data->bins[b]) {
+                data->bins[b] = pwr;
             }
         }
 
+        __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
         return true;
     }
 
     float* get() noexcept
     {
-        SharedData* const bins = fSharedMem.getDataPointer();
-        return bins->data;
+        SharedData* const data = fSharedMem.getDataPointer();
+
+        if (! __atomic_exchange_n(&data->hasNewData, false, __ATOMIC_RELAXED))
+            return nullptr;
+
+        return data->bins;
     }
 
 private:
     struct SharedData {
-        float data[kNumBins];
+        float bins[kNumBins];
+        bool hasNewData;
     };
 
     SharedMemory<SharedData> fSharedMem;

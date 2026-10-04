@@ -223,7 +223,9 @@ function(las_add_plugin LABEL)
   endif()
 
   set(EXTRA_DSP_LIBS)
-  if("${LABEL}" STREQUAL "leveler")
+  if("${LABEL}" STREQUAL "dualGain")
+    list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
+  elseif("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 

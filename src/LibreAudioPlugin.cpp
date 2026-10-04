@@ -328,11 +328,7 @@ void LibreAudioPlugin::setState(const char* const key [[maybe_unused]], const ch
 
         if (fIPC.connect(value))
         {
-           #ifdef LIBREAUDIO_IPC_MONO
-            static constexpr const uint32_t kDataSize = sizeof(float);
-           #else
-            static constexpr const uint32_t kDataSize = sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS;
-           #endif
+            static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
             static constexpr const uint32_t kBufferCycles = 32;
 
            #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -589,20 +585,14 @@ inline void LibreAudioPlugin::doUnmute()
 #if LIBREAUDIO_WANT_GRAPH
 bool LibreAudioPlugin::run()
 {
-   #ifdef LIBREAUDIO_IPC_MONO
-    static constexpr const uint32_t kDataSize = sizeof(float);
-    static constexpr const uint32_t kNumChannels = 1;
-   #else
-    static constexpr const uint32_t kDataSize = sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS;
-    static constexpr const uint32_t kNumChannels = DISTRHO_PLUGIN_NUM_OUTPUTS;
-   #endif
+    static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     fAnalysis.init(LibreAudioAnalyzerIPC::kWindowSize, getSampleRate(), kTargetFrameRate);
    #endif
 
     const uint32_t bufferSize = fRunnerBufferSize;
-    std::unique_ptr<float[]> data { new float[bufferSize * kNumChannels] };
+    std::unique_ptr<float[]> data { new float[bufferSize * LIBREAUDIO_WANT_GRAPH_IO_COUNT] };
 
     while (fRunnerBuffer.getReadableDataSize() >= bufferSize * kDataSize)
     {
@@ -621,11 +611,11 @@ bool LibreAudioPlugin::run()
         LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType value = {};
         for (uint32_t i = 0; i < bufferSize; ++i)
         {
-           #if defined(LIBREAUDIO_IPC_MONO)
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value)
                     value = v;
-           #elif defined(LIBREAUDIO_WAVEFORM_STEREO)
+           #else
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value.ptr[c])
                     value.ptr[c] = v;

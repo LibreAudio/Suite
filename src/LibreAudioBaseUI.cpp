@@ -164,8 +164,13 @@ void LibreAudioBaseUI::uiIdle()
        #if LIBREAUDIO_WANT_GRAPH
         if (const char* const filename = fIPC.create())
         {
+            d_debug("LibreAudio DSP<->UI IPC setup successfully, filename: %s", filename);
             setState(kStateKeyFileMappingIPC, filename);
             // addIdleCallback(this, 1000 / 60); // 60fps
+        }
+        else
+        {
+            d_stderr2("LibreAudio DSP<->UI IPC setup failed, audio graphs will be missing");
         }
        #endif
     }
@@ -182,7 +187,13 @@ void LibreAudioBaseUI::uiIdle()
 
             while (fIPC.read(value))
                 audioPeaksReceived(value);
+           #else
+            #error unknown graph
            #endif
+        }
+        else
+        {
+            d_debug("fIPC not connected!");
         }
        #endif
     }

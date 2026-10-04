@@ -259,7 +259,7 @@ public:
         glDeleteProgram(gl3.program);
     }
 
-    std::enable_if_t<textureSize != 0, void> replace(const float values[])
+    std::enable_if_t<textureSize != 0, void> replace(const float values[textureSize])
     {
         std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
 
