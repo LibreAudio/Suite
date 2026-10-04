@@ -46,6 +46,9 @@ public:
         if (! fSharedMem.create())
             return nullptr;
 
+        SharedData* const data = fSharedMem.getDataPointer();
+        data->bins[0] = data->bins[kNumBins - 1] = 0.f;
+
         return fSharedMem.getDataFilename();
     }
 
@@ -85,7 +88,7 @@ public:
 
         SharedData* const data = fSharedMem.getDataPointer();
 
-        for (uint32_t b = 0; b < kNumBins; ++b)
+        for (uint32_t b = 1; b < kNumBins - 1; ++b)
             data->bins[b] *= tc;
 
         for (uint32_t i = 1; i < kDataSize - 1; ++i)
@@ -102,8 +105,7 @@ public:
             if (b < 2) {
                 b = 1;
             }
-            float pwr = 1.f - pab / FFTAnalysis::kSmallestValue;
-            if (pwr > data->bins[b]) {
+            if (const float pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
                 data->bins[b] = pwr;
             }
         }
