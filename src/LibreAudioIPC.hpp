@@ -10,6 +10,7 @@
 #include "fft.hpp"
 
 #include <array>
+#include <cmath>
 
 START_NAMESPACE_DISTRHO
 
