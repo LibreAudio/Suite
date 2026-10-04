@@ -71,8 +71,11 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
-    // LibreAudioWaveformIPC fIPC;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT> fIPC;
+   #endif
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
     bool fFirstIdle = true;
@@ -98,7 +101,11 @@ private:
 
     void stateChanged(const char* key, const char* value) final;
 
-    virtual void audioPeaksReceived(float v1, float v2opt) {};
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    virtual void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) = 0;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    virtual void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) = 0;
+   #endif
 
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks

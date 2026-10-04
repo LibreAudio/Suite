@@ -138,7 +138,7 @@ private:
         // ------------------------------------------------------------------------------------------------------------
         // draw text
 
-        float xa, xb;
+        float xa;
         char textBuffer[24];
 
         fillColor(R::Name::color);
@@ -161,7 +161,7 @@ private:
                       *kParameterB.label != '\0' ? kParameterB.label : kParameterB.name);
         textBuffer[sizeof(textBuffer) - 1] = '\0';
         textAlign(ALIGN_RIGHT | ALIGN_TOP);
-        xb = text(w, 0, textBuffer);
+        // xb = text(w, 0, textBuffer);
 
         fillColor(R::Value::color);
         fontFace("mono");

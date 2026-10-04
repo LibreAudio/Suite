@@ -20,7 +20,7 @@ static constexpr const uint32_t kTargetFrameRate = 60;
 
 // Idle time as double of target rate, so that we don't miss a frame in the worst case scenario
 // Repaints must only be requested after pending drawing completes, which ensures we don't bottleneck the system
-static constexpr const uint32_t kTargetIdleTimeMs = 1000 / (kTargetFrameRate * 2);
+static constexpr const uint32_t kTargetIdleTimeMs = d_roundToUnsignedInt(1000.0 / (kTargetFrameRate * 2));
 
 // How many seconds the waveform area should hold
 static constexpr const uint32_t kNumSecondsForWaveform = 8;
@@ -34,8 +34,6 @@ class LibreAudioAnalyzerIPC {
 public:
     static constexpr const uint32_t kNumBins = 256;
     static constexpr const uint32_t kWindowSize = kNumBins * 16;
-
-    static constexpr const float kResponseTimeSecs = 1.f;
 
 public:
     LibreAudioAnalyzerIPC() = default;
@@ -75,6 +73,8 @@ public:
     bool push(const FFTAnalysis& analysis)
     {
         static constexpr const uint32_t kDataSize = kWindowSize / 2;
+        static constexpr const float kResponseTimeSecs = 1.f;
+
         static constexpr const float log1k = 6.907755279f;  // logf (1000);
 
        #if defined(__GNUC__) && !defined(__clang__)
@@ -95,7 +95,7 @@ public:
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            int b = kNumBins * std::logf (frq / 20.f) / log1k; // 20..20k
+            uint b = d_roundToUnsignedInt(kNumBins * std::logf (frq / 20.f) / log1k); // 20..20k
             if (b >= kNumBins) {
                 continue;
             }

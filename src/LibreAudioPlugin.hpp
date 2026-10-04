@@ -184,7 +184,7 @@ private:
     FFTAnalysis fAnalysis;
     LibreAudioAnalyzerIPC fIPC;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
-    LibreAudioWaveformIPC fIPC;
+    LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT> fIPC;
    #endif
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;

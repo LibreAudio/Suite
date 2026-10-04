@@ -138,7 +138,7 @@ void FFTAnalysis::_reset()
     _step  = 0;
 }
 
-int FFTAnalysis::_run (const uint32_t n_samples, float const* const data)
+bool FFTAnalysis::_run (const uint32_t n_samples, float const* const data)
 {
     assert (n_samples <= _window_size);
 
@@ -158,7 +158,7 @@ int FFTAnalysis::_run (const uint32_t n_samples, float const* const data)
 #if 1
     _smps += n_samples;
     if (_smps < _sps) {
-        return -1;
+        return false;
     }
     _step = _smps;
     _smps = 0;
@@ -187,7 +187,7 @@ int FFTAnalysis::_run (const uint32_t n_samples, float const* const data)
     _analyze();
 
     _phasediff_bin = _phasediff_step * (double)_step;
-    return 0;
+    return true;
 }
 
 /******************************************************************************
@@ -239,18 +239,18 @@ void FFTAnalysis::free()
     _window_size = 0;
 }
 
-int FFTAnalysis::run(const uint32_t n_samples, float const* const data)
+bool FFTAnalysis::run(const uint32_t n_samples, float const* const data)
 {
     if (n_samples <= _window_size) {
         return _run (n_samples, data);
     }
 
-    int      rv = -1;
+    bool     rv = false;
     uint32_t n  = 0;
     while (n < n_samples) {
         uint32_t step = std::min (_window_size, n_samples - n);
-        if (!_run (step, &data[n])) {
-            rv = 0;
+        if (_run (step, &data[n])) {
+            rv = true;
         }
         n += step;
     }

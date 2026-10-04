@@ -65,11 +65,13 @@ LibreAudioBaseUI::LibreAudioBaseUI()
 
 LibreAudioBaseUI::~LibreAudioBaseUI()
 {
+   #if LIBREAUDIO_WANT_GRAPH
     if (fIPC.isCreatedOrConnected())
     {
         setState(kStateKeyFileMappingIPC, "");
         fIPC.close();
     }
+   #endif
 
     delete[] fParameterPressed;
     delete[] fParameterValues;
@@ -159,23 +161,29 @@ void LibreAudioBaseUI::uiIdle()
     {
         fFirstIdle = false;
 
+       #if LIBREAUDIO_WANT_GRAPH
         if (const char* const filename = fIPC.create())
         {
             setState(kStateKeyFileMappingIPC, filename);
             // addIdleCallback(this, 1000 / 60); // 60fps
         }
+       #endif
     }
-    else if (fIPC.isCreatedOrConnected())
+    else
     {
-       #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-        float* data = fIPC.get();
-        for (uint32_t i = 0; i < LibreAudioAnalyzerIPC::kNumBins; ++i)
-            audioPeaksReceived(data[i], 0.f);
-       #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
-        LibreAudioFifoType value;
+       #if LIBREAUDIO_WANT_GRAPH
+        if (fIPC.isCreatedOrConnected())
+        {
+           #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+            if (const float* const data = fIPC.get())
+                audioGraphReceived(data);
+           #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+            LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType value;
 
-        while (fIPC.read(value))
-            audioPeaksReceived(value);
+            while (fIPC.read(value))
+                audioPeaksReceived(value);
+           #endif
+        }
        #endif
     }
 

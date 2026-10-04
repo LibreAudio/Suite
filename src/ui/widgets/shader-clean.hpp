@@ -73,7 +73,7 @@ public:
         : ShaderBaseWidget(parent, iface),
           fParent(parent)
     {
-        parent->addIdleCallback(this, 8); // FIXME kTargetIdleTimeMs
+        parent->addIdleCallback(this, kTargetIdleTimeMs);
 
        #ifdef DISTRHO_OS_WINDOWS
         if (! initGL())
@@ -263,7 +263,11 @@ public:
     {
         std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
 
-        repaint();
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
     }
 
     std::enable_if_t<textureSize != 0, void> push(const float value)
@@ -273,7 +277,11 @@ public:
         if (fTextureDataTail == fTextureData.size())
             fTextureDataTail = 0;
 
-        repaint();
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
     }
 
 private:

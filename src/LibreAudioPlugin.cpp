@@ -328,12 +328,20 @@ void LibreAudioPlugin::setState(const char* const key [[maybe_unused]], const ch
 
         if (fIPC.connect(value))
         {
-            // fRunnerBufferSize = getSampleRate() * LibreAudioWaveformIPC::kNumSecondsForWaveform / LibreAudioWaveformIPC::kNumSamplePointsForWaveform;
-            // fRunnerBuffer.createBuffer(fRunnerBufferSize * (sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS * 32));
+           #ifdef LIBREAUDIO_IPC_MONO
+            static constexpr const uint32_t kDataSize = sizeof(float);
+           #else
+            static constexpr const uint32_t kDataSize = sizeof(float) * DISTRHO_PLUGIN_NUM_OUTPUTS;
+           #endif
+            static constexpr const uint32_t kBufferCycles = 32;
+
+           #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
+            fRunnerBufferSize = getSampleRate() * kNumSecondsForWaveform / kNumSamplePointsForWaveform;
+           #else
             fRunnerBufferSize = 2048;
-            fRunnerBuffer.createBuffer(fRunnerBufferSize * sizeof(float) * 32);
-            // startRunner(kTargetIdleTimeMs);
-            startRunner(fRunnerBufferSize / (getSampleRate() * 0.001));
+           #endif
+            fRunnerBuffer.createBuffer(fRunnerBufferSize * kDataSize * kBufferCycles);
+            startRunner(kTargetIdleTimeMs);
         }
     }
    #endif
@@ -445,7 +453,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
                 if (!std::isfinite(outputs[c][i + j]))
                     __builtin_unreachable();
 
-               #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_IO_STEREO
+               #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
                 if (runnerActive)
                     fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
                #endif
@@ -458,7 +466,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
                #endif
             }
 
-           #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_IO_MONO
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
             if (runnerActive)
                 fRunnerBuffer.writeFloat(std::max(fCycleBuffer[0][j], fCycleBuffer[1][j]));
            #endif
@@ -589,7 +597,9 @@ bool LibreAudioPlugin::run()
     static constexpr const uint32_t kNumChannels = DISTRHO_PLUGIN_NUM_OUTPUTS;
    #endif
 
-    fAnalysis.init(LibreAudioAnalyzerIPC::kWindowSize, getSampleRate(), kTargetIdleTimeMs);
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    fAnalysis.init(LibreAudioAnalyzerIPC::kWindowSize, getSampleRate(), kTargetFrameRate);
+   #endif
 
     const uint32_t bufferSize = fRunnerBufferSize;
     std::unique_ptr<float[]> data { new float[bufferSize * kNumChannels] };
@@ -598,17 +608,17 @@ bool LibreAudioPlugin::run()
     {
         DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data.get(), bufferSize * kDataSize), false);
 
-       #if 1
-        fAnalysis.run(bufferSize, data.get());
+       #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+        if (! fAnalysis.run(bufferSize, data.get()))
+            return true;
 
         if (! fIPC.push(fAnalysis))
         {
             // fRunnerBuffer.deleteBuffer();
             return false;
         }
-       #else
-        // TODO waveform, fft or other
-        LibreAudioFifoType value = {};
+       #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+        LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType value = {};
         for (uint32_t i = 0; i < bufferSize; ++i)
         {
            #if defined(LIBREAUDIO_IPC_MONO)

@@ -24,7 +24,7 @@ public:
 
     void init(uint32_t window_size, double rate, double fps);
     void free();
-    int run(uint32_t n_samples, float const* data);
+    bool run(uint32_t n_samples, float const* data);
     float powerAtBin(int b) const;
     float freqAtBin(int b) const;
 
@@ -62,5 +62,5 @@ private:
     float* _genWindow();
     void _analyze();
     void _reset();
-    int _run(uint32_t n_samples, float const* data);
+    bool _run(uint32_t n_samples, float const* data);
 };

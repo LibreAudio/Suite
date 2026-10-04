@@ -52,13 +52,27 @@ public:
     }
 
 private:
-    void audioPeaksReceived(const float v1, const float value2opt [[maybe_unused]]) final
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
         if constexpr (label == "dualGain")
         {
-            fShaderAnalyser->push(std::max(v1, value2opt));
+            fShaderAnalyser->replace(values);
         }
     }
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+        if constexpr (label == "dualGain")
+        {
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
+            fShaderAnalyser->push(value);
+           #else
+            fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
+           #endif
+        }
+    }
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
