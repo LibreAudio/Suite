@@ -82,9 +82,9 @@ public:
         static constexpr const float log1k = 6.907755279f;  // logf (1000);
 
        #if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__clang__)
-        static constexpr const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
+        static constexpr const float tc = std::exp(-2.f * M_PIf * kResponseTimeSecs / 30.f);
        #else
-        const float tc = std::expf (-2.0 * M_PI * kResponseTimeSecs / 30.f);
+        const float tc = std::exp(-2.f * M_PIf * kResponseTimeSecs / 30.f);
        #endif
 
         SharedData* const data = fSharedMem.getDataPointer();
@@ -99,7 +99,7 @@ public:
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            uint b = d_roundToUnsignedInt(kNumBins * std::logf (frq / 20.f) / log1k); // 20..20k
+            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
             if (b >= kNumBins) {
                 continue;
             }

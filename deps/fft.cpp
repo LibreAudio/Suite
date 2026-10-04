@@ -174,9 +174,9 @@ float FFTAnalysis::freqAtBin(const int b) const
     /* calc phase: difference minus expected difference */
     float phase = _phase[b] - _phase_h[b] - (float)b * _phasediff_bin;
     /* clamp to -M_PI .. M_PI */
-    int over = phase / M_PI;
+    int over = phase / M_PIf;
     over += (over >= 0) ? (over & 1) : -(over & 1);
-    phase -= M_PI * (float)over;
+    phase -= M_PIf * (float)over;
     /* scale according to overlap */
     phase *= _phase_scale;
     return _freq_per_bin * ((float)b + phase);
