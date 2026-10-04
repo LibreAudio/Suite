@@ -55,7 +55,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::UI<LibreAudio::DualGainRootWidget, SHADERS_FFT_WAVEFORM_FRAG_DATA, SHADERS_FFT_WAVEFORM_FRAG_LEN>();
+    return new LibreAudio::UI<LibreAudio::DualGainRootWidget>();
 }
 
 END_NAMESPACE_DISTRHO

@@ -6,6 +6,8 @@
 uniform float _dpf_border_radius;
 uniform vec2 _dpf_position;
 uniform float _dpf_scale_factor;
+uniform sampler2D _dpf_texture_data;
+uniform float _dpf_texture_start;
 
 // ShaderToy variables
 // uniform float iBeat;

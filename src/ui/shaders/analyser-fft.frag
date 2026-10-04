@@ -35,7 +35,7 @@ const float fMax = 20000.0;   // right edge, Hz (log axis between the two)
 const float dbTop   =   6.0;  // top of the widget, dBFS
 const float dbFloor = -55.0;  // bottom of the widget, dBFS
 
-const int fftBins = 64;       // number of analyser bins across the width
+const int fftBins = 256;       // number of analyser bins across the width
 
 // --------------------------------------------------------------------------------
 // Look
@@ -99,7 +99,7 @@ const float binFlickerRate = 9.0;   // fast component
 // on the standalone side so the file pastes straight into a new shader.
 // --------------------------------------------------------------------------------
 
-#ifndef LIBREAUDIO_HOSTED
+#ifndef LIBREAUDIO_HOSTED_BOT
 // Sets the level the made-up spectrum sits at. In the plugin this follows the
 // input meters, so the analyser already moves with the audio before real FFT
 // data exists; standalone it is a flat, sensible programme level.
@@ -184,6 +184,12 @@ float bellDb(float f, float fc, float bwOct, float gain)
 // Until then the bins are invented from the input meter plus noise.
 // --------------------------------------------------------------------------------
 
+#ifdef LIBREAUDIO_HOSTED
+float binHeight(float bin)
+{
+    return texture2D(_dpf_texture_data, vec2(bin / float(fftBins), 0.5)).r;
+}
+#else
 float fftBinDb(float bin)
 {
     float freq = fMin * pow(fMax / fMin, (bin + 0.5) / float(fftBins));
@@ -216,6 +222,7 @@ float binHeight(float bin)
     bin = clamp(bin, 0.0, float(fftBins) - 1.0);
     return clamp((fftBinDb(bin) - dbFloor) / (dbTop - dbFloor), 0.0, 1.0);
 }
+#endif
 
 /* Continuous-trace height at x (0 .. 1 across the widget): the bin heights
    smoothstepped into each other, jagged but without vertical steps. */

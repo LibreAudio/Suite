@@ -35,7 +35,7 @@ class UI final : public LibreAudioBaseUI
     static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
     using AnalyzerShaderW = std::conditional_t<label == "dualGain",
                                                BackgroundShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
-                                               BotShaderWidget<shaderSrc, shaderSrcSize>>;
+                                               BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
 
     const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
         new AnalyzerShaderW(this, this)
@@ -55,22 +55,16 @@ private:
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
-        if constexpr (label == "dualGain")
-        {
-            fShaderAnalyser->replace(values);
-        }
+        fShaderAnalyser->replace(values);
     }
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
-        if constexpr (label == "dualGain")
-        {
-           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
-            fShaderAnalyser->push(value);
-           #else
-            fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
-           #endif
-        }
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
+        fShaderAnalyser->push(value);
+       #else
+        fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
+       #endif
     }
    #endif
 };

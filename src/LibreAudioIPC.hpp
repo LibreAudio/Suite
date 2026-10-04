@@ -47,7 +47,7 @@ public:
             return nullptr;
 
         SharedData* const data = fSharedMem.getDataPointer();
-        data->bins[0] = data->bins[kNumBins - 1] = 0.f;
+        std::memset(data, 0, sizeof(SharedData));
 
         return fSharedMem.getDataFilename();
     }
@@ -88,7 +88,7 @@ public:
 
         SharedData* const data = fSharedMem.getDataPointer();
 
-        for (uint32_t b = 1; b < kNumBins - 1; ++b)
+        for (uint32_t b = 0; b < kNumBins; ++b)
             data->bins[b] *= tc;
 
         for (uint32_t i = 1; i < kDataSize - 1; ++i)

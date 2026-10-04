@@ -2,9 +2,6 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-uniform sampler2D _dpf_texture_data;
-uniform float _dpf_texture_start;
-
 // float total = textureSize(_dpf_texture_data, 0).x;
 
 const vec3 color = vec3(0.01, 0.26, 0.57);

@@ -19,8 +19,18 @@ START_NAMESPACE_DISTRHO
 
 class LibreAudioUI : public LibreAudioBaseUI
 {
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
+   #else
+    static constexpr const uint32_t kTextureSize = 0;
+   #endif
+
+    using ShaderAnalyzer = LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN, kTextureSize>;
+
     std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderAnalyser;
+    std::unique_ptr<ShaderAnalyzer> fShaderAnalyser;
     std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderLine;
 
 public:
@@ -49,7 +59,7 @@ public:
             fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
 
             // spectrum overlay: above the background, below the response curves
-            fShaderAnalyser.reset(new LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN>(this, this));
+            fShaderAnalyser.reset(new ShaderAnalyzer(this, this));
 
             fShaderLine->toFront();
 
@@ -67,6 +77,23 @@ public:
             createRootWidget<LibreAudio::TopBar, LibreAudio::ParameterDumpArea>();
         }
     }
+
+private:
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
+    {
+        fShaderAnalyser->replace(values);
+    }
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
+        fShaderAnalyser->push(value);
+       #else
+        fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
+       #endif
+    }
+   #endif
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioUI)
 };

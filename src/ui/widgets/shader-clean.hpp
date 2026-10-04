@@ -194,10 +194,11 @@ public:
 
         if constexpr (textureSize != 0)
         {
-            gl3.dpfTexture = glGetUniformLocation(program, "_dpf_texture_data");
-            gl3.dpfWaveformStart = glGetUniformLocation(program, "_dpf_texture_start");
+            gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
 
             fTextureData.resize(textureSize, 0.f);
+            fTextureDataTail = textureSize - 1;
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
@@ -259,7 +260,8 @@ public:
         glDeleteProgram(gl3.program);
     }
 
-    std::enable_if_t<textureSize != 0, void> replace(const float values[textureSize])
+    // std::enable_if_t<textureSize != 0, void>
+    void replace(const float values[textureSize])
     {
         std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
 
@@ -270,7 +272,8 @@ public:
         }
     }
 
-    std::enable_if_t<textureSize != 0, void> push(const float value)
+    // std::enable_if_t<textureSize != 0, void>
+    void push(const float value)
     {
         fTextureData[fTextureDataTail++] = value;
 
@@ -339,7 +342,7 @@ private:
 
         if constexpr (textureSize != 0)
         {
-            glUniform1f(gl3.dpfWaveformStart,
+            glUniform1f(gl3.dpfTextureStart,
                         static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
 
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
@@ -416,8 +419,8 @@ private:
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
-        GLint dpfTexture;
-        GLint dpfWaveformStart;
+        GLint dpfTextureData;
+        GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;
         GLint iTime;

@@ -4,6 +4,8 @@ declare license "GPL-3.0-or-later";
 declare name "Vocal Doubler";
 declare unique_id "LAvd";
 
+declare graph "analyzer";
+
 import("stdfaust.lib");
 
 /* Grey-out list — which controls actually reach the output, per mode.

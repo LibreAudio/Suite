@@ -39,10 +39,16 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const char src[], uint size>
+template<const char src[], uint size, uint textureSize = 0>
 class BotShaderWidget final : public BotShaderBaseWidget,
                               public IdleCallback
 {
+   #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
+    static constexpr const GLenum kSingleChannelFormat = GL_RED;
+   #else
+    static constexpr const GLenum kSingleChannelFormat =  GL_LUMINANCE;
+   #endif
+
 public:
     explicit BotShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
         : BotShaderBaseWidget(parent, iface),
@@ -64,7 +70,8 @@ public:
         const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
 
-        glGenBuffers(2, gl3.buffers);
+        glGenBuffers(std::size(gl3.buffers), gl3.buffers);
+        glGenTextures(std::size(gl3.textures), gl3.textures);
 
         static constexpr const char kShaderHeader[] =
            #if defined(DGL_USE_GLES3)
@@ -175,6 +182,40 @@ public:
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
         gl3.dpfScaleFactor = glGetUniformLocation(program, "_dpf_scale_factor");
 
+        if constexpr (textureSize != 0)
+        {
+            gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
+
+            fTextureData.resize(textureSize, 0.f);
+            fTextureDataTail = textureSize - 1;
+
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); // GL_CLAMP_TO_EDGE
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+            static constexpr const float trans[] = { 0.f, 0.f, 0.f, 0.f };
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, trans);
+
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            glTexImage2D(GL_TEXTURE_2D,
+                         0,
+                         GL_RGBA16F_ARB,
+                         textureSize,
+                         1,
+                         0,
+                         kSingleChannelFormat,
+                         GL_FLOAT,
+                         fTextureData.data());
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
         if (const uint32_t count = fInterface->getParameterCount())
         {
             gl3.parameterValues = new GLint[count];
@@ -196,45 +237,7 @@ public:
                     fPeakParameterL = static_cast<int>(i);
                 else if (std::strcmp(parameterSymbol, "input_peak_R") == 0)
                     fPeakParameterR = static_cast<int>(i);
-                // ... and the gain-reduction meter, for the scrolling history below
-                else if (std::strcmp(parameterSymbol, "gr") == 0)
-                    fGrParameter = static_cast<int>(i);
             }
-        }
-
-        // A curve that scrolls needs the past, and a fragment program keeps none of
-        // it: every frame starts from nothing. So a shader that asks for the gain
-        // reduction over time -- by declaring iGrHistory -- gets a one-row texture
-        // instead of a uniform, kept and uploaded here. A texture rather than a
-        // uniform array because each fragment looks up its own column, and an
-        // array indexed by gl_FragCoord is exactly what GLSL does not promise to
-        // support; sampling also gives the resampling to the widget's width for
-        // free, whatever that width is.
-        gl3.grHistory = glGetUniformLocation(program, "iGrHistory");
-
-        if (gl3.grHistory >= 0 && fGrParameter >= 0)
-        {
-            fGrHistory.resize(kGrHistoryColumns, 0.f);
-            fGrTexels.resize(kGrHistoryColumns * 4, 0);
-
-            glGenTextures(1, &gl3.grTexture);
-            glBindTexture(GL_TEXTURE_2D, gl3.grTexture);
-            // GL_NEAREST, so each column stays a block with a hard edge. There is
-            // exactly one reading per repaint behind this texture and a column is
-            // one of them, so interpolating between two columns would draw a ramp
-            // the limiter never did -- and it lands on the one place it is most
-            // wrong, the attack edge of a hit, turning a reduction that arrived
-            // in a single frame into a slope several pixels wide. The cost is that
-            // a release tail is a staircase of columns rather than a smooth line,
-            // which is the honest shape: each step is one frame of limiting.
-            // CLAMP_TO_EDGE so nothing wraps between the oldest and newest column.
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kGrHistoryColumns, 1, 0,
-                         GL_RGBA, GL_UNSIGNED_BYTE, fGrTexels.data());
-            glBindTexture(GL_TEXTURE_2D, 0);
         }
 
         // Shaders cannot smooth anything themselves -- a fragment program keeps no
@@ -267,16 +270,47 @@ public:
 
         delete[] gl3.parameterValues;
 
-        if (gl3.grTexture != 0)
-            glDeleteTextures(1, &gl3.grTexture);
+        glDeleteBuffers(std::size(gl3.buffers), gl3.buffers);
+        glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
+    }
+
+    // std::enable_if_t<textureSize != 0, void>
+    void replace(const float values[textureSize])
+    {
+        std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
+
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
+    }
+
+    // std::enable_if_t<textureSize != 0, void>
+    void push(const float value)
+    {
+        fTextureData[fTextureDataTail++] = value;
+
+        if (fTextureDataTail == fTextureData.size())
+            fTextureDataTail = 0;
+
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
     }
 
 private:
     void idleCallback() final
     {
-        repaint();
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
     }
 
     void onDisplay() final
@@ -341,6 +375,24 @@ private:
             glUniform1f(gl3.fixmeLevelSlowTime, fLevelSlowTime);
         }
 
+        if constexpr (textureSize != 0)
+        {
+            glUniform1f(gl3.dpfTextureStart,
+                        static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
+
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexSubImage2D(GL_TEXTURE_2D,
+                            0,
+                            0,
+                            0,
+                            textureSize,
+                            1,
+                            kSingleChannelFormat,
+                            GL_FLOAT,
+                            fTextureData.data());
+        }
+
         if (const uint32_t count = fInterface->getParameterCount())
         {
             for (uint32_t i = 0; i < count; ++i)
@@ -358,9 +410,6 @@ private:
                 glUniform1f(uniform.location, uniform.getter());
         }
 
-        if (gl3.grTexture != 0)
-            updateGrHistory(frameSeconds);
-
         static const constexpr GLfloat vertices[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
         glBindBuffer(GL_ARRAY_BUFFER, gl3.buffers[0]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -376,62 +425,10 @@ private:
         glDisableVertexAttribArray(gl3.dpfBounds);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        if (gl3.grTexture != 0)
+        if constexpr (textureSize != 0)
             glBindTexture(GL_TEXTURE_2D, 0);
 
         glUseProgram(0);
-    }
-
-    // One column of gain-reduction history per kGrColumnSeconds, oldest first, the
-    // last one still being written. Each column keeps the deepest reduction that
-    // fell inside it rather than an average, so a transient narrower than a column
-    // still reaches its true depth instead of being diluted by the quiet either
-    // side of it -- the same reason the DSP peak-holds the meter in the first place.
-    void updateGrHistory(const double frameSeconds)
-    {
-        // Gain reduction is negative dB, so the deepest is the smallest.
-        const float grDb = fInterface->getParameterValue(fGrParameter);
-        fGrHistory.back() = std::min(fGrHistory.back(), grDb);
-
-        fGrColumnAccum += frameSeconds;
-
-        if (const int advance = static_cast<int>(fGrColumnAccum / kGrColumnSeconds))
-        {
-            fGrColumnAccum -= advance * kGrColumnSeconds;
-
-            // frameSeconds is clamped to 0.1 s upstream, so this is a handful of
-            // columns at worst; the whole-buffer case is only here so a pathological
-            // one cannot run off the end.
-            if (advance >= static_cast<int>(kGrHistoryColumns))
-            {
-                std::fill(fGrHistory.begin(), fGrHistory.end(), grDb);
-            }
-            else
-            {
-                std::memmove(fGrHistory.data(), fGrHistory.data() + advance,
-                             (kGrHistoryColumns - advance) * sizeof(float));
-                std::fill(fGrHistory.end() - advance, fGrHistory.end(), grDb);
-            }
-        }
-
-        // Normalised to the meter's range and packed 16-bit across red and green.
-        // 8 bits would put the scale in 256 steps, and a release tail crossing the
-        // full height would visibly stair on any scope taller than that; the second
-        // byte costs nothing and removes the question.
-        for (uint i = 0; i < kGrHistoryColumns; ++i)
-        {
-            const float norm = std::clamp(-fGrHistory[i] / kGrRangeDb, 0.f, 1.f);
-            const uint packed = static_cast<uint>(norm * 65535.f + 0.5f);
-            fGrTexels[i * 4 + 0] = static_cast<GLubyte>(packed >> 8);
-            fGrTexels[i * 4 + 1] = static_cast<GLubyte>(packed & 0xff);
-        }
-
-        // Unit 0 is left active by everything else that draws here, and this widget
-        // binds nothing else, so there is no glActiveTexture to get wrong.
-        glBindTexture(GL_TEXTURE_2D, gl3.grTexture);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kGrHistoryColumns, 1,
-                        GL_RGBA, GL_UNSIGNED_BYTE, fGrTexels.data());
-        glUniform1i(gl3.grHistory, 0);
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -474,19 +471,20 @@ private:
 
     struct {
         GLuint buffers[2];
+        GLuint textures[1];
         GLuint program;
         GLint dpfBounds;
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
+        GLint dpfTextureData;
+        GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
         GLint fixmeLevelSlow;
         GLint fixmeLevelFast;
         GLint fixmeLevelSlowTime;
-        GLint grHistory;
-        GLuint grTexture;
         GLint* parameterValues;
     } gl3 = {};
 
@@ -523,31 +521,15 @@ private:
     static constexpr const float kLevelTimeAttackSeconds  = 1.0f;
     static constexpr const float kLevelTimeReleaseSeconds = 2.0f;
 
-    // The gain-reduction history handed to shaders that ask for it. The window and
-    // the column count are the shader's WIN and HISTN -- change one, change both.
-    // kGrRangeDb is the meter's own range, MAXGR in limiter.dsp.
-    //
-    // 480 columns over 8 s is 60 a second: one per repaint on a 60 Hz display, and
-    // a shade longer than the 16 ms idle callback so a frame advances the history
-    // by one column or by none, never by two. That matters now the columns are
-    // drawn as blocks -- advancing by two would fill both with the same reading
-    // and leave a double-width block sitting among the rest. A frame that advances
-    // by none is invisible: the column in progress just keeps peak-holding.
-    //
-    // The count cannot usefully go above the repaint rate. One reading arrives per
-    // frame however many columns there are, so more of them only duplicate, and
-    // the width a block occupies on screen is set by kGrWindowSeconds against the
-    // widget's width -- a longer window is what makes the blocks finer.
-    static constexpr const uint kGrHistoryColumns = 480;
-    static constexpr const float kGrWindowSeconds = 8.0f;
-    static constexpr const float kGrRangeDb = 24.0f;
-    static constexpr const double kGrColumnSeconds = kGrWindowSeconds / kGrHistoryColumns;
-
     TopLevelWidget* const fParent;
 
     const double fStartTime = getApp().getTime();
     double fLastTime = fStartTime;
 
+    std::vector<float> fTextureData;
+    uint32_t fTextureDataTail = 0;
+
+    bool fPendingDisplay = true;
     bool fFirstResize = true;
     ExponentialValueSmoother fLevelSlow;
     ExponentialValueSmoother fLevelFast;
@@ -555,10 +537,6 @@ private:
     float fLevelSlowHeld = 0.f;
     int fPeakParameterL = -1;
     int fPeakParameterR = -1;
-    int fGrParameter = -1;
-    std::vector<float> fGrHistory;    // dB of reduction, oldest first, last in progress
-    std::vector<GLubyte> fGrTexels;   // the same, packed for the texture
-    double fGrColumnAccum = 0.0;
     LinearValueSmoother fMouseX;
     LinearValueSmoother fMouseY;
     float fMouseZ = 0.f;
