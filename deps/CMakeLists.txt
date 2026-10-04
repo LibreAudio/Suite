@@ -96,7 +96,7 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
       COMPILE_FLAGS
         "-msse4.1"
   )
-elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv[3-9][a-z]*)$")
+elseif("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(ARM|armv.)$")
   target_compile_definitions(las-rnnoise
     PRIVATE
       __ARM_FEATURE_DOTPROD=0
