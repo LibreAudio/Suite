@@ -11,6 +11,7 @@
 #include "eq/highpass.hpp"
 #include "eq/ladder-highpass.hpp"
 #include "eq/fil4-highpass.hpp"
+#include "eq/tilt.hpp"
 #include "eq/shelf.hpp"
 
 #include "OpenGL.hpp"
@@ -117,11 +118,11 @@ static constexpr const std::array<EqRegion, 7> kRegions {{
 // --------------------------------------------------------------------------------------------------------------------
 // One EQ band, and the analog-prototype magnitude model the display draws it with.
 
-enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass, X42HighPass };
+enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass, X42HighPass, Tilt };
 enum class EqChannel : uint8_t { Stereo, Mid, Side };
 
-static constexpr const std::array<EqBandType, 7> kBandTypes {
-    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::X42HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::LowPass
+static constexpr const std::array<EqBandType, 8> kBandTypes {
+    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::X42HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::Tilt, EqBandType::HighShelf, EqBandType::LowPass
 };
 
 struct EqBand {
@@ -135,6 +136,8 @@ struct EqBand {
     float q, defQ;
     float adaptiveQ;    // bells only: increases Q as gain rises, 0 = off
     float sampleRate = 48000.f;
+    mutable eq::TiltCoefficients tiltCache;
+    mutable std::array<float, 4> tiltSettings {-1.f, 0.f, 0.f, 0.f};
     int slope;          // cuts only: 1..4, times 6 dB/oct
     Color color;
     double created;
@@ -142,6 +145,8 @@ struct EqBand {
     // animation state
     float soloAlpha;
     float labelAlpha;
+
+    bool isTilt() const noexcept { return type == EqBandType::Tilt; }
 
     [[nodiscard]] bool isShelf() const noexcept
     {
@@ -176,11 +181,13 @@ struct EqResponse {
 
     static float qToNorm(const float q, const EqBand& b) noexcept
     {
+        if (b.isTilt()) return eq::tiltShape(q);
         return std::log(q / 0.3f) / std::log((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f);
     }
 
     static float normToQ(const float n, const EqBand& b) noexcept
     {
+        if (b.isTilt()) return .3f + 7.71f * n;
         return 0.3f * std::pow((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f, n);
     }
 
@@ -193,6 +200,14 @@ struct EqResponse {
     static float bandDb(const float f, const EqBand& b) noexcept
     {
         if (!b.on) return 0.f;
+        if (b.isTilt()) {
+            const std::array<float, 4> settings {b.freq, b.gain, b.q, b.sampleRate};
+            if (settings != b.tiltSettings) {
+                b.tiltCache = eq::tiltCoefficients(b.freq, b.gain, eq::tiltShape(b.q), b.sampleRate);
+                b.tiltSettings = settings;
+            }
+            return float(20. * std::log10(std::max(1e-15, std::abs(eq::tiltTransfer(b.tiltCache, f, b.sampleRate)))));
+        }
         if (b.type == EqBandType::X42HighPass)
             return eq::x42HighPassResponse(f, b.freq, b.q, b.sampleRate);
         if (b.type == EqBandType::LadderHighPass)
@@ -244,6 +259,7 @@ struct EqResponse {
         case EqBandType::LadderHighPass: return "Ladder HP";
         case EqBandType::X42HighPass: return "x42 HP";
         case EqBandType::LowShelf: return "Low Shelf";
+        case EqBandType::Tilt: return "Tilt";
         case EqBandType::Peak: return "Bell";
         case EqBandType::HighShelf: return "High Shelf";
         case EqBandType::LowPass: return "Butterworth LP";
@@ -555,7 +571,7 @@ private:
             it->sampleRate = fInterface->getAudioSampleRate();
             it->on = p[eq::kEnabled] > .5f;
             it->type = static_cast<EqBandType>(int(p[eq::kType]));
-            it->defQ = it->isCut() ? 0.707f : it->isShelf() ? 0.7f : 1.f;
+            it->defQ = it->isCut() ? 0.707f : it->isShelf() ? 0.7f : it->isTilt() ? .3f : 1.f;
             it->channel = static_cast<EqChannel>(int(p[eq::kChannel]));
             it->freq = p[eq::kFrequency];
             it->gain = p[eq::kGain];
@@ -582,7 +598,7 @@ private:
         }
         else
         {
-            b.q = b.defQ = b.type == EqBandType::Peak ? 1.f : 0.7f;
+            b.q = b.defQ = b.isTilt() ? .3f : b.type == EqBandType::Peak ? 1.f : 0.7f;
         }
     }
 
@@ -829,6 +845,7 @@ private:
 
     [[nodiscard]] static Point<float> nodePoint(const EqBand& b, const Plot& p) noexcept
     {
+        if (b.isTilt()) return { p.xOf(b.freq), p.yOf(0.f) };
         if (b.isCut())
             return { p.xOf(b.freq), b.hasQ() ? p.yOf(EqResponse::qToDb(b.q)) : p.yOf(0.f) };
         return { p.xOf(b.freq), p.yOf(b.gain) };
@@ -881,6 +898,10 @@ private:
         case EqBandType::X42HighPass:
             M(1.5f, 11.f); C(4.f, 11.f, 5.f, 1.f, 8.f, 1.f);
             C(10.f, 1.f, 10.f, 4.f, 13.f, 4.f); L(16.5f, 4.f);
+            break;
+        case EqBandType::Tilt:
+            M(1.5f, 10.f); L(16.5f, 2.f);
+            M(9.f, 4.f); L(9.f, 8.f);
             break;
         case EqBandType::LowShelf:
             M(1.5f, 3.f); L(5.f, 3.f); C(7.5f, 3.f, 7.5f, 9.f, 10.f, 9.f); L(16.5f, 9.f);
@@ -1413,7 +1434,8 @@ private:
             if (b.hasQ())
             {
                 values[count].field = Field::Q;
-                std::snprintf(values[count++].text, 32, "%.2f", b.q);
+                if (b.isTilt()) std::snprintf(values[count++].text, 32, "%.0f", 100.f * eq::tiltShape(b.q));
+                else std::snprintf(values[count++].text, 32, "%.2f", b.q);
             }
 
             setFont("mono", 10.f);
@@ -1807,7 +1829,15 @@ private:
             drawNumberBox(row[1], "FREQUENCY", value, b->freq >= 1000.f ? "kHz" : "Hz",
                           EqResponse::freqToNorm(b->freq), *b, lit, true);
 
-            if (b->hasQ())
+            if (b->isTilt())
+            {
+                const float shape = eq::tiltShape(b->q);
+                if (shape <= 0.f) std::snprintf(value, sizeof(value), "Linear");
+                else if (shape >= 1.f) std::snprintf(value, sizeof(value), "Shelf");
+                else std::snprintf(value, sizeof(value), "%.0f%%", shape * 100.f);
+                drawNumberBox(row[3], "SHAPE", value, nullptr, shape, *b, lit, true);
+            }
+            else if (b->hasQ())
             {
                 std::snprintf(value, sizeof(value), "%.2f", b->q);
                 drawNumberBox(row[3], "Q", value, nullptr, EqResponse::qToNorm(b->q, *b), *b, lit, true);
