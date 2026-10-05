@@ -1,4 +1,4 @@
-# Native dynamic EQ (bell, shelves and high-pass filters)
+# Native dynamic EQ (bell, shelves, cuts and tilt)
 
 `eq-dsp.cpp` replaces the generated EQ processor. EQ configuration and parameter
 metadata are native files; `src/dsp-faust/eq.dsp` is no longer compiled or used to
@@ -8,10 +8,10 @@ with the suite's plugin shell. Common input/output processing still uses Faust.
 There are 16 stable, reusable host parameter slots. Present, enabled, type,
 channel, frequency, gain, Q, adaptive Q and slope are stored per slot. Bell
 (type 2), low/high shelves (types 1/3), Butterworth high-pass (type 0) and ladder
-high-pass (type 5), plus x42 high-pass (type 6) and Butterworth low-pass (type 4), process audio. The UI creates a
+high-pass (type 5), plus x42 high-pass (type 6) Butterworth low-pass (type 4), and tilt (type 7), process audio. The UI creates a
 high-pass in the leftmost 10% of the display, a low shelf from 10–27%, a bell
 from 27–76%, a high shelf from 76–90%, and a low-pass in the rightmost 10%. These, the ladder and x42 HP are selectable
-from the type menu, along with Butterworth LP. Slots are preallocated; the audio callback never allocates. Disabled,
+from the type menu, along with Butterworth LP and Tilt. Slots are preallocated; the audio callback never allocates. Disabled,
 removed and zero-gain bells fade to unity using the upstream gain interpolation,
 then stop processing. Mid and side have independent states; stereo runs both.
 With no active filters, the main EQ processor returns without touching audio.
@@ -150,6 +150,34 @@ preserves every band setting, including the stored variable slope for switching
 back. The graph evaluates the actual digital transfer function, including the
 one-sample feedback delay.
 
+## Tilt
+
+Type 7 adds a native tilt with Frequency, Gain and Shape controls. Frequency is
+its 0dB pivot (the node stays on that pivot); dragging vertically adjusts gain.
+Positive gain lowers bass and raises treble; negative gain reverses the tilt.
+Shape is 0% Linear through 100% Shelf, also editable by scrolling the node.
+Double-clicking Shape restores Linear. The curve selectors include a tilt icon.
+
+Twelve first-order shelves are distributed evenly in log frequency at Linear,
+producing an approximately straight dB/log-frequency response. Shape gradually
+collapses their center frequencies onto the pivot, yielding opposing bass and
+treble shelves. Linear is a finite-filter approximation, with rounding at the
+frequency extremes, not a linear-phase filter. Gain sets half the total DC-to-
+Nyquist dB difference. Pivot normalization holds 0dB at the chosen frequency;
+at off-center pivots the endpoint gains need not be equal and opposite.
+
+Coefficients and states use double precision. Centers are limited to 1Hz–0.49
+of the sample rate, and the pivot uses the same limits. DSP and graph evaluate
+the same digital filter; graph coefficients are cached per band. Coefficients
+smooth over 10ms, and enable/removal/type/routing changes fade over 5ms.
+Zero-gain and inactive bands retire to exact bypass without per-sample work.
+All filter state is preallocated, with independent mid/side processing.
+
+Existing parameter IDs and slot layout remain intact. For tilt, the existing
+host Q slot encodes Shape linearly: Q=0.3 is Linear, Q=8.01 is Shelf. The custom
+UI shows Shape as 0–100%; host generic parameter views retain the Q slot name.
+This value is saved and restored with the other band parameters.
+
 ## Validation
 
 From the repository root:
@@ -167,6 +195,8 @@ c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-x42-highpass.cpp src/cust
 /tmp/suite3-x42-hp-test
 c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-lowpass.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-lp-test
 /tmp/suite3-lp-test
+c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-tilt.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-tilt-test
+/tmp/suite3-tilt-test
 cmake --build build --target la-eq-jack la-eq-clap la-eq-vst3 la-eq-lv2 la-eq-lv2-ui -j 4
 ```
 
@@ -192,3 +222,7 @@ cutoff and Q clamping, mid/side routing, exact bypass retirement and automation.
 
 The low-pass test checks all orders against the Butterworth transfer function,
 DC/Nyquist endpoints, 6dB Q independence, routing, retirement and automation.
+
+The tilt test checks measured versus plotted response across sample rates and
+shape/gain settings, pivot unity, endpoint gain span, shape behavior, mid/side
+isolation, retirement, and extreme live automation with changing block sizes.
