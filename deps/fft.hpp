@@ -44,7 +44,7 @@ private:
     uint32_t        _data_size;
     double          _freq_per_bin;
     double          _phase_scale;
-    double          _phasediff_step;
+    double          _phasediff_bin;
     float*          _window;
     kiss_fft_cpx_*  _fft_in;
     kiss_fft_cpx_*  _fft_out;
@@ -53,10 +53,8 @@ private:
     float*          _phase_h;
     kiss_fft_state* _fft;
 
-    double _phasediff_bin;
 
     float* _genWindow();
-    void _analyze();
     void _reset();
     void _run(uint32_t n_samples, float const* data);
 };

@@ -69,38 +69,6 @@ static double ft_flattop(float* window, uint32_t n)
     return sum;
 }
 
-/* ***************************************************************************
- * convenient access functions
- */
-
-static inline float fast_log2 (float val)
-{
-    union {
-        float f;
-        int   i;
-    } t;
-    t.f                = val;
-    int* const exp_ptr = &t.i;
-    int        x       = *exp_ptr;
-    const int  log_2   = ((x >> 23) & 255) - 128;
-    x &= ~(255 << 23);
-    x += 127 << 23;
-    *exp_ptr = x;
-    val      = ((-1.0f / 3) * t.f + 2) * t.f - 2.0f / 3;
-    return (val + log_2);
-}
-
-static inline float fast_log10 (const float val)
-{
-    return fast_log2 (val) / 3.312500f;
-}
-
-static inline float fftx_power_to_dB (float a)
-{
-    /* 10 instead of 20 because of squared signal -- no sqrt(powerp[]) */
-    return a > 1e-12 ? 10.0 * fast_log10 (a) : FFTAnalysis::kSmallestValue;
-}
-
 /******************************************************************************
  * public API (static for direct source inclusion)
  */
@@ -119,14 +87,13 @@ void FFTAnalysis::init(uint32_t window_size, double rate)
 {
     if (_fft != nullptr)
         return;
-    _window_size    = window_size;
-    _window_type    = W_HANN;
-    _data_size      = window_size / 2;
-    _window         = NULL;
-    _freq_per_bin   = rate / _data_size / 2.f;
-    _phasediff_step = M_PI / _data_size;
-    _phasediff_bin  = 0;
-    _phase_scale    = (_data_size / (double)window_size) / M_PI;
+    _window_size   = window_size;
+    _window_type   = W_HANN;
+    _data_size     = window_size / 2;
+    _window        = NULL;
+    _freq_per_bin  = rate / _data_size / 2.f;
+    _phasediff_bin = (M_PI / _data_size) * (double)_window_size;
+    _phase_scale   = (_data_size / (double)window_size) / M_PI;
 
     _fft_in  = (kiss_fft_cpx_*)std::malloc(window_size * sizeof(kiss_fft_cpx_));
     _fft_out = (kiss_fft_cpx_*)std::malloc(window_size * sizeof(kiss_fft_cpx_));
@@ -163,14 +130,28 @@ void FFTAnalysis::run(const float* const data)
         _fft_in[i].r = data[i] * window[i];
 
     /* ..and analyze */
-    _analyze();
+    rnn_fft(_fft, _fft_in, _fft_out, 0);
 
-    _phasediff_bin = _phasediff_step * (double)_window_size;
+    std::memcpy (_phase_h, _phase, sizeof (float) * _data_size);
+
+    for (uint32_t i = 0; i < _data_size; ++i) {
+        const float re = _window_size * _fft_out[i].r;
+        const float im = _window_size * _fft_out[i].i;
+        _power[i] = (re * re) + (im * im);
+        _phase[i] = std::atan2(im, re);
+    }
+}
+
+static inline float fftx_power_to_dB (float a)
+{
+    /* 10 instead of 20 because of squared signal -- no sqrt(powerp[]) */
+    return a > 1e-12 ? 10.0 * std::log10(a) : FFTAnalysis::kSmallestValue;
 }
 
 float FFTAnalysis::powerAtBin(const int b) const
 {
     return fftx_power_to_dB(_power[b]);
+    // return _power[b];
 }
 
 float FFTAnalysis::freqAtBin(const int b) const
@@ -227,20 +208,6 @@ float* FFTAnalysis::_genWindow()
     }
 
     return _window;
-}
-
-void FFTAnalysis::_analyze()
-{
-    rnn_fft(_fft, _fft_in, _fft_out, 0);
-
-    std::memcpy (_phase_h, _phase, sizeof (float) * _data_size);
-
-    for (uint32_t i = 0; i < _data_size; ++i) {
-        const float re = _window_size * _fft_out[i].r;
-        const float im = _window_size * _fft_out[i].i;
-        _power[i] = (re * re) + (im * im);
-        _phase[i] = atan2f (im, re); // FIXME
-    }
 }
 
 void FFTAnalysis::_reset()

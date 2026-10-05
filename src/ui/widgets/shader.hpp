@@ -279,6 +279,10 @@ public:
     // std::enable_if_t<textureSize != 0, void>
     void replace(const float values[textureSize])
     {
+        // float* const data = fTextureData.data();
+        // for (uint32_t i = 0; i < textureSize; ++i)
+        //     data[i] = (data[i] + values[i]) * 0.5f;
+
         std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
 
         if (! fPendingDisplay)

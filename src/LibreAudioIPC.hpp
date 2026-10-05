@@ -94,12 +94,20 @@ public:
         SharedData* const data = fSharedMem.getDataPointer();
 
         for (uint32_t b = 0; b < kNumBins; ++b)
+        {
+            // const float n = static_cast<float>(b) / (kNumBins - 1);
+            // data->bins[b] *= 0.96f - n * (0.96f - tc);
             data->bins[b] *= tc;
+        }
+        // tc * (1.f - b / (kNumBins - 1))
+
+        // static bool test[kNumBins];
 
         for (uint32_t i = 1; i < kDataSize - 1; ++i)
         {
             const float pab = analysis.powerAtBin(i);
             if (pab <= FFTAnalysis::kSmallestValue)
+            // if (pab <= 1e-12)
                 continue;
 
             const float frq = analysis.freqAtBin(i);
@@ -110,10 +118,18 @@ public:
             if (b < 2) {
                 b = 1;
             }
+            // test[b] = true;
             if (const float pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
+            // if (const float pwr = (1.f - (10.f * std::log10 (pab))) / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
                 data->bins[b] = pwr;
             }
+            // data->bins[b] = pab;
         }
+
+        // fprintf(stdout, "--------------\n");
+        // for (uint32_t i = 0; i < kNumBins; ++i)
+        //     if (! test[i])
+        //         fprintf(stdout, "missing bin: %u\n", i);
 
         __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
         return true;
