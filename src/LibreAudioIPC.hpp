@@ -21,24 +21,38 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 // Overall target frame-rate for graphs (FFT analyzer and Waveform)
-static constexpr const uint32_t kTargetFrameRate = 60;
+inline constexpr const uint32_t kTargetFrameRate = 60;
 
 // Idle time as double of target rate, so that we don't miss a frame in the worst case scenario
 // Repaints must only be requested after pending drawing completes, which ensures we don't bottleneck the system
-static constexpr const uint32_t kTargetIdleTimeMs = d_roundToUnsignedInt(1000.0 / (kTargetFrameRate * 2));
+inline constexpr const uint32_t kTargetIdleTimeMs = d_roundToUnsignedInt(1000.0 / (kTargetFrameRate * 2));
 
 // How many seconds the waveform area should hold
-static constexpr const uint32_t kNumSecondsForWaveform = 8;
+inline constexpr const uint32_t kNumSecondsForWaveform = 8;
 
 // How many samples to use
-static constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
+inline constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+inline constexpr float db2coef(float db)
+{
+    return db > FFTAnalysis::kSmallestValue ? std::pow(10.f, db * 0.05f) : 0.f;
+}
+
+inline constexpr float coef2db(float coef)
+{
+    return std::pow(2.0, coef) * (-FFTAnalysis::kSmallestValue) - FFTAnalysis::kSmallestValue;
+}
+
+// coef = (+pow(2.0, coef * factor) - 1.0) / logfac * (max - min) + min;
 
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioAnalyzerIPC {
 public:
-    static constexpr const uint32_t kNumBins = 256;
-    static constexpr const uint32_t kWindowSize = kNumBins * 16;
+    static constexpr const uint32_t kNumBins = 1024;
+    static constexpr const uint32_t kWindowSize = kNumBins * 4;
 
 public:
     LibreAudioAnalyzerIPC() = default;
@@ -93,49 +107,66 @@ public:
 
         SharedData* const data = fSharedMem.getDataPointer();
 
-        for (uint32_t b = 0; b < kNumBins; ++b)
-        {
-            // const float n = static_cast<float>(b) / (kNumBins - 1);
-            // data->bins[b] *= 0.96f - n * (0.96f - tc);
+        for (uint32_t b = 1; b < kNumBins - 1; ++b)
             data->bins[b] *= tc;
-        }
-        // tc * (1.f - b / (kNumBins - 1))
 
-        // static bool test[kNumBins];
+        bool hasBin[kNumBins] = {};
+        float norm, pab, pwr;
 
         for (uint32_t i = 1; i < kDataSize - 1; ++i)
         {
-            const float pab = analysis.powerAtBin(i);
+            pab = analysis.powerAtBin(i);
             if (pab <= FFTAnalysis::kSmallestValue)
-            // if (pab <= 1e-12)
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
-            if (b >= kNumBins) {
+            const uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
+            if (b < 1 || b >= kNumBins - 1)
                 continue;
-            }
-            if (b < 2) {
-                b = 1;
-            }
-            // test[b] = true;
-            if (const float pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
-            // if (const float pwr = (1.f - (10.f * std::log10 (pab))) / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
+
+            hasBin[b] = true;
+            if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
                 data->bins[b] = pwr;
             }
-            // data->bins[b] = pab;
         }
 
-        // fprintf(stdout, "--------------\n");
-        // for (uint32_t i = 0; i < kNumBins; ++i)
-        //     if (! test[i])
-        //         fprintf(stdout, "missing bin: %u\n", i);
+        // linear interpolation for bins without data
+        {
+            static constexpr const uint32_t kMaxBinGaps = kNumBins / 8;
+
+            for (uint32_t b = 1, gap = 0, good = 0; b < kNumBins - 1; ++b)
+            {
+                if (hasBin[b])
+                {
+                    if (gap != 0 && b - gap < kMaxBinGaps)
+                    {
+                        for (uint32_t b2 = gap; b2 < b; ++b2)
+                        {
+                            norm = static_cast<float>(b2 - gap + 1) / (b - gap + 1);
+                            // db1 = (1.f - data->bins[good]) * FFTAnalysis::kSmallestValue;
+                            // db2 = (1.f - data->bins[b]) * FFTAnalysis::kSmallestValue;
+                            // pab2 = db1 * (1.f - norm) + db2 * norm;
+                            // pwr = 1.f - pab2 / FFTAnalysis::kSmallestValue;
+                            if (pwr = data->bins[good] * (1.f - norm) + data->bins[b] * norm; pwr > data->bins[b2])
+                                data->bins[b2] = pwr;
+                        }
+                    }
+                    gap = 0;
+                    good = b;
+                }
+                else
+                {
+                    if (gap == 0)
+                        gap = b;
+                }
+            }
+        }
 
         __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
         return true;
     }
 
-    float* get() noexcept
+    const float* get() noexcept
     {
         SharedData* const data = fSharedMem.getDataPointer();
 
