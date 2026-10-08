@@ -67,6 +67,7 @@ public:
 
         SharedData* const data = fSharedMem.getDataPointer();
         std::memset(data, 0, sizeof(SharedData));
+        fTmpData.fill(0.f);
 
         return fSharedMem.getDataFilename();
     }
@@ -76,6 +77,7 @@ public:
         if (fSharedMem.isCreatedOrConnected())
             fSharedMem.close();
 
+        fTmpData.fill(0.f);
         return fSharedMem.connect(filename) != nullptr;
     }
 
@@ -166,18 +168,12 @@ public:
         }
 
         // smoothing/blur
-        {
-            for (uint32_t i = 0; i < 8; ++i)
-                blur(tmp);
+        for (uint32_t i = 0; i < 8; ++i)
+            blur(tmp);
 
-            // copying while mixing previous data for smoother updates
-            for (uint32_t b = 0; b < kNumBins; ++b)
-                data->bins[b] = data->bins[b] * 0.4f + tmp[b] * 0.6f;
-        }
+        std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);
 
-        // std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);
-
-        __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
+        // __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
         return true;
     }
 
@@ -185,16 +181,22 @@ public:
     {
         SharedData* const data = fSharedMem.getDataPointer();
 
-        if (! __atomic_exchange_n(&data->hasNewData, false, __ATOMIC_RELAXED))
-            return nullptr;
+        // if (! __atomic_exchange_n(&data->hasNewData, false, __ATOMIC_RELAXED))
+        //     return nullptr;
 
-        return data->bins;
+        float* const tmp = fTmpData.data();
+
+        // copying while mixing previous data for smoother updates
+        for (uint32_t b = 0; b < kNumBins; ++b)
+            tmp[b] = tmp[b] * 0.6f + data->bins[b] * 0.4f;
+
+        return tmp;
     }
 
 private:
     struct SharedData {
         float bins[kNumBins];
-        bool hasNewData;
+        // bool hasNewData;
     };
 
     SharedMemory<SharedData> fSharedMem;
