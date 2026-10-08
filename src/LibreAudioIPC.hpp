@@ -106,9 +106,10 @@ public:
        #endif
 
         SharedData* const data = fSharedMem.getDataPointer();
+        float* const tmp = fTmpData.data();
 
-        for (uint32_t b = 1; b < kNumBins - 1; ++b)
-            data->bins[b] *= tc;
+        for (uint32_t b = 0; b < kNumBins; ++b)
+            tmp[b] = data->bins[b] * tc;
 
         bool hasBin[kNumBins] = {};
         float norm, pab, pwr;
@@ -121,12 +122,14 @@ public:
 
             const float frq = analysis.freqAtBin(i);
             const uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
-            if (b < 1 || b >= kNumBins - 1)
+            if (b == 0)
+                continue;
+            if (b >= kNumBins - 1)
                 continue;
 
             hasBin[b] = true;
-            if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > data->bins[b]) {
-                data->bins[b] = pwr;
+            if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > tmp[b]) {
+                tmp[b] = pwr;
             }
         }
 
@@ -143,12 +146,12 @@ public:
                         for (uint32_t b2 = gap; b2 < b; ++b2)
                         {
                             norm = static_cast<float>(b2 - gap + 1) / (b - gap + 1);
-                            // db1 = (1.f - data->bins[good]) * FFTAnalysis::kSmallestValue;
-                            // db2 = (1.f - data->bins[b]) * FFTAnalysis::kSmallestValue;
+                            // db1 = (1.f - tmp[good]) * FFTAnalysis::kSmallestValue;
+                            // db2 = (1.f - tmp[b]) * FFTAnalysis::kSmallestValue;
                             // pab2 = db1 * (1.f - norm) + db2 * norm;
                             // pwr = 1.f - pab2 / FFTAnalysis::kSmallestValue;
-                            if (pwr = data->bins[good] * (1.f - norm) + data->bins[b] * norm; pwr > data->bins[b2])
-                                data->bins[b2] = pwr;
+                            if (pwr = tmp[good] * (1.f - norm) + tmp[b] * norm; pwr > tmp[b2])
+                                tmp[b2] = pwr;
                         }
                     }
                     gap = 0;
@@ -161,6 +164,18 @@ public:
                 }
             }
         }
+
+        // smoothing/blur
+        {
+            for (uint32_t i = 0; i < 8; ++i)
+                blur(tmp);
+
+            // copying while mixing previous data for smoother updates
+            for (uint32_t b = 0; b < kNumBins; ++b)
+                data->bins[b] = data->bins[b] * 0.4f + tmp[b] * 0.6f;
+        }
+
+        // std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);
 
         __atomic_store_n(&data->hasNewData, true, __ATOMIC_RELAXED);
         return true;
@@ -183,6 +198,20 @@ private:
     };
 
     SharedMemory<SharedData> fSharedMem;
+    std::array<float, kNumBins> fTmpData;
+
+    static inline void blur(float d[kNumBins])
+    {
+        d[0] = (d[0] + d[1]) * 0.5f;
+        d[0] = (d[0] + d[1] + d[2]) * 0.3333f;
+
+        for (uint32_t b = 2; b < kNumBins - 2; ++b)
+            d[b] = (d[b] + d[b - 1] + d[b - 2] + d[b + 1] + d[b + 2]) * 0.2f;
+
+        d[kNumBins - 2] = (d[kNumBins - 1] + d[kNumBins - 2] + d[kNumBins - 3]) * 0.3333f;
+        d[kNumBins - 1] = (d[kNumBins - 1] + d[kNumBins - 2]) * 0.5f;
+
+    };
 };
 
 // --------------------------------------------------------------------------------------------------------------------
