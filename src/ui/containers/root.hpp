@@ -42,14 +42,17 @@ public:
                              false);
     }
 
+    // , ShaderBaseWidget* const analyzer = nullptr
     void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
     {
         fShaders = shaders;
+        // fShaderAnalyzer = analyzer;
         updateSize(false);
     }
 
 protected:
     std::list<ShaderBaseWidget*> fShaders;
+    // ShaderBaseWidget* fShaderAnalyzer = nullptr;
 
     friend class DISTRHO_NAMESPACE::LibreAudioBaseUI;
 };

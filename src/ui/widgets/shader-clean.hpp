@@ -6,6 +6,8 @@
 
 #include "../_lab/interface.hpp"
 
+#include "LibreAudioIPC.hpp"
+
 #include "Application.hpp"
 #include "DistrhoUtils.hpp"
 #include "SubWidget.hpp"
@@ -56,18 +58,22 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const char src[], uint size>
+template<const char src[], uint size, uint textureSize = 0>
 class BackgroundShaderWidget final : public ShaderBaseWidget,
                                      public IdleCallback
 {
+   #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
+    static constexpr const GLenum kSingleChannelFormat = GL_RED;
+   #else
+    static constexpr const GLenum kSingleChannelFormat =  GL_LUMINANCE;
+   #endif
+
 public:
     explicit BackgroundShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
         : ShaderBaseWidget(parent, iface),
           fParent(parent)
     {
-        // use 8ms for double of 60fps (16.666ms) so that we don't miss a frame in the worst case scenario
-        // repaints are only requested after pending drawing completes, which ensures we don't bottleneck the system
-        parent->addIdleCallback(this, 8);
+        parent->addIdleCallback(this, kTargetIdleTimeMs);
 
        #ifdef DISTRHO_OS_WINDOWS
         if (! initGL())
@@ -80,19 +86,20 @@ public:
         const GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
         DISTRHO_SAFE_ASSERT_RETURN(vertex != 0,);
 
-        glGenBuffers(2, gl3.buffers);
+        glGenBuffers(std::size(gl3.buffers), gl3.buffers);
+        glGenTextures(std::size(gl3.textures), gl3.textures);
 
         static constexpr const char kShaderHeader[] =
            #if defined(DGL_USE_GLES3)
             "#version 300 es\n"
             "#define LIBREAUDIO_GL3\n"
            #elif defined(DGL_USE_GLES2)
-            "#version 100\n"
+            "#version 130\n"
             "#define LIBREAUDIO_GL2\n"
            #elif defined(DGL_USE_OPENGL3)
             "#version 150 core\n"
             "#define LIBREAUDIO_GL3\n"
-           #else
+            #else
             "#define LIBREAUDIO_GL2\n"
            #endif
             "#define LIBREAUDIO_HOSTED\n"
@@ -185,6 +192,40 @@ public:
         gl3.dpfPosition = glGetUniformLocation(program, "_dpf_position");
         gl3.dpfScaleFactor = glGetUniformLocation(program, "_dpf_scale_factor");
 
+        if constexpr (textureSize != 0)
+        {
+            gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
+
+            fTextureData.resize(textureSize, 0.f);
+            fTextureDataTail = textureSize - 1;
+
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); // GL_CLAMP_TO_EDGE
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+            static constexpr const float trans[] = { 0.f, 0.f, 0.f, 0.f };
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, trans);
+
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            glTexImage2D(GL_TEXTURE_2D,
+                         0,
+                         GL_RGBA16F_ARB,
+                         textureSize,
+                         1,
+                         0,
+                         kSingleChannelFormat,
+                         GL_FLOAT,
+                         fTextureData.data());
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
         if (const uint32_t count = fInterface->getParameterCount())
         {
             gl3.parameterValues = new GLint[count];
@@ -213,7 +254,37 @@ public:
 
         delete[] gl3.parameterValues;
 
+        glDeleteBuffers(std::size(gl3.buffers), gl3.buffers);
+        glDeleteTextures(std::size(gl3.textures), gl3.textures);
+
         glDeleteProgram(gl3.program);
+    }
+
+    // std::enable_if_t<textureSize != 0, void>
+    void replace(const float values[textureSize])
+    {
+        std::memcpy(fTextureData.data(), values, textureSize * sizeof(float));
+
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
+    }
+
+    // std::enable_if_t<textureSize != 0, void>
+    void push(const float value)
+    {
+        fTextureData[fTextureDataTail++] = value;
+
+        if (fTextureDataTail == fTextureData.size())
+            fTextureDataTail = 0;
+
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
     }
 
 private:
@@ -229,7 +300,7 @@ private:
         if (const double t = getApp().getTime(); t - last > 1)
         {
             last = t;
-            d_stdout("average paint time: %f", fAverageTime * 1000);
+            d_stdout("average repaint time: %f", fAverageTime * 1000);
         }
     }
 
@@ -269,6 +340,24 @@ private:
         glUniform3f(gl3.iResolution, width, height, 0.f);
         glUniform1f(gl3.iTime, time);
 
+        if constexpr (textureSize != 0)
+        {
+            glUniform1f(gl3.dpfTextureStart,
+                        static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
+
+            glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
+
+            glTexSubImage2D(GL_TEXTURE_2D,
+                            0,
+                            0,
+                            0,
+                            textureSize,
+                            1,
+                            kSingleChannelFormat,
+                            GL_FLOAT,
+                            fTextureData.data());
+        }
+
         if (const uint32_t count = fInterface->getParameterCount())
         {
             for (uint32_t i = 0; i < count; ++i)
@@ -293,8 +382,10 @@ private:
         glDisableVertexAttribArray(gl3.dpfBounds);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        if constexpr (textureSize != 0)
+            glBindTexture(GL_TEXTURE_2D, 0);
+
         glUseProgram(0);
-        repaint();
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -322,11 +413,14 @@ private:
 
     struct {
         GLuint buffers[2];
+        GLuint textures[1];
         GLuint program;
         GLint dpfBounds;
         GLint dpfBorderRadius;
         GLint dpfPosition;
         GLint dpfScaleFactor;
+        GLint dpfTextureData;
+        GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;
         GLint iTime;
@@ -338,6 +432,9 @@ private:
     double fAverageTime = 0;
     double fLastTime = 0;
     const double fStartTime = getApp().getTime();
+
+    std::vector<float> fTextureData;
+    uint32_t fTextureDataTail = 0;
 
     bool fPendingDisplay = true;
     bool fFirstResize = true;

@@ -22,7 +22,7 @@
 
 #define DISTRHO_PLUGIN_CLAP_ID "org.libreaudio.{{id}}"
 #define DISTRHO_PLUGIN_DESCRIPTION "{{meta.description}}"
-#define DISTRHO_PLUGIN_LABEL "{{id}}"
+#define DISTRHO_PLUGIN_LABEL "{{cid(id)}}"
 #define DISTRHO_PLUGIN_NAME "LA {{name}}"
 #define DISTRHO_PLUGIN_NUM_INPUTS {{inputs}}
 #define DISTRHO_PLUGIN_NUM_OUTPUTS {{outputs}}
@@ -66,17 +66,43 @@
 #define DISTRHO_PLUGIN_WANT_LATENCY 0
 #endif
 
+// optional dry/wet control on top of main dsp
 #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
 
-// FIXME remove this
-#define LIBREAUDIO_PLUGIN {{id}}
+// optional UI graphs (fft analyzer, waveform, etc)
+#ifdef LIBREAUDIO_CUSTOM_UI
+{% if meta.graph is defined %}
+#define LIBREAUDIO_WANT_GRAPH 1
+    {% if meta.graph == "analyzer" %}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 1
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 1
+    {% elif meta.graph == "waveform" %}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 1
+    {% elif meta.graph == "waveform-stereo" %}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
+    {% else %}
+    {{fail("Invalid graph type")}}
+    {% endif %}
+{% endif %}
+#endif
+#ifndef LIBREAUDIO_WANT_GRAPH
+#define LIBREAUDIO_WANT_GRAPH 0
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
+#endif
 
 #define LIBREAUDIO_PLUGIN_DSP_INCLUDE "{{id}}-dsp.hpp"
 #define LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE "{{id}}-parameters.hpp"
-#define LIBREAUDIO_PLUGIN__{{id}}
+#define LIBREAUDIO_PLUGIN__{{cid(id)}}
 
-namespace {{id}} {}
-using namespace {{id}};
+namespace {{cid(id)}} {}
+using namespace {{cid(id)}};
 
 {% block HeaderEpilogue %}
 {% endblock %}

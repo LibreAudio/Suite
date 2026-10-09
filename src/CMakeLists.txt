@@ -17,6 +17,7 @@ file(GLOB
 
 function(las_generate_faust_cpp TARGET)
   string(REPLACE "/" "_" OUTPUT ${TARGET})
+  string(REPLACE "-" "_" CLASS ${OUTPUT})
 
   add_custom_command(
     OUTPUT
@@ -29,7 +30,7 @@ function(las_generate_faust_cpp TARGET)
       -Did=${OUTPUT}
       ${VEC_ARGS}
       -X--in-place
-      -X--class-name -X${OUTPUT}
+      -X--class-name -X${CLASS}
       -X--super-class-name -XFaustDSP
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
@@ -235,7 +236,9 @@ function(las_add_plugin LABEL)
   endif()
 
   set(EXTRA_DSP_LIBS)
-  if("${LABEL}" STREQUAL "leveler")
+  if("${LABEL}" STREQUAL "chorus" OR "${LABEL}" STREQUAL "dualGain" OR "${LABEL}" STREQUAL "vocalDoubler")
+    list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
+  elseif("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 
@@ -338,6 +341,7 @@ function(las_add_plugin LABEL)
 
   target_include_directories(${TARGET}
     PUBLIC
+      ../deps
       custom/${LABEL}
       ${CMAKE_CURRENT_BINARY_DIR}
       ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}

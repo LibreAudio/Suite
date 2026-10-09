@@ -8,6 +8,7 @@
 #include "FaustParameter.hpp"
 #include <string>
 #include "LibreAudioSnapshots.hpp"
+#include "LibreAudioIPC.hpp"
 
 #include "ui/base.hpp"
 #include "ui/reference.hpp"
@@ -71,12 +72,19 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    LibreAudioAnalyzerIPC fIPC;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT> fIPC;
+   #endif
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
+    bool fFirstIdle = true;
 
     uint32_t fCurrentPreset = 0; // TODO
 
     float fScaleFactor = 1.f;
+    int32_t fNumParameterPressed = 0;
     std::string fEditorSettings;
     [[nodiscard]] const char* getEditorSettings() const noexcept final { return fEditorSettings.c_str(); }
     void setEditorSettings(const char* value) final;
@@ -102,11 +110,16 @@ private:
 
     void stateChanged(const char* key, const char* value) final;
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    virtual void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) = 0;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    virtual void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) = 0;
+   #endif
+
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks
 
     void onNanoDisplay() final;
-    bool onMouse(const MouseEvent& ev) final;
     void onResize(const ResizeEvent& ev) final;
 
     // ----------------------------------------------------------------------------------------------------------------

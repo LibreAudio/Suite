@@ -5,6 +5,7 @@ declare name "Chorus";
 declare unique_id "LAcs";
 
 // declare drywet "true";
+declare graph "analyzer";
 
 import("stdfaust.lib");
 

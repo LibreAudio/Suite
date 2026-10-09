@@ -65,6 +65,14 @@ LibreAudioBaseUI::LibreAudioBaseUI()
 
 LibreAudioBaseUI::~LibreAudioBaseUI()
 {
+   #if LIBREAUDIO_WANT_GRAPH
+    if (fIPC.isCreatedOrConnected())
+    {
+        setState(kStateKeyFileMappingIPC, "");
+        fIPC.close();
+    }
+   #endif
+
     delete[] fParameterPressed;
     delete[] fParameterValues;
     delete[] fParameterValuesWhenActivated;
@@ -138,7 +146,7 @@ const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noe
 
 void LibreAudioBaseUI::uiCrossing(const bool enter, CrossingMode)
 {
-    if (enter || fIsMouseDown)
+    if (enter || fNumParameterPressed != 0)
         return;
 
     // simulate moving mouse out of bounds when losing focus
@@ -149,6 +157,47 @@ void LibreAudioBaseUI::uiCrossing(const bool enter, CrossingMode)
 
 void LibreAudioBaseUI::uiIdle()
 {
+    if (fFirstIdle)
+    {
+        fFirstIdle = false;
+
+       #if LIBREAUDIO_WANT_GRAPH
+        if (const char* const filename = fIPC.create())
+        {
+            d_debug("LibreAudio DSP<->UI IPC setup successfully, filename: %s", filename);
+            setState(kStateKeyFileMappingIPC, filename);
+            // addIdleCallback(this, 1000 / 60); // 60fps
+        }
+        else
+        {
+            d_stderr2("LibreAudio DSP<->UI IPC setup failed, audio graphs will be missing");
+        }
+       #endif
+    }
+    else
+    {
+       #if LIBREAUDIO_WANT_GRAPH
+        if (fIPC.isCreatedOrConnected())
+        {
+           #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+            if (const float* const data = fIPC.get())
+                audioGraphReceived(data);
+           #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+            LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType value;
+
+            while (fIPC.read(value))
+                audioPeaksReceived(value);
+           #else
+            #error unknown graph
+           #endif
+        }
+        else
+        {
+            d_debug("fIPC not connected!");
+        }
+       #endif
+    }
+
     fSnapshots.idle();
 }
 
@@ -255,38 +304,6 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
     if (std::strcmp(key, kStateKeys[kStateEditorSettings]) == 0)
     {
         fEditorSettings = value;
-        return;
-    }
-
-    if (std::strcmp(key, kStateKeys[kStateAudioPeakBufferSize]) == 0)
-    {
-        if (const int size = std::atoi(value); size > 0)
-            fRunnerRate = static_cast<double>(size) / (getSampleRate() * 0.001);
-        else
-            fRunnerRate = 0;
-        return;
-    }
-
-    if (std::strcmp(key, kStateKeys[kStateAudioPeakValues]) == 0)
-    {
-        DISTRHO_SAFE_ASSERT_RETURN(d_isNotZero(fRunnerRate),);
-
-        String value2(value);
-
-        if (const size_t sep = value2.find(' '); sep != value2.length())
-        {
-            value2[sep] = '\0';
-
-            float v1, v2;
-            {
-                const ScopedSafeLocale ssl;
-                v1 = std::atof(value2.buffer());
-                v2 = std::atof(value2.buffer() + sep + 1);
-            }
-
-            // d_stdout("got peaks %f %f", v1, v2);
-        }
-
         return;
     }
 
@@ -465,14 +482,6 @@ void LibreAudioBaseUI::onNanoDisplay()
     }
 }
 
-bool LibreAudioBaseUI::onMouse(const MouseEvent& ev)
-{
-    if (ev.button == kMouseButtonLeft)
-        fIsMouseDown = ev.press;
-
-    return UI::onMouse(ev);
-}
-
 void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 {
     UI::onResize(ev);
@@ -488,6 +497,7 @@ void LibreAudioBaseUI::parameterControlPressed(const uint32_t index)
 {
     DISTRHO_SAFE_ASSERT_RETURN(! fParameterPressed[index],);
     fParameterPressed[index] = true;
+    ++fNumParameterPressed;
 
     switch (index)
     {
@@ -507,6 +517,7 @@ void LibreAudioBaseUI::parameterControlReleased(const uint32_t index)
 {
     DISTRHO_SAFE_ASSERT_RETURN(fParameterPressed[index],);
     fParameterPressed[index] = false;
+    --fNumParameterPressed;
 
     switch (index)
     {

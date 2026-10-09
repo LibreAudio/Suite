@@ -14,8 +14,6 @@ START_NAMESPACE_DISTRHO
 
 enum States : uint8_t {
 #ifndef _DARKGLASS_DEVICE_PABLITO
-    kStateAudioPeakBufferSize,
-    kStateAudioPeakValues,
     kStateMode,
     kStateCurrentSnapshot,
     kStateSnapshotValuesA,
@@ -34,8 +32,6 @@ enum States : uint8_t {
 #define LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "snapshot_values_"
 
 inline constexpr const char* kStateKeys[kStateCount] = {
-    "audio_peak_buffer_size",
-    "audio_peak_values",
     "mode",
     "snapshot",
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "a",
@@ -44,6 +40,8 @@ inline constexpr const char* kStateKeys[kStateCount] = {
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
     "editor_settings",
 };
+
+inline constexpr const char kStateKeyFileMappingIPC[] = "ipc_file";
 
 inline constexpr const uint8_t kNumSnapshots = 4;
 

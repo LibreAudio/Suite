@@ -9,6 +9,8 @@ project(LibreAudioSuite VERSION 0.0.1)
 option(LIBREAUDIO_BLOCK_SIZE "Optimize for a specific block size")
 option(LIBREAUDIO_CUSTOM_UI "Enable custom UIs" TRUE)
 
+set(CMAKE_C_EXTENSIONS ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
@@ -46,6 +48,15 @@ add_compile_definitions(DGL_NAMESPACE=LibreAudioSuiteDGL)
 add_compile_definitions(DGL_USE_NANOVG_FBO)
 add_compile_definitions(NVG_FONT_TEXTURE_FLAGS=NVG_IMAGE_NEAREST)
 
+# configure extra warnings
+add_compile_options(-Wall)
+add_compile_options(-Wextra)
+add_compile_options(-Werror=undef)
+
+# FIXME
+add_compile_options(-Wno-implicit-fallthrough)
+add_compile_options(-Wno-unused-parameter)
+
 # base tuning, SSE2 or NEON required
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
   add_compile_options(-mtune=generic -msse -msse2 -mfpmath=sse)
@@ -73,7 +84,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-fno-gnu-unique)
 
   # keep math in single-precision where relevant/possible
-  add_compile_options(-fsingle-precision-constant)
+  # add_compile_options(-fsingle-precision-constant)
 endif()
 
 #######################################################################################################################

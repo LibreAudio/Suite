@@ -1,5 +1,5 @@
 declare author "Klaus Scheuermann";
-declare description "";
+declare description "Mid/side de-esser with independent detection and variable channel selection";
 declare license "GPL-3.0-or-later";
 declare name "De-Esser";
 declare unique_id "LAes";
@@ -10,11 +10,11 @@ import("stdfaust.lib");
 
 process = hfLimit;
 
-uiTop(x)    = hgroup("[0]Stage Top", x);
-uiBottom(x) = hgroup("[8]Stage Bottom", x);
+uiTop(x)    = hgroup("[0]Top", x);
+uiBottom(x) = hgroup("[8]Bottom", x);
 uiBottomLeft(x) = uiBottom(hgroup("[1]Stage Bottom Left", x));
 uiBottomRight(x) = uiBottom(hgroup("[1]Stage Bottom Right", x));
-uiMeters(x) = hgroup("[9]", x);
+uiHidden(x) = hgroup("[9]Hidden", x);
 
 uiMode(x)   = uiTop((hgroup("[0]Mode",  x)));
 uiDelay(x)  = uiBottom(hgroup("[1]Delay", x));
@@ -24,13 +24,11 @@ uiTone(x)   = uiBottom(hgroup("[4]Tone",  x));
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
 hflim_amount = uiBottomRight(hslider("[21]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
-hflim_meter  = uiMeters(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
+hflim_meter  = uiHidden(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 
 
 // --- High Frequency Limiter ---
-// Ported from vocalDoubler.dsp. Feeds the wet path only — it sits inside the
-// dry/wet mixer's wet branch, so the dry half always passes through
-// untouched and this can never dull the original signal.
+// Adapted from vocalDoubler.dsp for independent mid/side processing.
 //
 // Level-independent: splits the input into a low ("body") band and a
 // high band, then compares their envelopes as a ratio (dB difference)
@@ -92,16 +90,34 @@ hflim_range = uiDeEss(hslider("[06]Range[unit:dB][style:knob][symbol:range][labe
 hflim_listen = uiDeEss(checkbox("[07]Listen[symbol:listen][label:Listen]
       [tooltip: Monitors the high band alone, with the de-essing applied, for setting Crossover and Threshold by ear. Turn off before printing]")) : si.smoo;
 
-// Stereo, unlike the mono original. Detection is *linked*: one gain, derived
-// from the mono sum, drives both channels. Two independent detectors would
-// duck the channels by different amounts on the same sibilant and swing the
-// stereo image with every "s" — the one thing a widener must not do.
-hfLimit(l, r) = attach(outL, reductionDb : hflim_meter), outR
+// At the centre, both channels share the higher detected reduction. Moving
+// toward either endpoint removes the link and fades the other channel out.
+hflim_channel = uiDeEss(hslider("[08]Channel[style:knob][symbol:channel][label:Mid/Side][accentcolor:05]
+      [tooltip: -1 processes mid only (unlinked), 0 processes both (linked to the higher reduction), +1 processes side only (unlinked)]", 0, -1, 1, 0.01)) : si.smoo;
+hflim_midWeight = 1 - max(0, hflim_channel);
+hflim_sideWeight = 1 + min(0, hflim_channel);
+hflim_link = 1 - abs(hflim_channel);
+
+// Half-scaled encode and unity decode preserve the original stereo level.
+// Each channel detects its own sibilance, including anti-phase side content.
+hfLimit(l, r) = (mid, side, hfDetect(mid), hfDetect(side)) : render
 with {
-    // Detection runs on the mono sum only: the gain is linked, and since the
-    // reduction is applied by a shelf rather than rebuilt from the bands, the
-    // per-channel split is not needed at all.
-    //
+    mid = (l + r) * 0.5;
+    side = (l - r) * 0.5;
+    render(m, s, midHigh, midDetected, sideHigh, sideDetected) =
+        attach(outMid + outSide, max(midReduction, sideReduction) : hflim_meter),
+        outMid - outSide
+    with {
+        linked = max(midDetected, sideDetected);
+        midReduction = hflim_midWeight * lerp(midDetected, linked, hflim_link);
+        sideReduction = hflim_sideWeight * lerp(sideDetected, linked, hflim_link);
+        outMid = hfApply(hflim_midWeight, midReduction, midHigh, m);
+        outSide = hfApply(hflim_sideWeight, sideReduction, sideHigh, s);
+    };
+};
+
+hfDetect(x) = high, reductionDb
+with {
     // A real highpass, not `mono - lowpass`. Subtracting a Butterworth lowpass
     // does not give a Butterworth highpass: B(s)-1 has a single zero at DC, so
     // the complement rolls off at 6 dB/oct no matter what order the lowpass is,
@@ -113,9 +129,8 @@ with {
     //
     // The two bands no longer need to be complementary: nothing reconstructs
     // the signal from them any more, they only feed the envelope followers.
-    mono = (l + r) * 0.5;
-    low  = fi.lowpass(4, hflim_split, mono);
-    high = fi.highpass(4, hflim_split, mono);
+    low  = fi.lowpass(4, hflim_split, x);
+    high = fi.highpass(4, hflim_split, x);
 
     // Floored at -120 dB: on digital silence the follower reaches exactly 0,
     // and ba.linear2db(0) is -inf — which turns into NaN both in the relative
@@ -135,6 +150,10 @@ with {
     excess = max(0, diff - hflim_thresh);
 
     reductionDb = min(excess * (1 - 1 / hflim_ratio), hflim_range);
+};
+
+hfApply(weight, reductionDb, high, x) = out
+with {
     gr = ba.db2linear(0 - reductionDb);
 
     // The reduction is applied as a real high shelf on the full-band signal,
@@ -156,9 +175,6 @@ with {
     //shelf = fi.highshelf(3, 0 - reductionDb, hflim_split);
     shelf = fi.svf.hs(hflim_split, 0.7, 0 - reductionDb );
 
-    // Listen solos the detector's high band with the reduction applied. It is
-    // mono because detection is mono-linked -- this is literally the signal the
-    // detector measures, which is what makes it useful for setting Crossover.
-    outL = lerp(l : shelf, high * gr, hflim_listen);
-    outR = lerp(r : shelf, high * gr, hflim_listen);
+    // Listen monitors the selected high bands in their stereo positions.
+    out = lerp(x : shelf, high * gr * weight, hflim_listen);
 };

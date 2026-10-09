@@ -17,15 +17,28 @@ namespace LibreAudio {
 template<class RootWidget,
          const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
          uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
-class UI : public LibreAudioBaseUI
+class UI final : public LibreAudioBaseUI
 {
-    const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
-        new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
+    const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
+        new BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
     };
 
-    const std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderAnalyser {
-        new LibreAudio::BotShaderWidget<shaderSrc, shaderSrcSize>(this, this)
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
+   #else
+    static constexpr const uint32_t kTextureSize = 0;
+   #endif
+
+    static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
+    using AnalyzerShaderW = std::conditional_t<label == "dualGain",
+                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
+                                               BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
+
+    const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
+        new AnalyzerShaderW(this, this)
     };
 
 public:
@@ -37,6 +50,23 @@ public:
             fShaderBackground.get(), fShaderAnalyser.get()
         });
     }
+
+private:
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
+    {
+        fShaderAnalyser->replace(values);
+    }
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
+        fShaderAnalyser->push(value);
+       #else
+        fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
+       #endif
+    }
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
