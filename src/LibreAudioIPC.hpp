@@ -167,8 +167,8 @@ public:
             }
         }
 
-        // smoothing/blur
-        for (uint32_t i = 0; i < 8; ++i)
+        // smoothing/blur  (change i < ???)
+        for (uint32_t i = 0; i < 20; ++i)
             blur(tmp);
 
         std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);
@@ -188,7 +188,7 @@ public:
 
         // copying while mixing previous data for smoother updates
         for (uint32_t b = 0; b < kNumBins; ++b)
-            tmp[b] = tmp[b] * 0.6f + data->bins[b] * 0.4f;
+            tmp[b] = tmp[b] * 0.9f + data->bins[b] * 0.1f;
 
         return tmp;
     }
