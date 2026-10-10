@@ -123,11 +123,11 @@ public:
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            const uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
-            if (b == 0)
-                continue;
+            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
             if (b >= kNumBins - 1)
                 continue;
+            if (b < 2)
+                b = 1;
 
             hasBin[b] = true;
             if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > tmp[b]) {
@@ -168,7 +168,7 @@ public:
         }
 
         // smoothing/blur  (change i < ???)
-        for (uint32_t i = 0; i < 20; ++i)
+        for (uint32_t i = 0; i < 12; ++i)
             blur(tmp);
 
         std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);

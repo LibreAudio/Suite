@@ -466,7 +466,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
            #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
             if (runnerActive)
-                fRunnerBuffer.writeFloat(std::max(fCycleBuffer[0][j], fCycleBuffer[1][j]));
+                fRunnerBuffer.writeFloat((fCycleBuffer[0][j] + fCycleBuffer[1][j]) * 0.5f);
            #endif
 
            #if DISTRHO_PLUGIN_WANT_LATENCY
@@ -588,20 +588,23 @@ inline void LibreAudioPlugin::doUnmute()
 bool LibreAudioPlugin::run()
 {
     static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
+    const uint32_t bufferSize = fRunnerBufferSize;
+
+    const ScopedDenormalDisable sdd;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-    fAnalysis.init(fRunnerBufferSize, getSampleRate());
+    fAnalysis.init(bufferSize, getSampleRate());
    #endif
 
-    const uint32_t bufferSize = fRunnerBufferSize;
-    std::unique_ptr<float[]> data { new float[bufferSize * LIBREAUDIO_WANT_GRAPH_IO_COUNT] };
+    std::unique_ptr<float[]> _data { new float[bufferSize * LIBREAUDIO_WANT_GRAPH_IO_COUNT] };
+    float* const data = _data.get();
 
     while (fRunnerBuffer.getReadableDataSize() >= bufferSize * kDataSize)
     {
-        DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data.get(), bufferSize * kDataSize), false);
+        DISTRHO_SAFE_ASSERT_RETURN(fRunnerBuffer.readCustomData(data, bufferSize * kDataSize), false);
 
        #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-        fAnalysis.run(data.get());
+        fAnalysis.run(data);
 
         if (! fIPC.push(fAnalysis))
         {
