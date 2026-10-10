@@ -254,9 +254,17 @@ private:
             closePath();
             fillPaint(linearGradient(0,g.y,0,h,Color(143,163,190,.45f),Color(45,49,59,.05f)));fill();
         }
-        for(float f : {50.f,100.f,200.f,500.f,1000.f,2000.f,5000.f,10000.f}) {
+        // Logarithmic grid: 1-9 times each decade, so the lines crowd together toward
+        // the top of every decade. Decades are strongest, then 5, then the rest.
+        for(float decade : {10.f,100.f,1000.f,10000.f}) for(int m=1;m<=9;++m) {
+            const float f=m*decade;
+            if(f<=20 || f>=20000) continue;
             const float x=MbCompResponse::position(f)*width();
-            line(x,g.y,x,h,Color(59,59,68,.4f));
+            line(x,g.y,x,h,Color(59,59,68,m==1?.7f:m==5?.45f:.22f));
+            if((m==1 || m==2 || m==5) && f>=50) {
+                char s[16]; if(f>=1000) std::snprintf(s,sizeof(s),"%.0fk",f/1000); else std::snprintf(s,sizeof(s),"%.0f",f);
+                label(x,g.y/2,s,10,muted,ALIGN_CENTER|ALIGN_MIDDLE);
+            }
         }
         for(int db : {6,0,-6,-12,-18}) {
             const float y=yDb(db);
@@ -271,7 +279,7 @@ private:
         }
         // The solid mid and finer side curves use the real per-channel GR.
         // Match the DSP shelf cascade, including sample-rate frequency warping.
-        save(); scissor(0,g.y,width(),g.h);
+        save(); scissor(0,0,width(),h);
         constexpr int steps=256;
         const int slope=std::clamp(static_cast<int>(std::round(value(kFaustParameterSlope))),0,2);
         for(int c=1;c>=0;--c) {
@@ -306,7 +314,7 @@ private:
             }
             for(int section=0;section<4;++section) {
                 const float left=section*width()/4,right=(section+1)*width()/4;
-                save();intersectScissor(left,g.y,right-left,g.h);
+                save();intersectScissor(left,0,right-left,h);
                 if(c==0) {
                     path();strokeColor(rainbow((section+.5f)/4,bypassed()?.04f:.13f));strokeWidth(6);stroke();
                 }
@@ -420,8 +428,8 @@ private:
         // Endless: pointers in rainbow colors turn with the drag.
         const Color tint=bypassed()?Color(0x5d,0x5d,0x66):accent;
         save();translate(cx,cy);scale(S,S);translate(-50,-50);
-        beginPath();circle(50,53,34);
-        fillPaint(radialGradient(50,53,30.5f,33.2f,Color(0,0,0,50.f/255),Color(0,0,0,0)));fill();
+        beginPath();circle(50,53.5f,38);
+        fillPaint(radialGradient(50,53.5f,28,36,Color(0,0,0,50.f/255),Color(0,0,0,0)));fill();
         beginPath();circle(50,50,30);
         fillPaint(linearGradient(50,20,50,80,Color(0x4a,0x4a,0x51),Color(0x3a,0x3a,0x41)));fill();
         strokeColor(Color(0x0d,0x0d,0x0f));strokeWidth(1);stroke();
@@ -466,7 +474,7 @@ private:
         const float w=(width()-24-3*10)/4;
         const int active=activePreset();
         for(int p=0;p<4;++p) {
-            const Box b {12+p*(w+10),height()-88,w,70}; frame(b,colors[p]);
+            const Box b {12+p*(w+10),height()-88,w,70}; frame(b,colors[p],.9f);
             if(active==p)panel(b,Color(colors[p],.12f),10);
             label(b.x+12,b.y+22,presets[p].name,12,colors[p]);
             label(b.x+12,b.y+44,presets[p].description,10,muted);
