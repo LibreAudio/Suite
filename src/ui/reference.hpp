@@ -259,10 +259,11 @@ struct Reference {
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
             static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            static constexpr const Color insetShadingColor = Color(0.f, 0.f, 0.f, 0.55f);
             static constexpr const uint border = 1;
-            static constexpr const uint borderRadius = 4;
+            static constexpr const uint borderRadius = 5;
             static constexpr const uint margin = 4;
-            static constexpr const uint height = 44;
+            static constexpr const uint height = 42;
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;
@@ -281,7 +282,7 @@ struct Reference {
             struct Bar {
                 static constexpr const Color color = Value::color;
                 static constexpr const Color color〡deactivated = Color(0.f, 0.f, 0.f, 0.5f);
-                static constexpr const uint height = 3;
+                static constexpr const uint height = 2;
             };
         };
 

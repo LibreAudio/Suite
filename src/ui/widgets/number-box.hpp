@@ -40,7 +40,7 @@ private:
     void onNanoDisplay() final
     {
         drawReferenceBackground<R>();
-        drawReferenceBorder<R>();
+        // drawReferenceBorder<R>();
 
         const float border = R::border * fScaleFactor;
         const float border2x = border * 2;
@@ -56,15 +56,18 @@ private:
         // inset shading
         beginPath();
         roundedRect(0, 0, w, h, borderRadius);
-        fillPaint(linearGradient(0, 0, 0, margin, Color(0.f, 0.f, 0.f, 0.55f), Reference::Colors::transparent));
+        fillPaint(linearGradient(0, 0, 0, margin, R::insetShadingColor, Reference::Colors::transparent));
         fill();
+        strokeColor(R::backgroundColor);
+        strokeWidth(border * 0.5f);
+        stroke();
 
         fillColor(R::Name::color);
         fontFace("regular");
         fontSize(R::Name::fontSize * fScaleFactor);
         textLetterSpacing(R::Name::letterSpacing * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_TOP);
-        text(border + margin, border + margin, fParameter.name, nullptr);
+        text(border2x + margin, border + margin, fParameter.name, nullptr);
 
         fillColor(R::Value::color);
         fontFace("mono");
@@ -73,10 +76,9 @@ private:
         textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
 
         Rectangle<float> bounds;
-        textBounds(border + margin, 0, "-88.8", nullptr, bounds);
+        textBounds(border2x + margin, 0, "-88.8", nullptr, bounds);
 
         textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-        // const float vw =
         text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
 
         if (*fParameter.unit != '\0')
@@ -86,22 +88,22 @@ private:
             fontSize(R::Unit::fontSize * fScaleFactor);
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
             textLetterSpacing(R::Unit::letterSpacing * fScaleFactor);
-            text(w - border - margin, h - bh - margin, fParameter.unit, nullptr);
+            text(w - border2x - margin, h - bh - margin, fParameter.unit, nullptr);
         }
 
         // bottom bar
         {
             save();
 
-            scissor(0, h - border - bh, w, bh);
+            scissor(0, h - bh, w, bh);
             beginPath();
             roundedRect(0, 0, w, h, borderRadius);
             fillColor(R::Bar::color〡deactivated);
             fill();
 
-            scissor(0, h - border - bh, border2x + getNormalizedValue() * (w - border2x), bh);
+            scissor(0, h - bh, border2x + getNormalizedValue() * (w - border2x), bh);
             beginPath();
-            roundedRect(border, border, w - border2x, h - border2x, borderRadius);
+            roundedRect(0, 0, w, h, borderRadius);
             fillColor(R::Bar::color);
             fill();
 
