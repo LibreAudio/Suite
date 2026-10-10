@@ -168,7 +168,7 @@ public:
         }
 
         // smoothing/blur  (change i < ???)
-        for (uint32_t i = 0; i < 20; ++i)
+        for (uint32_t i = 0; i < 12; ++i)
             blur(tmp);
 
         std::memcpy(data->bins, tmp, sizeof(float) * kNumBins);
