@@ -198,9 +198,8 @@ private:
         fillPaint(linearGradient(0,b.y,0,b.y+4,Color(0,0,0,.55f),Color(0,0,0,0))); fill();
         strokeColor(Color(0,0,0,.45f)); strokeWidth(1); stroke();
         const float px=b.x+7;
-        fontFace("regular"); fontSize(9); textLetterSpacing(.08f*9);
+        fontFace("regular"); fontSize(9);
         textAlign(ALIGN_LEFT|ALIGN_TOP); fillColor(muted); text(px,b.y+4,title,nullptr);
-        textLetterSpacing(0);
         char valueText[48]; const char* unit=nullptr; const std::string unitName=a.unit;
         if (p==kFaustParameterSlope) {
             std::snprintf(valueText,sizeof(valueText),"%d",6*(1<<std::clamp(static_cast<int>(std::round(v)),0,2)));
@@ -226,8 +225,11 @@ private:
         fontFace("mono"); fontSize(15*k); textAlign(ALIGN_LEFT|ALIGN_BASELINE);
         if (editing && fSelectText) panel({px-2,base-13,vb.getWidth()*k+4,16},Color(accent,.2f),2);
         fillColor(enabled?(editing?ink:color):Color(0x5d,0x5d,0x66));
-        const float end=text(px,base,shown,nullptr);
-        if (unit) { fontFace("regular"); fontSize(9.5f*k); fillColor(muted); text(end+3,base,unit,nullptr); }
+        text(px,base,shown,nullptr);
+        if (unit) {
+            fontFace("regular"); fontSize(9.5f*k); fillColor(muted);
+            textAlign(ALIGN_RIGHT|ALIGN_BASELINE); text(b.x+b.w-7,base,unit,nullptr);
+        }
         save(); scissor(b.x,b.y+b.h-2,b.w,2);
         beginPath(); roundedRect(b.x,b.y,b.w,b.h,radius); fillColor(Color(0,0,0,.5f)); fill();
         beginPath(); roundedRect(b.x,b.y,std::max(1.f,std::clamp(normalized(p,v),0.f,1.f)*b.w),b.h,radius);
