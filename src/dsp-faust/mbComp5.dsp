@@ -167,28 +167,31 @@ listenFloorDb = -18; /*glob_group(vslider("[9]Listen Floor[unit:dB][symbol:liste
                                    -18, -48, -6, 1));*/
 
 //======================= Crossover frequencies =======================
-// Four free sliders, forced into ascending order on the way out and kept
-// clear of Nyquist. The 1.02 margin stops two sections from landing on the
-// same frequency, which would leave a band with no bandwidth for its detector
-// to look at and two shelves fighting over one corner.
+// Adjacent crossovers stay at least one octave (2x) apart. Reserve room for
+// all higher crossovers before clamping a lower one, so automation and preset
+// recalls cannot collapse the upper bands against Nyquist. Crossovers range
+// from 40 Hz to 12 kHz. Keep this rule in sync with mbComp5/response.hpp.
 //
-// Clamping the *effective* frequency rather than the slider means dragging
-// one crossover past another does not drag the other one's control with it -
-// the neighbour is held until the first one moves back off it.
+// Clamp effective frequencies without rewriting host parameter values. The
+// native UI additionally limits each drag against its current neighbours.
 
-nyq   = 0.45 * ma.SR;
-clamp(f) = max(20, min(f, nyq));
+nyq = min(12000, 0.45 * ma.SR);
+xoRatio = 2;
+xoFloor = min(40, nyq / pow(xoRatio, 3));
+clampXo(n, lo, f) = max(lo, min(f, nyq / pow(xoRatio, 4-n)));
 
 xoRaw(n) = xo_group(vslider("[%n]Crossover %n[unit:Hz][scale:log][symbol:xover%n]
-      [tooltip: Split point between band %n and the band above it. Held above
-       the crossover below it, so the four can never cross over each other]",
-                            ba.take(n, (100, 500, 2000, 8000)), 20, 20000, 1))
+      [tooltip: Split point between band %n and the band above it. Adjacent
+       crossovers stay at least one octave apart, between 40 Hz and 12 kHz
+       and below Nyquist]",
+                            ba.take(n, (100, 500, 2000, 8000)),
+                            40 * pow(xoRatio, n-1), 12000 / pow(xoRatio, 4-n), 1))
          : si.smoo;
 
-xf(1) = clamp(xoRaw(1));
-xf(2) = clamp(max(xf(1) * 1.02, xoRaw(2)));
-xf(3) = clamp(max(xf(2) * 1.02, xoRaw(3)));
-xf(4) = clamp(max(xf(3) * 1.02, xoRaw(4)));
+xf(1) = clampXo(1, xoFloor, xoRaw(1));
+xf(2) = clampXo(2, xf(1) * xoRatio, xoRaw(2));
+xf(3) = clampXo(3, xf(2) * xoRatio, xoRaw(3));
+xf(4) = clampXo(4, xf(3) * xoRatio, xoRaw(4));
 
 xoverFreqs = xf(1), xf(2), xf(3), xf(4);
 

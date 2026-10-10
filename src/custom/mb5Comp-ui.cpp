@@ -289,7 +289,7 @@ private:
         for(int i=0;i<4;++i) {
             const float x=MbCompResponse::position(freq[i])*width();
             line(x,42,x,g.y+g.h,Color(colors[i+1],.5f),1.2f);
-            const Box chip {chips[i]-34,g.y+g.h+7,68,22};
+            const Box chip {chips[i]-34,g.y+g.h-1,68,22};
             panel(chip,Color(26,27,32,.94f),5);
             char s[40]; const double f=freq[i];
             if(f>=1000) std::snprintf(s,sizeof(s),"%.2fk",f/1000); else std::snprintf(s,sizeof(s),"%.0f Hz",f);
@@ -460,10 +460,9 @@ private:
     }
     void crossoverDrag(const Hit& h,float x) {
         const int i=h.band; const auto freq=xo();
-        const float low=i==0?20:freq[i-1]*1.02;
-        const float high=i==3?std::min(20000.,sampleRate()*.45):freq[i+1]/1.02;
-        // If host automation has collapsed crossovers at Nyquist, std::clamp
-        // still receives an ordered interval.
+        const float low=i==0?MbCompResponse::crossoverFloor(sampleRate()):freq[i-1]*MbCompResponse::crossoverRatio;
+        const float high=i==3?MbCompResponse::crossoverCeiling(sampleRate()):freq[i+1]/MbCompResponse::crossoverRatio;
+        // Guard against rounding at a fully packed set of crossovers.
         write(h.parameter,std::clamp(static_cast<float>(MbCompResponse::frequency(std::clamp(x/width(),0.f,1.f))),std::min(low,high),high));
     }
     bool onMouse(const MouseEvent& ev) final {
@@ -532,7 +531,7 @@ private:
         if(h.kind==Kind::Slope) {set(kFaustParameterSlope,value(kFaustParameterSlope)+(step>0?1:-1));return true;}
         if(h.kind!=Kind::Value && h.kind!=Kind::Meter && h.kind!=Kind::Amount && h.kind!=Kind::Crossover)return false;
         beginGesture(h,(ev.mod&(kModifierControl|kModifierSuper))!=0);
-        if(h.kind==Kind::Crossover)crossoverDrag(h,(MbCompResponse::position(value(h.parameter))+step)*width());
+        if(h.kind==Kind::Crossover)crossoverDrag(h,(MbCompResponse::position(xo()[h.band])+step)*width());
         else for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+(h.kind==Kind::Amount?-step:step)));
         endGesture();return true;
     }

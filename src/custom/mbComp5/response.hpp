@@ -8,13 +8,28 @@
 
 namespace LibreAudio::MbCompResponse {
 constexpr double pi = 3.14159265358979323846;
+constexpr double crossoverRatio = 2.0; // one octave between adjacent crossovers
+constexpr double crossoverMin = 40.0;
+constexpr double crossoverMax = 12000.0;
+inline double crossoverCeiling(double sr) { return std::min(crossoverMax, sr * 0.45); }
+inline double crossoverFloor(double sr) {
+    return std::min(crossoverMin, crossoverCeiling(sr) / std::pow(crossoverRatio, 3));
+}
 inline double frequency(const double t) { return 20.0 * std::pow(1000.0, t); }
 inline double position(const double f) { return std::log(f / 20.0) / std::log(1000.0); }
 
 inline std::array<double, 4> effectiveCrossovers(std::array<double, 4> xo, const double sr)
 {
+    const double ceiling = crossoverCeiling(sr);
+    const double floor = crossoverFloor(sr);
     for (size_t i = 0; i < xo.size(); ++i)
-        xo[i] = std::max(20.0, std::min(i == 0 ? xo[i] : std::max(xo[i], xo[i-1] * 1.02), sr * 0.45));
+    {
+        // Reserve space for every remaining split, including automated or
+        // recalled values which arrive crossed or above Nyquist.
+        const double low = i == 0 ? floor : xo[i-1] * crossoverRatio;
+        const double high = ceiling / std::pow(crossoverRatio, 3-i);
+        xo[i] = std::clamp(xo[i], low, high);
+    }
     return xo;
 }
 
