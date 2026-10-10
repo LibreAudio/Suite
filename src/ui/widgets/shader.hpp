@@ -185,11 +185,13 @@ public:
         if constexpr (textureSize != 0)
         {
             gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureSize = glGetUniformLocation(program, "_dpf_texture_size");
             gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
 
             fTextureData.resize(textureSize, 0.f);
             fTextureDataTail = textureSize - 1;
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
@@ -383,11 +385,13 @@ private:
 
         if constexpr (textureSize != 0)
         {
+            glUniform1i(gl3.dpfTextureData, 0);
+            glUniform1i(gl3.dpfTextureSize, textureSize);
             glUniform1f(gl3.dpfTextureStart,
                         static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
-
             glTexSubImage2D(GL_TEXTURE_2D,
                             0,
                             0,
@@ -484,6 +488,7 @@ private:
         GLint dpfPosition;
         GLint dpfScaleFactor;
         GLint dpfTextureData;
+        GLint dpfTextureSize;
         GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;

@@ -35,7 +35,11 @@ const float fMax = 20000.0;   // right edge, Hz (log axis between the two)
 const float dbTop   =   6.0;  // top of the widget, dBFS
 const float dbFloor = -55.0;  // bottom of the widget, dBFS
 
-const int fftBins = 256;       // number of analyser bins across the width
+#ifndef LIBREAUDIO_HOSTED
+const int fftBins = 1024;       // number of analyser bins across the width
+#else
+int fftBins = _dpf_texture_size;
+#endif
 
 // --------------------------------------------------------------------------------
 // Look
