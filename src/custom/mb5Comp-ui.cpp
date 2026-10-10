@@ -83,10 +83,12 @@ class MbCompWidget final : public LabWidget, private IdleCallback
     bool fDragging = false, fMoved = false;
     bool fStars = true, fSpectrum = true, fSelectText = false;
     float fDragX = 0, fDragY = 0, fLastY = 0, fDelta = 0;
+    std::array<float,2> fTurn {};
     float fMouseX = -1, fMouseY = -1;
     int fEdit = -1, fLastClick = -1;
     double fClickTime = 0, fHoverTime = 0;
     std::string fText;
+    static constexpr float kCorner = 7;
     Page fPage = kPageInit;
 
 public:
@@ -142,11 +144,20 @@ private:
             fInterface->parameterControlPressed(kParametersMainStart+p);
         };
         if (h.kind == Kind::Amount || (all && h.kind == Kind::Value && h.band >= 0 && h.field >= 0))
-            for (const auto& b : bands) add(b[h.kind == Kind::Amount ? 0 : h.field]);
+            for (const auto& b : bands) add(b[h.field]);
         else add(h.parameter);
     }
     void panel(Box b, Color color, float radius=7) {
         beginPath(); roundedRect(b.x,b.y,b.w,b.h,radius); fillColor(color); fill();
+    }
+    // Rectangle path with individual corner radii.
+    void cornerPath(float x,float y,float w,float h,float tl,float tr,float br,float bl) {
+        beginPath();moveTo(x+tl,y);
+        lineTo(x+w-tr,y);arcTo(x+w,y,x+w,y+tr,tr);
+        lineTo(x+w,y+h-br);arcTo(x+w,y+h,x+w-br,y+h,br);
+        lineTo(x+bl,y+h);arcTo(x,y+h,x,y+h-bl,bl);
+        lineTo(x,y+tl);arcTo(x,y,x+tl,y,tl);
+        closePath();
     }
     void line(float x1,float y1,float x2,float y2,Color color,float thickness=1) {
         beginPath(); moveTo(x1,y1); lineTo(x2,y2); strokeColor(color); strokeWidth(thickness); stroke();
@@ -212,7 +223,10 @@ private:
         std::array<double,6> edges {{20,freq[0],freq[1],freq[2],freq[3],20000}};
         for(int b=0;b<5;++b) {
             const float x1=MbCompResponse::position(edges[b])*width(), x2=MbCompResponse::position(edges[b+1])*width();
-            panel({x1,0,std::max(0.f,x2-x1),h},Color(colors[b],live(b)?.045f:.012f),0);
+            // The outer bands follow the display's rounded corners.
+            const float left=b==0?kCorner:0,right=b==4?kCorner:0;
+            cornerPath(x1,0,std::max(0.f,x2-x1),h,left,right,right,left);
+            fillColor(Color(colors[b],live(b)?.045f:.012f));fill();
         }
         // Five measured detector bands, not an FFT or a simulated spectrum.
         if(fSpectrum && !bypassed()) {
@@ -221,7 +235,7 @@ private:
                 db[b]=std::max(value(levels[b][0]),value(levels[b][1]));
                 centers[b]=MbCompResponse::position(std::sqrt(edges[b]*edges[b+1]));
             }
-            beginPath();moveTo(0,h);
+            beginPath();moveTo(0,h-kCorner);
             for(int i=0;i<=160;++i) {
                 const float t=i/160.f;int b=0;
                 while(b<4 && centers[b+1]<t)++b;
@@ -232,9 +246,12 @@ private:
                     const float blend=f*f*(3-2*f);
                     level=db[b]+(db[b+1]-db[b])*blend;
                 }
-                lineTo(t*width(),g.y+(1-std::clamp((level+60)/60,0.f,1.f))*(h-g.y));
+                const float y=g.y+(1-std::clamp((level+60)/60,0.f,1.f))*(h-g.y);
+                lineTo(t*width(),i==0||i==160?std::min(y,h-kCorner):y);
             }
-            lineTo(width(),h);closePath();
+            arcTo(width(),h,width()-kCorner,h,kCorner);
+            lineTo(kCorner,h);arcTo(0,h,0,h-kCorner,kCorner);
+            closePath();
             fillPaint(linearGradient(0,g.y,0,h,Color(143,163,190,.45f),Color(45,49,59,.05f)));fill();
         }
         for(float f : {50.f,100.f,200.f,500.f,1000.f,2000.f,5000.f,10000.f}) {
@@ -364,7 +381,6 @@ private:
         const float cell=(common.w-16-(globals.size()-1)*6)/globals.size();
         for(size_t i=0;i<globals.size();++i) number({common.x+8+i*(cell+6),common.y+8,cell,36},globals[i],globalLabels[i],accent);
     }
-    float amount() const { float sum=0;for(const auto& b:bands) sum+=normalized(b[0],value(b[0]));return 1-sum/5; }
     int activePreset() const {
         for(int p=0;p<8;++p) {
             bool match=true;
@@ -384,18 +400,69 @@ private:
             set(bands[b][5],0);set(bands[b][6],0);
         }
     }
+    // Moves the gestured parameter of every band by the same dB. The shift stops
+    // where the first one reaches its limit, so the offsets between bands are kept.
+    float shiftAll(float db) {
+        for(const auto& g:fGesture) {
+            const auto& a=kFaustParameters[g.parameter];
+            const float start=denormalized(g.parameter,g.start);
+            db=std::clamp(db,a.min-start,a.max-start);
+        }
+        for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start)+db);
+        return db;
+    }
+    // One large endless knob that moves a parameter of all bands together;
+    // the ring of values around it is read-only reference.
+    void bigKnob(float cx,float cy,int knob,int field,const char* title) {
+        constexpr float S=2.4f;
+        const float r=30*S;
+        // The large knob of the other plugins (ui/widgets/knob.hpp), drawn in its 100-unit box.
+        // Endless: pointers in rainbow colors turn with the drag.
+        const Color tint=bypassed()?Color(0x5d,0x5d,0x66):accent;
+        save();translate(cx,cy);scale(S,S);translate(-50,-50);
+        beginPath();circle(50,53,34);
+        fillPaint(radialGradient(50,53,30.5f,33.2f,Color(0,0,0,50.f/255),Color(0,0,0,0)));fill();
+        beginPath();circle(50,50,30);
+        fillPaint(linearGradient(50,20,50,80,Color(0x4a,0x4a,0x51),Color(0x3a,0x3a,0x41)));fill();
+        strokeColor(Color(0x0d,0x0d,0x0f));strokeWidth(1);stroke();
+        beginPath();circle(50,49.4f,29.1f);
+        strokePaint(linearGradient(50,20,50,50,Color(255,255,255,90.f/255),Color(255,255,255,0)));strokeWidth(1);stroke();
+        // The light stays fixed while the pointers turn: dome shading, two soft
+        // anisotropic sheens and a rim light underneath, a specular spot on top.
+        beginPath();circle(50,50,30);
+        fillPaint(radialGradient(50,50,16,30,Color(0,0,0,0),Color(0,0,0,45.f/255)));fill();
+        for(const float mid:{2.356f,5.498f}) {
+            beginPath();moveTo(50,50);arc(50,50,29.2f,mid-.26f,mid+.26f,CW);closePath();
+            fillPaint(radialGradient(50,50,4,29,Color(255,255,255,13.f/255),Color(255,255,255,0)));fill();
+        }
+        beginPath();circle(50,50.6f,29.1f);
+        strokePaint(linearGradient(50,62,50,80,Color(255,255,255,0),Color(255,255,255,20.f/255)));strokeWidth(1);stroke();
+        for(int i=0;i<12;++i) {
+            const float a=fTurn[knob]+i*M_PI/6;
+            const float x0=50+std::sin(a)*22,y0=50-std::cos(a)*22,x1=50+std::sin(a)*27,y1=50-std::cos(a)*27;
+            // Engraved: the lower lip catches the light, the groove is dark, the paint sits inside.
+            lineCap(ROUND);
+            beginPath();moveTo(x0,y0+.7f);lineTo(x1,y1+.7f);strokeColor(Color(255,255,255,.2f));strokeWidth(1.8f);stroke();
+            beginPath();moveTo(x0,y0);lineTo(x1,y1);strokeColor(Color(0,0,0,.5f));strokeWidth(1.8f);stroke();
+            beginPath();moveTo(x0,y0+.15f);lineTo(x1,y1+.15f);
+            strokeColor(bypassed()?tint:rainbow(i/11.f,.9f));strokeWidth(1.1f);stroke();
+        }
+        beginPath();circle(50,50,30);
+        fillPaint(radialGradient(41,36,1,17,Color(255,255,255,28.f/255),Color(255,255,255,0)));fill();
+        restore();
+        label(cx,cy,bypassed()?"BYPASS":title,14,Color(172,174,182),ALIGN_CENTER|ALIGN_MIDDLE);
+        fHits.push_back({{cx-r,cy-r,r*2,r*2},Kind::Amount,-1,-1,field});
+        // Each band's value on a 270° arc around the knob, low to high.
+        for(int b=0;b<5;++b) {
+            char s[32];format(bands[b][field],s,sizeof(s));
+            const float a=.75f*M_PI+b*.375f*M_PI,x=cx+std::cos(a)*(r+42),y=cy+std::sin(a)*(r+42);
+            label(x,y-9,names[b],10,Color(colors[b],.65f),ALIGN_CENTER|ALIGN_MIDDLE);
+            label(x,y+7,s,13,value(bands[b][6])<.5f?colors[b]:muted,ALIGN_CENTER|ALIGN_MIDDLE,true);
+        }
+    }
     void easyControls() {
-        const float cx=width()/2,cy=height()*.55f,r=76;
-        label(cx,cy-r-27,"AMOUNT",18,ink,ALIGN_CENTER|ALIGN_MIDDLE);
-        beginPath(); circle(cx,cy,r); fillPaint(radialGradient(cx-20,cy-30,8,r+30,Color(57,58,66,.98f),Color(23,23,27,.98f))); fill();
-        beginPath(); arc(cx,cy,r-8,.75f*M_PI,2.25f*M_PI,CW); strokeColor(track);strokeWidth(4);stroke();
-        const float a=.75f*M_PI+amount()*1.5f*M_PI;
-        beginPath();arc(cx,cy,r-8,.75f*M_PI,a,CW);strokeColor(bypassed()?muted:accent);strokeWidth(4);stroke();
-        line(cx+std::cos(a)*(r-25),cy+std::sin(a)*(r-25),cx+std::cos(a)*(r-11),cy+std::sin(a)*(r-11),ink,3);
-        label(cx,cy,"LA",28,accent,ALIGN_CENTER|ALIGN_MIDDLE);
-        char s[32];std::snprintf(s,sizeof(s),"%.0f%%",amount()*100);
-        label(cx,cy+r+27,bypassed()?"BYPASS":s,18,ink,ALIGN_CENTER|ALIGN_MIDDLE,true);
-        fHits.push_back({{cx-r,cy-r,r*2,r*2},Kind::Amount});
+        bigKnob(width()*.27f,height()*.56f,0,0,"THRESHOLD");
+        bigKnob(width()*.73f,height()*.56f,1,2,"GAIN");
         const float w=(width()-24-3*10)/4;
         const int active=activePreset();
         for(int p=0;p<4;++p) {
@@ -408,7 +475,7 @@ private:
     }
     void onNanoDisplay() final {
         save();scale(fScaleFactor,fScaleFactor);fHits.clear();
-        panel({0,0,width(),height()},Color(20,21,26,.32f));
+        panel({0,0,width(),height()},Color(20,21,26,.32f),kCorner);
         scope();
         const Page page=getCurrentPage(fInterface);
         if(page==kPageSettings || page==kPageAbout) {
@@ -542,9 +609,13 @@ private:
             fDelta+=(fLastY-y)/((ev.mod&kModifierShift)?88.f:22.f);
             write(fDrag.parameter,denormalized(fDrag.parameter,fGesture.front().start)+std::round(fDelta));
         }
+        else if(fDrag.kind==Kind::Amount) {
+            const float applied=shiftAll(fDelta+(fLastY-y)*((ev.mod&kModifierShift)?.08f:.32f));
+            fTurn[fDrag.field>0]+=(applied-fDelta)*.1f;fDelta=applied;
+        }
         else {
             fDelta+=(fLastY-y)/((ev.mod&kModifierShift)?760.f:190.f);
-            for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+(fDrag.kind==Kind::Amount?-fDelta:fDelta)));
+            for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+fDelta));
         }
         fLastY=y;return true;
     }
@@ -559,7 +630,8 @@ private:
         if(h.kind!=Kind::Value && h.kind!=Kind::Meter && h.kind!=Kind::Amount && h.kind!=Kind::Crossover)return false;
         beginGesture(h,(ev.mod&(kModifierControl|kModifierSuper))!=0);
         if(h.kind==Kind::Crossover)crossoverDrag(h,(MbCompResponse::position(xo()[h.band])+step)*width());
-        else for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+(h.kind==Kind::Amount?-step:step)));
+        else if(h.kind==Kind::Amount) fTurn[h.field>0]+=shiftAll(step*60)*.1f;
+        else for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+step));
         endGesture();return true;
     }
     bool onKeyboard(const KeyboardEvent& ev) final {
