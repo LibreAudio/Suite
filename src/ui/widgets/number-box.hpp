@@ -23,7 +23,7 @@ class NumberBoxWidget final : public LabKnobWidget
 
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
-        : BaseWidget(parent, id),
+        : BaseWidget(parent, kParametersMainStart + id),
           fParameter(kFaustParameters[id])
     {
         setName(fParameter.name);
@@ -76,16 +76,17 @@ private:
         textBounds(border + margin, 0, "-88.8", nullptr, bounds);
 
         textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-        const float vw = text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
+        // const float vw =
+        text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
 
         if (*fParameter.unit != '\0')
         {
             fillColor(R::Unit::color);
             fontFace("regular");
             fontSize(R::Unit::fontSize * fScaleFactor);
-            textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
+            textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
             textLetterSpacing(R::Unit::letterSpacing * fScaleFactor);
-            text(vw + margin, h - bh - margin, fParameter.unit, nullptr);
+            text(w - border - margin, h - bh - margin, fParameter.unit, nullptr);
         }
 
         // bottom bar
