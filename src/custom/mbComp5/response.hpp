@@ -33,6 +33,30 @@ inline std::array<double, 4> effectiveCrossovers(std::array<double, 4> xo, const
     return xo;
 }
 
+// Move one crossover, pushing a chain of neighbours only as far as needed.
+// Quantize before propagating: the host parameters have a 1 Hz step, and
+// rounding a pushed lower neighbour upward could violate the octave gap.
+inline std::array<double, 4> pushCrossover(std::array<double, 4> xo, const int index,
+                                         const double requested, const double sr)
+{
+    const double floor = std::ceil(crossoverFloor(sr));
+    const double ceiling = std::floor(crossoverCeiling(sr));
+    for (int i = 0; i < 4; ++i)
+    {
+        const double low = i == 0 ? floor : xo[i-1] * crossoverRatio;
+        const double high = std::floor(ceiling / std::pow(crossoverRatio, 3-i));
+        xo[i] = std::clamp(std::round(xo[i]), low, high);
+    }
+    const double low = floor * std::pow(crossoverRatio, index);
+    const double high = std::floor(ceiling / std::pow(crossoverRatio, 3-index));
+    xo[index] = std::clamp(std::round(requested), low, high);
+    for (int i = index-1; i >= 0; --i)
+        xo[i] = std::min(xo[i], std::floor(xo[i+1] / crossoverRatio));
+    for (int i = index+1; i < 4; ++i)
+        xo[i] = std::max(xo[i], xo[i-1] * crossoverRatio);
+    return xo;
+}
+
 // Magnitude of the same bilinear-transform shelves as mbComp5.dsp. This is
 // the instantaneous wet response, before the DSP's dry/wet blend.
 inline double shelf(const double f, const double fc, const double gain, const int slope, const double sr)

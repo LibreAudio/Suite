@@ -9,6 +9,7 @@
 #include "ui/widgets/shader.hpp"
 #include "LibreAudioParameters.hpp"
 #include "mbComp5/response.hpp"
+#include "src/nanovg/nanovg.h"
 
 #include <algorithm>
 #include <array>
@@ -30,7 +31,7 @@ constexpr std::array<std::array<Param, 7>, 5> bands {{
 }};
 constexpr std::array<Param, 4> crossovers {{ kFaustParameterXover1, kFaustParameterXover2,
                                           kFaustParameterXover3, kFaustParameterXover4 }};
-constexpr std::array<Param, 8> globals {{ kFaustParameterKnee, kFaustParameterRange, kFaustParameterRms_time,
+constexpr std::array<Param, 9> globals {{ kFaustParameterSlope, kFaustParameterKnee, kFaustParameterRange, kFaustParameterRms_time,
     kFaustParameterShape, kFaustParameterChan_link, kFaustParameterBand_link,
     kFaustParameterLookahead, kFaustParameterDrywet }};
 constexpr std::array<std::array<Param, 2>, 5> reductions {{
@@ -46,7 +47,7 @@ constexpr std::array<std::array<Param, 2>, 5> levels {{
 constexpr std::array<Color, 5> colors {{ {255,191,203}, {255,223,173}, {210,253,211}, {190,241,255}, {218,193,243} }};
 constexpr const char* names[] = { "LOW", "LOW MID", "MID", "HIGH MID", "HIGH" };
 constexpr const char* labels[] = { "THRESHOLD", "RATIO", "GAIN", "ATTACK", "RELEASE" };
-constexpr const char* globalLabels[] = { "KNEE", "RANGE", "RMS TIME", "RELEASE SHAPE", "MID-SIDE LINK", "BAND LINK", "LOOKAHEAD", "DRY / WET" };
+constexpr const char* globalLabels[] = { "SLOPE", "KNEE", "RANGE", "RMS TIME", "RELEASE SHAPE", "MID-SIDE LINK", "BAND LINK", "LOOKAHEAD", "DRY / WET" };
 const Color ink {246,246,248}, muted {140,142,150}, track {19,19,22}, accent {195,217,255};
 
 struct Box {
@@ -73,13 +74,13 @@ constexpr std::array<Preset, 8> presets {{
 
 class MbCompWidget final : public LabWidget, private IdleCallback
 {
-    enum class Kind { Value, Toggle, Crossover, Meter, Amount, Slope, SlopeItem, Presets, Preset, Stars, Spectrum, Back };
+    enum class Kind { Value, Toggle, Crossover, Meter, Amount, Slope, Preset, Stars, Spectrum, Back };
     struct Hit { Box box; Kind kind; int parameter = -1, band = -1, field = -1; };
     struct Gesture { int parameter; float start; };
     std::vector<Hit> fHits;
     std::vector<Gesture> fGesture;
     Hit fDrag {};
-    bool fDragging = false, fMoved = false, fSlopeMenu = false, fPresetMenu = false;
+    bool fDragging = false, fMoved = false;
     bool fStars = true, fSpectrum = true, fSelectText = false;
     float fDragX = 0, fDragY = 0, fLastY = 0, fDelta = 0;
     float fMouseX = -1, fMouseY = -1;
@@ -105,7 +106,7 @@ private:
     bool live(int b) const { return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f); }
     Box column(int b) const { float w = (width()-24-32)/5; return {12+b*(w+8),height()-308,w,236}; }
     Box meter(int b) const { const Box c = column(b); return {c.x+c.w-28,c.y+30,20,c.h-40}; }
-    Box graph() const { return {0,48,width(),std::max(70.f,height()-(expert() ? 382.f : 165.f))}; }
+    Box graph() const { return {0,16,width(),std::max(70.f,height()-(expert() ? 350.f : 133.f))}; }
     float yDb(float db) const { const Box g = graph(); return g.y+(6-db)/24*g.h; }
     std::array<double,4> xo() const {
         return MbCompResponse::effectiveCrossovers({value(crossovers[0]),value(crossovers[1]),value(crossovers[2]),value(crossovers[3])}, sampleRate());
@@ -153,14 +154,17 @@ private:
     void label(float x,float y,const char* s,float size,Color color,int align=ALIGN_LEFT|ALIGN_MIDDLE,bool mono=false) {
         fontFace(mono?"mono":"regular"); fontSize(size); textAlign(align); fillColor(color); text(x,y,s);
     }
-    void frame(Box b, Color color) {
+    void frame(Box b, Color color, float backingOpacity=0) {
+        if(backingOpacity>0) panel(b,Color(24,25,30,backingOpacity),10);
         panel(b,Color(255,255,255,.045f),10);
         beginPath(); roundedRect(b.x+.5f,b.y+.5f,b.w-1,b.h-1,10);
         strokeColor(Color(color,.15f)); strokeWidth(1); stroke();
     }
     void format(int p, char* s, size_t n, bool units=true) const {
         const auto& a=kFaustParameters[p]; const float v=value(p);
-        if (p==kFaustParameterShape) {
+        if (p==kFaustParameterSlope) {
+            std::snprintf(s,n,"%d dB/oct",6*(1<<std::clamp(static_cast<int>(std::round(v)),0,2)));
+        } else if (p==kFaustParameterShape) {
             if (v <= 0) std::snprintf(s,n,"Linear");
             else if (v >= 100) std::snprintf(s,n,"Analog");
             else std::snprintf(s,n,"%.0f%%",v);
@@ -174,25 +178,25 @@ private:
     }
     void number(Box b,int p,const char* title,Color color,int band=-1,int field=-1) {
         panel(b,track,5);
-        label(b.x+7,b.y+9,title,10,muted);
+        label(b.x+7,b.y+9,title,band<0?9:10,muted);
         char text[48]; format(p,text,sizeof(text));
         if (field==1) std::snprintf(text,sizeof(text),"%.1f :1",value(p));
         const bool editing = fEdit==p;
         const bool enabled = band<0 || value(bands[band][6])<.5f;
         save(); scissor(b.x+4,b.y,b.w-8,b.h);
         if (editing && fSelectText) panel({b.x+5,b.y+15,b.w-10,b.h-19},Color(accent,.2f),2);
-        label(b.x+7,b.y+b.h*.66f,editing?fText.c_str():text,16,enabled?(editing?ink:color):muted,ALIGN_LEFT|ALIGN_MIDDLE,true);
+        fontFace("mono");fontSize(16);
+        Rectangle<float> bounds;
+        textBounds(0,0,text,nullptr,bounds);
+        const float valueSize=editing?16:std::min(16.f,16*(b.w-14)/std::max(1.f,bounds.getWidth()));
+        label(b.x+7,b.y+b.h*.66f,editing?fText.c_str():text,valueSize,enabled?(editing?ink:color):muted,ALIGN_LEFT|ALIGN_MIDDLE,true);
         restore();
         line(b.x+1,b.y+b.h-1,b.x+1+(b.w-2)*std::clamp(normalized(p,value(p)),0.f,1.f),b.y+b.h-1,enabled?color:muted,2);
-        if (enabled) fHits.push_back({b,Kind::Value,p,band,field});
+        if (enabled) fHits.push_back({b,p==kFaustParameterSlope?Kind::Slope:Kind::Value,p,band,field});
     }
     void button(Box b,const char* text,Kind kind,int id=-1,Color color=accent,bool on=false) {
         panel(b,on?Color(color,.22f):Color(255,255,255,.055f),5);
-        label(b.x+b.w/2-(kind==Kind::Slope||kind==Kind::Presets?5:0),b.y+b.h/2,text,11,on?color:muted,ALIGN_CENTER|ALIGN_MIDDLE);
-        if(kind==Kind::Slope||kind==Kind::Presets) {
-            const float x=b.x+b.w-10,y=b.y+b.h/2;
-            line(x-3,y-2,x,y+1,muted);line(x,y+1,x+3,y-2,muted);
-        }
+        label(b.x+b.w/2,b.y+b.h/2,text,11,on?color:muted,ALIGN_CENTER|ALIGN_MIDDLE);
         fHits.push_back({b,kind,id});
     }
     Color rainbow(float t,float alpha=1) const {
@@ -261,13 +265,32 @@ private:
                 beginPath();moveTo(0,ys[0]);
                 for(int i=1;i<=steps;++i)lineTo(i*width()/steps,ys[i]);
             };
+            if(c==0) {
+                const float zero=yDb(0);
+                const auto fillSegment = [&](float left,float y1,float right,float y2) {
+                    const float edge=std::abs(y1-zero)>std::abs(y2-zero)?y1:y2;
+                    if(std::abs(edge-zero)<.01f) return;
+                    const float t=(left+right)/(2*width());
+                    beginPath();moveTo(left,zero);lineTo(left,y1);
+                    lineTo(right,y2);lineTo(right,zero);closePath();
+                    fillPaint(linearGradient(0,zero,0,edge,rainbow(t,.015f),rainbow(t,.24f)));fill();
+                };
+                // Fade toward 0 dB for both gain and reduction, following the curve's colors.
+                save();nvgShapeAntiAlias(getContext(),0);
+                for(int i=0;i<steps;++i) {
+                    const float left=i*width()/steps,right=(i+1)*width()/steps;
+                    if((ys[i]-zero)*(ys[i+1]-zero)<0) {
+                        const float crossing=left+(right-left)*(zero-ys[i])/(ys[i+1]-ys[i]);
+                        fillSegment(left,ys[i],crossing,zero);
+                        fillSegment(crossing,zero,right,ys[i+1]);
+                    } else fillSegment(left,ys[i],right,ys[i+1]);
+                }
+                restore();
+            }
             for(int section=0;section<4;++section) {
                 const float left=section*width()/4,right=(section+1)*width()/4;
                 save();intersectScissor(left,g.y,right-left,g.h);
                 if(c==0) {
-                    path();lineTo(width(),yDb(0));lineTo(0,yDb(0));closePath();
-                    fillPaint(linearGradient(0,yDb(0),0,yDb(-18),rainbow((section+.5f)/4,0),
-                        rainbow((section+.5f)/4,.35f)));fill();
                     path();strokeColor(rainbow((section+.5f)/4,bypassed()?.04f:.13f));strokeWidth(6);stroke();
                 }
                 path();const float opacity=bypassed()?.25f:c==0?.95f:.5f;
@@ -276,8 +299,6 @@ private:
             }
         }
         restore();
-        label(width()-12,g.y+g.h-13,"M —  S ·   WET GAIN",9,muted,ALIGN_RIGHT|ALIGN_MIDDLE);
-        if(fSpectrum) label(9,g.y+g.h-13,"5-BAND INPUT LEVEL",9,muted);
         if(!expert()) return;
         std::array<float,4> chips {};
         for(int i=0;i<4;++i) chips[i]=std::max(112.f,static_cast<float>(MbCompResponse::position(freq[i])*width()));
@@ -288,32 +309,40 @@ private:
         }
         for(int i=0;i<4;++i) {
             const float x=MbCompResponse::position(freq[i])*width();
-            line(x,42,x,g.y+g.h,Color(colors[i+1],.5f),1.2f);
+            const float top=g.y, bottom=g.y+g.h, fade=g.h*.18f;
+            const Color color(colors[i+1],.5f), transparent(colors[i+1],0.f);
+            beginPath(); moveTo(x,top); lineTo(x,top+fade);
+            strokePaint(linearGradient(x,top,x,top+fade,transparent,color));
+            strokeWidth(1.2f); stroke();
+            line(x,top+fade,x,bottom-fade,color,1.2f);
+            beginPath(); moveTo(x,bottom-fade); lineTo(x,bottom);
+            strokePaint(linearGradient(x,bottom-fade,x,bottom,color,transparent));
+            strokeWidth(1.2f); stroke();
             const Box chip {chips[i]-34,g.y+g.h-1,68,22};
-            panel(chip,Color(26,27,32,.94f),5);
             char s[40]; const double f=freq[i];
             if(f>=1000) std::snprintf(s,sizeof(s),"%.2fk",f/1000); else std::snprintf(s,sizeof(s),"%.0f Hz",f);
             label(chips[i],chip.y+11,s,11,colors[i+1],ALIGN_CENTER|ALIGN_MIDDLE,true);
-            fHits.push_back({{x-8,42,16,g.y+g.h-42},Kind::Crossover,crossovers[i],i});
+            fHits.push_back({{x-8,top,16,g.h},Kind::Crossover,crossovers[i],i});
             fHits.push_back({chip,Kind::Crossover,crossovers[i],i});
         }
     }
     void bandColumns() {
         for(int b=0;b<5;++b) {
             const Box c=column(b); const Color color=live(b)?colors[b]:Color(100,100,110);
-            frame(c,value(bands[b][5])>.5f?colors[b]:muted);
+            frame(c,value(bands[b][5])>.5f?colors[b]:muted,.9f);
             label(c.x+8,c.y+14,names[b],10,color);
             const Box listen {c.x+c.w-44,c.y+6,17,17}, power {c.x+c.w-24,c.y+6,17,17};
             // Speaker and power icons from the prototype.
-            panel(listen,value(bands[b][5])>.5f?colors[1]:Color(255,255,255,.04f),4);
-            const Color speaker=value(bands[b][5])>.5f?track:ink;
+            panel(listen,value(bands[b][5])>.5f?colors[b]:Color(colors[b],.08f),4);
+            const Color speaker=value(bands[b][5])>.5f?track:colors[b];
             beginPath(); moveTo(listen.x+3,listen.y+6); lineTo(listen.x+6,listen.y+6);
             lineTo(listen.x+9,listen.y+3); lineTo(listen.x+9,listen.y+14);
             lineTo(listen.x+6,listen.y+11); lineTo(listen.x+3,listen.y+11); closePath(); fillColor(speaker); fill();
             line(listen.x+12,listen.y+6,listen.x+12,listen.y+11,speaker);
-            panel(power,value(bands[b][6])>.5f?Color(122,47,51):Color(255,255,255,.04f),4);
-            beginPath(); arc(power.x+8.5f,power.y+9,5,-.8f,3.94f,CW); strokeColor(ink); strokeWidth(1.2); stroke();
-            line(power.x+8.5f,power.y+2,power.x+8.5f,power.y+9,ink,1.3f);
+            panel(power,value(bands[b][6])>.5f?colors[b]:Color(colors[b],.08f),4);
+            const Color powerIcon=value(bands[b][6])>.5f?track:colors[b];
+            beginPath(); arc(power.x+8.5f,power.y+9,5,-.8f,3.94f,CW); strokeColor(powerIcon); strokeWidth(1.2); stroke();
+            line(power.x+8.5f,power.y+2,power.x+8.5f,power.y+9,powerIcon,1.3f);
             fHits.push_back({listen,Kind::Toggle,bands[b][5]}); fHits.push_back({power,Kind::Toggle,bands[b][6]});
             const float rowH=(c.h-40-4*5)/5;
             for(int j=0;j<5;++j) number({c.x+8,c.y+30+j*(rowH+5),c.w-43,rowH},bands[b][j],labels[j],color,b,j);
@@ -329,12 +358,11 @@ private:
             const float ty=m.y-value(bands[b][0])/60*m.h;
             beginPath(); moveTo(m.x,ty-4); lineTo(m.x+6,ty); lineTo(m.x,ty+4); closePath(); fillColor(color); fill();
             line(m.x+8,ty,m.x+20,ty,color);
-            label(m.x+14,m.y+m.h+7,"M S",7,muted,ALIGN_CENTER|ALIGN_MIDDLE);
             if(value(bands[b][6])<.5f) fHits.push_back({m,Kind::Meter,bands[b][0],b,0});
         }
-        const Box common {12,height()-64,width()-24,52}; frame(common,accent);
-        const float cell=(common.w-16-7*6)/8;
-        for(int i=0;i<8;++i) number({common.x+8+i*(cell+6),common.y+8,cell,36},globals[i],globalLabels[i],accent);
+        const Box common {12,height()-64,width()-24,52}; frame(common,accent,.9f);
+        const float cell=(common.w-16-(globals.size()-1)*6)/globals.size();
+        for(size_t i=0;i<globals.size();++i) number({common.x+8+i*(cell+6),common.y+8,cell,36},globals[i],globalLabels[i],accent);
     }
     float amount() const { float sum=0;for(const auto& b:bands) sum+=normalized(b[0],value(b[0]));return 1-sum/5; }
     int activePreset() const {
@@ -378,21 +406,6 @@ private:
             fHits.push_back({b,Kind::Preset,p});
         }
     }
-    void menus() {
-        if(fSlopeMenu) {
-            frame({34,41,116,86},accent);panel({34,41,116,86},Color(25,26,31,.99f));
-            for(int i=0;i<3;++i) {
-                char s[24];std::snprintf(s,sizeof(s),"%d dB/oct",6*(1<<i));
-                button({38,45+i*26.f,108,24},s,Kind::SlopeItem,i,accent,static_cast<int>(value(kFaustParameterSlope))==i);
-            }
-        }
-        if(fPresetMenu) {
-            const float x=width()-204;
-            panel({x,41,192,8*29.f+8},Color(25,26,31,.99f));
-            const int active=activePreset();
-            for(int i=0;i<8;++i)button({x+4,45+i*29.f,184,26},presets[i].name,Kind::Preset,i,colors[i%5],active==i);
-        }
-    }
     void onNanoDisplay() final {
         save();scale(fScaleFactor,fScaleFactor);fHits.clear();
         panel({0,0,width(),height()},Color(20,21,26,.32f));
@@ -410,23 +423,18 @@ private:
                 label(44,177,"Five-band mid/side dynamics · GPL-3.0-or-later",13,muted);
             }
         } else {
-            if(expert()) {
-                bandColumns();char s[24];std::snprintf(s,sizeof(s),"%d dB/oct",6*(1<<std::clamp(static_cast<int>(value(kFaustParameterSlope)),0,2)));
-                button({34,12,100,24},s,Kind::Slope);
-            } else easyControls();
-            const int preset=activePreset();
-            button({width()-204,12,192,24},preset<0?"PRESETS · CUSTOM":presets[preset].name,Kind::Presets);
-            menus();
+            if(expert()) bandColumns();
+            else easyControls();
         }
         // A short interaction hint appears after hovering a value or threshold meter.
-        if(!fDragging && fEdit<0 && getTime()-fHoverTime>.7 && !fPresetMenu && !fSlopeMenu) {
+        if(!fDragging && fEdit<0 && getTime()-fHoverTime>.7) {
             const Hit* h=hit(fMouseX,fMouseY);
-            if(h && (h->kind==Kind::Value || h->kind==Kind::Meter || h->kind==Kind::Crossover)) {
+            if(h && (h->kind==Kind::Value || h->kind==Kind::Slope || h->kind==Kind::Meter || h->kind==Kind::Crossover)) {
                 const auto& p=kFaustParameters[h->parameter];
                 const float x=std::clamp(fMouseX-150,8.f,width()-308),y=std::max(42.f,h->box.y-65);
                 panel({x,y,300,54},Color(35,36,42,.98f));
                 label(x+10,y+15,p.name,12,ink);
-                label(x+10,y+34,h->kind==Kind::Value?"Drag · click to type · Shift: fine · Ctrl/⌘: all bands":"Drag to adjust · double-click to reset",10,muted);
+                label(x+10,y+34,h->kind==Kind::Slope?"Click to cycle · drag or scroll · double-click to reset":h->kind==Kind::Value?"Drag · click to type · Shift: fine · Ctrl/⌘: all bands":"Drag to adjust · double-click to reset",10,muted);
             }
         }
         restore();
@@ -437,7 +445,7 @@ private:
     }
     void idleCallback() final {
         const Page page=getCurrentPage(fInterface);
-        if(fPage!=page) { endGesture();commitText();fSlopeMenu=fPresetMenu=false;fPage=page; }
+        if(fPage!=page) { endGesture();commitText();fPage=page; }
         repaint();
     }
     void commitText(bool cancel=false) {
@@ -458,34 +466,44 @@ private:
     void textEntry(int p) {
         fEdit=p;char s[32];std::snprintf(s,sizeof(s),"%.4g",value(p));fText=s;fSelectText=true;
     }
+    void adjustCrossover(const Hit& h,double requested) {
+        const auto before=xo();
+        const auto next=MbCompResponse::pushCrossover(before,h.band,requested,sampleRate());
+        const bool rising=next[h.band]>before[h.band];
+        // Move the neighbours out of the way first. Every affected parameter
+        // participates in the same mouse gesture for host automation/undo.
+        for(int step=0;step<4;++step) {
+            const int i=rising?3-step:step;
+            const int p=crossovers[i];
+            if(value(p)==next[i])continue;
+            if(std::none_of(fGesture.begin(),fGesture.end(),[p](const Gesture& g){return g.parameter==p;})) {
+                fGesture.push_back({p,normalized(p,value(p))});
+                fInterface->parameterControlPressed(kParametersMainStart+p);
+            }
+            write(p,next[i]);
+        }
+    }
     void crossoverDrag(const Hit& h,float x) {
-        const int i=h.band; const auto freq=xo();
-        const float low=i==0?MbCompResponse::crossoverFloor(sampleRate()):freq[i-1]*MbCompResponse::crossoverRatio;
-        const float high=i==3?MbCompResponse::crossoverCeiling(sampleRate()):freq[i+1]/MbCompResponse::crossoverRatio;
-        // Guard against rounding at a fully packed set of crossovers.
-        write(h.parameter,std::clamp(static_cast<float>(MbCompResponse::frequency(std::clamp(x/width(),0.f,1.f))),std::min(low,high),high));
+        adjustCrossover(h,MbCompResponse::frequency(std::clamp(x/width(),0.f,1.f)));
     }
     bool onMouse(const MouseEvent& ev) final {
         if(ev.button!=kMouseButtonLeft)return false;
         const float x=ev.pos.getX()/fScaleFactor,y=ev.pos.getY()/fScaleFactor;
         if(!ev.press) {
             if(!fDragging)return false;
-            const Hit d=fDrag;const bool moved=fMoved;endGesture();
+            const Hit d=fDrag;const bool moved=fMoved;
+            if(!moved && d.kind==Kind::Slope)write(d.parameter,(static_cast<int>(value(d.parameter))+1)%3);
+            endGesture();
             if(!moved && d.kind==Kind::Value)textEntry(d.parameter);
             return true;
         }
         commitText();
         const Hit* hp=hit(x,y);
-        if(!hp) {fSlopeMenu=fPresetMenu=false;return false;}
+        if(!hp)return false;
         const Hit h=*hp;
-        if(fSlopeMenu && h.kind!=Kind::SlopeItem && h.kind!=Kind::Slope) {fSlopeMenu=false;return true;}
-        if(fPresetMenu && h.kind!=Kind::Preset && h.kind!=Kind::Presets) {fPresetMenu=false;return true;}
         switch(h.kind) {
         case Kind::Toggle:set(h.parameter,value(h.parameter)>.5f?0:1);return true;
-        case Kind::Slope:fSlopeMenu=!fSlopeMenu;fPresetMenu=false;return true;
-        case Kind::SlopeItem:set(kFaustParameterSlope,h.parameter);fSlopeMenu=false;return true;
-        case Kind::Presets:fPresetMenu=!fPresetMenu;fSlopeMenu=false;return true;
-        case Kind::Preset:applyPreset(h.parameter);fPresetMenu=false;return true;
+        case Kind::Preset:applyPreset(h.parameter);return true;
         case Kind::Stars:fStars=!fStars;return true;
         case Kind::Spectrum:fSpectrum=!fSpectrum;return true;
         case Kind::Back:fInterface->buttonClicked(kWidgetExpert);return true;
@@ -493,7 +511,12 @@ private:
         }
         const double now=getTime();
         if(h.parameter>=0 && fLastClick==h.parameter && now-fClickTime<.35) {
-            set(h.parameter,kFaustParameters[h.parameter].init);fLastClick=-1;return true;
+            if(h.kind==Kind::Crossover) {
+                beginGesture(h,false);
+                adjustCrossover(h,kFaustParameters[h.parameter].init);
+                endGesture();
+            } else set(h.parameter,kFaustParameters[h.parameter].init);
+            fLastClick=-1;return true;
         }
         fLastClick=h.parameter;fClickTime=now;
         beginGesture(h,(ev.mod&(kModifierControl|kModifierSuper))!=0);
@@ -508,13 +531,17 @@ private:
             fMouseX=x;fMouseY=y;
             const Hit* h=hit(x,y);
             getWindow().setCursor(h?(h->kind==Kind::Crossover?kMouseCursorLeftRight:
-                h->kind==Kind::Value||h->kind==Kind::Meter||h->kind==Kind::Amount?kMouseCursorUpDown:kMouseCursorHand):kMouseCursorArrow);
+                h->kind==Kind::Value||h->kind==Kind::Slope||h->kind==Kind::Meter||h->kind==Kind::Amount?kMouseCursorUpDown:kMouseCursorHand):kMouseCursorArrow);
             return h!=nullptr;
         }
         if(!fMoved && std::abs(y-fDragY)+std::abs(x-fDragX)<2)return true;
         fMoved=true;
         if(fDrag.kind==Kind::Crossover)crossoverDrag(fDrag,x);
         else if(fDrag.kind==Kind::Meter)write(fDrag.parameter,-60*std::clamp((y-fDrag.box.y)/fDrag.box.h,0.f,1.f));
+        else if(fDrag.kind==Kind::Slope) {
+            fDelta+=(fLastY-y)/((ev.mod&kModifierShift)?88.f:22.f);
+            write(fDrag.parameter,denormalized(fDrag.parameter,fGesture.front().start)+std::round(fDelta));
+        }
         else {
             fDelta+=(fLastY-y)/((ev.mod&kModifierShift)?760.f:190.f);
             for(const auto& g:fGesture)write(g.parameter,denormalized(g.parameter,g.start+(fDrag.kind==Kind::Amount?-fDelta:fDelta)));
