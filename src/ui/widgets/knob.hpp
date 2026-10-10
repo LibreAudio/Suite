@@ -236,11 +236,7 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        if constexpr (R::width != 0)
-            BaseWidget::setWidth(d_roundToUnsignedInt(R::width * fScaleFactor));
-
-        if constexpr (R::height != 0)
-            BaseWidget::setHeight(d_roundToUnsignedInt(R::height * fScaleFactor));
+        updateReferenceSize<R>();
 
         if (*fParameter.unit != '\0')
         {
