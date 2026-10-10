@@ -84,9 +84,8 @@ class MbCompWidget final : public LabWidget, private IdleCallback
     bool fStars = true, fSpectrum = true, fSelectText = false;
     float fDragX = 0, fDragY = 0, fLastY = 0, fDelta = 0;
     std::array<float,2> fTurn {};
-    float fMouseX = -1, fMouseY = -1;
     int fEdit = -1, fLastClick = -1;
-    double fClickTime = 0, fHoverTime = 0;
+    double fClickTime = 0;
     std::string fText;
     static constexpr float kCorner = 7;
     Page fPage = kPageInit;
@@ -187,22 +186,53 @@ private:
         else std::snprintf(s,n,a.step>=1?"%.0f%s%s":v!=0 && std::abs(v)<10?"%.2f%s%s":"%.1f%s%s",
             v,units && *a.unit?" ":"",units?a.unit:"");
     }
+    // Number box in the style of the EQ: inset track, small spaced caption, mono
+    // value with its unit, and a fill bar along the bottom edge.
     void number(Box b,int p,const char* title,Color color,int band=-1,int field=-1) {
-        panel(b,track,5);
-        label(b.x+7,b.y+9,title,band<0?9:10,muted);
-        char text[48]; format(p,text,sizeof(text));
-        if (field==1) std::snprintf(text,sizeof(text),"%.1f :1",value(p));
+        constexpr float radius=5;
+        const auto& a=kFaustParameters[p]; const float v=value(p);
         const bool editing = fEdit==p;
         const bool enabled = band<0 || value(bands[band][6])<.5f;
-        save(); scissor(b.x+4,b.y,b.w-8,b.h);
-        if (editing && fSelectText) panel({b.x+5,b.y+15,b.w-10,b.h-19},Color(accent,.2f),2);
-        fontFace("mono");fontSize(16);
-        Rectangle<float> bounds;
-        textBounds(0,0,text,nullptr,bounds);
-        const float valueSize=editing?16:std::min(16.f,16*(b.w-14)/std::max(1.f,bounds.getWidth()));
-        label(b.x+7,b.y+b.h*.66f,editing?fText.c_str():text,valueSize,enabled?(editing?ink:color):muted,ALIGN_LEFT|ALIGN_MIDDLE,true);
+        beginPath(); roundedRect(b.x,b.y,b.w,b.h,radius); fillColor(track); fill();
+        beginPath(); roundedRect(b.x,b.y,b.w,b.h,radius);
+        fillPaint(linearGradient(0,b.y,0,b.y+4,Color(0,0,0,.55f),Color(0,0,0,0))); fill();
+        strokeColor(Color(0,0,0,.45f)); strokeWidth(1); stroke();
+        const float px=b.x+7;
+        fontFace("regular"); fontSize(9); textLetterSpacing(.08f*9);
+        textAlign(ALIGN_LEFT|ALIGN_TOP); fillColor(muted); text(px,b.y+4,title,nullptr);
+        textLetterSpacing(0);
+        char valueText[48]; const char* unit=nullptr; const std::string unitName=a.unit;
+        if (p==kFaustParameterSlope) {
+            std::snprintf(valueText,sizeof(valueText),"%d",6*(1<<std::clamp(static_cast<int>(std::round(v)),0,2)));
+            unit="dB/oct";
+        } else if (field==1) { std::snprintf(valueText,sizeof(valueText),"%.1f",v); unit=":1"; }
+        else if (unitName=="Hz") {
+            if (v>=1000) { std::snprintf(valueText,sizeof(valueText),"%.2f",v/1000); unit="kHz"; }
+            else { std::snprintf(valueText,sizeof(valueText),"%.0f",v); unit="Hz"; }
+        } else if (unitName=="ms" && v>=1000) { std::snprintf(valueText,sizeof(valueText),"%.2f",v/1000); unit="s"; }
+        else {
+            format(p,valueText,sizeof(valueText),false);
+            if (!unitName.empty() && p!=kFaustParameterShape && !(p==kFaustParameterRms_time && v==0)) unit=a.unit;
+        }
+        const char* shown=editing?fText.c_str():valueText;
+        if (editing) unit=nullptr;
+        // Shrink the value and unit together when the box is narrow.
+        Rectangle<float> vb,ub;
+        fontFace("mono"); fontSize(15); textBounds(0,0,shown,nullptr,vb);
+        float uw=0;
+        if (unit) { fontFace("regular"); fontSize(9.5f); textBounds(0,0,unit,nullptr,ub); uw=ub.getWidth()+3; }
+        const float k=std::min(1.f,(b.w-14)/std::max(1.f,vb.getWidth()+uw));
+        const float base=b.y+b.h-8;
+        fontFace("mono"); fontSize(15*k); textAlign(ALIGN_LEFT|ALIGN_BASELINE);
+        if (editing && fSelectText) panel({px-2,base-13,vb.getWidth()*k+4,16},Color(accent,.2f),2);
+        fillColor(enabled?(editing?ink:color):Color(0x5d,0x5d,0x66));
+        const float end=text(px,base,shown,nullptr);
+        if (unit) { fontFace("regular"); fontSize(9.5f*k); fillColor(muted); text(end+3,base,unit,nullptr); }
+        save(); scissor(b.x,b.y+b.h-2,b.w,2);
+        beginPath(); roundedRect(b.x,b.y,b.w,b.h,radius); fillColor(Color(0,0,0,.5f)); fill();
+        beginPath(); roundedRect(b.x,b.y,std::max(1.f,std::clamp(normalized(p,v),0.f,1.f)*b.w),b.h,radius);
+        fillColor(enabled?color:Color(0x45,0x45,0x4d)); fill();
         restore();
-        line(b.x+1,b.y+b.h-1,b.x+1+(b.w-2)*std::clamp(normalized(p,value(p)),0.f,1.f),b.y+b.h-1,enabled?color:muted,2);
         if (enabled) fHits.push_back({b,p==kFaustParameterSlope?Kind::Slope:Kind::Value,p,band,field});
     }
     void button(Box b,const char* text,Kind kind,int id=-1,Color color=accent,bool on=false) {
@@ -501,17 +531,6 @@ private:
             if(expert()) bandColumns();
             else easyControls();
         }
-        // A short interaction hint appears after hovering a value or threshold meter.
-        if(!fDragging && fEdit<0 && getTime()-fHoverTime>.7) {
-            const Hit* h=hit(fMouseX,fMouseY);
-            if(h && (h->kind==Kind::Value || h->kind==Kind::Slope || h->kind==Kind::Meter || h->kind==Kind::Crossover)) {
-                const auto& p=kFaustParameters[h->parameter];
-                const float x=std::clamp(fMouseX-150,8.f,width()-308),y=std::max(42.f,h->box.y-65);
-                panel({x,y,300,54},Color(35,36,42,.98f));
-                label(x+10,y+15,p.name,12,ink);
-                label(x+10,y+34,h->kind==Kind::Slope?"Click to cycle · drag or scroll · double-click to reset":h->kind==Kind::Value?"Drag · click to type · Shift: fine · Ctrl/⌘: all bands":"Drag to adjust · double-click to reset",10,muted);
-            }
-        }
         restore();
     }
     const Hit* hit(float x,float y) const {
@@ -602,8 +621,6 @@ private:
     bool onMotion(const MotionEvent& ev) final {
         const float x=ev.pos.getX()/fScaleFactor,y=ev.pos.getY()/fScaleFactor;
         if(!fDragging) {
-            if(std::abs(x-fMouseX)+std::abs(y-fMouseY)>1)fHoverTime=getTime();
-            fMouseX=x;fMouseY=y;
             const Hit* h=hit(x,y);
             getWindow().setCursor(h?(h->kind==Kind::Crossover?kMouseCursorLeftRight:
                 h->kind==Kind::Value||h->kind==Kind::Slope||h->kind==Kind::Meter||h->kind==Kind::Amount?kMouseCursorUpDown:kMouseCursorHand):kMouseCursorArrow);
