@@ -1905,13 +1905,14 @@ private:
         textAlign(ALIGN_LEFT | ALIGN_BASELINE);
         fillColor(lit && enabled ? b.color : EqColors::off);
         const float base = box.y + box.h - 9.f * s;
-        const float vw = text(px, base, value, nullptr) - px;
+        text(px, base, value, nullptr);
 
         if (unit != nullptr)
         {
             setFont("regular", 8.f);
+            textAlign(ALIGN_RIGHT | ALIGN_BASELINE);
             fillColor(EqColors::ink3);
-            text(px + vw + 4.f * s, base, unit, nullptr);
+            text(box.x + box.w - 8.f * s, base, unit, nullptr);
         }
 
         // bottom bar
