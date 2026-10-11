@@ -8,7 +8,6 @@
 
 #include "../reference.hpp"
 
-#include "FaustParameters.hpp"
 #include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
@@ -17,71 +16,163 @@ namespace LibreAudio {
 
 class ThresholdMeterWidget final : public LabKnobWidget
 {
-    using R = Reference::ThresholdMeter;
+    using R = Reference::Widgets::ThresholdMeter;
     using BaseWidget = LabKnobWidget;
 
 public:
-    ThresholdMeterWidget(LabWidget* const parent, const FaustParameter& parameter)
-        : BaseWidget(parent, 0),
-          fParameter(parameter)
+    ThresholdMeterWidget(LabWidget* const parent,
+                         const FaustParameterIndex slider,
+                         const FaustParameterIndex meterL,
+                         const FaustParameterIndex meterR)
+        : BaseWidget(parent, kParametersMainStart + slider),
+          kParameterIdSlider(slider),
+          kParameterIdMeterL(meterL),
+          kParameterIdMeterR(meterR),
+          kParameterSlider(kFaustParameters[slider]),
+          kParameterMeterL(kFaustParameters[meterL]),
+          kParameterMeterR(kFaustParameters[meterR])
     {
         updateReferenceSize<R>();
 
-        setName(fParameter.label);
-        setDefault(fParameter.init);
-        setRange(fParameter.min, fParameter.max);
-        setStep(fParameter.step);
-        // setUsingLogScale(fParameter.isLogarithmic); // FIXME
-        setValue(fParameter.init, false);
+        setName(kParameterSlider.label);
+        setDefault(kParameterSlider.init);
+        setRange(kParameterSlider.min, kParameterSlider.max);
+        setStep(kParameterSlider.step);
+        setUsingLogScale(kParameterSlider.isLogarithmic);
+        setValue(kParameterSlider.init, false);
+
+        updateSize(false);
+
+        DISTRHO_CUSTOM_SAFE_ASSERT("gain vs meter max mismatch", kParameterSlider.max <= kParameterMeterL.max);
+        DISTRHO_CUSTOM_SAFE_ASSERT("gain vs meter min mismatch", kParameterSlider.min >= kParameterMeterL.min);
+        DISTRHO_CUSTOM_SAFE_ASSERT("meter L vs R max mismatch", kParameterMeterL.max == kParameterMeterR.max);
+        DISTRHO_CUSTOM_SAFE_ASSERT("meter L vs R min mismatch", kParameterMeterL.min == kParameterMeterR.min);
     }
 
 private:
-    const FaustParameter& fParameter;
+    const uint kParameterIdSlider;
+    const uint kParameterIdMeterL;
+    const uint kParameterIdMeterR;
 
-    float fValueL = fParameter.min;
-    float fValueR = fParameter.min;
+    const FaustParameter& kParameterSlider;
+    const FaustParameter& kParameterMeterL;
+    const FaustParameter& kParameterMeterR;
 
-    bool fDrawingBackground = false;
+    float fMeterValueL = kParameterMeterL.min;
+    float fMeterValueR = kParameterMeterR.min;
 
-    [[nodiscard]] const Color& getBackgroundColor() const noexcept final
+    [[nodiscard]] float db2height(const float db, const float height) noexcept
     {
-        return fDrawingBackground ? R::backgroundColor : Reference::Colors::transparent;
-    }
-
-    [[nodiscard]] const Color& getBorderColor() const noexcept final
-    {
-        return !fDrawingBackground ? R::borderColor : Reference::Colors::transparent;
-    }
-
-    [[nodiscard]] Corner getCorner() const noexcept final
-    {
-        return kCornerBoth;
+        const float normalized = 1.f - d_clamp((db - kParameterSlider.min) / (kParameterSlider.max - kParameterSlider.min), 0.f, 1.f);
+        return d_roundToIntPositive(height * normalized);
     }
 
     void idleCallback() final
     {
-        // TODO
+        if (const float valueL = std::clamp(fInterface->getParameterValue(kParameterIdMeterL),
+                                            kParameterMeterL.min,
+                                            kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
+        {
+            fMeterValueL = valueL;
+            repaint();
+        }
+
+        if (const float valueR = std::clamp(fInterface->getParameterValue(kParameterIdMeterR),
+                                            kParameterMeterR.min,
+                                            kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
+        {
+            fMeterValueR = valueR;
+            repaint();
+        }
+
+        BaseWidget::idleCallback();
     }
 
     void onNanoDisplay() final
     {
+        const float border = R::border * fScaleFactor;
+        const float margin = R::margin * fScaleFactor;
+        const float padding = R::padding * fScaleFactor;
+        const float w = getWidth();
+        const float h = getHeight();
+
+        const float sw = R::Slider::width * fScaleFactor;
+
+        const float mx = border + margin + sw + padding;
+        const float my = border + margin;
+        const float mw = w - (border + margin) * 2 - sw - padding;
+        const float mh = h - (border + margin) * 2;
+
         // ------------------------------------------------------------------------------------------------------------
         // draw background
 
-        fDrawingBackground = true;
         drawReferenceBackground<R>();
+
+        // ------------------------------------------------------------------------------------------------------------
+        // meter area
+
+        {
+            const float mborder = R::border * fScaleFactor;
+            const float mborderRadius = R::Meter::borderRadius * fScaleFactor;
+
+            // inset shading
+            beginPath();
+            roundedRect(mx, my, mw, mh, mborderRadius);
+            fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
+            fill();
+            strokeColor(R::backgroundColor);
+            strokeWidth(mborder * 0.5f);
+            stroke();
+
+            // meters
+            fillPaint(linearGradient(0, my, 0, mh, R::Track::colorGradientStart, R::Track::colorGradientStop));
+
+            if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
+            {
+                const float lh = db2height(fMeterValueL, mh);
+
+                beginPath();
+                rect(mx, my + lh, mw * 0.5f, my + mh - lh);
+                fill();
+            }
+
+            if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
+            {
+                const float rh = db2height(fMeterValueR, mh);
+
+                beginPath();
+                rect(mx + mw * 0.5f, my + rh, mw * 0.5f, my + mh - rh);
+                fill();
+            }
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // slider
+
+        {
+            const float sx = border + margin;
+            const float sy = border + margin + getNormalizedValue() * (h - (border + margin) * 2);
+
+            beginPath();
+            moveTo(sx, sy - sw * 0.5f);
+            lineTo(sx + sw, sy);
+            lineTo(sx, sy + sw * 0.5f);
+            closePath();
+            fillColor(R::Slider::color);
+            fill();
+
+            beginPath();
+            moveTo(sx + sw + padding, sy);
+            lineTo(w - border - margin, sy);
+            strokeColor(R::Slider::color);
+            strokeWidth(1 * fScaleFactor);
+            stroke();
+        }
 
         // ------------------------------------------------------------------------------------------------------------
         // draw border
 
-        fDrawingBackground = false;
-        drawReferenceBackground<R>();
-
-        BaseWidget::fillColor(Reference::Colors::ink);
-        BaseWidget::fontSize(Reference::Common::fontSize * this->fScaleFactor);
-        BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::textLetterSpacing(Reference::Common::letterSpacing * this->fScaleFactor);
-        BaseWidget::text(getWidth() * 0.5f, getHeight() * 0.5f, "Thres");
+        drawReferenceBorder<R>();
     }
 
     void updateSize(const bool updateChildren) final

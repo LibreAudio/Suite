@@ -19,8 +19,6 @@ class NumberBoxWidget final : public LabKnobWidget
     using R = Reference::Widgets::NumberBox;
     using BaseWidget = LabKnobWidget;
 
-    const FaustParameter& fParameter;
-
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
         : BaseWidget(parent, kParametersMainStart + id),
@@ -37,6 +35,8 @@ public:
     }
 
 private:
+    const FaustParameter& fParameter;
+
     void onNanoDisplay() final
     {
         drawReferenceBackground<R>();

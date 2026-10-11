@@ -47,6 +47,11 @@ struct FaustParameter
     bool isTrigger : 1;
 };
 
+constexpr const char* getFaustParameterLabel(const FaustParameter& param)
+{
+    return param.label[0] != '\0' ? param.label : param.name;
+}
+
 constexpr bool isFaustParameterOutputOrTrigger(const FaustParameter& param)
 {
     return param.isOutput || param.isTrigger;

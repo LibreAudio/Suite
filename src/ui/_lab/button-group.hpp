@@ -89,8 +89,17 @@ protected:
     {
         for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
         {
-            widget->setChecked(this->fInterface->isButtonChecked(widget->getId()), false);
-            widget->setEnabled(this->fInterface->isButtonEnabled(widget->getId()));
+            const uint id = widget->getId();
+
+            if (id >= kWidgetIdsStart)
+            {
+                widget->setChecked(this->fInterface->isButtonChecked(id), false);
+                widget->setEnabled(this->fInterface->isButtonEnabled(id));
+            }
+            else
+            {
+                widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
+            }
         }
     }
 
@@ -102,8 +111,22 @@ private:
 
     void buttonClicked(SubWidget* const widget, int) final
     {
-        this->fInterface->buttonClicked(widget->getId());
-        idleCallback();
+        const uint id = widget->getId();
+
+        if (id >= kWidgetIdsStart)
+        {
+            this->fInterface->buttonClicked(id);
+
+            // other UI buttons might change state when this one changes, so update everything
+            idleCallback();
+        }
+        else
+        {
+            const float value = static_cast<ButtonBaseWidget*>(widget)->isChecked() ? 1.f : 0.f;
+            this->fInterface->parameterControlPressed(id);
+            this->fInterface->parameterControlModified(id, value);
+            this->fInterface->parameterControlReleased(id);
+        }
     }
 };
 

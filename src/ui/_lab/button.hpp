@@ -77,17 +77,7 @@ protected:
     template <class TR, const Color& color>
     void drawReferenceText(const char* const text)
     {
-        if constexpr (d_isNotZero(color.alpha))
-        {
-            const float w = getWidth();
-            const float h = getHeight();
-
-            fillColor(color);
-            fontSize(TR::fontSize * fScaleFactor);
-            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-            textLetterSpacing(TR::letterSpacing * fScaleFactor);
-            BaseWidget::text(w * 0.5f, h * 0.5f, text);
-        }
+        BaseWidget::drawReferenceText<TR, color>(text);
     }
 
     void onNanoDisplay() override

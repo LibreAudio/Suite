@@ -27,6 +27,9 @@ enum Orientation : bool {
 
 constexpr inline const Corner kCornerAuto = static_cast<Corner>(UINT8_MAX);
 
+// widget ids are assigned after parameters (defined elsewhere), so leave a big enough gap to ensure no overlap
+constexpr inline const uint16_t kWidgetIdsStart = 0xfff + 1;
+
 // --------------------------------------------------------------------------------------------------------------------
 // base widget class
 
@@ -204,6 +207,28 @@ protected:
             BaseWidget::strokeColor(borderColor);
             BaseWidget::strokeWidth(border);
             BaseWidget::stroke();
+        }
+    }
+
+    template <class R>
+    void drawReferenceText(const char* const text)
+    {
+        drawReferenceText<R, R::color>(text);
+    }
+
+    template <class R, const Color& color>
+    void drawReferenceText(const char* const text)
+    {
+        if constexpr (d_isNotZero(color.alpha))
+        {
+            const float w = BaseWidget::getWidth();
+            const float h = BaseWidget::getHeight();
+
+            BaseWidget::fillColor(color);
+            BaseWidget::fontSize(R::fontSize * fScaleFactor);
+            BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
+            BaseWidget::textLetterSpacing(R::letterSpacing * fScaleFactor);
+            BaseWidget::text(w * 0.5f, h * 0.5f, text);
         }
     }
 

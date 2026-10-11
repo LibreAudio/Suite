@@ -9,6 +9,8 @@
 #include "../base.hpp"
 #include "../reference.hpp"
 
+#include "LibreAudioParameters.hpp"
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -19,9 +21,7 @@ class ButtonGroupWidget : public ReferenceButtonGroupWidget<Reference::Widgets::
 
 public:
     explicit ButtonGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-    }
+        : BaseWidget(parent) {}
 
     template<class B,
              typename... Args,
@@ -29,6 +29,18 @@ public:
     std::shared_ptr<ButtonBaseWidget> addButton(const WidgetIds id, Args... args)
     {
         return BaseWidget::addButton<B>(id, WidgetIds2Str(id), args...);
+    }
+
+    template<class B,
+             typename... Args,
+             typename = std::enable_if_t<std::is_base_of_v<ButtonBaseWidget, B>>>
+    std::shared_ptr<ButtonBaseWidget> addButton(const FaustParameterIndex index, Args... args)
+    {
+        const FaustParameter& parameter = kFaustParameters[index];
+        DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
+        DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
+
+        return BaseWidget::addButton<B>(kParametersMainStart + index, getFaustParameterLabel(parameter), args...);
     }
 };
 

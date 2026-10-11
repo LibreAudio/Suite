@@ -77,8 +77,8 @@ public:
     }
 
 private:
-    float fValueL = kParameterGain.min;
-    float fValueR = kParameterGain.min;
+    float fMeterValueL = kParameterMeterL.min;
+    float fMeterValueR = kParameterMeterR.min;
 
     [[nodiscard]] float db2height(const float db, const float height) noexcept
     {
@@ -96,19 +96,21 @@ private:
     {
         if (const float valueL = std::clamp(fInterface->getParameterValue(kParameterIdMeterL),
                                             kParameterMeterL.min,
-                                            kParameterMeterL.max); d_isNotEqual(fValueL, valueL))
+                                            kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
         {
-            fValueL = valueL;
+            fMeterValueL = valueL;
             repaint();
         }
 
         if (const float valueR = std::clamp(fInterface->getParameterValue(kParameterIdMeterR),
                                             kParameterMeterR.min,
-                                            kParameterMeterR.max); d_isNotEqual(fValueR, valueR))
+                                            kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
         {
-            fValueR = valueR;
+            fMeterValueR = valueR;
             repaint();
         }
+
+        BaseWidget::idleCallback();
     }
 
     void onNanoDisplay() final
@@ -145,18 +147,18 @@ private:
 
             fillPaint(linearGradient(0, 0, 0, h, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            if (d_isNotEqual(fValueL, kParameterGain.min))
+            if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
             {
-                const float lh = db2height(fValueL, mheight);
+                const float lh = db2height(fMeterValueL, mheight);
 
                 beginPath();
                 rect(startx, startx + lh, tw, endy - lh);
                 fill();
             }
 
-            if (d_isNotEqual(fValueR, kParameterGain.min))
+            if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
             {
-                const float rh = db2height(fValueR, mheight);
+                const float rh = db2height(fMeterValueR, mheight);
 
                 beginPath();
                 rect(tc + fScaleFactor * 0.5f, startx + rh, tw, endy - rh);

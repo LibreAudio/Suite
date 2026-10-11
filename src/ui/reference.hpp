@@ -136,9 +136,6 @@ struct Reference {
         };
     };
 
-    struct ThresholdMeter : Zero {
-    };
-
     struct Stage : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         // static constexpr const Color backgroundColor = { 0x1b, 0x1c, 0x20 };
@@ -364,6 +361,33 @@ struct Reference {
             };
         };
 
+        struct ThresholdMeter : Zero {
+            static constexpr const Color backgroundColor = { 0xff, 0, 0, 0.07 };
+            struct Meter {
+                static constexpr const Color backgroundColor = Colors::track;
+                static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+                static constexpr const Color insetShadingColor = Color(0.f, 0.f, 0.f, 0.55f);
+                static constexpr const uint border = 1;
+                static constexpr const uint borderRadius = 5;
+            };
+            struct Slider {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const uint width = 8;
+            };
+            struct Tick {
+                static constexpr const Color color { Colors::ink3, 0.15f };
+                static constexpr const Color colorMaj { Colors::ink2, 0.26f };
+                static constexpr const uint height = 1;
+                static constexpr const uint width = 18;
+            };
+            struct Track {
+                static constexpr const Color colorGradientStart = Colors::acc1;
+                static constexpr const Color colorGradientStop = Colors::acc1Glow;
+                static constexpr const uint width = 9;
+            };
+            static constexpr const uint width = (border + margin + Track::width) * 2 + padding + Slider::width;
+        };
+
         template <uint8_t accent, bool small = false>
         struct ToggleSwitch : std::conditional_t<small, SmallKnob, Knob> {
             static constexpr const Color color = Colors::acc2;
@@ -389,6 +413,22 @@ struct Reference {
                 };
             };
         };
+    };
+
+    // helpers
+    template<uint _height, class Base = Zero>
+    struct Height : Base {
+        static constexpr const uint height = _height;
+    };
+
+    template<uint _padding, class Base = Zero>
+    struct Padding : Base {
+        static constexpr const uint padding = _padding;
+    };
+
+    template<uint _width, class Base = Zero>
+    struct Width : Base {
+        static constexpr const uint width = _width;
     };
 };
 

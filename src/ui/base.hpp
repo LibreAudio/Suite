@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "_lab/base.hpp"
 #include "_lab/interface.hpp"
 
 namespace LibreAudio {
@@ -21,7 +22,7 @@ enum Page : uint8_t {
 inline constexpr const Page kPageInit = static_cast<Page>(-1);
 
 enum WidgetIds : uint16_t {
-    kWidgetAbout = 1000,
+    kWidgetAbout = kWidgetIdsStart,
     kWidgetEasy,
     kWidgetExpert,
     kWidgetMenu,

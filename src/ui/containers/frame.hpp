@@ -7,6 +7,7 @@
 #include "ui/containers/knob-group.hpp"
 #include "ui/widgets/button.hpp"
 #include "ui/widgets/dual-slider.hpp"
+#include "ui/widgets/number-box.hpp"
 #include "ui/widgets/pill-toggle.hpp"
 
 #include LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE
@@ -38,6 +39,13 @@ public:
     void addDualSlider()
     {
         std::shared_ptr<LabWidget> widget { new DualSliderWidget<parameterA, parameterB>(this) };
+        Layout::widgets.push_back({ widget.get(), Fixed });
+        fWidgets.emplace_back(std::move(widget));
+    }
+
+    void addNumberBox(const FaustParameterIndex parameter)
+    {
+        std::shared_ptr<LabWidget> widget { new NumberBoxWidget(this, parameter) };
         Layout::widgets.push_back({ widget.get(), Fixed });
         fWidgets.emplace_back(std::move(widget));
     }
@@ -82,9 +90,13 @@ public:
 
         return {};
     }
-};
 
-// --------------------------------------------------------------------------------------------------------------------
+    template<class W>
+    void addSpacer() = delete;
+
+    template<class W, typename... Args>
+    void addWidget(Args... args) = delete;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
