@@ -28,36 +28,40 @@ attackTime = knob_group(hslider("[0]Attack Time[unit:ms][scale:log][symbol:attac
        waveform instead of following it and sounds cleaner, but lets peaks
        through for a moment. The audio waits half the longer of Attack and
        Decay, reported to the host as latency]",
-                                0.02, 0.02, 2, 0.01));
+                                2, 0.02, 2, 0.01));
 
 decayTime = knob_group(hslider("[1]Decay Time[unit:ms][scale:log][symbol:decay_time][style:knob][accentcolor:03]
       [tooltip: How quickly the envelope follower lets go after a peak. Shorter
        follows the waveform closely and distorts, longer is smoother. The audio
        waits half the longer of Attack and Decay, reported to the host as
        latency]",
-                               0.7, 0.05, 2, 0.01));
+                               2, 0.05, 2, 0.01));
 
-kneeDb = knob_group(hslider("[2]Knee Point[unit:dB][symbol:knee_point][style:knob][accentcolor:01]
-      [tooltip: Level below which the gain stops rising. At 0 dB nothing is
-       boosted and the plugin only holds peaks down to full scale. Lower values
-       lift everything between the knee and full scale up, and half of that
-       lift is taken back off at the output so the level stays in check]",
-                          0, -90, 0, 0.1));
+pushDb = knob_group(hslider("[2]Push[unit:dB][symbol:push][style:knob][accentcolor:01]
+      [tooltip: How far below full scale the maximizer starts lifting. At 0 dB
+       nothing is boosted and the plugin only holds peaks down to full scale.
+       Higher values lift everything between that level and full scale up, and
+       half of that lift is taken back off at the output so the level stays in
+       check]",
+                           0, 0, 90, 0.1));
 
-makeupDb = out_group(hslider("[0]Makeup[unit:dB][symbol:makeup][style:knob][accentcolor:05]
-      [tooltip: Gain on the maximized signal, after the compensation for the
-       Knee Point and before the Dry/Wet blend, so the dry side is untouched. Adds to
+// The dsp works with the knee level, which is the push turned round.
+kneeDb = 0 - pushDb;
+
+makeupDb = out_group(hslider("[1]Makeup[unit:dB][symbol:makeup][style:knob][accentcolor:05]
+      [tooltip: Gain on the maximized signal, after the compensation for
+       Push and before the Dry/Wet blend, so the dry side is untouched. Adds to
        whatever Auto Makeup has learned]",
                              0, -24, 24, 0.1));
 
-autoBtn = out_group(button("[1]Auto Makeup[symbol:auto_makeup][accentcolor:05]
+autoBtn = out_group(button("[0]Auto Makeup[symbol:auto_makeup][accentcolor:05]
       [tooltip: Press while typical material plays and release to set the gain
        that brings the maximized signal back to the loudness of the input,
-       short-term LUFS (3 s window) measured after the knee compensation. The
+       short-term LUFS (3 s window) measured after the push compensation. The
        loudness is measured all the time, so there is no need to hold it down;
        the value is taken at release, so release it after a few seconds of
        material. The learned value is shown in the meters
-       and adds to Makeup. Pressing it on silence clears it]"));
+       and adds to Makeup. Releasing it on silence leaves it as it was]"));
 
 drywet = out_group(hslider("[2]Dry/Wet[unit:%][symbol:drywet][style:knob][accentcolor:05]
       [tooltip: Blend of the maximized signal against the untouched input, for
@@ -88,10 +92,31 @@ envUpdate(e, f) = select2(f > e, e + (f - e) * trDecay, e + (f - e) * trAttack);
 envelope(l, r) = loop ~ _
 with { loop(e) = envUpdate(envUpdate(e, abs(l)), abs(r)); };
 
-maximizer(l, r) = (l : delayA) * g, (r : delayA) * g
+// The saturation meter shows how hard the maximizer is working: the gain
+// reduction in dB, as a positive number. That is the maximizer's gain together
+// with the knee taken back off in full, negated, so it is knee / envelope
+// turned round: 0 dB at the knee and more the further the envelope is above
+// it. The envelope moves at sample rate and the UI reads the value once per
+// block, so the meter holds the highest value and lets it go over SATREL,
+// which shows the saturation rather than whichever sample the block happened
+// to end on.
+SATMAX = 96;        // dB, meter top: the 90 dB knee range, plus margin
+SATREL = 0.3;       // s, how slowly the meter lets go
+
+satHold(x) = loop ~ _
+with {
+    p       = ba.tau2pole(SATREL);
+    loop(m) = select2(x > m, m + (x - m) * (1 - p), x);
+};
+
+satMeter = satHold : max(0) : meter_group(hbargraph("[2]saturation_db[unit:dB][symbol:saturation_db][label:Saturation]",
+                                                    0, SATMAX));
+
+maximizer(l, r) = attach((l : delayA) * g, satDb : satMeter), (r : delayA) * g
 with {
     delayA = de.delay(MAXDELAY, delaySamples);
     g      = 1 / max(envelope(l, r), knee);
+    satDb  = 0 - (ba.linear2db(g) + kneeDb);
 };
 
 // Gain compensation
@@ -108,7 +133,8 @@ compensate = par(i, Nch, *(sqrt(knee)));
 // dry input, delayed to meet the wet, with that of the maximized signal after
 // the knee compensation. Both are measured all the time. On release of the button
 // the difference is latched and stays until the next press. If either side is
-// silent it latches 0 dB. It is measured before Makeup, so Makeup is a trim on
+// silent at that moment nothing is latched and the current value is kept. It
+// is measured before Makeup, so Makeup is a trim on
 // top of it. The dry side waits the same delay as the audio inside the
 // maximizer.
 //
@@ -132,10 +158,10 @@ autoMakeupDb(dl, dr, wl, wr) = loop ~ _
 with {
     pd      = lufsPower(dl, dr);
     pw      = lufsPower(wl, wr);
-    offset  = select2((pd > AUTOSIL) & (pw > AUTOSIL), 0,
-                      10 * log10(pd / max(pw, AUTOSIL)))
+    audible = (pd > AUTOSIL) & (pw > AUTOSIL);
+    offset  = 10 * log10(pd / max(pw, AUTOSIL))
             : max(0 - AUTOMAX) : min(AUTOMAX);
-    loop(a) = select2(autoFall, a, offset);
+    loop(a) = select2(autoFall & audible, a, offset);
 };
 
 autoMeter = _ <: attach(_, meter_group(hbargraph("[1]auto_makeup_db[unit:dB][symbol:auto_makeup_db][label:Auto Makeup]",
