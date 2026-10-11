@@ -32,13 +32,13 @@ class DualGainTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
     static constexpr const float kColor2[] = { 0.1f, 0.3f, 0.05f, 1.f };
     std::shared_ptr<LabWidget> w1 = addWidget<LabColorWidget<kColor1>, Expanding>();
     std::shared_ptr<LabWidget> w2 = addWidget<ReferenceTextWidget<Reference::Widgets::Button>, Expanding>("text here");
-    std::shared_ptr<LabWidget> w2b = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTriml);
-    std::shared_ptr<LabWidget> w2c = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTriml);
-    std::shared_ptr<LabWidget> w2e = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTriml);
-    std::shared_ptr<LabWidget> w3 = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTrimr);
-    std::shared_ptr<LabWidget> w3b = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTrimr);
-    std::shared_ptr<LabWidget> w3c = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTrimr);
-    std::shared_ptr<LabWidget> w3d = addWidget<NumberBoxWidget, Expanding>(kFaustParameterTrimr);
+    std::shared_ptr<LabWidget> w2b = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTriml);
+    std::shared_ptr<LabWidget> w2c = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTriml);
+    std::shared_ptr<LabWidget> w2e = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTriml);
+    std::shared_ptr<LabWidget> w3 = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
+    std::shared_ptr<LabWidget> w3b = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
+    std::shared_ptr<LabWidget> w3c = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
+    std::shared_ptr<LabWidget> w3d = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
     std::shared_ptr<LabWidget> w4 = addWidget<ToggleSwitchWidget<1, true>, Expanding>(kCommonParameterBypass, "Bypass");
 
 public:

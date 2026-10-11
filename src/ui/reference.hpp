@@ -23,12 +23,12 @@ struct Reference {
         static constexpr const Color ink { 0xf6, 0xf6, 0xf8 };
         static constexpr const Color ink2 { 0xc8, 0xca, 0xd0 };
         static constexpr const Color ink3 { 0x8c, 0x8e, 0x96 };
-        static constexpr const Color acc1 { 0xc3, 0xd9, 0xff };
-        static constexpr const Color acc2 { 0xbe, 0xf1, 0xff };
-        static constexpr const Color acc3 { 0xda, 0xc1, 0xf3 };
-        static constexpr const Color acc4 { 0xd2, 0xfd, 0xd3 };
-        static constexpr const Color acc5 { 0xff, 0xbf, 0xcb };
-        static constexpr const Color acc6 { 0xff, 0xdf, 0xad };
+        static constexpr const Color acc1 { 0xc3, 0xd9, 0xff }; // blue
+        static constexpr const Color acc2 { 0xff, 0xbf, 0xcb }; // red
+        static constexpr const Color acc3 { 0xff, 0xdf, 0xad }; // yellow
+        static constexpr const Color acc4 { 0xd2, 0xfd, 0xd3 }; // green
+        static constexpr const Color acc5 { 0xbe, 0xf1, 0xff }; // baby blue
+        static constexpr const Color acc6 { 0xda, 0xc1, 0xf3 }; // pink
         static constexpr const Color acc1Glow { acc1, 0.45f };
         static constexpr const Color acc2Glow { acc2, 0.45f };
         static constexpr const Color acc3Glow { acc3, 0.45f };
@@ -253,6 +253,7 @@ struct Reference {
             };
         };
 
+        template<const Color& kAccentColor = Colors::acc1>
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
             static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
@@ -260,14 +261,14 @@ struct Reference {
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
             static constexpr const uint margin = 4;
-            static constexpr const uint height = 42;
+            static constexpr const uint height = 40;
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;
                 static constexpr const float letterSpacing = fontSize * 0.11f;
             };
             struct Value {
-                static constexpr const Color color = Colors::acc1;
+                static constexpr const Color color = kAccentColor;
                 static constexpr const float fontSize = 18.f;
                 static constexpr const float letterSpacing = 0.f;
             };
@@ -277,7 +278,7 @@ struct Reference {
                 static constexpr const float letterSpacing = 0.f;
             };
             struct Bar {
-                static constexpr const Color color = Value::color;
+                static constexpr const Color color = kAccentColor;
                 static constexpr const Color color〡deactivated = Color(0.f, 0.f, 0.f, 0.5f);
                 static constexpr const uint height = 2;
             };
@@ -362,7 +363,6 @@ struct Reference {
         };
 
         struct ThresholdMeter : Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0, 0, 0.07 };
             struct Meter {
                 static constexpr const Color backgroundColor = Colors::track;
                 static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
@@ -383,9 +383,10 @@ struct Reference {
             struct Track {
                 static constexpr const Color colorGradientStart = Colors::acc1;
                 static constexpr const Color colorGradientStop = Colors::acc1Glow;
-                static constexpr const uint width = 9;
+                static constexpr const uint width = 8;
             };
             static constexpr const uint width = (border + margin + Track::width) * 2 + padding + Slider::width;
+            static constexpr const uint height = 200; // FIXME
         };
 
         template <uint8_t accent, bool small = false>
@@ -429,6 +430,15 @@ struct Reference {
     template<uint _width, class Base = Zero>
     struct Width : Base {
         static constexpr const uint width = _width;
+    };
+
+    static constexpr const Color kAccentColors[] = {
+        Colors::acc1,
+        Colors::acc2,
+        Colors::acc3,
+        Colors::acc4,
+        Colors::acc5,
+        Colors::acc6,
     };
 };
 

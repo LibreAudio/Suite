@@ -63,7 +63,7 @@ private:
 
     [[nodiscard]] float db2height(const float db, const float height) noexcept
     {
-        const float normalized = 1.f - d_clamp((db - kParameterSlider.min) / (kParameterSlider.max - kParameterSlider.min), 0.f, 1.f);
+        const float normalized = d_clamp((db - kParameterSlider.min) / (kParameterSlider.max - kParameterSlider.min), 0.f, 1.f);
         return d_roundToIntPositive(height * normalized);
     }
 
@@ -118,6 +118,8 @@ private:
             // inset shading
             beginPath();
             roundedRect(mx, my, mw, mh, mborderRadius);
+            fillColor(R::Meter::backgroundColor);
+            fill();
             fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
             fill();
             strokeColor(R::backgroundColor);
@@ -151,7 +153,7 @@ private:
 
         {
             const float sx = border + margin;
-            const float sy = border + margin + getNormalizedValue() * (h - (border + margin) * 2);
+            const float sy = border + margin + (1.f - getNormalizedValue()) * (h - (border + margin) * 2);
 
             beginPath();
             moveTo(sx, sy - sw * 0.5f);
