@@ -448,6 +448,7 @@ private:
 
    #ifdef DISTRHO_OS_WINDOWS
     #define DGL_EXT(PROC, func) PROC func;
+    DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
     DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
     DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
     DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
@@ -461,7 +462,7 @@ private:
     DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
     DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
     DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
-    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog)
     DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
     DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
     DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)
@@ -481,6 +482,7 @@ private:
         #define DGL_EXT(PROC, func) \
             func = (PROC) wglGetProcAddress ( #func ); \
             DISTRHO_SAFE_ASSERT_RETURN(func != nullptr, false);
+        DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
         DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
         DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
         DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
