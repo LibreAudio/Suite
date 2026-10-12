@@ -523,19 +523,25 @@ with {
     width = out_group(hslider("[2] Stereo Width [unit:%] [style:knob] [symbol:stereo_width]",
                               100, 0, 200, 1)) / 100 : smoo(1.0);
 
-    // Three faders and no master: the early and late halves are balanced
-    // against the source independently rather than through one blend that moves
-    // both together, so a master would only duplicate what two of these already
-    // do. ER and Tail default 6 dB down, which puts the wet/dry balance within
-    // half a dB of where the old 35% dry/wet default sat.
-    drylevel = out_group(hslider("[3] Dry [unit:dB] [style:knob] [symbol:dry_level]",
-                                 0, -60, 12, 0.1)) : ba.db2linear : si.smoo;
-    erlevel = out_group(hslider("[4] ER [unit:dB] [style:knob] [symbol:er_level]",
+    // Global balance: centre passes dry and wet at unity. Moving toward Wet
+    // attenuates only dry; moving toward Dry attenuates only the finished wet
+    // signal. Centre preserves the previous default balance (Dry at 0 dB).
+    drywet = out_group(hslider("[3] Dry-Wet [unit:%] [style:knob] [symbol:drywet]
+        [tooltip: At centre both dry and wet pass at full level. Toward Dry reduces wet; toward Wet reduces dry.]",
+        0, -100, 100, 0.1)) / 100 : si.smoo;
+    // Clamp the smoothed control at the ends so single-precision smoothing
+    // cannot leave a faint residual signal when a path should be muted.
+    balance = max(-1, min(1, drywet * 1.0001));
+    drygain = 1 - max(0, balance);
+    wetgain = 1 + min(0, balance);
+
+    // Independent stage volumes stay ahead of the global wet gain.
+    erlevel = er_bot(hslider("[5] ER Volume [unit:dB] [style:knob] [symbol:er_level]",
                                 -6, -60, 12, 0.1)) : ba.db2linear : si.smoo;
     er_meterL = er_meters(vbargraph("[0] ER L [unit:dB] [symbol:er_meter_l]", -60, 12));
     er_meterR = er_meters(vbargraph("[1] ER R [unit:dB] [symbol:er_meter_r]", -60, 12));
 
-    taillevel = out_group(hslider("[7] Tail [unit:dB] [style:knob] [symbol:tail_level]",
+    taillevel = tail_top(hslider("[6] Tail Volume [unit:dB] [style:knob] [symbol:tail_level]",
                                   -6, -60, 12, 0.1)) : ba.db2linear : si.smoo;
 
     tail_meterL = tail_meters(vbargraph("[0] Tail L [unit:dB] [symbol:tail_meter_l]", -60, 12));
@@ -573,14 +579,14 @@ with {
     //                                    |                               |
     //                              width --> eq --> duck <--------------+
     //                                                        |
-    //                                             + dry * drylevel
+    //                                            * wetgain + dry * drygain
     //
     // Both tails read the same Feed knob and the same parameter set; the tank
     // and gtank outputs are crossfaded by Tail Blend before Tail Level scales
     // the pair. The bus arithmetic below carries ten signals at its widest:
     // three copies of the ER output (one for the output sum, one per tank feed)
     // and two of the pre-delayed input.
-    dry = par(i, 2, *(drylevel));
+    dry = par(i, 2, *(drygain));
 
     // Everything up to and including the input filters. Named because it is
     // used twice: it feeds the reverb, and it is also the ducker's sidechain.
@@ -639,7 +645,7 @@ with {
     // pulls down the finished tail rather than starving the tanks — a tank fed
     // a ducked signal would still be ringing with what it was given seconds
     // ago, which is not what ducking is for.
-    wet = incutd <: (predelayed : wetbody), keymono : duckapply;
+    wet = incutd <: (predelayed : wetbody), keymono : duckapply : par(i, 2, *(wetgain));
 
     keymono(a, b) = (a + b) * 0.5;
 
