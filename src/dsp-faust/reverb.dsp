@@ -343,16 +343,14 @@ tail_group(x) = top_group(vgroup("[2] TAIL", x));
 tail_top(x)   = tail_group(hgroup("[0]Time", x));
 tail_bot(x)   = tail_group(hgroup("[1]Tone", x));
 tail_meters(x) = top_group(hgroup("[3] TAIL Meters", x));
-// Five bands side by side, each one a column of its own: Q on top, then Freq,
-// then Gain. The band's identity is the group label, so the controls inside it
-// only need to say which parameter they are.
+// Three EQ stages, each one a column of its own. The stage's identity is the
+// group label, so the controls inside it only need to say which parameter
+// they are.
 hidden_group(x) = rev_group(hgroup("[9] Hidden", x));
 eq_group(x)   = hidden_group(x);
-eq_ls(x)      = eq_group(vgroup("[0] Low Shelf", x));
-eq_b1(x)      = eq_group(vgroup("[1] Bell 1", x));
-eq_b2(x)      = eq_group(vgroup("[2] Bell 2", x));
-eq_b3(x)      = eq_group(vgroup("[3] Bell 3", x));
-eq_hs(x)      = eq_group(vgroup("[4] High Shelf", x));
+eq_b1(x)      = eq_group(vgroup("[0] Bell 1", x));
+eq_b2(x)      = eq_group(vgroup("[1] Bell 2", x));
+eq_tilt(x)    = eq_group(vgroup("[2] Tilt", x));
 out_group(x)  = io_group(hgroup("[1] Output", x));
 
 uiMeters(x) = hgroup("[9]", x);
@@ -363,7 +361,7 @@ with {
 
     // --- early reflection controls ---
     predelay = in_group(hslider("[4] Pre-delay [unit:ms] [style:knob] [symbol:predelay]",
-                                0, 0, 250, 0.1)) : si.smoo;
+                                5, 0, 250, 0.1)) : si.smoo;
 
     // Scales every tap time and every diffuser delay. This is the distance
     // cue: the first tap moves from ~6 ms (intimate) to ~23 ms (large hall).
@@ -373,11 +371,11 @@ with {
     // 0 = bare taps, 480L-style discrete reflections, good on drums.
     // 1 = fully smeared bloom, M7-style, good on vocals and strings.
     diffusion = er_top(hslider("[2] ER Diffusion [style:knob] [symbol:er_diffusion]",
-                                 0.6, 0, 1, 0.001)) : smoo(0.6) : *(GMAX);
+                                 0.5, 0, 1, 0.001)) : smoo(0.6) : *(GMAX);
 
     // Cutoff of the first tap block; later blocks are darker by fixed ratios.
     damp = er_bot(hslider("[3] ER Damping [unit:Hz] [scale:log] [style:knob] [symbol:er_damping]",
-                            7000, 800, 20000, 1)) : smoo(7000) : min(0.45 * ma.SR);
+                            4000, 800, 20000, 1)) : smoo(7000) : min(0.45 * ma.SR);
 
     // How much of each input reaches the opposite output. At 0 a hard-panned
     // source keeps its reflections on its own side; turning it up spreads the
@@ -393,8 +391,7 @@ with {
     // and the two sections read as one continuous event, which is the more
     // M7-like behaviour. The coupling is the point of the control, but it does
     // mean that at high Feed the ER knobs colour the tail as well.
-    tailfeed = tail_top(hslider("[0] Tail Feed [unit:%] [style:knob] [symbol:tail_feed]",
-                                  50, 0, 100, 1)) / 100 : smoo(0.5);
+    tailfeed = 0; //tail_top(hslider("[0] Tail Feed [unit:%] [style:knob] [symbol:tail_feed]", 0, 0, 100, 1)) / 100 : smoo(0.5);
 
     // Which of the two tanks you are hearing. 0% is the FDN alone, 100% the
     // loop alone, and everything between is an equal-power crossfade — the two
@@ -402,14 +399,13 @@ with {
     // changes character without changing loudness. It picks which tank you hear;
     // how loud the pair sits against the early reflections is Tail Level's job,
     // over in the output section.
-    tblend = tail_top(hslider("[1] Tail Blend [unit:%] [style:knob] [symbol:tail_blend]",
-                                100, 0, 100, 1)) / 100 : smoo(1.0);
+    tblend = 1; //tail_top(hslider("[1] Tail Blend [unit:%] [style:knob] [symbol:tail_blend]", 100, 0, 100, 1)) / 100 : smoo(1.0);
 
     decay = tail_top(hslider("[2] Decay [unit:s] [scale:log] [style:knob] [symbol:decay]",
-                               2.2, 0.2, 20, 0.01)) : smoo(2.2);
+                               1.8, 0.2, 20, 0.01)) : smoo(2.2);
 
     tsize = tail_top(hslider("[3] Size [style:knob] [symbol:tail_size]",
-                               1.0, 0.5, MAXSIZE, 0.001)) : smoo(1.0);
+                               1.5, 0.5, MAXSIZE, 0.001)) : smoo(1.0);
 
     // Decay time below Bass Freq, as a multiple of Decay. Above 1 the low end
     // rings on after the mids have gone, which is most of what "large hall"
@@ -418,12 +414,12 @@ with {
     bassmult = tail_bot(hslider("[0] Bass Multiply [style:knob] [symbol:bass_mult]",
                                   1.4, 0.25, 2.5, 0.01)) : smoo(1.4);
     bassfreq = tail_bot(hslider("[1] Bass Freq [unit:Hz] [scale:log] [style:knob] [symbol:bass_freq]",
-                                  350, 100, 1000, 1)) : smoo(350);
+                                  400, 100, 1000, 1)) : smoo(350);
 
     // Air absorption: the loop loses treble on every pass, so HF decay is
     // always shorter than mid decay, never longer.
     hfdamp = tail_bot(hslider("[2] HF Damping [unit:Hz] [scale:log] [style:knob] [symbol:hf_damp]",
-                                5500, 1000, 20000, 1)) : smoo(5500) : min(0.45 * ma.SR);
+                                4000, 1000, 20000, 1)) : smoo(5500) : min(0.45 * ma.SR);
 
     modrate = tail_bot(hslider("[3] Mod Rate [style:knob] [symbol:mod_rate]",
                                  1.0, 0.1, 3, 0.01)) : smoo(1.0);
@@ -438,15 +434,15 @@ with {
     // 0.75 before its echo density reaches the fast regime. So the shared
     // default sits at the loop's requirement, which costs the FDN nothing.
     density = tail_bot(hslider("[5] Density [style:knob] [symbol:density]",
-                                 0.75, 0, 1, 0.001)) : smoo(0.75) : *(GMAX);
+                                 0.5, 0, 1, 0.001)) : smoo(0.75) : *(GMAX);
 
     // Spread is the time scale and Shape the contour; Shape does nothing at all
     // with Spread at 0, which is exactly the relationship the pair has on a
     // 480L, and is why 0 is the default — it leaves the tank's own onset alone.
     tshape = tail_top(hslider("[4] Shape [style:knob] [symbol:tail_shape]",
-                                0.5, 0, 1, 0.001)) : smoo(0.5) : SHAPEP;
+                                0.4, 0, 1, 0.001)) : smoo(0.5) : SHAPEP;
     tspread = tail_top(hslider("[5] Spread [unit:ms] [style:knob] [symbol:tail_spread]",
-                                 0, 0, 500, 1)) : si.smoo;
+                                 50, 0, 500, 1)) : si.smoo;
 
     // --- input ---
     // Both cuts sit on the wet path only, so they shape what the taps and the
@@ -456,92 +452,70 @@ with {
     // its detector always compares two full-bandwidth bands and the amount of
     // de-essing does not drift as LP moves.
     lowcut = in_group(hslider("[2] HP [unit:Hz] [scale:log] [style:knob] [symbol:lowcut]",
-                              60, 20, 1000, 1));
+                              40, 20, 1000, 1));
     highcut = in_group(hslider("[3] LP [unit:Hz] [scale:log] [style:knob] [symbol:highcut]",
-                               18000, 1000, 20000, 1)) : min(0.45 * ma.SR);
+                               8000, 1000, 20000, 1)) : min(0.45 * ma.SR);
 
     // --- dimension ---
     // One macro blends continuously from SDD-320 mode 1 to mode 2 while
     // raising the added anti-phase wet signal from 0 to 100%. Smooth both
     // together; the default of 0 leaves the stage bypassed.
     dimmacro = in_group(hslider("[5] Dimension [unit:%] [style:knob] [symbol:dim]",
-                                0, 0, 100, 0.1)) / 100 : smoo(0.0);
+                                20, 0, 100, 0.1)) / 100 : smoo(0.0);
     dimsel = 1 + dimmacro;
     dimwet = dimmacro;
 
     // --- eq ---
-    // A five band parametric on the wet path, after everything else: a low
-    // shelf, three bells, a high shelf — in that order through the chain as
-    // well as across the panel. All five are fi.svf, the same TPT state
-    // variable structure the de-esser's shelf uses, built for coefficients that
-    // move every sample. At 0 dB all three shapes collapse their mix to
-    // (1,0,0), so a band left flat is a true bypass rather than an allpass
-    // sitting in the path adding phase shift for nothing.
+    // On the wet path, after everything else: two bells, then a linear tilt.
+    // The bells are fi.svf, the same TPT state variable structure the de-esser's
+    // shelf uses, built for coefficients that move every sample. At 0 dB it
+    // collapses its mix to (1,0,0), so a flat bell is a true bypass rather than
+    // an allpass sitting in the path adding phase shift for nothing.
     //
-    // The shelves take a Q like the bells do, and not merely for symmetry: in
-    // this SVF a shelf's Q sets the shape of its knee. Measured on the high
-    // shelf at +12 dB, reading just below its 8 kHz corner: Q 0.3 gives a
-    // gentle slope still +4.1 dB up at 4 kHz, while Q 2 and above dip BELOW
-    // unity there (-2.8 dB, -3.8 dB) and overshoot the target above the corner
-    // (+13.4 dB at 16 kHz) — a resonant shelf, not just a steeper one. The
-    // corner itself stays pinned at exactly half the set gain whatever Q does.
+    // The tilt is a constant-slope line on log frequency, pivoting at Tilt
+    // Freq: positive Tilt brightens (boosts highs, cuts lows), negative darkens.
+    // It is fi.spectral_tilt, a pole/zero ladder over LinF0..LinF1, so the line
+    // is straight across the band rather than bending into a shelf at the
+    // corners.
+    //   alpha is the slope in nepers/neper, +-0.4 at +-12 dB (~+-2.4 dB/oct).
+    //   spectral_tilt is A(alpha)*(f/LinF0)^alpha in-band, so (LinF0/freq)^alpha
+    //   alone leaves a fixed offset; Koff (dB) cancels A(alpha) so the curve
+    //   crosses 0 dB exactly at freq. Koff is a polynomial fit against this
+    //   exact design (LinF0/LinF1/order) over alpha in [-0.4,0.4], err < 0.01 dB.
+    //   LinF1 sits below Nyquist at 44.1 kHz; a pole above Nyquist makes
+    //   spectral_tilt blow up.
     //
     // Wet only. The dry path hangs off the plugin input and never reaches here,
     // so this shapes the reverb without touching the source — which is the
     // point of putting an EQ inside a reverb rather than after it.
     //
     // Every parameter is smoothed, so a band can be swept while listening
-    // without zipper. The cost is real: smoothing turns frequency and gain into
-    // sample-rate signals, so the SVF's tan() and pow() can no longer be
-    // hoisted out of the sample loop and run every sample instead. Measured
-    // against the same build with the section spliced out, ten filters (five
-    // bands, two channels) cost 0.17 points of CPU — 2.21% to 2.38% at
-    // 44.1 kHz.
+    // without zipper.
     //
-    // The symbol numbering deliberately does not follow the panel order. The
-    // bells keep symbols 1-3 and the shelves 4 and 5 from when they were added,
-    // because a symbol is an identity that host automation binds to, while the
-    // order is only presentation.
-    eqq4 = eq_ls(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_4]",
-                         0.7, 0.2, 8, 0.01)) : smoo(0.7);
-    eqf4 = eq_ls(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_4]",
-                         120, 20, 20000, 1)) : smoo(120) : min(0.45 * ma.SR);
-    eqg4 = eq_ls(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_4]",
-                         0, -18, 18, 0.1)) : smoo(0.0);
+    // The bells keep symbols 1 and 2 and the tilt takes 6, since a symbol is an
+    // identity that host automation binds to.
+    eqq1 = 1; //eq_b1(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_1]", 1.0, 0.2, 8, 0.01)) : smoo(1.0);
+    eqf1 = 250; //eq_b1(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_1]", 250, 20, 20000, 1)) : smoo(400) : min(0.45 * ma.SR);
+    eqg1 = -2; //eq_b1(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_1]", -2, -18, 18, 0.1)) : smoo(0.0);
 
-    eqq1 = eq_b1(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_1]",
-                         1.0, 0.2, 8, 0.01)) : smoo(1.0);
-    eqf1 = eq_b1(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_1]",
-                         400, 20, 20000, 1)) : smoo(400) : min(0.45 * ma.SR);
-    eqg1 = eq_b1(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_1]",
-                         0, -18, 18, 0.1)) : smoo(0.0);
+    eqq2 = 0.5; //eq_b2(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_2]", 0.5, 0.2, 8, 0.01)) : smoo(1.0);
+    eqf2 = 2000; //eq_b2(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_2]", 2000, 20, 20000, 1)) : smoo(1500) : min(0.45 * ma.SR);
+    eqg2 = -3; //eq_b2(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_2]", -3, -18, 18, 0.1)) : smoo(0.0);
 
-    eqq2 = eq_b2(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_2]",
-                         1.0, 0.2, 8, 0.01)) : smoo(1.0);
-    eqf2 = eq_b2(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_2]",
-                         1500, 20, 20000, 1)) : smoo(1500) : min(0.45 * ma.SR);
-    eqg2 = eq_b2(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_2]",
-                         0, -18, 18, 0.1)) : smoo(0.0);
+    tiltdb = -3; //eq_tilt(hslider("[0] Tilt [unit:dB] [style:knob] [symbol:eq_tilt]", -3, -12, 12, 0.1)) : smoo(0.0);
+    tiltf  = 600; //eq_tilt(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_tilt_freq]", 600, 20, 20000, 1)) : smoo(630);
 
-    eqq3 = eq_b3(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_3]",
-                         1.0, 0.2, 8, 0.01)) : smoo(1.0);
-    eqf3 = eq_b3(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_3]",
-                         5000, 20, 20000, 1)) : smoo(5000) : min(0.45 * ma.SR);
-    eqg3 = eq_b3(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_3]",
-                         0, -18, 18, 0.1)) : smoo(0.0);
+    LinOrder = 8;
+    LinF0    = 10;
+    LinF1    = 18000;
+    tiltA    = tiltdb / 30;
+    tiltKoff = tiltA * (4.70119 + tiltA * (4.70851 - 0.13213 * tiltA));
+    tiltGain = pow(LinF0 / tiltf, tiltA) * ba.db2linear(0 - tiltKoff);
+    tilt     = fi.spectral_tilt(LinOrder, LinF0, LinF1 - LinF0, tiltA) : *(tiltGain);
 
-    eqq5 = eq_hs(hslider("[0] Q [scale:log] [style:knob] [symbol:eq_q_5]",
-                         0.7, 0.2, 8, 0.01)) : smoo(0.7);
-    eqf5 = eq_hs(hslider("[1] Freq [unit:Hz] [scale:log] [style:knob] [symbol:eq_freq_5]",
-                         8000, 20, 20000, 1)) : smoo(8000) : min(0.45 * ma.SR);
-    eqg5 = eq_hs(hslider("[2] Gain [unit:dB] [style:knob] [symbol:eq_gain_5]",
-                         0, -18, 18, 0.1)) : smoo(0.0);
-
-    eq = fi.svf.ls(eqf4, eqq4, eqg4)
-       : fi.svf.bell(eqf1, eqq1, eqg1)
+    eq = fi.svf.bell(eqf1, eqq1, eqg1)
        : fi.svf.bell(eqf2, eqq2, eqg2)
-       : fi.svf.bell(eqf3, eqq3, eqg3)
-       : fi.svf.hs(eqf5, eqq5, eqg5);
+       : tilt;
 
     // --- output ---
     // Mid/side trim on the wet signal only. It lands here rather than in the
@@ -698,7 +672,7 @@ with {
                       tlR : meterdb : tail_meterR);
     };
 
-    incut = fi.highpass(2, lowcut) : fi.lowpass(2, highcut);
+    incut = fi.highpass(1, lowcut) : fi.lowpass(1, highcut);
 
     // Equal-power crossfade between the two things the tank can listen to. The
     // ER leg sits below the source leg for the same input — it carries ernorm,
@@ -902,7 +876,7 @@ hfLimRangeAt0  =    0;  hfLimRangeAt100  =    18; // dB - ceiling on total reduc
 lerp(a, b, t) = a + (b - a) * t;
 
 hflim_amount = in_group(hslider("[0]De-Ess[style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02]", 0, 0, 100, 1)) / 100;
-hflim_meter  = hidden_group(vbargraph("[5]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 18));
+hflim_meter  = hidden_group(hbargraph("[5]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 18));
 
 hflim_split  = lerp(hfLimSplitAt0,  hfLimSplitAt100,  hflim_amount);
 hflim_thresh = lerp(hfLimThreshAt0, hfLimThreshAt100, hflim_amount);
@@ -1011,7 +985,7 @@ duckRelAt0    = 0.300;  duckRelAt100    = 0.150;  // s
 
 duck_amount = out_group(hslider("[0] Duck [unit:%] [style:knob] [symbol:duck_amount]",
                                 0, 0, 100, 1)) / 100;
-duck_meter  = hidden_group(vbargraph("[6] Duck GR [unit:dB] [symbol:duck_meter]", 0, 18));
+duck_meter  = hidden_group(hbargraph("[6] Duck GR [unit:dB] [symbol:duck_meter]", 0, 18));
 
 duck_thresh = lerp(duckThreshAt0, duckThreshAt100, duck_amount);
 duck_ratio  = lerp(duckRatioAt0,  duckRatioAt100,  duck_amount);
