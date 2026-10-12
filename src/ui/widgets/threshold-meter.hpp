@@ -14,9 +14,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template <class R = Reference::Widgets::ThresholdMeter<>>
 class ThresholdMeterWidget final : public LabKnobWidget
 {
-    using R = Reference::Widgets::ThresholdMeter;
     using BaseWidget = LabKnobWidget;
 
 public:
@@ -61,15 +61,15 @@ private:
     float fMeterValueL = kParameterMeterL.min;
     float fMeterValueR = kParameterMeterR.min;
 
-    [[nodiscard]] float db2height(const float db, const float height) noexcept
+    [[nodiscard]] float meterLevelToHeight(const float db, const float height) noexcept
     {
-        const float normalized = d_clamp((db - kParameterSlider.min) / (kParameterSlider.max - kParameterSlider.min), 0.f, 1.f);
+        const float normalized = 1.f - d_clamp((db - kParameterMeterL.min) / (kParameterMeterL.max - kParameterMeterL.min), 0.f, 1.f);
         return d_roundToIntPositive(height * normalized);
     }
 
     void idleCallback() final
     {
-        if (const float valueL = std::clamp(fInterface->getParameterValue(kParameterIdMeterL),
+        if (const float valueL = std::clamp(fInterface->getParameterValue(kParametersMainStart + kParameterIdMeterL),
                                             kParameterMeterL.min,
                                             kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
         {
@@ -77,7 +77,7 @@ private:
             repaint();
         }
 
-        if (const float valueR = std::clamp(fInterface->getParameterValue(kParameterIdMeterR),
+        if (const float valueR = std::clamp(fInterface->getParameterValue(kParametersMainStart + kParameterIdMeterR),
                                             kParameterMeterR.min,
                                             kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
         {
@@ -112,39 +112,74 @@ private:
         // meter area
 
         {
-            const float mborder = R::border * fScaleFactor;
-            const float mborderRadius = R::Meter::borderRadius * fScaleFactor;
+            // background
+            const float mborder = R::Meter::border * fScaleFactor;
 
-            // inset shading
             beginPath();
-            roundedRect(mx, my, mw, mh, mborderRadius);
+
+            if constexpr (R::Meter::borderRadius != 0)
+                roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+            else
+                rect(mx, my, mw, mh);
+
             fillColor(R::Meter::backgroundColor);
             fill();
-            fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
-            fill();
-            strokeColor(R::backgroundColor);
-            strokeWidth(mborder * 0.5f);
-            stroke();
 
             // meters
-            fillPaint(linearGradient(0, my, 0, mh, R::Track::colorGradientStart, R::Track::colorGradientStop));
+            const float tw = R::Track::width * fScaleFactor - 1.5f * fScaleFactor;
+
+            beginPath();
+
+            if constexpr (R::Meter::borderRadius != 0)
+                roundedRect(mx + mborder, my + mborder, mw - mborder * 2, mh - mborder * 2, R::Meter::borderRadius * fScaleFactor);
+            else
+                rect(mx + mborder, my + mborder, mw - mborder * 2, mh - mborder * 2);
 
             if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
             {
-                const float lh = db2height(fMeterValueL, mh);
+                const float lh = meterLevelToHeight(fMeterValueL, mh - mborder * 2);
+                const float ty = my + mborder + lh;
+                const float th = mh - mborder * 2 - lh;
 
-                beginPath();
-                rect(mx, my + lh, mw * 0.5f, my + mh - lh);
+                fillPaint(linearGradient(0, ty, 0, ty + th, R::Track::colorGradientStart, R::Track::colorGradientStop));
+
+                save();
+                scissor(mx + mborder, ty, tw, th);
                 fill();
+                restore();
             }
 
             if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
             {
-                const float rh = db2height(fMeterValueR, mh);
+                const float rh = meterLevelToHeight(fMeterValueR, mh - mborder * 2);
+                const float ty = my + mborder + rh;
+                const float th = mh - mborder * 2 - rh;
 
-                beginPath();
-                rect(mx + mw * 0.5f, my + rh, mw * 0.5f, my + mh - rh);
+                fillPaint(linearGradient(0, ty, 0, ty + th, R::Track::colorGradientStart, R::Track::colorGradientStop));
+
+                save();
+                scissor(w - border - mborder - tw, ty, tw, th);
                 fill();
+                restore();
+            }
+
+            beginPath();
+
+            if constexpr (R::Meter::borderRadius != 0)
+                roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+            else
+                rect(mx, my, mw, mh);
+
+            // inset shading
+            fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
+            fill();
+
+            // border
+            if constexpr (R::Meter::border != 0)
+            {
+                strokeColor(R::backgroundColor);
+                strokeWidth(mborder * 0.5f);
+                stroke();
             }
         }
 

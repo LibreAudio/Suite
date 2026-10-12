@@ -362,6 +362,7 @@ struct Reference {
             };
         };
 
+        template<const Color& kAccentColor = Colors::acc1>
         struct ThresholdMeter : Zero {
             struct Meter {
                 static constexpr const Color backgroundColor = Colors::track;
@@ -381,12 +382,11 @@ struct Reference {
                 static constexpr const uint width = 18;
             };
             struct Track {
-                static constexpr const Color colorGradientStart = Colors::acc1;
-                static constexpr const Color colorGradientStop = Colors::acc1Glow;
+                static constexpr const Color colorGradientStart = kAccentColor;
+                static constexpr const Color colorGradientStop = Color(kAccentColor, 0.45f);
                 static constexpr const uint width = 8;
             };
             static constexpr const uint width = (border + margin + Track::width) * 2 + padding + Slider::width;
-            static constexpr const uint height = 200; // FIXME
         };
 
         template <uint8_t accent, bool small = false>

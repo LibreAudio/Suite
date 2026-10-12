@@ -18,13 +18,18 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+static constexpr const uint kCommonMargin = 8;
+static constexpr const uint kCommonPadding = 4;
+
+static constexpr const uint kHeaderHeight = 20;
+static constexpr const uint kBodyHeight = Reference::Widgets::NumberBox<>::height * 5 + kCommonPadding * 4;
+
 struct MbComp5BandGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
     static constexpr const uint borderRadius = 8;
-    static constexpr const uint height = 268;
-    // static constexpr const uint width = 120;
-    static constexpr const uint margin = 8;
-    static constexpr const uint padding = 4;
+    static constexpr const uint margin = kCommonMargin;
+    static constexpr const uint padding = kCommonPadding;
+    static constexpr const uint height = kCommonMargin * 2 + kHeaderHeight + kBodyHeight;
 };
 
 inline constexpr const char* bandLabels[] = {
@@ -40,7 +45,6 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 {
     using BaseWidget = ReferenceContainerWidget<MbComp5BandGroupReference, kVertical>;
 
-    static constexpr const uint kHeaderHeight = 20;
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
 
     static constexpr FaustParameterIndex getParameterIndexForBand(const FaustParameterIndex index)
@@ -94,15 +98,18 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     // ----------------------------------------------------------------------------------------------------------------
     // body: number-boxes stack + meter
 
-    class BodyWidget final : public TransparentHorizontalContainerWidget
+    class BodyWidget final : public TransparentPaddedContainerWidget<kHorizontal, kCommonPadding>
     {
-        using BaseWidget = TransparentHorizontalContainerWidget;
+        using BaseWidget = TransparentPaddedContainerWidget<kHorizontal, kCommonPadding>;
+
+        static constexpr const Color kMeterColor = Reference::kAccentColors[band + 1];
+        using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kMeterColor>>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             addWidget<NumberBoxStackWidget, Expanding>(),
-            addWidget<ThresholdMeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
-                                            getLevelParameterIndex(false),
-                                            getLevelParameterIndex(true)),
+            addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
+                                   getLevelParameterIndex(false),
+                                   getLevelParameterIndex(true)),
         };
 
     public:
@@ -137,7 +144,7 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
         addWidget<HeaderWidget>(),
-        addWidget<BodyWidget>(),
+        addWidget<BodyWidget, Expanding>(),
     };
 
     // ----------------------------------------------------------------------------------------------------------------
