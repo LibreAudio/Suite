@@ -10,6 +10,8 @@
 #include "ui/widgets/threshold-meter.hpp"
 #include "ui/_lab/text.hpp"
 
+#include "mbComp5-ui.hpp"
+
 #include "LibreAudioParameters.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -232,7 +234,40 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using MbComp5MainArea = MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>;
+class MbComp5MainArea : public MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>
+{
+    using BaseWidget = MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>;
+
+    std::shared_ptr<MbComp5GraphWidget> graph { new MbComp5GraphWidget(this) };
+
+public:
+    explicit MbComp5MainArea(LabTopLevelWidget* const parent)
+        : BaseWidget(parent)
+    {
+        graph->toBottom();
+    }
+
+private:
+    // void onResize(const ResizeEvent& ev) final
+    // {
+    //     BaseWidget::onResize(ev);
+    void updateSize(const bool updateChildren) final
+    {
+        BaseWidget::updateSize(updateChildren);
+
+        const Point<int> pos = getMainAreaAbsolutePos();
+        const Size<uint> size = getMainAreaSize();
+        // const float borderRadius = getMainAreaBorderRadius();
+
+        graph->setAbsolutePos(pos);
+        graph->setSize(size);
+        // graph->setBorderRadius(borderRadius);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+// using MbComp5MainArea = MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>;
 using MbComp5RootWidget = RootWidget<TopBar, MbComp5MainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------

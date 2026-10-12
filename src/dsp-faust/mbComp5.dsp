@@ -6,6 +6,8 @@ declare license "GPL-3.0-or-later";
 declare name "5-Band M-S Compressor";
 declare unique_id "LAm5";
 
+declare graph "analyzer";
+
 // Dry/wet is built here rather than taken from the host wrapper, for the same
 // reason compressor.dsp gives: leaving the flag on would stack the wrapper's
 // common "Dry / Wet" on top of this one, and the two tap the dry from
