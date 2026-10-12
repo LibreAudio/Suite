@@ -364,6 +364,7 @@ struct Reference {
 
         template<const Color& kAccentColor = Colors::acc1>
         struct ThresholdMeter : Zero {
+            static constexpr const uint padding = 1;
             struct Meter {
                 static constexpr const Color backgroundColor = Colors::track;
                 static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
@@ -372,14 +373,13 @@ struct Reference {
                 static constexpr const uint borderRadius = 5;
             };
             struct Slider {
-                static constexpr const Color color = Colors::ink3;
+                static constexpr const Color color = kAccentColor;
                 static constexpr const uint width = 8;
             };
             struct Tick {
                 static constexpr const Color color { Colors::ink3, 0.15f };
                 static constexpr const Color colorMaj { Colors::ink2, 0.26f };
                 static constexpr const uint height = 1;
-                static constexpr const uint width = 18;
             };
             struct Track {
                 static constexpr const Color colorGradientStart = kAccentColor;

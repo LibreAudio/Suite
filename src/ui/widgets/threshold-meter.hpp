@@ -19,6 +19,8 @@ class ThresholdMeterWidget final : public LabKnobWidget
 {
     using BaseWidget = LabKnobWidget;
 
+    static constexpr const float ticks[] = { -6, -12, -24, -36, -48 };
+
 public:
     ThresholdMeterWidget(LabWidget* const parent,
                          const FaustParameterIndex slider,
@@ -64,6 +66,7 @@ private:
     [[nodiscard]] float meterLevelToHeight(const float db, const float height) noexcept
     {
         const float normalized = 1.f - d_clamp((db - kParameterMeterL.min) / (kParameterMeterL.max - kParameterMeterL.min), 0.f, 1.f);
+        // const float normalized = 1.f - d_clamp(std::pow(10.f, db * 0.05f), 0.f, 1.f);
         return d_roundToIntPositive(height * normalized);
     }
 
@@ -98,10 +101,17 @@ private:
 
         const float sw = R::Slider::width * fScaleFactor;
 
+        const float mborder = R::Meter::border * fScaleFactor;
         const float mx = border + margin + sw + padding;
         const float my = border + margin;
         const float mw = w - (border + margin) * 2 - sw - padding;
         const float mh = h - (border + margin) * 2;
+
+        const float tx = mx + mborder;
+        const float ty = my + mborder;
+        const float tw2 = mw - mborder * 2;
+        const float tw1 = R::Track::width * fScaleFactor - 1.5f * fScaleFactor;
+        const float th = mh - mborder * 2;
 
         // ------------------------------------------------------------------------------------------------------------
         // draw background
@@ -111,76 +121,87 @@ private:
         // ------------------------------------------------------------------------------------------------------------
         // meter area
 
+        // background
+        beginPath();
+
+        if constexpr (R::Meter::borderRadius != 0)
+            roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+        else
+            rect(mx, my, mw, mh);
+
+        fillColor(R::Meter::backgroundColor);
+        fill();
+
+        // meter tracks
+        beginPath();
+
+        if constexpr (R::Meter::borderRadius != 0)
+            roundedRect(tx, ty, tw2, th, R::Meter::borderRadius * fScaleFactor);
+        else
+            rect(tx, ty, tw2, th);
+
+        if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
         {
-            // background
-            const float mborder = R::Meter::border * fScaleFactor;
+            const float vy = meterLevelToHeight(fMeterValueL, th);
+            const float vh = th - vy;
+            const float ly = ty + vy;
 
-            beginPath();
+            fillPaint(linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            if constexpr (R::Meter::borderRadius != 0)
-                roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
-            else
-                rect(mx, my, mw, mh);
-
-            fillColor(R::Meter::backgroundColor);
+            save();
+            scissor(tx, ly, tw1, vh);
             fill();
+            restore();
+        }
 
-            // meters
-            const float tw = R::Track::width * fScaleFactor - 1.5f * fScaleFactor;
+        if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
+        {
+            const float vy = meterLevelToHeight(fMeterValueR, th);
+            const float vh = th - vy;
+            const float ly = ty + vy;
 
-            beginPath();
+            fillPaint(linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            if constexpr (R::Meter::borderRadius != 0)
-                roundedRect(mx + mborder, my + mborder, mw - mborder * 2, mh - mborder * 2, R::Meter::borderRadius * fScaleFactor);
-            else
-                rect(mx + mborder, my + mborder, mw - mborder * 2, mh - mborder * 2);
-
-            if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
-            {
-                const float lh = meterLevelToHeight(fMeterValueL, mh - mborder * 2);
-                const float ty = my + mborder + lh;
-                const float th = mh - mborder * 2 - lh;
-
-                fillPaint(linearGradient(0, ty, 0, ty + th, R::Track::colorGradientStart, R::Track::colorGradientStop));
-
-                save();
-                scissor(mx + mborder, ty, tw, th);
-                fill();
-                restore();
-            }
-
-            if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
-            {
-                const float rh = meterLevelToHeight(fMeterValueR, mh - mborder * 2);
-                const float ty = my + mborder + rh;
-                const float th = mh - mborder * 2 - rh;
-
-                fillPaint(linearGradient(0, ty, 0, ty + th, R::Track::colorGradientStart, R::Track::colorGradientStop));
-
-                save();
-                scissor(w - border - mborder - tw, ty, tw, th);
-                fill();
-                restore();
-            }
-
-            beginPath();
-
-            if constexpr (R::Meter::borderRadius != 0)
-                roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
-            else
-                rect(mx, my, mw, mh);
-
-            // inset shading
-            fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
+            save();
+            scissor(w - border - mborder - tw1, ly, tw1, vh);
             fill();
+            restore();
+        }
 
-            // border
-            if constexpr (R::Meter::border != 0)
-            {
-                strokeColor(R::backgroundColor);
-                strokeWidth(mborder * 0.5f);
-                stroke();
-            }
+        beginPath();
+
+        if constexpr (R::Meter::borderRadius != 0)
+            roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+        else
+            rect(mx, my, mw, mh);
+
+        // inset shading
+        // FIXME define sizes elsewhere
+        fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
+        fill();
+
+        // border
+        if constexpr (R::Meter::border != 0)
+        {
+            strokeColor(R::backgroundColor);
+            strokeWidth(mborder * 0.5f);
+            stroke();
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // draw ticks
+
+        strokeColor(R::Tick::color);
+        strokeWidth(R::Tick::height * fScaleFactor);
+
+        for (float tick : ticks)
+        {
+            const float lh = meterLevelToHeight(tick, th);
+
+            beginPath();
+            moveTo(tx, ty + lh);
+            lineTo(tx + tw2, ty + lh);
+            stroke();
         }
 
         // ------------------------------------------------------------------------------------------------------------
@@ -188,12 +209,12 @@ private:
 
         {
             const float sx = border + margin;
-            const float sy = border + margin + (1.f - getNormalizedValue()) * (h - (border + margin) * 2);
+            const float sy = border + margin + meterLevelToHeight(getValue(), th);
 
             beginPath();
-            moveTo(sx, sy - sw * 0.5f);
-            lineTo(sx + sw, sy);
-            lineTo(sx, sy + sw * 0.5f);
+            moveTo(sx, sy - (sw - padding) * 0.5f);
+            lineTo(sx + sw - padding, sy);
+            lineTo(sx, sy + (sw - padding) * 0.5f);
             closePath();
             fillColor(R::Slider::color);
             fill();

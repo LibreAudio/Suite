@@ -19,10 +19,10 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 static constexpr const uint kCommonMargin = 8;
-static constexpr const uint kCommonPadding = 4;
+static constexpr const uint kCommonPadding = 6;
 
 static constexpr const uint kHeaderHeight = 20;
-static constexpr const uint kBodyHeight = Reference::Widgets::NumberBox<>::height * 5 + kCommonPadding * 4;
+static constexpr const uint kBodyHeight = Reference::Widgets::NumberBox<>::height * 5 + kCommonPadding * 5;
 
 struct MbComp5BandGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
@@ -120,12 +120,11 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     // ----------------------------------------------------------------------------------------------------------------
     // stack of number-boxes
 
-    static constexpr const uint kNumberBoxStackPadding = 4;
     static constexpr const Color kNumberBoxColor = Reference::kAccentColors[band + 1];
 
-    class NumberBoxStackWidget final : public TransparentPaddedContainerWidget<kVertical, kNumberBoxStackPadding>
+    class NumberBoxStackWidget final : public TransparentPaddedContainerWidget<kVertical, kCommonPadding>
     {
-        using BaseWidget = TransparentPaddedContainerWidget<kVertical, kNumberBoxStackPadding>;
+        using BaseWidget = TransparentPaddedContainerWidget<kVertical, kCommonPadding>;
 
         const std::array<std::shared_ptr<LabWidget>, 5> widgets {
             addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
@@ -157,7 +156,7 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 
 struct MbComp5BandsReference : Reference::Zero {
-    static constexpr const uint padding = 8;
+    static constexpr const uint padding = kCommonPadding;
     static constexpr const uint height = MbComp5BandGroupReference::height + margin * 2;
 };
 
@@ -183,8 +182,8 @@ public:
 struct MbComp5NonBandParamsGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, .05f };
     static constexpr const uint borderRadius = 10;
-    static constexpr const uint margin = 8;
-    static constexpr const uint padding = 6;
+    static constexpr const uint margin = kCommonMargin;
+    static constexpr const uint padding = kCommonPadding;
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + (border + margin) * 2;
 };
 
