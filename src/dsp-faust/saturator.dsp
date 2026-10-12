@@ -48,22 +48,13 @@ pushDb = knob_group(hslider("[2]Push[unit:dB][symbol:push][style:knob][accentcol
 // The dsp works with the knee level, which is the push turned round.
 kneeDb = 0 - pushDb;
 
-makeupDb = out_group(hslider("[1]Makeup[unit:dB][symbol:makeup][style:knob][accentcolor:05]
+makeupDb = out_group(hslider("[0]Makeup[unit:dB][symbol:makeup][style:knob][accentcolor:05]
       [tooltip: Gain on the maximized signal, after the compensation for
        Push and before the Dry/Wet blend, so the dry side is untouched. Adds to
-       whatever Auto Makeup has learned]",
+       the Auto Makeup gain, when that is applied]",
                              0, -24, 24, 0.1));
 
-autoBtn = out_group(button("[0]Auto Makeup[symbol:auto_makeup][accentcolor:05]
-      [tooltip: Press while typical material plays and release to set the gain
-       that brings the maximized signal back to the loudness of the input,
-       short-term LUFS (3 s window) measured after the push compensation. The
-       loudness is measured all the time, so there is no need to hold it down;
-       the value is taken at release, so release it after a few seconds of
-       material. The learned value is shown in the meters
-       and adds to Makeup. Releasing it on silence leaves it as it was]"));
-
-drywet = out_group(hslider("[2]Dry/Wet[unit:%][symbol:drywet][style:knob][accentcolor:05]
+drywet = out_group(hslider("[1]Dry/Wet[unit:%][symbol:drywet][style:knob][accentcolor:05]
       [tooltip: Blend of the maximized signal against the untouched input, for
        parallel maximizing. 100% = maximized only, 0% = untouched. The dry side
        is delayed to match the maximizer, so the blend never combs]",
@@ -128,25 +119,21 @@ compensate = par(i, Nch, *(sqrt(knee)));
 
 // Makeup and dry/wet
 //
-// Auto Makeup matches loudness: it compares the short-term loudness
-// (BS.1770-4 K-weighted power over a 3 s window, the LUFS-S window) of the
-// dry input, delayed to meet the wet, with that of the maximized signal after
-// the knee compensation. Both are measured all the time. On release of the button
-// the difference is latched and stays until the next press. If either side is
-// silent at that moment nothing is latched and the current value is kept. It
-// is measured before Makeup, so Makeup is a trim on
-// top of it. The dry side waits the same delay as the audio inside the
-// maximizer.
+// The Auto Makeup meter runs all the time and shows the difference in loudness
+// between the dry input, delayed to meet the wet, and the maximized signal
+// after the compensation: the gain that would bring the wet back to the
+// loudness of the input. Loudness is BS.1770-4 K-weighted power over a 3 s
+// window, the LUFS-S window. While either side is silent the meter keeps its
+// last value. It is measured before Makeup, so Makeup is a trim on top of it.
+// The dry side waits the same delay as the audio inside the maximizer.
 //
-// AUTOAPPLY switches whether the learned gain reaches the audio. At 0 the
-// meter and the latch still work and the audio gets Makeup alone, so the
-// learned value can be read out and set on Makeup from outside.
-AUTOAPPLY = 0;      // 1 = learned gain changes the volume, 0 = meter only
-AUTOMAX = 60;       // dB, most the learned gain can be
+// AUTOAPPLY switches whether that gain reaches the audio. At 0 the meter still
+// runs and the audio gets Makeup alone, so the value can be read out and set
+// on Makeup from outside.
+AUTOAPPLY = 0;      // 1 = the auto gain changes the volume, 0 = meter only
+AUTOMAX = 60;       // dB, most the auto gain can be
 AUTOSIL = 1e-9;     // power below this is taken as silence
 LUFSWIN = 3.0;      // s, the BS.1770 short-term window
-
-autoFall = autoBtn' > autoBtn;
 
 lufsPower(l, r) = sq(l : kf) + sq(r : kf) : si.smooth(ba.tau2pole(LUFSWIN * 0.5))
 with {
@@ -161,7 +148,7 @@ with {
     audible = (pd > AUTOSIL) & (pw > AUTOSIL);
     offset  = 10 * log10(pd / max(pw, AUTOSIL))
             : max(0 - AUTOMAX) : min(AUTOMAX);
-    loop(a) = select2(autoFall & audible, a, offset);
+    loop(a) = select2(audible, a, offset);
 };
 
 autoMeter = _ <: attach(_, meter_group(hbargraph("[1]auto_makeup_db[unit:dB][symbol:auto_makeup_db][label:Auto Makeup]",
@@ -171,7 +158,7 @@ autoMeter = _ <: attach(_, meter_group(hbargraph("[1]auto_makeup_db[unit:dB][sym
 makeupStage(dl, dr, wl, wr) = dl, dr, wl * g, wr * g
 with {
     autoDb = autoMakeupDb(dl, dr, wl, wr) : autoMeter;
-    // attach keeps the measurement, button and meter in the program even when
+    // attach keeps the measurement and meter in the program even when
     // AUTOAPPLY is 0 and the multiplication would otherwise fold them away.
     g      = attach(makeupDb + autoDb * AUTOAPPLY, autoDb) : si.smoo : ba.db2linear;
 };
