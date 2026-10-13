@@ -124,8 +124,8 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class EasyPageWidget = EasyStageWidget, class ExpertPageWidget = ExpertStageWidget>
-class StageWidget final : public LabWidget,
-                          private IdleCallback
+class StageWidget : public LabWidget,
+                    protected IdleCallback
 {
     using R = Reference::Stage;
     using BaseWidget = LabWidget;
@@ -164,7 +164,11 @@ public:
         return R::borderRadius * fScaleFactor;
     }
 
-private:
+    void onNanoDisplay() override
+    {
+    }
+
+protected:
     void idleCallback() final
     {
         const Page page = getCurrentPage(fInterface);
@@ -188,10 +192,6 @@ private:
         case kPageSettings:
             break;
         }
-    }
-
-    void onNanoDisplay() final
-    {
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) override

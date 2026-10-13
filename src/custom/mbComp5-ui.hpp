@@ -185,6 +185,7 @@ private:
 
     void onNanoDisplay() final
     {
+        // return;
         save();
         scale(fScaleFactor, fScaleFactor);
         const Box g=graph();

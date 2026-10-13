@@ -234,40 +234,122 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class MbComp5MainArea : public MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>
+class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>
 {
-    using BaseWidget = MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>;
+    using R = Reference::Stage;
+    using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
+
+    static constexpr const float kCrossoverFreqMin = kFaustParameters[kFaustParameterXover1].min;
+    static constexpr const float kCrossoverFreqMax = kFaustParameters[kFaustParameterXover4].max;
+    static constexpr const float kCrossoverRatio = 2.f; // 2x previous freq for 1 octave between crossovers
 
     std::shared_ptr<MbComp5GraphWidget> graph { new MbComp5GraphWidget(this) };
 
 public:
-    explicit MbComp5MainArea(LabTopLevelWidget* const parent)
+    explicit MbComp5StageWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         graph->toBottom();
     }
 
 private:
-    // void onResize(const ResizeEvent& ev) final
-    // {
-    //     BaseWidget::onResize(ev);
-    void updateSize(const bool updateChildren) final
+    bool bypassed() const { return fInterface->getParameterValue(kCommonParameterBypass) > .5f; }
+
+    float value(int p) const { return fInterface->getParameterValue(kParametersMainStart + p); }
+
+    bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
+
+    void roundedRect(float x,
+                     float y,
+                     float width,
+                     float height,
+                     float radiusTopLeft,
+                     float radiusTopRight,
+                     float radiusBottomRight,
+                     float radiusBottomLeft)
     {
+        moveTo(x + radiusTopLeft, y);
+        lineTo(x + width - radiusTopRight, y);
+        arcTo(x + width, y, x + width, y + radiusTopRight, radiusTopRight);
+        lineTo(x + width, y + height - radiusBottomRight);
+        arcTo(x + width, y + height, x + width - radiusBottomRight, y + height, radiusBottomRight);
+        lineTo(x + radiusBottomLeft, y + height);
+        arcTo(x, y + height, x, y + height - radiusBottomLeft, radiusBottomLeft);
+        lineTo(x, y + radiusTopLeft);
+        arcTo(x, y, x + radiusTopLeft, y, radiusTopLeft);
+        closePath();
+    }
+
+    bool live(int b) const
+    {
+        return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f);
+    }
+
+    static inline float freq2norm(const float freq)
+    {
+        return std::log(freq / 20.f) / std::log(1000.f);
+    }
+
+    static inline float norm2freq(const float norm)
+    {
+        return 20.f * std::pow(1000.f, norm);
+    }
+
+    float nextFreq(const float freq, const float previous) const noexcept
+    {
+        const float minFreq = previous * kCrossoverRatio;
+        return std::max(freq, minFreq);
+    }
+
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+        return;
+
+        const float w = getWidth();
+        const float h = getHeight();
+        const float borderRadius = R::borderRadius * fScaleFactor;
+
+        const float freq1 = fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover1);
+        const float freq2 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover2), freq1);
+        const float freq3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), freq2);
+        const float freq4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), freq3);
+
+        const std::array<double, 6> freqs = { 20, freq1, freq2, freq3, freq4, 20000 };
+
+        for (uint8_t b = 0; b < 5; ++b)
+        {
+            const float x1 = freq2norm(freqs[b]) * w;
+            const float x2 = freq2norm(freqs[b + 1]) * w;
+            const float rl = b == 0 ? borderRadius : 0;
+            const float rr = b == 4 ? borderRadius : 0;
+
+            beginPath();
+            roundedRect(x1, 0, x2 - x1, h, rl, rr, rr, rl);
+            fillColor(Color(Reference::kAccentColors[b + 1], live(b) ? .045f : .012f));
+            // fillColor(Color(Reference::kAccentColors[b + 1]));
+            fill();
+        }
+    }
+
+    void onPositionChanged(const PositionChangedEvent& ev) override
+    {
+        BaseWidget::onPositionChanged(ev);
+
+        graph->setAbsolutePos(ev.pos);
+    }
+
+    void updateSize(const bool updateChildren) override
+    {
+        graph->setSize(getSize());
+
         BaseWidget::updateSize(updateChildren);
-
-        const Point<int> pos = getMainAreaAbsolutePos();
-        const Size<uint> size = getMainAreaSize();
-        // const float borderRadius = getMainAreaBorderRadius();
-
-        graph->setAbsolutePos(pos);
-        graph->setSize(size);
-        // graph->setBorderRadius(borderRadius);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// using MbComp5MainArea = MainAreaContainerWidget<StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>>;
+using MbComp5MainArea = MainAreaContainerWidget<MbComp5StageWidget>;
 using MbComp5RootWidget = RootWidget<TopBar, MbComp5MainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
