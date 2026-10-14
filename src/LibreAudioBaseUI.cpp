@@ -60,7 +60,7 @@ LibreAudioBaseUI::LibreAudioBaseUI()
     setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * scaleFactor, DISTRHO_UI_DEFAULT_HEIGHT * scaleFactor);
 
     fScaleFactor = std::min(static_cast<double>(getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
-                            static_cast<double>(getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);
+                            static_cast<double>(getHeight()) / getReferenceHeight());
 }
 
 LibreAudioBaseUI::~LibreAudioBaseUI()
@@ -157,6 +157,17 @@ void LibreAudioBaseUI::uiCrossing(const bool enter, CrossingMode)
 
 void LibreAudioBaseUI::uiIdle()
 {
+   #ifdef LIBREAUDIO_UI_EXPERT_HEIGHT
+    // Keep each mode at its own design height, including restored host state.
+    if (fGeometryPage != fLastEasyExpertPage)
+    {
+        fGeometryPage = fLastEasyExpertPage;
+        const double nativeScale = TopLevelWidget::getScaleFactor();
+        const double scale = std::max(nativeScale, static_cast<double>(getWidth()) / DISTRHO_UI_DEFAULT_WIDTH);
+        setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH * nativeScale, getReferenceHeight() * nativeScale);
+        setSize(getWidth(), d_roundToUnsignedInt(getReferenceHeight() * scale));
+    }
+   #endif
     if (fFirstIdle)
     {
         fFirstIdle = false;
@@ -473,7 +484,7 @@ void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
     UI::onResize(ev);
 
     fScaleFactor = std::min(static_cast<double>(ev.size.getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
-                            static_cast<double>(ev.size.getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);
+                            static_cast<double>(ev.size.getHeight()) / getReferenceHeight());
 }
 
 // --------------------------------------------------------------------------------------------------------------------

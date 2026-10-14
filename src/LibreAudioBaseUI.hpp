@@ -85,6 +85,19 @@ private:
     float fScaleFactor = 1.f;
     int32_t fNumParameterPressed = 0;
 
+   #ifdef LIBREAUDIO_UI_EXPERT_HEIGHT
+    LibreAudio::Page fGeometryPage = LibreAudio::kPageEasy;
+   #endif
+
+    uint getReferenceHeight() const noexcept
+    {
+       #ifdef LIBREAUDIO_UI_EXPERT_HEIGHT
+        if (fLastEasyExpertPage == LibreAudio::kPageExpert)
+            return LIBREAUDIO_UI_EXPERT_HEIGHT;
+       #endif
+        return DISTRHO_UI_DEFAULT_HEIGHT;
+    }
+
     [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
 
     void pageButtonClicked(LibreAudio::Page page);

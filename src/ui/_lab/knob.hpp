@@ -43,6 +43,11 @@ protected:
 
     virtual void parameterChangedByHost() {}
 
+    virtual bool handleScroll(const Widget::ScrollEvent& ev)
+    {
+        return scrollEvent(ev);
+    }
+
 private:
     void knobDragStarted(SubWidget* const widget) final
     {
@@ -82,7 +87,7 @@ private:
 
     bool onScroll(const Widget::ScrollEvent& ev) final
     {
-        if (scrollEvent(ev))
+        if (handleScroll(ev))
             return true;
         return LabWidget::onScroll(ev);
     }

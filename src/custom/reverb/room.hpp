@@ -4,7 +4,9 @@
 #pragma once
 
 #include "ui/base.hpp"
+#include "ui/widgets/parameter-value.hpp"
 #include "LibreAudioParameters.hpp"
+#include "room-camera.hpp"
 
 #include <array>
 #include <algorithm>
@@ -13,28 +15,30 @@
 namespace LibreAudio {
 
 // Tail Size controls the room and instrument spacing. The two damping
-// frequencies add wall treatment; rotation and hovering stay independent.
+// frequencies add wall treatment; rotation stays independent.
 class ReverbRoomWidget final : public LabWidget, private IdleCallback
 {
     struct Vec3 { float x, y, z; };
     struct Projected { float x, y, z; };
 
+    LabWidget* const fDisplay;
     double fLastTime = 0;
-    double fStartTime = 0;
     float fTailSize = 1;
     float fRoomSize = 1;
+    float fCameraDistance = ReverbRoomCamera::kDistance;
     float fAbsorption = 0;
     float fDecay = 1.8f;
     float fPredelay = 5;
     float fShape = 0.4f;
     float fDensity = 0.5f;
     float fAngle = 0.6f;
-    float fTime = 0;
     float fScale = 1;
     float fCenterX = 0;
     float fCenterY = 0;
     Vec3 fObjectOrigin { 0, 0, 0 };
     float fObjectAngle = 0;
+    Point<int> fScenePosition;
+    Size<uint> fSceneSize;
 
     static constexpr Color kRoomColor { 0.58f, 0.75f, 0.94f };
     static constexpr Color kInstrumentColor { 0.84f, 0.79f, 0.68f };
@@ -42,7 +46,8 @@ class ReverbRoomWidget final : public LabWidget, private IdleCallback
 
 public:
     explicit ReverbRoomWidget(LabWidget* const parent)
-        : LabWidget(parent)
+        : LabWidget(parent),
+          fDisplay(parent)
     {
         fTailSize = fInterface->getParameterValue(kParametersMainStart + kFaustParameterTail_size);
         fAbsorption = absorptionTarget();
@@ -50,13 +55,26 @@ public:
         fPredelay = fInterface->getParameterValue(kParametersMainStart + kFaustParameterPredelay);
         fShape = fInterface->getParameterValue(kParametersMainStart + kFaustParameterTail_shape);
         fDensity = fInterface->getParameterValue(kParametersMainStart + kFaustParameterDensity);
-        fLastTime = fStartTime = getTime();
+        fLastTime = getTime();
         addIdleCallback(this);
+    }
+
+    void setSceneArea(Point<int> position, Size<uint> size)
+    {
+        fScenePosition = position;
+        fSceneSize = size;
+        repaint();
     }
 
 private:
     static Vec3 add(Vec3 a, Vec3 b) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
     static Vec3 multiply(Vec3 a, float s) { return { a.x * s, a.y * s, a.z * s }; }
+
+    static float normalized(float value, FaustParameterIndex id)
+    {
+        const auto& p = kFaustParameters[id];
+        return ParameterValue::normalized(value, p.min, p.max);
+    }
 
     float absorptionTarget() const
     {
@@ -75,7 +93,7 @@ private:
         const double now = getTime();
         const float dt = std::clamp(float(now - fLastTime), 0.f, 0.1f);
         fLastTime = now;
-        if (!isVisible())
+        if (!isVisible() || !fDisplay->isVisible())
             return;
         const float target = fInterface->getParameterValue(kParametersMainStart + kFaustParameterTail_size);
         fTailSize += (1.f - std::exp(-dt / 0.18f)) * (target - fTailSize);
@@ -86,7 +104,6 @@ private:
         fShape += blend * (fInterface->getParameterValue(kParametersMainStart + kFaustParameterTail_shape) - fShape);
         fDensity += blend * (fInterface->getParameterValue(kParametersMainStart + kFaustParameterDensity) - fDensity);
         fAngle = std::fmod(fAngle + dt * 0.075f, 6.2831853f);
-        fTime = float(now - fStartTime);
         repaint();
     }
 
@@ -94,13 +111,12 @@ private:
     {
         const float x = p.x * std::cos(fAngle) + p.z * std::sin(fAngle);
         const float z = -p.x * std::sin(fAngle) + p.z * std::cos(fAngle);
-        constexpr float pitch = 0.22f;
+        constexpr float pitch = ReverbRoomCamera::kPitch;
         const float y = p.y * std::cos(pitch) - z * std::sin(pitch);
         const float depth = p.y * std::sin(pitch) + z * std::cos(pitch);
         // Keep world dimensions fixed, but shrink distant objects naturally.
         // The camera stays outside the room throughout the Tail Size range.
-        constexpr float cameraDistance = 6.f;
-        const float perspective = cameraDistance / (cameraDistance - depth);
+        const float perspective = ReverbRoomCamera::kDistance / (fCameraDistance - depth);
         return { fCenterX + x * perspective * fScale,
                  fCenterY - y * perspective * fScale, depth };
     }
@@ -354,7 +370,7 @@ private:
         std::array<float, samples + 1> upper, lower;
         const float left = 0, span = w;
         const float baseline = h * 0.50f, amplitude = h * 0.31f;
-        const float shape = std::clamp(fShape, 0.f, 1.f);
+        const float shape = normalized(fShape, kFaustParameterTail_shape);
         const float predelay = std::max(0.f, fPredelay) * 0.001f;
         const float decay = std::max(0.2f, fDecay);
         const float buildup = 0.006f + 0.30f * shape * shape;
@@ -386,7 +402,7 @@ private:
             upper[i] = amplitude * envelope * top + bed * (0.6f + 0.4f * top);
             lower[i] = amplitude * envelope * bottom + bed * (0.6f + 0.4f * bottom);
         }
-        const float density = std::clamp(fDensity, 0.f, 1.f);
+        const float density = normalized(fDensity, kFaustParameterDensity);
         if (density > 0.001f)
         {
             // Gaussian smoothing turns the discrete waveform into a diffuse
@@ -444,21 +460,31 @@ private:
 
     void onNanoDisplay() final
     {
-        const float w = getWidth(), h = getHeight();
+        const float w = fSceneSize.getWidth(), h = fSceneSize.getHeight();
         if (w < 1 || h < 1)
             return;
         save();
+        translate(fScenePosition.getX(), fScenePosition.getY());
         scissor(0, 0, w, h);
         reverbEnvelope(w, h);
+        // Keep the room's camera tied to its existing layout slot, but let
+        // its geometry extend across the full main display behind controls.
+        scissor(fDisplay->getAbsoluteX() - getAbsoluteX() - fScenePosition.getX(),
+                fDisplay->getAbsoluteY() - getAbsoluteY() - fScenePosition.getY(),
+                fDisplay->getWidth(), fDisplay->getHeight());
 
-        const auto& p = kFaustParameters[kFaustParameterTail_size];
         // Remap the control range to room scales 0.8 .. 2.0 so the smallest
         // room remains usable. Instrument dimensions stay fixed.
-        const float size = (std::clamp(fTailSize, p.min, p.max) - p.min) / (p.max - p.min);
+        const float size = normalized(fTailSize, kFaustParameterTail_size);
         fRoomSize = 0.8f + size * 1.2f;
-        fScale = std::min(w * 0.19f, h * 0.30f);
+        fCameraDistance = ReverbRoomCamera::distanceForSize(size);
+        const float verticalMargin = h * 0.013f;
+        fScale = ReverbRoomCamera::fitScale(w, h, 12.f * fScaleFactor, verticalMargin) * 1.25f;
         fCenterX = w * 0.5f;
-        fCenterY = h * 0.35f + std::sin(fTime * 0.42f) * h * 0.013f;
+        // Center the full-turn bounds, avoiding a correction that changes
+        // every frame as individual corners approach or recede.
+        const auto bounds = ReverbRoomCamera::rotationBounds(fRoomSize, fCameraDistance);
+        fCenterY = h * 0.5f + (bounds.bottom + bounds.top) * 0.5f * fScale;
 
         // Scale the room shell and floor, independently of instrument geometry.
         fObjectOrigin = { 0, 0, 0 };

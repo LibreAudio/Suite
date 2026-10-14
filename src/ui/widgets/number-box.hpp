@@ -7,6 +7,7 @@
 #include "../_lab/knob.hpp"
 
 #include "../reference.hpp"
+#include "parameter-value.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -23,7 +24,8 @@ class NumberBoxWidget final : public LabKnobWidget
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
         : BaseWidget(parent, kParametersMainStart + id),
-          fParameter(kFaustParameters[id])
+          fParameter(kFaustParameters[id]),
+          fDecimals(ParameterValue::decimalsForStep(fParameter.step))
     {
         setName(fParameter.name);
         setDefault(fParameter.init);
@@ -37,6 +39,24 @@ public:
 
 private:
     const FaustParameter& fParameter;
+    const int fDecimals;
+
+    bool handleScroll(const Widget::ScrollEvent& ev) final
+    {
+        if (!(fParameter.step > 0))
+            return BaseWidget::handleScroll(ev);
+        if (!isEnabled() || !contains(ev.pos) || d_isZero(ev.delta.getY()))
+            return false;
+        const float next = ParameterValue::scrollStep(getValue(), fParameter.min, fParameter.max,
+                                                     fParameter.step, ev.delta.getY() > 0 ? 1 : -1);
+        if (d_isNotEqual(next, getValue()))
+        {
+            fInterface->parameterControlPressed(getId());
+            setValue(next, true);
+            fInterface->parameterControlReleased(getId());
+        }
+        return true;
+    }
 
     void onNanoDisplay() final
     {
@@ -52,7 +72,9 @@ private:
         const float h = getHeight();
 
         char valuestr[32];
-        std::snprintf(valuestr, sizeof(valuestr), "%.1f", getValue());
+        // Avoid displaying a negative zero caused by floating-point rounding.
+        const float displayValue = std::abs(getValue()) < 0.5 * std::pow(10.0, -fDecimals) ? 0.f : getValue();
+        std::snprintf(valuestr, sizeof(valuestr), "%.*f", fDecimals, displayValue);
 
         // inset shading
         beginPath();
@@ -76,11 +98,8 @@ private:
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
         textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
 
-        Rectangle<float> bounds;
-        textBounds(border2x + margin, 0, "-88.8", nullptr, bounds);
-
-        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-        text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
+        textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
+        text(border2x + margin, h - bh - margin, valuestr, nullptr);
 
         if (*fParameter.unit != '\0')
         {
