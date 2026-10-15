@@ -68,23 +68,12 @@ private:
         fImageWidth = fImage.getWidth() * this->fScaleFactor / imageScale;
         fImageHeight = fImage.getHeight() * this->fScaleFactor / imageScale;
 
-        const uint margin = d_roundToUnsignedInt((R::border + R::margin) * this->fScaleFactor);
-        const uint marginx2 = margin * 2;
-        // const uint width = d_roundToUnsignedInt(fImageWidth) + margin * 2;
-        // const uint width = d_roundToUnsignedInt(fImageHeight) + margin * 2;
-
-        const uint width = BaseWidget::getWidth();
-        const uint height = BaseWidget::getHeight();
-
-        if (width == height)
-            BaseWidget::setSize(d_roundToUnsignedInt(fImageWidth) + marginx2,
-                                d_roundToUnsignedInt(fImageHeight) + marginx2);
-        else if (width > height)
-            BaseWidget::setHeight(d_roundToUnsignedInt(fImageHeight) + marginx2);
-        else
-            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + marginx2);
-
-        // BaseWidget::setSize(fImageWidth + marginx2, fImageHeight + marginx2);
+        // buttons are always grouped horizontally
+        if constexpr (R::width == 0)
+        {
+            const uint margin = d_roundToUnsignedInt((R::border + R::margin) * this->fScaleFactor);
+            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
+        }
 
         BaseWidget::updateSize(updateChildren);
     }
@@ -148,21 +137,12 @@ private:
         fImageWidth = fImage1.getWidth() * this->fScaleFactor / imageScale;
         fImageHeight = fImage1.getHeight() * this->fScaleFactor / imageScale;
 
-        const uint margin = (R::border + R::margin) * this->fScaleFactor;
-        const uint marginx2 = margin * 2;
-
-        const uint width = BaseWidget::getWidth();
-        const uint height = BaseWidget::getHeight();
-
-        if (width == height)
-            BaseWidget::setSize(d_roundToUnsignedInt(fImageWidth) + marginx2,
-                                      d_roundToUnsignedInt(fImageHeight) + marginx2);
-        else if (width > height)
-            BaseWidget::setHeight(d_roundToUnsignedInt(fImageHeight) + marginx2);
-        else
-            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + marginx2);
-
-        // BaseWidget::setSize(fImageWidth + marginx2, fImageHeight + marginx2);
+        // buttons are always grouped horizontally
+        if constexpr (R::width == 0)
+        {
+            const uint margin = (R::border + R::margin) * this->fScaleFactor;
+            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
+        }
 
         BaseWidget::updateSize(updateChildren);
     }
@@ -227,10 +207,10 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<Corner corner>
-class BypassButtonWidget final : public ImageButtonWidget<corner, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN, Reference::Widgets::Button〡Bypass>
+class BypassButtonWidget final : public ImageButtonWidget<corner, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, Reference::Widgets::Button〡Bypass>
 {
     using R = Reference::Widgets::Button〡Bypass;
-    using BaseWidget = ImageButtonWidget<corner, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN, R>;
+    using BaseWidget = ImageButtonWidget<corner, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, R>;
 
 public:
     explicit BypassButtonWidget(LabWidget* const parent)

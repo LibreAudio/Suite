@@ -63,18 +63,88 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
 
-    class SoloMuteGroupWidget : public ButtonGroupWidget
+    struct SoloButtonReference : Reference::Zero {
+        static constexpr const Color backgroundColor〡checked = Reference::kAccentColors[band + 1];
+        static constexpr const Color color = Reference::Colors::ink2;
+        static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
+        static constexpr const Color color〡hover = Reference::kAccentColors[band + 1];
+        static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+        static constexpr const uint borderRadius = 4;
+        static constexpr const uint width = 18;
+    };
+
+    struct BypassButtonReference : SoloButtonReference {
+        static constexpr const Color backgroundColor〡checked = Reference::Widgets::Button〡Bypass::backgroundColorBypass;
+        static constexpr const Color color〡checked = Reference::Widgets::Button〡Bypass::colorBypass;
+        static constexpr const Color color〡hover = Reference::Widgets::Button〡Bypass::colorBypass;
+    };
+
+    struct ButtonGroupReference : Reference::Zero {
+        static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+        static constexpr const uint borderRadius = 6;
+        static constexpr const uint margin = 2;
+        static constexpr const uint padding = 2;
+    };
+
+    template<class R, const uchar* imageData, uint imageDataSize>
+    class SoloMuteButton : public ImageButtonWidget<kCornerBoth, imageData, imageDataSize, R>
     {
-        using SoloButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>;
-        using MuteButtonWidget = ImageButtonWidget<kCornerRight, IMAGES_POWER_PNG_DATA, IMAGES_POWER_PNG_LEN>;
+        using BaseWidget = ImageButtonWidget<kCornerBoth, imageData, imageDataSize, R>;
+
+    public:
+        explicit SoloMuteButton(LabWidget* const parent)
+            : BaseWidget(parent) {}
+
+    private:
+        void onNanoDisplay() override
+        {
+            if (BaseWidget::isChecked())
+                BaseWidget::template drawReferenceBackground<R, R::backgroundColor〡checked, kCornerBoth>();
+            else
+                BaseWidget::template drawReferenceBackground<R, R::backgroundColor, kCornerBoth>();
+
+            BaseWidget::template drawReferenceBorder<R, R::borderColor>();
+
+            if (BaseWidget::isChecked())
+                BaseWidget::drawColoredImage(R::color〡checked);
+            else if (BaseWidget::isHovered())
+                BaseWidget::drawColoredImage(R::color〡hover);
+            else
+                BaseWidget::drawColoredImage(R::color);
+        }
+    };
+
+    class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<ButtonGroupReference>
+    {
+        using R = ButtonGroupReference;
+        using BaseWidget = ReferenceButtonGroupWidget<R>;
+        using SoloButtonWidget = SoloMuteButton<SoloButtonReference, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
+        using MuteButtonWidget = SoloMuteButton<BypassButtonReference, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>;
 
     public:
         explicit SoloMuteGroupWidget(LabWidget* const parent)
-            : ButtonGroupWidget(parent)
+            : BaseWidget(parent)
         {
             addButton<SoloButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_listen));
             addButton<MuteButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_bypass));
-            done();
+            BaseWidget::done();
+        }
+
+    private:
+        template<class B>
+        std::shared_ptr<ButtonBaseWidget> addButton(const FaustParameterIndex index)
+        {
+            const FaustParameter& parameter = kFaustParameters[index];
+            DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
+            DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
+
+            return BaseWidget::template addButton<B>(kParametersMainStart + index, getFaustParameterLabel(parameter));
+        }
+
+        void onNanoDisplay() final
+        {
+            BaseWidget::template drawReferenceBackground<R>();
+            BaseWidget::template drawReferenceBorder<R>();
         }
     };
 
@@ -84,7 +154,7 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 
         struct TextReference : Reference::Zero {
             static constexpr const Color color = Reference::kAccentColors[band + 1];
-            static constexpr const float fontSize = 15;
+            static constexpr const float fontSize = 18;
         };
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
@@ -182,7 +252,7 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 
 struct MbComp5NonBandParamsGroupReference : Reference::Zero {
-    static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, .05f };
+    static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
     static constexpr const uint borderRadius = 10;
     static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
@@ -304,7 +374,7 @@ private:
     void onNanoDisplay() final
     {
         BaseWidget::onNanoDisplay();
-        return;
+        // return;
 
         const float w = getWidth();
         const float h = getHeight();

@@ -39,7 +39,7 @@ private:
 
         Rectangle<float> bounds;
         BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
-        BaseWidget::textAlign(0);
+        BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
         BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
         BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
 

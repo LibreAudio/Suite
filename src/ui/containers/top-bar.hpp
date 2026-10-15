@@ -26,14 +26,14 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
 
     // ----------------------------------------------------------------------------------------------------------------
 
-    using LogoWidget = LabImageWidget<IMAGES_LA_PNG_DATA, IMAGES_LA_PNG_LEN>;
+    using LogoWidget = LabImageWidget<IMAGES_LA_68_PNG_DATA, IMAGES_LA_68_PNG_LEN>;
 
     // ----------------------------------------------------------------------------------------------------------------
 
     class UndoRedoGroupWidget : public ButtonGroupWidget
     {
-        using UndoButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_UNDO_PNG_DATA, IMAGES_UNDO_PNG_LEN>;
-        using RedoButtonWidget = ImageButtonWidget<kCornerRight, IMAGES_REDO_PNG_DATA, IMAGES_REDO_PNG_LEN>;
+        using UndoButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_UNDO_28_PNG_DATA, IMAGES_UNDO_28_PNG_LEN>;
+        using RedoButtonWidget = ImageButtonWidget<kCornerRight, IMAGES_REDO_28_PNG_DATA, IMAGES_REDO_28_PNG_LEN>;
 
     public:
         explicit UndoRedoGroupWidget(LabWidget* const parent)
@@ -50,7 +50,7 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
     class SnapshotsGroupWidget : public ButtonGroupWidget
     {
         using SnapshotCopyButtonWidget = DualImageButtonWidget<
-            kCornerLeft, IMAGES_X_PNG_DATA, IMAGES_X_PNG_LEN, IMAGES_COPY_PNG_DATA, IMAGES_COPY_PNG_LEN>;
+            kCornerLeft, IMAGES_X_28_PNG_DATA, IMAGES_X_28_PNG_LEN, IMAGES_COPY_28_PNG_DATA, IMAGES_COPY_28_PNG_LEN>;
 
     public:
         explicit SnapshotsGroupWidget(LabWidget* const parent)
@@ -83,7 +83,7 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
 
     class MenuPowerGroupWidget : public ButtonGroupWidget
     {
-        using MenuButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_MENU_PNG_DATA, IMAGES_MENU_PNG_LEN>;
+        using MenuButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_MENU_28_PNG_DATA, IMAGES_MENU_28_PNG_LEN>;
 
     public:
         explicit MenuPowerGroupWidget(LabWidget* const parent)

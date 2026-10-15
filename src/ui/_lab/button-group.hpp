@@ -54,6 +54,31 @@ protected:
     void addWidget() = delete;
 
 protected:
+    std::list<std::shared_ptr<ButtonBaseWidget>> fWidgets;
+
+    void idleCallback() override
+    {
+        for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
+        {
+            const uint id = widget->getId();
+
+            if (id >= kWidgetIdsStart)
+            {
+                widget->setChecked(this->fInterface->isButtonChecked(id), false);
+                widget->setEnabled(this->fInterface->isButtonEnabled(id));
+            }
+            else
+            {
+                widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
+            }
+        }
+    }
+
+    void onNanoDisplay() override
+    {
+        // TODO divider??
+    }
+
     void updateSize(const bool updateChildren) override
     {
         DISTRHO_SAFE_ASSERT(updateChildren);
@@ -82,33 +107,7 @@ protected:
         BaseWidget::updateSize(false);
     }
 
-    std::list<std::shared_ptr<ButtonBaseWidget>> fWidgets;
-
-protected:
-    void idleCallback() override
-    {
-        for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
-        {
-            const uint id = widget->getId();
-
-            if (id >= kWidgetIdsStart)
-            {
-                widget->setChecked(this->fInterface->isButtonChecked(id), false);
-                widget->setEnabled(this->fInterface->isButtonEnabled(id));
-            }
-            else
-            {
-                widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
-            }
-        }
-    }
-
 private:
-    void onNanoDisplay() final
-    {
-        // TODO divider??
-    }
-
     void buttonClicked(SubWidget* const widget, int) final
     {
         const uint id = widget->getId();

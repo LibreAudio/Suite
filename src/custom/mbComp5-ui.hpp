@@ -152,7 +152,7 @@ private:
     bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
     bool live(int b) const { return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f); }
 
-    Box graph() const { return {0,16,width(),std::max(70.f,height()-(expert() ? 350.f : 133.f))}; }
+    Box graph() const { return {0,16,width(),std::max(70.f,height()-(expert() ? 380.f : 133.f))}; }
     float yDb(float db) const { const Box g = graph(); return g.y+(6-db)/24*g.h; }
     std::array<double,4> xo() const {
         return MbCompResponse::effectiveCrossovers({value(crossovers[0]),value(crossovers[1]),value(crossovers[2]),value(crossovers[3])}, sampleRate());
@@ -188,9 +188,12 @@ private:
         // return;
         save();
         scale(fScaleFactor, fScaleFactor);
+
         const Box g=graph();
         const auto freq=xo();
         const float h=height();
+
+#if 0
         std::array<double,6> edges {{20,freq[0],freq[1],freq[2],freq[3],20000}};
         for(int b=0;b<5;++b) {
             const float x1=MbCompResponse::position(edges[b])*width(), x2=MbCompResponse::position(edges[b+1])*width();
@@ -200,7 +203,7 @@ private:
             fillColor(Color(colors[b],live(b)?.045f:.012f));
             fill();
         }
-#if 0
+
         // Five measured detector bands, not an FFT or a simulated spectrum.
         if(!bypassed()) {
             std::array<float,5> db {}, centers {};
@@ -228,6 +231,7 @@ private:
             fillPaint(linearGradient(0,g.y,0,h,Color(143,163,190,.45f),Color(45,49,59,.05f)));fill();
         }
 #endif
+
         // Logarithmic grid: 1-9 times each decade, so the lines crowd together toward
         // the top of every decade. Decades are strongest, then 5, then the rest.
         for (float decade : {10.f,100.f,1000.f,10000.f})
