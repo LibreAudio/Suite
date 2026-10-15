@@ -24,7 +24,7 @@ static_assert(_constexpr_DISTRHO_PLUGIN_LABEL[0] != '\0', "Label must not be emp
 #define DISTRHO_PLUGIN_LICENSE "GPL-3.0-or-later"
 #define DISTRHO_PLUGIN_MAKER "Libre Audio"
 
-#ifndef _DARKGLASS_DEVICE_PABLITO
+#ifdef LIBREAUDIO_CUSTOM_UI
 #define DISTRHO_PLUGIN_HAS_UI 1
 #define DISTRHO_PLUGIN_WANT_STATE 1
 #ifndef DISTRHO_UI_DEFAULT_WIDTH
@@ -38,6 +38,9 @@ static_assert(_constexpr_DISTRHO_PLUGIN_LABEL[0] != '\0', "Label must not be emp
 #define DISTRHO_UI_USE_CUSTOM 1
 #define DISTRHO_UI_CUSTOM_INCLUDE_PATH "ui/_lab/ui.hpp"
 #define DISTRHO_UI_CUSTOM_WIDGET_TYPE LabUIWidget
+#else
+#undef DISTRHO_UI_DEFAULT_WIDTH
+#undef DISTRHO_UI_DEFAULT_HEIGHT
 #endif
 
 #define DISTRHO_PLUGIN_IS_RT_SAFE 1
