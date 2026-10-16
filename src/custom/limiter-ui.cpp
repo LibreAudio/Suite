@@ -918,7 +918,7 @@ private:
         if (fLastTime != 0 && now - fLastTime < 0.001)
             return fHead;
 
-        const double dt = fLastTime != 0 ? std::min(now - fLastTime, 0.1) : 0;
+        const double dt = fLastTime != 0 ? std::min<double>(now - fLastTime, 0.1) : 0;
         fLastTime = now;
 
         fPointsShown += dt * kWaveformRate;
@@ -928,7 +928,7 @@ private:
         if (std::abs(error) > kWaveformRate * 0.5)
             fPointsShown += error;
         else
-            fPointsShown += error * std::min(1.0, dt * 2);
+            fPointsShown += error * std::min<double>(1.0, dt * 2);
 
         fPointsShown = std::min(fPointsShown, fPointsPushed);
 
