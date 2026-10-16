@@ -432,10 +432,22 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
        #if LIBREAUDIO_WANT_COMMON_IO
         fInputDSP->compute(cycleFrames, fCycleBuffer);
+       #endif
+
+       #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_FROM_INPUT
+        if (runnerActive)
+            writeGraphFrames(cycleFrames);
+       #endif
+
         fMainDSP->compute(cycleFrames, fCycleBuffer);
+
+       #if LIBREAUDIO_WANT_COMMON_IO
         fOutputDSP->compute(cycleFrames, fCycleBuffer);
-       #else
-        fMainDSP->compute(cycleFrames, fCycleBuffer);
+       #endif
+
+       #if LIBREAUDIO_WANT_GRAPH && ! LIBREAUDIO_WANT_GRAPH_FROM_INPUT
+        if (runnerActive)
+            writeGraphFrames(cycleFrames);
        #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
@@ -451,11 +463,6 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
                 if (!std::isfinite(outputs[c][i + j]))
                     __builtin_unreachable();
 
-               #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
-                if (runnerActive)
-                    fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
-               #endif
-
                #if DISTRHO_PLUGIN_WANT_LATENCY
                 input = latencyReadPos >= 0 ? fLatencyBuffer[c][latencyReadPos] * dry : 0.f;
                 outputs[c][i + j] = fCycleBuffer[c][j] * wet + input;
@@ -463,11 +470,6 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
                 outputs[c][i + j] = fCycleBuffer[c][j] * wet + inputs[c][i + j] * dry;
                #endif
             }
-
-           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
-            if (runnerActive)
-                fRunnerBuffer.writeFloat((fCycleBuffer[0][j] + fCycleBuffer[1][j]) * 0.5f);
-           #endif
 
            #if DISTRHO_PLUGIN_WANT_LATENCY
             if (++latencyReadPos == LIBREAUDIO_MAX_LATENCY_SAMPLES)
@@ -585,6 +587,20 @@ inline void LibreAudioPlugin::doUnmute()
 // --------------------------------------------------------------------------------------------------------------------
 
 #if LIBREAUDIO_WANT_GRAPH
+// Hands the cycle buffer to the graph runner: interleaved channels for a stereo graph, their average for a mono one.
+void LibreAudioPlugin::writeGraphFrames(const uint32_t cycleFrames)
+{
+    for (uint32_t j = 0; j < cycleFrames; ++j)
+    {
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+        for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+            fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
+       #else
+        fRunnerBuffer.writeFloat((fCycleBuffer[0][j] + fCycleBuffer[1][j]) * 0.5f);
+       #endif
+    }
+}
+
 bool LibreAudioPlugin::run()
 {
     static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;

@@ -189,6 +189,7 @@ private:
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
     bool run() final;
+    void writeGraphFrames(uint32_t cycleFrames);
   #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY

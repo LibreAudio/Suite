@@ -97,6 +97,12 @@
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
 #endif
 
+// where the graph reads the audio: the plugin output (default), or the input right after the common input stage
+{% if meta.graph_source is defined and meta.graph_source not in ["input", "output"] %}
+{{fail("Invalid graph source")}}
+{% endif %}
+#define LIBREAUDIO_WANT_GRAPH_FROM_INPUT {{1 if meta.graph_source == "input" else 0}}
+
 #define LIBREAUDIO_PLUGIN_DSP_INCLUDE "{{id}}-dsp.hpp"
 #define LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE "{{id}}-parameters.hpp"
 #define LIBREAUDIO_PLUGIN__{{cid(id)}}

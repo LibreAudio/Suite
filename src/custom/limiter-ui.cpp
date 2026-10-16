@@ -14,15 +14,18 @@
 
 #include "las-resources.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdio>
 
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
-// The stage is the display, with the starfield and the output waveform behind it, and the control bar floats at its
-// bottom.
+// The stage is the display, with the starfield and the output waveform behind it and the level grid and threshold
+// line over them, and the control bar floats at its bottom.
 // The bar is styled like the mbComp5 band groups.
 
 struct LimiterBarReference : Reference::Zero {
@@ -196,18 +199,184 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// The display's level scale, shared with the waveform shader: dB at its top and bottom edge.
+
+static constexpr const float kDisplayDbMax = 3.f;
+static constexpr const float kDisplayDbMin = -24.f;
+static constexpr const float kDisplayDbStep = 6.f;
+
+// mbComp5 rainbow
+static constexpr const std::array<Color, 5> kRainbow {{
+    { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 },
+}};
+
+static Color rainbow(const float t) noexcept
+{
+    const float p = std::clamp(t, 0.f, 1.f) * (kRainbow.size() - 1);
+    const size_t i = std::min(kRainbow.size() - 2, static_cast<size_t>(p));
+    return Color(kRainbow[i], kRainbow[i + 1], p - i);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// The stage is the display: the shaders fill it, and it draws the level grid, its dB ticks and the threshold line
+// over them. The threshold line is dragged up and down to set the Threshold.
+
 class LimiterStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::Stage, kVertical>;
+    using R = Reference::Stage;
+    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+
+    static constexpr const uint32_t kThresholdId = kParametersMainStart + kFaustParameterThreshold;
+
+    // how close to the threshold line, in px at scale 1, a press or hover catches it
+    static constexpr const float kGrabDistance = 6.f;
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
         addSpacer(),
         addWidget<LimiterBarWidget>(),
     };
 
+    bool fHover = false;
+    bool fDragging = false;
+    float fDragOffset = 0.f;
+
 public:
     explicit LimiterStageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
+
+private:
+    [[nodiscard]] float yOfDb(const float db) const noexcept
+    {
+        return (kDisplayDbMax - db) / (kDisplayDbMax - kDisplayDbMin) * getHeight();
+    }
+
+    [[nodiscard]] float dbAtY(const float y) const noexcept
+    {
+        return kDisplayDbMax - y / getHeight() * (kDisplayDbMax - kDisplayDbMin);
+    }
+
+    [[nodiscard]] float threshold() const noexcept
+    {
+        return fInterface->getParameterValue(kThresholdId);
+    }
+
+    [[nodiscard]] bool nearThreshold(const float y) const noexcept
+    {
+        return std::abs(y - yOfDb(threshold())) <= kGrabDistance * fScaleFactor;
+    }
+
+    void setHover(const bool hover)
+    {
+        if (fHover == hover)
+            return;
+        fHover = hover;
+        getWindow().setCursor(hover ? kMouseCursorUpDown : kMouseCursorArrow);
+        repaint();
+    }
+
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+
+        const float s = fScaleFactor;
+        const float w = getWidth();
+        const float border = R::border * s;
+
+        // level grid and dB ticks, 0 dB stronger
+        fontFace("mono");
+        fontSize(10.f * s);
+        textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
+
+        for (float db = 0.f; db > kDisplayDbMin; db -= kDisplayDbStep)
+        {
+            const float y = std::round(yOfDb(db)) + 0.5f;
+            const bool zero = d_isZero(db);
+
+            beginPath();
+            moveTo(border, y);
+            lineTo(w - border, y);
+            strokeColor(Color(Reference::Colors::line2, zero ? 0.5f : 0.22f));
+            strokeWidth(1.f);
+            stroke();
+
+            char label[8];
+            std::snprintf(label, sizeof(label), "%d", static_cast<int>(db));
+            fillColor(Reference::Colors::ink3);
+            text(6.f * s, y - 2.f * s, label, nullptr);
+        }
+
+        // threshold: dotted line coloured through the rainbow from left to right, brighter while hovered or dragged
+        const float value = threshold();
+        const float y = yOfDb(value);
+        const bool lit = fHover || fDragging;
+        const float gap = 6.f * s;
+        const float radius = (lit ? 1.5f : 1.2f) * s;
+
+        for (float x = border + gap * 0.5f; x < w - border; x += gap)
+        {
+            beginPath();
+            circle(x, y, radius);
+            fillColor(rainbow(x / w).withAlpha(lit ? 1.f : 0.85f));
+            fill();
+        }
+
+        char label[32];
+        std::snprintf(label, sizeof(label), "THRESHOLD %.1f dB", value);
+        fontFace("regular");
+        fontSize(10.f * s);
+        textLetterSpacing(1.f * s);
+        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
+        fillColor(rainbow(1.f).withAlpha(lit ? 1.f : 0.85f));
+        text(w - 8.f * s, y - 4.f * s, label, nullptr);
+        textLetterSpacing(0.f);
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.button != 1)
+            return BaseWidget::onMouse(ev);
+
+        if (ev.press && nearThreshold(ev.pos.getY()))
+        {
+            fDragging = true;
+            fDragOffset = ev.pos.getY() - yOfDb(threshold());
+            fInterface->parameterControlPressed(kThresholdId);
+            repaint();
+            return true;
+        }
+
+        if (! ev.press && fDragging)
+        {
+            fDragging = false;
+            fInterface->parameterControlReleased(kThresholdId);
+            setHover(contains(ev.pos) && nearThreshold(ev.pos.getY()));
+            repaint();
+            return true;
+        }
+
+        return BaseWidget::onMouse(ev);
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (fDragging)
+        {
+            const FaustParameter& param = kFaustParameters[kFaustParameterThreshold];
+            const float db = dbAtY(ev.pos.getY() - fDragOffset);
+            const float value = std::clamp(std::round(db / param.step) * param.step, param.min, param.max);
+
+            if (d_isNotEqual(value, threshold()))
+            {
+                fInterface->parameterControlModified(kThresholdId, value);
+                repaint();
+            }
+            return true;
+        }
+
+        setHover(contains(ev.pos) && nearThreshold(ev.pos.getY()));
+
+        return BaseWidget::onMotion(ev);
+    }
 };
 
 using LimiterRootWidget = RootWidget<TopBar, MainAreaContainerWidget<LimiterStageWidget>>;
@@ -222,8 +391,12 @@ START_NAMESPACE_DISTRHO
 
 class LimiterUI final : public LibreAudioBaseUI
 {
-    using WaveformShaderWidget = LibreAudio::BotShaderWidget<SHADERS_FFT_WAVEFORM_FRAG_DATA,
-                                                             SHADERS_FFT_WAVEFORM_FRAG_LEN,
+    static constexpr const double kWaveformSize = kNumSamplePointsForWaveform;
+    static constexpr const double kWaveformRate = kWaveformSize / kNumSecondsForWaveform; // points per second
+    static constexpr const double kWaveformLag = kWaveformRate * 0.05; // points shown behind the newest one
+
+    using WaveformShaderWidget = LibreAudio::BotShaderWidget<SHADERS_WAVEFORM_SCROLL_FRAG_DATA,
+                                                             SHADERS_WAVEFORM_SCROLL_FRAG_LEN,
                                                              kNumSamplePointsForWaveform>;
 
     const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
@@ -236,6 +409,11 @@ class LimiterUI final : public LibreAudioBaseUI
         new WaveformShaderWidget(this, this)
     };
 
+    // points pushed so far, and the point the waveform is drawn up to (fractional, moving at kWaveformRate)
+    double fPointsPushed = 0;
+    double fPointsShown = 0;
+    double fLastTime = 0;
+
 public:
     LimiterUI()
         : LibreAudioBaseUI()
@@ -243,12 +421,42 @@ public:
         createRootWidget<LibreAudio::LimiterRootWidget>();
 
         fRootWidget->enableShaders({ fShaderBackground.get(), fShaderWaveform.get() });
+
+        fShaderWaveform->setCustomUniform("uHead", [this] { return waveformHead(); });
+        fShaderWaveform->setCustomUniform("uDbMin", [] { return LibreAudio::kDisplayDbMin; });
+        fShaderWaveform->setCustomUniform("uDbMax", [] { return LibreAudio::kDisplayDbMax; });
     }
 
 private:
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
         fShaderWaveform->push(std::max(value.ptr[0], value.ptr[1]));
+        fPointsPushed += 1;
+    }
+
+    // Peaks arrive in bursts, so the shown point runs at the steady rate and is eased towards kWaveformLag behind
+    // the newest point, never past it. Returns its ring position: push number n lands at (size - 2 + n) mod size.
+    float waveformHead()
+    {
+        const double now = getApp().getTime();
+        const double dt = fLastTime != 0 ? std::min(now - fLastTime, 0.1) : 0;
+        fLastTime = now;
+
+        fPointsShown += dt * kWaveformRate;
+
+        const double error = fPointsPushed - kWaveformLag - fPointsShown;
+
+        if (std::abs(error) > kWaveformRate * 0.5)
+            fPointsShown += error;
+        else
+            fPointsShown += error * std::min(1.0, dt * 2);
+
+        fPointsShown = std::min(fPointsShown, fPointsPushed);
+
+        double head = std::fmod(fPointsShown - 2, kWaveformSize);
+        if (head < 0)
+            head += kWaveformSize;
+        return static_cast<float>(head);
     }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LimiterUI)
