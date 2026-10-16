@@ -250,6 +250,7 @@ private:
 
     bool update()
     {
+        bool hasDynamicParameters = true;
 #if 0
 #elif defined(LIBREAUDIO_PLUGIN__chorus)
         static_assert(kLabel == "chorus", "wrong plugin");
@@ -362,7 +363,7 @@ private:
             }
         }
 #else
-        return false;
+        hasDynamicParameters = false;
 #endif
 
         fBrackets.clear();
@@ -387,6 +388,9 @@ private:
                     bracket.end = knob;
             }
         }
+
+        if (! hasDynamicParameters)
+            return false;
 
         fHasCachedValues = true;
         updateSize(true);
