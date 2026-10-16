@@ -436,7 +436,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
        #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_FROM_INPUT
         if (runnerActive)
-            writeGraphFrames(cycleFrames);
+            captureGraphFrames(cycleFrames);
        #endif
 
         fMainDSP->compute(cycleFrames, fCycleBuffer);
@@ -447,7 +447,12 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
        #if LIBREAUDIO_WANT_GRAPH && ! LIBREAUDIO_WANT_GRAPH_FROM_INPUT
         if (runnerActive)
-            writeGraphFrames(cycleFrames);
+            captureGraphFrames(cycleFrames);
+       #endif
+
+       #if LIBREAUDIO_WANT_GRAPH_GR
+        if (runnerActive)
+            writeGraphGainReduction(cycleFrames);
        #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
@@ -588,11 +593,15 @@ inline void LibreAudioPlugin::doUnmute()
 
 #if LIBREAUDIO_WANT_GRAPH
 // Hands the cycle buffer to the graph runner: interleaved channels for a stereo graph, their average for a mono one.
-void LibreAudioPlugin::writeGraphFrames(const uint32_t cycleFrames)
+// A gain reduction graph keeps the louder channel per frame instead, written out with the reduction once the main
+// DSP has run.
+void LibreAudioPlugin::captureGraphFrames(const uint32_t cycleFrames)
 {
     for (uint32_t j = 0; j < cycleFrames; ++j)
     {
-       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+       #if LIBREAUDIO_WANT_GRAPH_GR
+        fGraphPeaks[j] = std::max(std::abs(fCycleBuffer[0][j]), std::abs(fCycleBuffer[1][j]));
+       #elif LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
         for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
             fRunnerBuffer.writeFloat(fCycleBuffer[c][j]);
        #else
@@ -600,6 +609,21 @@ void LibreAudioPlugin::writeGraphFrames(const uint32_t cycleFrames)
        #endif
     }
 }
+
+#if LIBREAUDIO_WANT_GRAPH_GR
+// Writes the captured peaks paired with the gain reduction the main DSP reports for this cycle, as 0..1 of the "gr"
+// meter's range, so the runner takes the deepest reduction per point just as it takes the highest peak.
+void LibreAudioPlugin::writeGraphGainReduction(const uint32_t cycleFrames)
+{
+    const float gr = std::clamp(fMainDSP->get(kFaustParameterGr) / kFaustParameters[kFaustParameterGr].min, 0.f, 1.f);
+
+    for (uint32_t j = 0; j < cycleFrames; ++j)
+    {
+        fRunnerBuffer.writeFloat(fGraphPeaks[j]);
+        fRunnerBuffer.writeFloat(gr);
+    }
+}
+#endif
 
 bool LibreAudioPlugin::run()
 {

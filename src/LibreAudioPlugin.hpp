@@ -189,7 +189,11 @@ private:
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
     bool run() final;
-    void writeGraphFrames(uint32_t cycleFrames);
+    void captureGraphFrames(uint32_t cycleFrames);
+   #if LIBREAUDIO_WANT_GRAPH_GR
+    void writeGraphGainReduction(uint32_t cycleFrames);
+    float fGraphPeaks[kInternalBlockSize];
+   #endif
   #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY

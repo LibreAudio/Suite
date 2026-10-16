@@ -85,6 +85,12 @@
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
+    {% elif meta.graph == "waveform-gr" %}
+// two values per point: the louder channel's peak, and the gain reduction from the "gr" meter (0..1 of its range)
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
+#define LIBREAUDIO_WANT_GRAPH_GR 1
     {% else %}
     {{fail("Invalid graph type")}}
     {% endif %}
@@ -95,6 +101,9 @@
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
+#endif
+#ifndef LIBREAUDIO_WANT_GRAPH_GR
+#define LIBREAUDIO_WANT_GRAPH_GR 0
 #endif
 
 // where the graph reads the audio: the plugin output (default), or the input right after the common input stage

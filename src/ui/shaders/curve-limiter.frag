@@ -15,9 +15,13 @@
    What the limiter has been doing for the last WIN seconds, scrolling right to
    left: the right edge is now, the left edge is WIN seconds ago.
 
-   The top of the display is 0 dB and the bottom is -DBRANGE. Each column of the
-   history is filled from the top down to its own reduction, and that fill is the
-   whole drawing -- there is no stroke along its lower edge. Depth of reduction
+   Standalone, the top of the display is 0 dB and the bottom is -DBRANGE. Hosted
+   in the limiter UI it is an overlay on the waveform: it hangs from the 0 dB
+   line of the display's level scale (uDbMin .. uDbMax, shared with the waveform
+   and the grid; with uDbMax at 0 dB that is the top edge) and uses that scale's
+   dB per pixel, so 6 dB of reduction reaches the -6 dB line. Each column of the history is filled from the top down to its
+   own reduction, and that fill is the whole drawing -- there is no stroke along
+   its lower edge. Depth of reduction
    reads as area, which is what a histogram is for and what a single bar meter
    cannot show; it also means a reduction arriving in one column stands as its
    own block rather than being joined to its neighbour by a line up the riser.
@@ -37,18 +41,24 @@
    is, so a hit keeps the colour it arrived in and the whole sweep rolls left at
    the scroll speed. The seven stops are closed into a loop for this - the
    open-ended sweep the other curve shaders use would show a seam rolling
-   across every CSEC seconds.
+   across every CSEC seconds. Hosted, the timestamp is the column's position in
+   the history ring, so the palette turns once per ring.
 
    Curve only: the background stays black and fully transparent (alpha 0), so it
    drops onto the analyser like the other curve shaders.
 
    The history itself cannot be computed here -- a fragment program keeps no
-   state between frames -- so the host keeps it and hands it over as a one-row
-   texture, oldest texel on the left, one texel per column of time. See
-   BackgroundShaderWidget for the ring and the 16-bit encoding. Standalone (the
-   Shadertoy editor, which has neither custom uniforms nor that texture) the
-   same seam invents a limiter's worth of movement instead, so the file pastes
-   straight into a new shader and still looks like the thing it draws.
+   state between frames -- so the host keeps it and hands it over as the
+   widget's data texture: a ring the same size as the waveform's, holding the
+   reduction in dB (positive). The plugin sends it with each waveform point --
+   the deepest reduction within that point's slice of audio -- and the UI pushes
+   it to the same position as the point. uHead is the waveform's own smoothed head, and the ring is read
+   through the same window and bins as waveform-scroll.frag (MARGIN, power-of-two
+   bins, coverage per pixel), so the reduction and the waveform scroll as one and
+   a hit sits exactly over the peak that caused it. Standalone (the Shadertoy
+   editor, which has neither custom uniforms nor that texture) the same seam
+   invents a limiter's worth of movement instead, so the file pastes straight
+   into a new shader and still looks like the thing it draws.
 
    Two things worth knowing about what is being drawn. The reduction arrives
    already peak-held with a 0.3 s decay (grHold in limiter.dsp), because the UI
@@ -57,12 +67,12 @@
    the limiter's release, and only the attacks are the limiter's own. And each
    column is the deepest reduction within its slice of time, not an average: a
    transient narrower than a column still reaches its full depth rather than
-   being diluted by the quiet either side of it.
+   being diluted by the quiet either side of it. Hosted, a column is one bin of
+   the ring, at least a pixel wide, and keeps the deepest reduction in it.
    =========================================================================== */
 
-#define DBRANGE 18.0  /* bottom of the scale, dB of reduction - matches MAXGR in limiter.dsp */
-#define WIN     8.0   /* time window shown, seconds - matches kGrWindowSeconds host-side */
-#define HISTN   480.0 /* history columns - matches kGrHistoryColumns host-side */
+#define DBRANGE 24.0  /* depth of the fill's gradient, dB of reduction - matches MAXGR in limiter.dsp */
+#define WIN     8.0   /* time window shown standalone, seconds */
 #define CSEC    WIN   /* seconds per turn of the palette; WIN = one sweep per width */
 #define FADEDB  0.25  /* reduction under which the fill fades away entirely, dB */
 
@@ -86,12 +96,32 @@
 #define GRAD 0.10
 #define TINT 1.0
 
-/* standalone defaults (Shadertoy editor has no custom uniforms) */
 #ifdef LIBREAUDIO_HOSTED
-/* One row, HISTN wide: the gain reduction of each column, normalised to
-   0 .. DBRANGE and packed 16-bit across the red and green channels. Texel 0 is
-   the oldest, texel HISTN-1 is the column in progress. */
-uniform sampler2D iGrHistory;
+/* ring position of the newest point shown, and the display's level scale in dB
+   (bottom and top edge) -- all shared with waveform-scroll.frag */
+uniform float uHead;
+uniform float uDbMin;
+uniform float uDbMax;
+
+/* ring points left out at the oldest end, and the widest bin -- must match
+   waveform-scroll.frag so both read the ring through the same window */
+#define MARGIN  256.0
+#define MAX_BIN 64
+
+/* reduction in dB at ring position i */
+float grPoint(float i, float size){
+    return texture2D(_dpf_texture_data, vec2((mod(i, size) + 0.5) / size, 0.5)).r;
+}
+
+/* deepest reduction in one bin of the ring */
+float grBinMax(float bin, float span, float size){
+    float m = 0.0;
+    for (int j = 0; j < MAX_BIN; ++j){
+        if (float(j) >= span) break;
+        m = max(m, grPoint(bin * span + float(j), size));
+    }
+    return m;
+}
 #endif
 
 /* The 7-stop scope palette, lerped in sRGB like the SVG gradient, but closed
@@ -140,28 +170,20 @@ float grDb(float age){
 }
 #endif
 
+#ifndef LIBREAUDIO_HOSTED
 /* Reduction at horizontal position x (0 = left edge / oldest, 1 = right edge /
-   now), normalised: 0 = none, 1 = DBRANGE or deeper. This is the only place
-   the history is read. */
+   now), normalised: 0 = none, 1 = DBRANGE or deeper. */
 float grNorm(float x){
     x = clamp(x, 0.0, 1.0);
-#ifndef LIBREAUDIO_HOSTED
     float db = grDb((1.0 - x) * WIN);
     return clamp(-db / DBRANGE, 0.0, 1.0);
-#else
-    /* Texel centres, so x = 0 lands exactly on the oldest column and x = 1 on the
-       newest instead of half a texel outside either. The texture is sampled
-       GL_NEAREST, so this reads one column per pixel with a hard edge between
-       them and a hit keeps the vertical attack it arrived with. */
-    float u = (x * (HISTN - 1.0) + 0.5) / HISTN;
-    vec4  c = texture2D(iGrHistory, vec2(u, 0.5));
-    return (c.r * 255.0 * 256.0 + c.g * 255.0) / 65535.0;
-#endif
 }
+#endif
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord){
     vec2 uv = fragCoord / iResolution.xy;
 
+#ifndef LIBREAUDIO_HOSTED
     /* 0 = top of the display = 0 dB, 1 = bottom = -DBRANGE, for this pixel and
        for the column's own reduction */
     float py = 1.0 - uv.y;
@@ -171,24 +193,54 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
        edge: the gradient below takes it to zero there. */
     float band = smoothstep(-1.0, 1.0, (n - py) * iResolution.y);
 
+    /* Per column, so the display is empty wherever the limiter was idle rather
+       than carrying a sliver of tint along the top. The gradient alone very
+       nearly does this already; this is what makes it exact, and keeps it true
+       if GRAD is taken below 1. */
+    float cover = band * smoothstep(0.0, FADEDB / DBRANGE, n);
+
+    /* A column's own timestamp drives the colour, so the sweep travels left with
+       the audio it belongs to instead of standing still on the screen. */
+    float stamp = (iTime - (1.0 - uv.x) * WIN) / CSEC;
+#else
+    float size     = float(_dpf_texture_size);
+    float window   = size - MARGIN;
+    float perPixel = window / iResolution.x;
+    float span     = clamp(exp2(ceil(log2(perPixel))), 1.0, float(MAX_BIN));
+    float pxPerDb  = iResolution.y / (uDbMax - uDbMin);
+
+    /* this pixel's depth below the 0 dB line, dB; nothing is drawn above it */
+    float depth = -mix(uDbMin, uDbMax, uv.y);
+    float py    = clamp(depth / DBRANGE, 0.0, 1.0);
+
+    /* The pixel's footprint in ring points overlaps two bins at most. Each bin is
+       a block of its deepest reduction, faded out where the limiter was idle,
+       and the pixel takes how much of its width the blocks cover at its depth. */
+    float k     = mod(uHead - (1.0 - uv.x) * window, size);
+    float a     = k - perPixel * 0.5;
+    float b0    = floor(a / span);
+    float w0    = min(k + perPixel * 0.5, (b0 + 1.0) * span) - a;
+    float w1    = perPixel - w0;
+    float gr0   = grBinMax(b0, span, size);
+    float gr1   = w1 > 0.0 ? grBinMax(b0 + 1.0, span, size) : 0.0;
+    float in0   = smoothstep(-1.0, 1.0, (gr0 - depth) * pxPerDb) * smoothstep(0.0, FADEDB, gr0);
+    float in1   = smoothstep(-1.0, 1.0, (gr1 - depth) * pxPerDb) * smoothstep(0.0, FADEDB, gr1);
+    float cover = step(0.0, depth) * (w0 * in0 + w1 * in1) / perPixel;
+
+    /* the column's place in the ring is its timestamp */
+    float stamp = k / size;
+#endif
+
     /* Transparent at 0 dB, FILL at -DBRANGE. Measured down the scale rather than
        down the column, so opacity is a function of depth alone and less
        reduction is dimmer as well as smaller. */
     float grad = FILL * pow(py, GRAD);
 
-    /* Per column, so the display is empty wherever the limiter was idle rather
-       than carrying a sliver of tint along the top. The gradient alone very
-       nearly does this already; this is what makes it exact, and keeps it true
-       if GRAD is taken below 1. */
-    float vis = smoothstep(0.0, FADEDB / DBRANGE, n);
-
-    /* A column's own timestamp drives the colour, so the sweep travels left with
-       the audio it belongs to instead of standing still on the screen. */
-    vec3 col = clamp(rainbowLoop((iTime - (1.0 - uv.x) * WIN) / CSEC) * TINT, 0.0, 1.0);
+    vec3 col = clamp(rainbowLoop(stamp) * TINT, 0.0, 1.0);
 
     /* Straight (non-premultiplied) alpha: DPF draws with
        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA), so premultiplying here
        would darken the colour a second time -- the antialiased edge would fringe
        towards black instead of fading to transparent. */
-    fragColor = vec4(col, band * grad * vis);
+    fragColor = vec4(col, cover * grad);
 }

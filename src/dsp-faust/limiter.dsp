@@ -8,7 +8,7 @@ declare description "Lookahead brickwall limiter for mastering";
 declare license "GPL-3.0-or-later";
 declare name "Limiter";
 declare unique_id "LAli";
-declare graph "waveform-stereo";
+declare graph "waveform-gr";
 declare graph_source "input";
 
 

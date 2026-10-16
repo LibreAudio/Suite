@@ -24,8 +24,8 @@
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
-// The stage is the display, with the starfield and the output waveform behind it and the level grid and threshold
-// line over them, and the control bar floats at its bottom.
+// The stage is the display, with the starfield, the input waveform and the gain reduction behind it and the level
+// grid and threshold line over them, and the control bar floats at its bottom.
 // The bar is styled like the mbComp5 band groups.
 
 struct LimiterBarReference : Reference::Zero {
@@ -201,7 +201,7 @@ private:
 
 // The display's level scale, shared with the waveform shader: dB at its top and bottom edge.
 
-static constexpr const float kDisplayDbMax = 3.f;
+static constexpr const float kDisplayDbMax = 0.f;
 static constexpr const float kDisplayDbMin = -24.f;
 static constexpr const float kDisplayDbStep = 6.f;
 
@@ -282,20 +282,19 @@ private:
         const float w = getWidth();
         const float border = R::border * s;
 
-        // level grid and dB ticks, 0 dB stronger
+        // level grid and dB ticks below the top edge, which is 0 dB
         fontFace("mono");
         fontSize(10.f * s);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
 
-        for (float db = 0.f; db > kDisplayDbMin; db -= kDisplayDbStep)
+        for (float db = kDisplayDbMax - kDisplayDbStep; db > kDisplayDbMin; db -= kDisplayDbStep)
         {
             const float y = std::round(yOfDb(db)) + 0.5f;
-            const bool zero = d_isZero(db);
 
             beginPath();
             moveTo(border, y);
             lineTo(w - border, y);
-            strokeColor(Color(Reference::Colors::line2, zero ? 0.5f : 0.22f));
+            strokeColor(Color(Reference::Colors::line2, 0.22f));
             strokeWidth(1.f);
             stroke();
 
@@ -325,9 +324,9 @@ private:
         fontFace("regular");
         fontSize(10.f * s);
         textLetterSpacing(1.f * s);
-        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
+        textAlign(ALIGN_RIGHT | ALIGN_TOP);
         fillColor(rainbow(1.f).withAlpha(lit ? 1.f : 0.85f));
-        text(w - 8.f * s, y - 4.f * s, label, nullptr);
+        text(w - 8.f * s, y + 4.f * s, label, nullptr);
         textLetterSpacing(0.f);
     }
 
@@ -399,20 +398,30 @@ class LimiterUI final : public LibreAudioBaseUI
                                                              SHADERS_WAVEFORM_SCROLL_FRAG_LEN,
                                                              kNumSamplePointsForWaveform>;
 
+    using GainReductionShaderWidget = LibreAudio::BotShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA,
+                                                                  SHADERS_CURVE_LIMITER_FRAG_LEN,
+                                                                  kNumSamplePointsForWaveform>;
+
     const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
         new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
     };
 
-    // scrolling output peaks, above the starfield
+    // scrolling input peaks, above the starfield
     const std::unique_ptr<WaveformShaderWidget> fShaderWaveform {
         new WaveformShaderWidget(this, this)
+    };
+
+    // gain reduction over the waveform, from a ring filled with the waveform's points and read with the same head
+    const std::unique_ptr<GainReductionShaderWidget> fShaderGainReduction {
+        new GainReductionShaderWidget(this, this)
     };
 
     // points pushed so far, and the point the waveform is drawn up to (fractional, moving at kWaveformRate)
     double fPointsPushed = 0;
     double fPointsShown = 0;
     double fLastTime = 0;
+    float fHead = 0;
 
 public:
     LimiterUI()
@@ -420,25 +429,37 @@ public:
     {
         createRootWidget<LibreAudio::LimiterRootWidget>();
 
-        fRootWidget->enableShaders({ fShaderBackground.get(), fShaderWaveform.get() });
+        fRootWidget->enableShaders({ fShaderBackground.get(), fShaderWaveform.get(), fShaderGainReduction.get() });
 
-        fShaderWaveform->setCustomUniform("uHead", [this] { return waveformHead(); });
-        fShaderWaveform->setCustomUniform("uDbMin", [] { return LibreAudio::kDisplayDbMin; });
-        fShaderWaveform->setCustomUniform("uDbMax", [] { return LibreAudio::kDisplayDbMax; });
+        const std::array<LibreAudio::BotShaderBaseWidget*, 2> scrolling { fShaderWaveform.get(), fShaderGainReduction.get() };
+
+        for (LibreAudio::BotShaderBaseWidget* const shader : scrolling)
+        {
+            shader->setCustomUniform("uHead", [this] { return waveformHead(); });
+            shader->setCustomUniform("uDbMin", [] { return LibreAudio::kDisplayDbMin; });
+            shader->setCustomUniform("uDbMax", [] { return LibreAudio::kDisplayDbMax; });
+        }
     }
 
 private:
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
-        fShaderWaveform->push(std::max(value.ptr[0], value.ptr[1]));
+        // each point carries the input peak and the deepest gain reduction within it (0..1 of the "gr" meter's range),
+        // pushed to the same ring position in both shaders; the reduction goes in as dB (positive)
+        fShaderWaveform->push(value.ptr[0]);
+        fShaderGainReduction->push(value.ptr[1] * -kFaustParameters[kFaustParameterGr].min);
         fPointsPushed += 1;
     }
 
     // Peaks arrive in bursts, so the shown point runs at the steady rate and is eased towards kWaveformLag behind
     // the newest point, never past it. Returns its ring position: push number n lands at (size - 2 + n) mod size.
+    // Both shaders ask for it each frame; the second ask within a millisecond gets the same head.
     float waveformHead()
     {
         const double now = getApp().getTime();
+        if (fLastTime != 0 && now - fLastTime < 0.001)
+            return fHead;
+
         const double dt = fLastTime != 0 ? std::min(now - fLastTime, 0.1) : 0;
         fLastTime = now;
 
@@ -456,7 +477,8 @@ private:
         double head = std::fmod(fPointsShown - 2, kWaveformSize);
         if (head < 0)
             head += kWaveformSize;
-        return static_cast<float>(head);
+        fHead = static_cast<float>(head);
+        return fHead;
     }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LimiterUI)
