@@ -110,17 +110,309 @@ private:
     }
 };
 
-class LimiterTogglesWidget final : public ReferenceContainerWidget<Reference::Zero, kVertical>
+// sets a parameter as one gesture, the way a click on a control does
+
+static void setParameterGesture(LabUIWidgetInterface* const iface, const uint32_t id, const float value)
+{
+    iface->parameterControlPressed(id);
+    iface->parameterControlModified(id, value);
+    iface->parameterControlReleased(id);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// The control bar's menu: a list of a parameter's options above its dropdown. It is an overlay covering the whole
+// display while open, so it draws over everything and takes every click: one on an option picks it, any other closes
+// the menu.
+
+class LimiterMenuWidget final : public LabWidget
+{
+    static constexpr const float kRowHeight = 20.f;
+    static constexpr const float kPadding = 3.f;
+    static constexpr const float kTextMargin = 10.f;
+    static constexpr const float kFontSize = 11.f;
+
+    FaustParameterIndex fId = kFaustParameterCount;
+    Color fAccent;
+    Rectangle<float> fBox;
+    int fHoverRow = -1;
+
+public:
+    explicit LimiterMenuWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        hide();
+    }
+
+    // anchor is the dropdown's box, in absolute coordinates; the menu opens above it, aligned to its right edge
+    void open(const FaustParameterIndex id, const Rectangle<float>& anchor, const Color& accent)
+    {
+        const FaustParameter& param = kFaustParameters[id];
+        const float s = fScaleFactor;
+
+        fId = id;
+        fAccent = accent;
+        fHoverRow = -1;
+
+        fontFace("regular");
+        fontSize(kFontSize * s);
+        textAlign(0);
+
+        float width = anchor.getWidth();
+        for (uint i = 0; i < param.scalePointCount; ++i)
+        {
+            Rectangle<float> bounds;
+            textBounds(0, 0, param.scalePoints[i].label, nullptr, bounds);
+            width = std::max(width, bounds.getWidth() + kTextMargin * 2 * s);
+        }
+
+        const float height = (param.scalePointCount * kRowHeight + kPadding * 2) * s;
+        const float right = anchor.getX() + anchor.getWidth() - getAbsoluteX();
+        const float top = anchor.getY() - getAbsoluteY() - 4.f * s - height;
+
+        fBox = Rectangle<float>(right - width, std::max(4.f * s, top), width, height);
+
+        show();
+        toFront();
+        repaint();
+    }
+
+private:
+    [[nodiscard]] int rowAt(const Point<double>& pos) const noexcept
+    {
+        if (! fBox.contains(static_cast<float>(pos.getX()), static_cast<float>(pos.getY())))
+            return -1;
+
+        const int row = static_cast<int>((pos.getY() - fBox.getY() - kPadding * fScaleFactor) / (kRowHeight * fScaleFactor));
+        return row >= 0 && row < static_cast<int>(kFaustParameters[fId].scalePointCount) ? row : -1;
+    }
+
+    void close()
+    {
+        hide();
+        repaint();
+    }
+
+    void onNanoDisplay() final
+    {
+        const FaustParameter& param = kFaustParameters[fId];
+        const float s = fScaleFactor;
+        const float r = 6.f * s;
+        const int current = d_roundToInt(fInterface->getParameterValue(kParametersMainStart + fId));
+
+        beginPath();
+        roundedRect(fBox.getX(), fBox.getY() + 3.f * s, fBox.getWidth(), fBox.getHeight(), r);
+        fillColor(Color(0.f, 0.f, 0.f, 0.35f));
+        fill();
+
+        beginPath();
+        roundedRect(fBox.getX(), fBox.getY(), fBox.getWidth(), fBox.getHeight(), r);
+        fillColor(Color(0x1e, 0x1f, 0x24, 0.96f));
+        fill();
+        strokeColor(Color(0.f, 0.f, 0.f, 0.5f));
+        strokeWidth(1.f);
+        stroke();
+
+        fontFace("regular");
+        fontSize(kFontSize * s);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+
+        for (uint i = 0; i < param.scalePointCount; ++i)
+        {
+            const float y = fBox.getY() + (kPadding + i * kRowHeight) * s;
+
+            if (static_cast<int>(i) == fHoverRow)
+            {
+                beginPath();
+                roundedRect(fBox.getX() + kPadding * s, y, fBox.getWidth() - kPadding * 2 * s, kRowHeight * s, 4.f * s);
+                fillColor(Color(1.f, 1.f, 1.f, 0.08f));
+                fill();
+            }
+
+            fillColor(param.scalePoints[i].value == current ? fAccent : Reference::Colors::ink2);
+            text(fBox.getX() + kTextMargin * s, y + kRowHeight * 0.5f * s, param.scalePoints[i].label, nullptr);
+        }
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.press)
+        {
+            if (const int row = rowAt(ev.pos); row >= 0 && ev.button == 1)
+                setParameterGesture(fInterface, kParametersMainStart + fId, kFaustParameters[fId].scalePoints[row].value);
+
+            close();
+        }
+        return true;
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (const int row = rowAt(ev.pos); row != fHoverRow)
+        {
+            fHoverRow = row;
+            repaint();
+        }
+        return true;
+    }
+
+    bool onScroll(const Widget::ScrollEvent&) final
+    {
+        return true;
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// A slim dropdown for a parameter with options: its name in grey, then a small box with the current option in the
+// accent colour and a chevron. A click on the box opens the menu, scrolling over it steps through the options.
+
+class LimiterDropdownWidget final : public LabWidget
+{
+    static constexpr const float kBoxWidth = 64.f;
+    static constexpr const float kGap = 6.f;
+    static constexpr const float kFontSize = 11.f;
+    static constexpr const float kHeight = Reference::Widgets::NumberBox<>::height / 2;
+
+    const FaustParameterIndex fId;
+    const FaustParameter& fParameter;
+    const Color fAccent;
+    bool fHover = false;
+
+public:
+    explicit LimiterDropdownWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : LabWidget(parent),
+          fId(id),
+          fParameter(kFaustParameters[id]),
+          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+    {
+        updateSize(false);
+    }
+
+private:
+    [[nodiscard]] float boxX() const noexcept
+    {
+        return getWidth() - kBoxWidth * fScaleFactor;
+    }
+
+    [[nodiscard]] int currentIndex() const noexcept
+    {
+        const int value = d_roundToInt(fInterface->getParameterValue(kParametersMainStart + fId));
+        for (uint i = 0; i < fParameter.scalePointCount; ++i)
+            if (fParameter.scalePoints[i].value == value)
+                return static_cast<int>(i);
+        return 0;
+    }
+
+    void setupFont()
+    {
+        fontFace("regular");
+        fontSize(kFontSize * fScaleFactor);
+        textLetterSpacing(kFontSize * 0.06f * fScaleFactor);
+    }
+
+    // defined after the stage, which owns the menu
+    void openMenu();
+
+    void onNanoDisplay() final
+    {
+        const float s = fScaleFactor;
+        const float h = getHeight();
+        const float bx = boxX();
+        const float inset = 2.f * s;
+
+        setupFont();
+        fillColor(Reference::Colors::ink3);
+        textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
+        text(bx - kGap * s, h * 0.5f, fParameter.name, nullptr);
+        textLetterSpacing(0.f);
+
+        beginPath();
+        roundedRect(bx, inset, kBoxWidth * s, h - inset * 2, 4.f * s);
+        fillColor(Reference::Colors::track);
+        fill();
+        strokeColor(Color(1.f, 1.f, 1.f, fHover ? 0.15f : 0.06f));
+        strokeWidth(1.f);
+        stroke();
+
+        fillColor(fAccent);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+        text(bx + 6.f * s, h * 0.5f, fParameter.scalePoints[currentIndex()].label, nullptr);
+
+        const float cx = bx + (kBoxWidth - 9.f) * s;
+        const float cy = h * 0.5f;
+        beginPath();
+        moveTo(cx - 3.f * s, cy - 1.5f * s);
+        lineTo(cx, cy + 1.5f * s);
+        lineTo(cx + 3.f * s, cy - 1.5f * s);
+        lineCap(ROUND);
+        lineJoin(ROUND);
+        strokeColor(Reference::Colors::ink3);
+        strokeWidth(1.2f * s);
+        stroke();
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.press && ev.button == 1 && contains(ev.pos) && ev.pos.getX() >= boxX())
+        {
+            openMenu();
+            return true;
+        }
+        return LabWidget::onMouse(ev);
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (const bool hover = contains(ev.pos) && ev.pos.getX() >= boxX(); hover != fHover)
+        {
+            fHover = hover;
+            repaint();
+        }
+        return LabWidget::onMotion(ev);
+    }
+
+    bool onScroll(const Widget::ScrollEvent& ev) final
+    {
+        if (! contains(ev.pos) || ev.pos.getX() < boxX() || d_isZero(ev.delta.getY()))
+            return LabWidget::onScroll(ev);
+
+        const int count = static_cast<int>(fParameter.scalePointCount);
+        const int index = std::clamp(currentIndex() + (ev.delta.getY() > 0 ? -1 : 1), 0, count - 1);
+        setParameterGesture(fInterface, kParametersMainStart + fId, fParameter.scalePoints[index].value);
+        repaint();
+        return true;
+    }
+
+    // as wide as its name and box need, or wider when the stack makes it so; the box stays at the right edge
+    void updateSize(const bool updateChildren) final
+    {
+        Rectangle<float> bounds;
+        setupFont();
+        textAlign(0);
+        textBounds(0, 0, fParameter.name, nullptr, bounds);
+        textLetterSpacing(0.f);
+
+        const uint width = d_roundToUnsignedInt(bounds.getWidth() + (kGap + kBoxWidth) * fScaleFactor);
+        setSize(std::max(width, getWidth()), d_roundToUnsignedInt(kHeight * fScaleFactor));
+
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// Two controls stacked in the height of a number box, the stack as wide as the wider one.
+
+template<class Top, FaustParameterIndex kTop, class Bottom, FaustParameterIndex kBottom>
+class LimiterStackWidget final : public ReferenceContainerWidget<Reference::Zero, kVertical>
 {
     using BaseWidget = ReferenceContainerWidget<Reference::Zero, kVertical>;
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        addWidget<LimiterToggleWidget<accentColor<kFaustParameterTrue_peak>()>>(kFaustParameterTrue_peak),
-        addWidget<LimiterToggleWidget<accentColor<kFaustParameterUnity_gain>()>>(kFaustParameterUnity_gain),
+        addWidget<Top>(kTop),
+        addWidget<Bottom>(kBottom),
     };
 
 public:
-    explicit LimiterTogglesWidget(LabWidget* const parent)
+    explicit LimiterStackWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         updateSize(false);
@@ -139,6 +431,14 @@ private:
     }
 };
 
+using LimiterTogglesWidget = LimiterStackWidget<LimiterToggleWidget<accentColor<kFaustParameterTrue_peak>()>,
+                                                kFaustParameterTrue_peak,
+                                                LimiterToggleWidget<accentColor<kFaustParameterUnity_gain>()>,
+                                                kFaustParameterUnity_gain>;
+
+using LimiterDitherWidget = LimiterStackWidget<LimiterDropdownWidget, kFaustParameterDither,
+                                               LimiterDropdownWidget, kFaustParameterNoise_shaping>;
+
 // --------------------------------------------------------------------------------------------------------------------
 
 // fixed space between the groups of number boxes, so the boxes get the width left over
@@ -153,7 +453,7 @@ class LimiterBarWidget final : public ReferenceContainerWidget<LimiterBarReferen
     using BaseWidget = ReferenceContainerWidget<LimiterBarReference>;
     using GapWidget = LabReferenceWidget<LimiterGapReference>;
 
-    const std::array<std::shared_ptr<LabWidget>, 10> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 11> widgets {
         addWidget<LimiterTogglesWidget>(),
         addSpacer(),
         addWidget<LimiterNumberBoxWidget<kFaustParameterThreshold>, Expanding>(kFaustParameterThreshold),
@@ -164,6 +464,7 @@ class LimiterBarWidget final : public ReferenceContainerWidget<LimiterBarReferen
         addWidget<LimiterNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
         addWidget<LimiterNumberBoxWidget<kFaustParameterAuto_release>, Expanding>(kFaustParameterAuto_release),
         addSpacer(),
+        addWidget<LimiterDitherWidget>(),
     };
 
 public:
@@ -236,6 +537,9 @@ class LimiterStageWidget final : public ReferenceContainerWidget<Reference::Stag
         addWidget<LimiterBarWidget>(),
     };
 
+    // created after the bar, so it draws over it and gets events first
+    const std::unique_ptr<LimiterMenuWidget> fMenu { new LimiterMenuWidget(this) };
+
     bool fHover = false;
     bool fDragging = false;
     float fDragOffset = 0.f;
@@ -244,7 +548,20 @@ public:
     explicit LimiterStageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
+    void openMenu(const FaustParameterIndex id, const Rectangle<float>& anchor, const Color& accent)
+    {
+        fMenu->open(id, anchor, accent);
+    }
+
 private:
+    void updateSize(const bool updateChildren) final
+    {
+        BaseWidget::updateSize(updateChildren);
+
+        fMenu->setAbsolutePos(getAbsolutePos());
+        fMenu->setSize(getSize());
+    }
+
     [[nodiscard]] float yOfDb(const float db) const noexcept
     {
         return (kDisplayDbMax - db) / (kDisplayDbMax - kDisplayDbMin) * getHeight();
@@ -377,6 +694,20 @@ private:
         return BaseWidget::onMotion(ev);
     }
 };
+
+void LimiterDropdownWidget::openMenu()
+{
+    const Rectangle<float> box(getAbsoluteX() + boxX(), getAbsoluteY(), kBoxWidth * fScaleFactor, getHeight());
+
+    for (Widget* widget = getParentWidget(); widget != nullptr;)
+    {
+        if (LimiterStageWidget* const stage = dynamic_cast<LimiterStageWidget*>(widget))
+            return stage->openMenu(fId, box, fAccent);
+
+        SubWidget* const sub = dynamic_cast<SubWidget*>(widget);
+        widget = sub != nullptr ? sub->getParentWidget() : nullptr;
+    }
+}
 
 using LimiterRootWidget = RootWidget<TopBar, MainAreaContainerWidget<LimiterStageWidget>>;
 
