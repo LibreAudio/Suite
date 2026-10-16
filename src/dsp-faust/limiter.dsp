@@ -61,16 +61,16 @@ lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accent
 
 releaseMs = time_group(vslider("[1]Release[unit:ms][scale:log][symbol:release][accentcolor:03][bracket:ENVELOPE]
       [tooltip: How quickly the gain recovers once the peaks have passed. With
-       Auto Release on this is the recovery under sustained limiting, and short
+       Auto Release up this is the recovery under sustained limiting, and short
        peaks let go several times faster]",
                                50, 1, 200, 1));
 
-autoOn = time_group(nentry("[2]Auto Release[symbol:auto_release][accentcolor:03][bracket:ENVELOPE]
-      [style:radio{'Off':0;'On':1}]
+autoAmt = time_group(vslider("[2]Auto Release[unit:%][symbol:auto_release][accentcolor:03][bracket:ENVELOPE]
       [tooltip: Program dependent release. Isolated peaks recover quickly, dense
        passages recover at the Release time, so the limiter neither leaves
-       holes after transients nor pumps on sustained material]",
-                           1, 0, 1, 1));
+       holes after transients nor pumps on sustained material. 0% = fixed
+       Release, 100% = full program dependence]",
+                            100, 0, 100, 1)) / 100;
 
 ditherMode = out_group(nentry("[0]Dither[symbol:dither][accentcolor:02][bracket:DITHER]
       [style:menu{'Off':0;'16 bit':1;'24 bit':2}]
@@ -248,8 +248,8 @@ postGain = 0 - de.delay(MAXLA, LATENCY, makeupDb) * (unityGain : smooI) : ba.db2
 // output never sits above its input, so the no-overshoot argument above
 // survives it untouched.
 //
-// Auto Release shortens the time constant by up to FASTDIV, and there are two
-// separate reasons to:
+// Auto Release shortens the time constant by up to FASTDIV, scaled by its
+// amount, and there are two separate reasons to:
 //
 //   density   Limiting has been rare lately, i.e. these are isolated peaks. A
 //             one-pole tracking how often the limiter is engaged at all, over
@@ -287,7 +287,7 @@ postGain = 0 - de.delay(MAXLA, LATENCY, makeupDb) * (unityGain : smooI) : ba.db2
 //                       2 dB       7 dB      7 dB      to 1 dB
 //   Release 100, off   -44.0      -40.1     -61.1      237 ms     760
 //   Release 12.5, off  -29.5      -26.1     -44.9       33 ms     130
-//   Release 100, auto  -44.0      -40.1     -61.1       34 ms     154
+//   Release 100, 100%  -44.0      -40.1     -61.1       34 ms     154
 //
 // i.e. the distortion of the slow release and the recovery of the fast one.
 // The same holds at Release 30 and 200.
@@ -307,7 +307,7 @@ releaseStep(f1, s1, a1, h) = f, s, a
 with {
     wDepth = max(0, min(1, (s1 - f1 - M0) / MDB));
     wDens  = 1 - min(1, a1 / DREF);
-    w      = max(wDepth, wDens) * (autoOn > 0.5);
+    w      = max(wDepth, wDens) * autoAmt;
     tau    = releaseMs / 1000 / (1 + (FASTDIV - 1) * w);
     p      = exp(0 - 1 / (tau * ma.SR));
     f      = select2(h < f1, f1 + (h - f1) * (1 - p), h);
