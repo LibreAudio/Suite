@@ -43,9 +43,9 @@
 #define YCENTER 0.36  /* where the group of three sits, 0 = top edge, 1 = bottom */
 #define YSPACE 0.2  /* vertical distance between springs, height fractions */
 #define SWAYMAX 0.075 /* peak centreline travel, height fractions */
-#define SWAYIDLE 0.10 /* how much of that is left with no input at all */
+#define SWAYIDLE 0.05 /* how much of that is left with no input at all */
 #define BACKSHADE 0.0 /* brightness of the coil where it passes behind */
-#define DIMMIN 0.10  /* how faint a tank turned fully down is drawn (0 .. 1) */
+#define DIMMIN 0.05  /* how faint a tank turned fully down is drawn (0 .. 1) */
 #define ENDS 0.1    /* how far in, in width fractions, the coils reach full depth */
 
 /* standalone defaults (Shadertoy editor has no custom uniforms) */
