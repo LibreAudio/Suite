@@ -25,10 +25,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 // The stage is the display, with the starfield, the input waveform and the gain reduction behind it and the level
-// grid and threshold line over them, and the control bar floats at its bottom.
-// The bar is styled like the mbComp5 band groups.
+// grid and threshold line over them, and a row of control groups floats at its bottom.
+// Each group is a panel styled like the mbComp5 band groups.
 
-struct LimiterBarReference : Reference::Zero {
+struct LimiterGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = 8;
@@ -120,7 +120,7 @@ static void setParameterGesture(LabUIWidgetInterface* const iface, const uint32_
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// The control bar's menu: a list of a parameter's options above its dropdown. It is an overlay covering the whole
+// The control groups' menu: a list of a parameter's options above its dropdown. It is an overlay covering the whole
 // display while open, so it draws over everything and takes every click: one on an option picks it, any other closes
 // the menu.
 
@@ -441,45 +441,53 @@ using LimiterDitherWidget = LimiterStackWidget<LimiterDropdownWidget, kFaustPara
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// fixed space between the groups of number boxes, so the boxes get the width left over
+// A floating panel holding one group of controls: number boxes, which share whatever width the row gives the
+// group, or a control of its own width.
 
-struct LimiterGapReference : Reference::Zero {
-    static constexpr const uint width = 18;
-    static constexpr const uint height = 1;
-};
-
-class LimiterBarWidget final : public ReferenceContainerWidget<LimiterBarReference>
+class LimiterGroupWidget : public ReferenceContainerWidget<LimiterGroupReference>
 {
-    using BaseWidget = ReferenceContainerWidget<LimiterBarReference>;
-    using GapWidget = LabReferenceWidget<LimiterGapReference>;
+    using R = LimiterGroupReference;
+    using BaseWidget = ReferenceContainerWidget<R>;
 
-    const std::array<std::shared_ptr<LabWidget>, 11> widgets {
-        addWidget<LimiterTogglesWidget>(),
-        addSpacer(),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterThreshold>, Expanding>(kFaustParameterThreshold),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterCeiling>, Expanding>(kFaustParameterCeiling),
-        addWidget<GapWidget>(),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterLookahead>, Expanding>(kFaustParameterLookahead),
-        addWidget<GapWidget>(),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterAuto_release>, Expanding>(kFaustParameterAuto_release),
-        addSpacer(),
-        addWidget<LimiterDitherWidget>(),
-    };
+    const uint fBoxCount;
 
 public:
-    explicit LimiterBarWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    LimiterGroupWidget(LabWidget* const parent, const uint boxCount)
+        : BaseWidget(parent),
+          fBoxCount(boxCount) {}
+
+    [[nodiscard]] uint getBoxCount() const noexcept
+    {
+        return fBoxCount;
+    }
+
+    // width without the number boxes: panel margins, the space between controls and any control of its own width
+    [[nodiscard]] uint getFixedWidth() const noexcept
+    {
+        const uint margin = d_roundToUnsignedInt((R::border + R::margin) * fScaleFactor);
+        const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
+
+        uint width = margin * 2 + padding * (static_cast<uint>(Layout::widgets.size()) - 1);
+        for (const SubWidgetWithSizeHint& s : Layout::widgets)
+            if (s.sizeHint == Fixed)
+                width += s.widget->getWidth();
+        return width;
+    }
+
+    void setGroupWidth(const uint width)
+    {
+        LabWidget::setWidth(width);
+    }
 
 private:
     // faint rim all around, lit along the top edge
     void onNanoDisplay() final
     {
-        drawReferenceBackground<LimiterBarReference>();
+        drawReferenceBackground<R>();
 
         const float w = getWidth();
         const float h = getHeight();
-        const float r = LimiterBarReference::borderRadius * fScaleFactor;
+        const float r = R::borderRadius * fScaleFactor;
 
         beginPath();
         roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
@@ -495,6 +503,85 @@ private:
         strokeWidth(1.f);
         stroke();
         restore();
+    }
+};
+
+template<FaustParameterIndex... kIds>
+class LimiterBoxGroupWidget final : public LimiterGroupWidget
+{
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(kIds)> widgets {
+        addWidget<LimiterNumberBoxWidget<kIds>, Expanding>(kIds)...
+    };
+
+public:
+    explicit LimiterBoxGroupWidget(LabWidget* const parent)
+        : LimiterGroupWidget(parent, sizeof...(kIds)) {}
+};
+
+template<class W>
+class LimiterControlGroupWidget final : public LimiterGroupWidget
+{
+    const std::array<std::shared_ptr<LabWidget>, 1> widgets {
+        addWidget<W>(),
+    };
+
+public:
+    explicit LimiterControlGroupWidget(LabWidget* const parent)
+        : LimiterGroupWidget(parent, 0) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// The row of groups along the bottom of the display, a fixed gap apart. Every number box gets the same width, from
+// what the row has left once the groups' fixed parts and the gaps are taken out.
+
+struct LimiterGroupRowReference : Reference::Zero {
+    static constexpr const uint padding = 8;
+    static constexpr const uint height = LimiterGroupReference::height;
+};
+
+class LimiterGroupRowWidget final : public ReferenceContainerWidget<LimiterGroupRowReference>
+{
+    using R = LimiterGroupRowReference;
+    using BaseWidget = ReferenceContainerWidget<R>;
+
+    const std::array<std::shared_ptr<LimiterGroupWidget>, 5> fGroups {
+        addWidget<LimiterControlGroupWidget<LimiterTogglesWidget>>(),
+        addWidget<LimiterBoxGroupWidget<kFaustParameterThreshold, kFaustParameterCeiling>>(),
+        addWidget<LimiterBoxGroupWidget<kFaustParameterAttack, kFaustParameterAttack_shape>>(),
+        addWidget<LimiterBoxGroupWidget<kFaustParameterRelease, kFaustParameterAuto_release>>(),
+        addWidget<LimiterControlGroupWidget<LimiterDitherWidget>>(),
+    };
+
+public:
+    explicit LimiterGroupRowWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+
+private:
+    void sizeGroups()
+    {
+        const int gap = d_roundToIntPositive(R::padding * fScaleFactor);
+        int available = static_cast<int>(getWidth()) - gap * static_cast<int>(fGroups.size() - 1);
+        uint boxes = 0;
+
+        for (const std::shared_ptr<LimiterGroupWidget>& group : fGroups)
+        {
+            available -= static_cast<int>(group->getFixedWidth());
+            boxes += group->getBoxCount();
+        }
+
+        const uint boxWidth = boxes != 0 ? static_cast<uint>(std::max(0, available) / static_cast<int>(boxes)) : 0;
+
+        for (const std::shared_ptr<LimiterGroupWidget>& group : fGroups)
+            group->setGroupWidth(group->getFixedWidth() + group->getBoxCount() * boxWidth);
+    }
+
+    // the controls of fixed width know their size only once updated, so the groups are sized again after that
+    void updateSize(const bool updateChildren) final
+    {
+        sizeGroups();
+        BaseWidget::updateSize(updateChildren);
+        sizeGroups();
+        BaseWidget::updateSize(updateChildren);
     }
 };
 
@@ -520,9 +607,12 @@ static Color rainbow(const float t) noexcept
 
 // --------------------------------------------------------------------------------------------------------------------
 // The stage is the display: the shaders fill it, and it draws the level grid, its dB ticks and the threshold line
-// over them. The threshold line is dragged up and down to set the Threshold.
+// over them. The threshold line is dragged up and down to set the Threshold. Along the bottom it shows the row of
+// control groups in Expert mode and four preset cards in Easy mode; the cards are the suite's Easy page cards and do
+// not load anything yet.
 
-class LimiterStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
+class LimiterStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>,
+                                 private IdleCallback
 {
     using R = Reference::Stage;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
@@ -532,21 +622,25 @@ class LimiterStageWidget final : public ReferenceContainerWidget<Reference::Stag
     // how close to the threshold line, in px at scale 1, a press or hover catches it
     static constexpr const float kGrabDistance = 6.f;
 
-    const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        addSpacer(),
-        addWidget<LimiterBarWidget>(),
-    };
+    const std::shared_ptr<LabWidget> fSpacer = addSpacer();
+    const std::shared_ptr<LimiterGroupRowWidget> fGroups = addWidget<LimiterGroupRowWidget>();
+    const std::shared_ptr<CardGroupWidget> fCards = addCards();
 
-    // created after the bar, so it draws over it and gets events first
+    // created after the groups, so it draws over them and gets events first
     const std::unique_ptr<LimiterMenuWidget> fMenu { new LimiterMenuWidget(this) };
 
+    Page fPage = kPageEasy;
     bool fHover = false;
     bool fDragging = false;
     float fDragOffset = 0.f;
 
 public:
     explicit LimiterStageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+        : BaseWidget(parent)
+    {
+        showPage(getCurrentPage(fInterface));
+        addIdleCallback(this);
+    }
 
     void openMenu(const FaustParameterIndex id, const Rectangle<float>& anchor, const Color& accent)
     {
@@ -554,6 +648,39 @@ public:
     }
 
 private:
+    std::shared_ptr<CardGroupWidget> addCards()
+    {
+        std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
+
+        widget->addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening");
+        widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
+        widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
+        widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
+        widget->done();
+
+        Layout::widgets.push_back({ widget.get(), Fixed });
+        return widget;
+    }
+
+    // the groups in Expert mode, the cards in Easy mode, neither on the other pages
+    void showPage(const Page page)
+    {
+        fPage = page;
+        fMenu->hide();
+        fGroups->setVisible(page == kPageExpert);
+        fCards->setVisible(page == kPageEasy);
+    }
+
+    void idleCallback() final
+    {
+        if (const Page page = getCurrentPage(fInterface); page != fPage)
+        {
+            showPage(page);
+            updateSize(true);
+            repaint();
+        }
+    }
+
     void updateSize(const bool updateChildren) final
     {
         BaseWidget::updateSize(updateChildren);
