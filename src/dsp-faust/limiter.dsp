@@ -53,7 +53,7 @@ unityGain = gain_group(checkbox("[3]Unity Gain[symbol:unity_gain][accentcolor:04
        limiter in and out compares its effect at matched level instead of
        rewarding the louder side]"));
 
-lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:03][bracket:ENVELOPE]
+lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:05]
       [tooltip: How far ahead the limiter sees, and so how long it takes to
        reach full reduction. Longer is smoother and cleaner on low end, shorter
        keeps more punch. Reported to the host as latency]",
