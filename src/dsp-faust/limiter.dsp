@@ -8,6 +8,7 @@ declare description "Lookahead brickwall limiter for mastering";
 declare license "GPL-3.0-or-later";
 declare name "Limiter";
 declare unique_id "LAli";
+declare graph "waveform-stereo";
 
 
 
@@ -27,12 +28,12 @@ time_group(x)  = knob_group(hgroup("[1]Timing", x));
 out_group(x)   = knob_group(hgroup("[2]Dither", x));
 
 
-gainDb = gain_group(vslider("[0]Gain[unit:dB][symbol:gain][accentcolor:01][easy]
-      [tooltip: Pushes the signal into the Ceiling. Everything is lifted by
-       this much and whatever then goes over the Ceiling is limited, so raising
-       it makes the master louder. Peaks are read as true peak unless True
-       Peak is off. At 0 dB only what is already over the Ceiling is limited]",
-                            0, 0, 24, 0.1));
+threshold = gain_group(vslider("[0]Threshold[unit:dB][symbol:threshold][accentcolor:01][easy]
+      [tooltip: Where limiting starts. Peaks above this are held down to the
+       Ceiling, and everything below is lifted by the gap between the two, so
+       lowering it makes the master louder. Read as true peak unless True Peak
+       is off. Set it to the Ceiling to limit only what is already over]",
+                               -1, -24, 0, 0.1));
 
 ceiling = gain_group(vslider("[1]Ceiling[unit:dB][symbol:ceiling][accentcolor:06][bracket:CEILING]
       [tooltip: The level the output is held under. With True Peak on that
@@ -49,11 +50,11 @@ tpOn = gain_group(nentry("[2]True Peak[symbol:true_peak][accentcolor:06][bracket
                          1, 0, 1, 1));
 
 unityGain = gain_group(checkbox("[3]Unity Gain[symbol:unity_gain][accentcolor:04]
-      [tooltip: Takes the Gain back off at the output, so switching the
+      [tooltip: Takes the make-up gain back off at the output, so switching the
        limiter in and out compares its effect at matched level instead of
        rewarding the louder side]"));
 
-lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:03][bracket:ENVELOPE]
+lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:05]
       [tooltip: How far ahead the limiter sees, and so how long it takes to
        reach full reduction. Longer is smoother and cleaner on low end, shorter
        keeps more punch. Reported to the host as latency]",
@@ -209,7 +210,8 @@ LATENCY = LA + OSDELAY;
 // Smoothed in dB, then converted. The other way round, si.smoo settles a hair
 // short of 1 in single precision and the limiter would never be an exact
 // pass-through; this way 0 dB stays exactly 0 and converts to exactly 1. With
-// Gain at 0 dB anything under the Ceiling comes out bit-identical, only
+// the Threshold on the Ceiling the difference is exactly zero whatever they
+// are set to, so anything under the Ceiling comes out bit-identical, only
 // delayed.
 //
 // Unity Gain takes off the same smoothed make-up, delayed to meet the audio it
@@ -234,7 +236,7 @@ with {
     loop(y1) = select2(first, y1 * p + x * (1 - p), x);
 };
 
-makeupDb = gainDb : smooI;
+makeupDb = ceiling - threshold : smooI;
 preGain  = makeupDb : ba.db2linear;
 ceilDb   = ceiling;
 postGain = 0 - de.delay(MAXLA, LATENCY, makeupDb) * (unityGain : smooI) : ba.db2linear;
