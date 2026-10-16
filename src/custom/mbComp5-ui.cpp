@@ -304,9 +304,24 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+struct MbComp5StageReference : Reference::Stage {
+    struct GridLabel {
+        static constexpr const Color color { 140,142,150 };
+        static constexpr const uint fontSize = 10;
+        static constexpr const uint letterSpacing = 0;
+    };
+    struct Line {
+        static constexpr const Color color { 0x3b, 0x3b, 0x44 };
+        static constexpr const Color color〡main { color, 0.7f };
+        static constexpr const Color color〡mid { color, 0.45f };
+        static constexpr const Color color〡other { color, 0.22f };
+        static constexpr const uint width = 1;
+    };
+};
+
 class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>
 {
-    using R = Reference::Stage;
+    using R = MbComp5StageReference;
     using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
 
     static constexpr const float kCrossoverFreqMin = kFaustParameters[kFaustParameterXover1].min;
@@ -355,16 +370,6 @@ private:
         return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f);
     }
 
-    static inline float freq2norm(const float freq)
-    {
-        return std::log(freq / 20.f) / std::log(1000.f);
-    }
-
-    static inline float norm2freq(const float norm)
-    {
-        return 20.f * std::pow(1000.f, norm);
-    }
-
     float nextFreq(const float freq, const float previous) const noexcept
     {
         const float minFreq = previous * kCrossoverRatio;
@@ -379,14 +384,16 @@ private:
         const float w = getWidth();
         const float h = getHeight();
         const float borderRadius = R::borderRadius * fScaleFactor;
+        const float margin = R::margin * fScaleFactor;
 
         const float freq1 = fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover1);
         const float freq2 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover2), freq1);
         const float freq3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), freq2);
         const float freq4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), freq3);
 
-        const std::array<double, 6> freqs = { 20, freq1, freq2, freq3, freq4, 20000 };
+        const std::array<double, 6> freqs = { kFreqMin, freq1, freq2, freq3, freq4, kFreqMax };
 
+        // background coloring matching each band dedicated frequency
         for (uint8_t b = 0; b < 5; ++b)
         {
             const float x1 = freq2norm(freqs[b]) * w;
@@ -399,6 +406,53 @@ private:
             fillColor(Color(Reference::kAccentColors[b + 1], live(b) ? .045f : .012f));
             // fillColor(Color(Reference::kAccentColors[b + 1]));
             fill();
+        }
+
+        // grid: 9 lines for each power of 10
+        {
+            const float gy = margin + R::GridLabel::fontSize * fScaleFactor * 0.5f;
+            char s[16];
+
+            fillColor(R::GridLabel::color);
+            fontFace("regular");
+            fontSize(R::GridLabel::fontSize * fScaleFactor);
+            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+            textLetterSpacing(R::GridLabel::letterSpacing * fScaleFactor);
+
+            for (float dec = 10.f; dec < kFreqMax; dec *= 10.f)
+            {
+                for (uint8_t m = 0; m < 9; ++m)
+                {
+                    const float freq = (m + 1) * dec;
+                    if (freq <= kFreqMin || freq >= kFreqMax)
+                        continue;
+
+                    const float x = freq2norm(freq) * w;
+
+                    switch (m)
+                    {
+                    case 0:
+                        drawReferenceLine<R::Line, R::Line::color〡main>(x, gy, x, h);
+                        break;
+                    case 4:
+                        drawReferenceLine<R::Line, R::Line::color〡mid>(x, gy, x, h);
+                        break;
+                    default:
+                        drawReferenceLine<R::Line, R::Line::color〡other>(x, gy, x, h);
+                        break;
+                    }
+
+                    if ((m == 0 || m == 1 || m == 4) && freq >= 50.f)
+                    {
+                        if (freq >= 1000.f)
+                            std::snprintf(s, sizeof(s), "%.0fk", freq * 0.001f);
+                        else
+                            std::snprintf(s, sizeof(s), "%.0f", freq);
+
+                        text(x, gy * 0.5f, s);
+                    }
+                }
+            }
         }
     }
 

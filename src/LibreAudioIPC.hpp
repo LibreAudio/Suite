@@ -6,15 +6,12 @@
 
 #include "dpf/Fifo.hpp"
 #include "dpf/SharedMemory.hpp"
+#include "LibreAudioUtils.hpp"
 
 #include "fft.hpp"
 
 #include <array>
 #include <cmath>
-
-#ifndef M_PIf
-#define M_PIf static_cast<float>(M_PI)
-#endif
 
 START_NAMESPACE_DISTRHO
 
@@ -35,17 +32,15 @@ inline constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-inline constexpr float db2coef(float db)
-{
-    return db > FFTAnalysis::kSmallestValue ? std::pow(10.f, db * 0.05f) : 0.f;
-}
-
-inline constexpr float coef2db(float coef)
-{
-    return std::pow(2.0, coef) * (-FFTAnalysis::kSmallestValue) - FFTAnalysis::kSmallestValue;
-}
-
-// coef = (+pow(2.0, coef * factor) - 1.0) / logfac * (max - min) + min;
+// inline constexpr float db2coef(float db)
+// {
+//     return db2coef(db, FFTAnalysis::kSmallestValue);
+// }
+//
+// inline constexpr float coef2db(float coef)
+// {
+//     return coef2db(coef, FFTAnalysis::kSmallestValue);
+// }
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -99,8 +94,6 @@ public:
         static constexpr const uint32_t kDataSize = kWindowSize / 2;
         static constexpr const float kResponseTimeSecs = 1.f;
 
-        static constexpr const float log1k = 6.907755279f;  // logf (1000);
-
        #if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__clang__)
         static constexpr const float tc = std::exp(-2.f * M_PIf * kResponseTimeSecs / 30.f);
        #else
@@ -123,7 +116,7 @@ public:
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
+            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / kLog1000f); // 20..20k
             if (b >= kNumBins - 1)
                 continue;
             if (b < 2)

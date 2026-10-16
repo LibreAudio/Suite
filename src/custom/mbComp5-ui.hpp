@@ -20,8 +20,6 @@ namespace LibreAudio::MbCompResponse {
     double crossoverFloor(double sr) {
         return std::min(crossoverMin, crossoverCeiling(sr) / std::pow(crossoverRatio, 3));
     }
-    inline double frequency(const double t) { return 20.0 * std::pow(1000.0, t); }
-    inline double position(const double f) { return std::log(f / 20.0) / std::log(1000.0); }
 
     inline std::array<double, 4> effectiveCrossovers(std::array<double, 4> xo, const double sr)
     {
@@ -196,7 +194,7 @@ private:
 #if 0
         std::array<double,6> edges {{20,freq[0],freq[1],freq[2],freq[3],20000}};
         for(int b=0;b<5;++b) {
-            const float x1=MbCompResponse::position(edges[b])*width(), x2=MbCompResponse::position(edges[b+1])*width();
+            const float x1=freq2norm(edges[b])*width(), x2=freq2norm(edges[b+1])*width();
             // The outer bands follow the display's rounded corners.
             const float left=b==0?kCorner:0,right=b==4?kCorner:0;
             cornerPath(x1,0,std::max(0.f,x2-x1),h,left,right,right,left);
@@ -209,7 +207,7 @@ private:
             std::array<float,5> db {}, centers {};
             for(int b=0;b<5;++b) {
                 db[b]=std::max(value(levels[b][0]),value(levels[b][1]));
-                centers[b]=MbCompResponse::position(std::sqrt(edges[b]*edges[b+1]));
+                centers[b]=freq2norm(std::sqrt(edges[b]*edges[b+1]));
             }
             beginPath();moveTo(0,h-kCorner);
             for(int i=0;i<=160;++i) {
@@ -230,7 +228,6 @@ private:
             closePath();
             fillPaint(linearGradient(0,g.y,0,h,Color(143,163,190,.45f),Color(45,49,59,.05f)));fill();
         }
-#endif
 
         // Logarithmic grid: 1-9 times each decade, so the lines crowd together toward
         // the top of every decade. Decades are strongest, then 5, then the rest.
@@ -241,7 +238,7 @@ private:
                 const float f=m*decade;
                 if (f<=20 || f>=20000)
                     continue;
-                const float x=MbCompResponse::position(f)*width();
+                const float x=freq2norm(f)*width();
                 line(x,g.y,x,h,Color(59,59,68,m==1?.7f:m==5?.45f:.22f));
                 if ((m==1 || m==2 || m==5) && f>=50) {
                     char s[16];
@@ -253,6 +250,8 @@ private:
                 }
             }
         }
+#endif
+
         for(int db : {6,0,-6,-12,-18}) {
             const float y=yDb(db);
             for(float x=0;x<width();x+=7)
@@ -277,7 +276,7 @@ private:
             std::array<float,steps+1> ys {};
             for(int i=0;i<=steps;++i)
                 ys[i]=yDb(MbCompResponse::response(
-                    MbCompResponse::frequency(i/static_cast<double>(steps)),freq,gains[c],slope,sampleRate()));
+                    norm2freq(i/static_cast<double>(steps)),freq,gains[c],slope,sampleRate()));
 
             const auto path = [&]() {
                 beginPath();
@@ -337,7 +336,7 @@ private:
         if(expert())
         {
             std::array<float,4> chips {};
-            for(int i=0;i<4;++i) chips[i]=std::max(112.f,static_cast<float>(MbCompResponse::position(freq[i])*width()));
+            for(int i=0;i<4;++i) chips[i]=std::max(112.f,static_cast<float>(freq2norm(freq[i])*width()));
             for(int i=1;i<4;++i) chips[i]=std::max(chips[i],chips[i-1]+76);
             for(int i=3;i>=0;--i) {
                 chips[i]=std::min(chips[i],width()-44);
@@ -345,7 +344,7 @@ private:
                     chips[i-1]=std::min(chips[i-1],chips[i]-76);
             }
             for(int i=0;i<4;++i) {
-                const float x=MbCompResponse::position(freq[i])*width();
+                const float x=freq2norm(freq[i])*width();
                 const float top=g.y, bottom=g.y+g.h, fade=g.h*.18f;
                 const Color color(colors[i+1],.5f), transparent(colors[i+1],0.f);
                 beginPath();

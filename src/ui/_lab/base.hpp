@@ -211,6 +211,31 @@ protected:
     }
 
     template <class R>
+    void drawReferenceLine(const float sx, const float sy, const float ex, const float ey)
+    {
+        drawReferenceLine<R, R::color>();
+    }
+
+    template <class R, const Color& color>
+    void drawReferenceLine(const float sx, const float sy, const float ex, const float ey)
+    {
+        if constexpr (d_isNotZero(R::color.alpha))
+        {
+            BaseWidget::beginPath();
+            BaseWidget::moveTo(sx, sy);
+            BaseWidget::lineTo(ex, ey);
+            BaseWidget::strokeColor(R::color);
+            if constexpr (R::width != 0)
+                BaseWidget::strokeWidth(R::width * fScaleFactor);
+            else if constexpr (R::height != 0)
+                BaseWidget::strokeWidth(R::height * fScaleFactor);
+            else
+                BaseWidget::strokeWidth(fScaleFactor);
+            BaseWidget::stroke();
+        }
+    }
+
+    template <class R>
     void drawReferenceText(const char* const text)
     {
         drawReferenceText<R, R::color>(text);
