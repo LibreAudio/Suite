@@ -328,6 +328,10 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
     static constexpr const float kCrossoverFreqMax = kFaustParameters[kFaustParameterXover4].max;
     static constexpr const float kCrossoverRatio = 2.f; // 2x previous freq for 1 octave between crossovers
 
+    static constexpr const int kGridDbMin = -18.f;
+    static constexpr const int kGridDbMax = 6.f;
+    static constexpr const int kGridDbRange = kGridDbMax - kGridDbMin;
+
     std::shared_ptr<MbComp5GraphWidget> graph { new MbComp5GraphWidget(this) };
 
 public:
@@ -408,22 +412,33 @@ private:
             fill();
         }
 
-        // grid: 9 lines for each power of 10
+        // grid and labels
+        fillColor(R::GridLabel::color);
+        fontFace("regular");
+        fontSize(R::GridLabel::fontSize * fScaleFactor);
+        strokeWidth(fScaleFactor);
+        textLetterSpacing(R::GridLabel::letterSpacing * fScaleFactor);
+
+        const float gfontsize = R::GridLabel::fontSize * fScaleFactor;
+        const float gmargin = margin + gfontsize * 0.5f;
+        const float gh = h - (R::margin * 2 + R::padding + R::GridLabel::fontSize +
+            (fLastPage == kPageExpert
+                ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::padding
+                : Reference::Widgets::CardGroup::height
+            )) * fScaleFactor;
+
+        graph->setBox(gmargin, w, gh);
+
+        // horizontal grid: 9 lines for each power of 10
         {
-            const float gy = margin + R::GridLabel::fontSize * fScaleFactor * 0.5f;
             char s[16];
-
-            fillColor(R::GridLabel::color);
-            fontFace("regular");
-            fontSize(R::GridLabel::fontSize * fScaleFactor);
             textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-            textLetterSpacing(R::GridLabel::letterSpacing * fScaleFactor);
 
-            for (float dec = 10.f; dec < kFreqMax; dec *= 10.f)
+            for (int dec = 10; dec < kFreqMax; dec *= 10)
             {
                 for (uint8_t m = 0; m < 9; ++m)
                 {
-                    const float freq = (m + 1) * dec;
+                    const int freq = (m + 1) * dec;
                     if (freq <= kFreqMin || freq >= kFreqMax)
                         continue;
 
@@ -432,26 +447,59 @@ private:
                     switch (m)
                     {
                     case 0:
-                        drawReferenceLine<R::Line, R::Line::color〡main>(x, gy, x, h);
+                        strokeColor(R::Line::color〡main);
                         break;
                     case 4:
-                        drawReferenceLine<R::Line, R::Line::color〡mid>(x, gy, x, h);
+                        strokeColor(R::Line::color〡mid);
                         break;
                     default:
-                        drawReferenceLine<R::Line, R::Line::color〡other>(x, gy, x, h);
+                        strokeColor(R::Line::color〡other);
                         break;
                     }
 
-                    if ((m == 0 || m == 1 || m == 4) && freq >= 50.f)
+                    beginPath();
+                    moveTo(x, gmargin);
+                    lineTo(x, h);
+                    stroke();
+
+                    if ((m == 0 || m == 1 || m == 4) && freq >= 50)
                     {
                         if (freq >= 1000.f)
-                            std::snprintf(s, sizeof(s), "%.0fk", freq * 0.001f);
+                            std::snprintf(s, sizeof(s), "%dk", freq / 1000);
                         else
-                            std::snprintf(s, sizeof(s), "%.0f", freq);
+                            std::snprintf(s, sizeof(s), "%d", freq);
 
-                        text(x, gy * 0.5f, s);
+                        text(x, gmargin * 0.5f, s);
                     }
                 }
+            }
+        }
+
+        // vertical grid, 1 line per each 6 dB
+        {
+            char s[24];
+
+            for (int db = kGridDbMin; db <= kGridDbMax; db += 6)
+            {
+                const float y = gmargin + static_cast<float>(kGridDbMax - db) / kGridDbRange * gh;
+
+                strokeColor(Color(0x64, 0x64, 0x70, db == 0 ? .5f : .22f));
+
+                for (float x = 0; x < w; x += 7 * fScaleFactor)
+                {
+                    beginPath();
+                    moveTo(x, y);
+                    lineTo(x + 3 * fScaleFactor, y);
+                    stroke();
+                }
+
+                std::snprintf(s, sizeof(s), "%c%d%s", db > 0 ? '+' : '-', std::abs(db), db == kGridDbMin ? " dB" : "");
+
+                textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+                text(gfontsize, y, s);
+
+                textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
+                text(w - gfontsize, y, s);
             }
         }
     }

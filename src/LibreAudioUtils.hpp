@@ -41,9 +41,12 @@ inline constexpr const float kDbScaleHalf__log = kLog10f; // std::log(kDbScaleHa
 // --------------------------------------------------------------------------------------------------------------------
 // Hz frequency related helpers
 
-inline constexpr const float kFreqMin = 20.f;
-inline constexpr const float kFreqMax = 20'000.f;
-inline constexpr const float kFreqScale = 1000.f;
+inline constexpr const int kFreqMin = 20;
+inline constexpr const int kFreqMax = 20'000;
+inline constexpr const int kFreqScale = 1000;
+inline constexpr const float kFreqMinf = kFreqMin;
+inline constexpr const float kFreqMaxf = kFreqMax;
+inline constexpr const float kFreqScalef = kFreqScale;
 inline constexpr const float kFreqScale__log = kLog1000f; // std::log(kFreqScale)
 
 [[nodiscard]] inline constexpr float freq2norm(const float freq)

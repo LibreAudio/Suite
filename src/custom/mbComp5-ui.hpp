@@ -134,10 +134,20 @@ struct Box {
 
 class MbComp5GraphWidget : public LabWidget
 {
+    Box _box;
+
 public:
     explicit MbComp5GraphWidget(LabWidget* const parent)
         : LabWidget(parent)
     {
+    }
+
+    void setBox(float margin, float width, float height)
+    {
+        _box.x = 0;
+        _box.y = margin / fScaleFactor;
+        _box.w = width / fScaleFactor;
+        _box.h = height / fScaleFactor;
     }
 
 private:
@@ -150,7 +160,8 @@ private:
     bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
     bool live(int b) const { return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f); }
 
-    Box graph() const { return {0,16,width(),std::max(70.f,height()-(expert() ? 380.f : 133.f))}; }
+    // Box graph() const { return {0,16,width(),std::max(70.f,height()-(expert() ? 380.f : 133.f))}; }
+    Box graph() const { return _box; }
     float yDb(float db) const { const Box g = graph(); return g.y+(6-db)/24*g.h; }
     std::array<double,4> xo() const {
         return MbCompResponse::effectiveCrossovers({value(crossovers[0]),value(crossovers[1]),value(crossovers[2]),value(crossovers[3])}, sampleRate());
@@ -184,13 +195,6 @@ private:
     void onNanoDisplay() final
     {
         // return;
-        save();
-        scale(fScaleFactor, fScaleFactor);
-
-        const Box g=graph();
-        const auto freq=xo();
-        const float h=height();
-
 #if 0
         std::array<double,6> edges {{20,freq[0],freq[1],freq[2],freq[3],20000}};
         for(int b=0;b<5;++b) {
@@ -250,7 +254,6 @@ private:
                 }
             }
         }
-#endif
 
         for(int db : {6,0,-6,-12,-18}) {
             const float y=yDb(db);
@@ -261,15 +264,29 @@ private:
             label(9,y,s,10,muted);
             label(width()-9,y,s,10,muted,ALIGN_RIGHT|ALIGN_MIDDLE);
         }
+#endif
+
         std::array<std::array<double,5>,2> gains {};
-        for(int c=0;c<2;++c) for(int b=0;b<5;++b) {
-            gains[c][b] = bypassed()?0: anyListen() && value(bands[b][5])<.5f ? -18 :
-            value(bands[b][6])>.5f?0:value(reductions[b][c])+value(bands[b][2]);
+        for(int c=0;c<2;++c) {
+            for(int b=0;b<5;++b) {
+                gains[c][b] = bypassed() ? 0 :
+                    anyListen() && value(bands[b][5]) < .5f ? -18 :
+                        value(bands[b][6]) > .5f ? 0 :
+                            value(reductions[b][c]) + value(bands[b][2]);
+            }
         }
+
+        save();
+        scale(fScaleFactor, fScaleFactor);
+
+        const Box g=graph();
+        const auto freq=xo();
+        const float h=height();
+
         // The solid mid and finer side curves use the real per-channel GR.
         // Match the DSP shelf cascade, including sample-rate frequency warping.
-        save();
-        scissor(0,0,width(),h);
+        // scissor(0,0,width(),h);
+
         constexpr int steps=256;
         const int slope=std::clamp(static_cast<int>(std::round(value(kFaustParameterSlope))),0,2);
         for(int c=1;c>=0;--c) {
@@ -332,7 +349,7 @@ private:
                 restore();
             }
         }
-        restore();
+
         if(expert())
         {
             std::array<float,4> chips {};

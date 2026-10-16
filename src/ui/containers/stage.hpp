@@ -133,8 +133,6 @@ class StageWidget : public LabWidget,
     std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
     std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
 
-    Page fLastPage = kPageEasy;
-
 public:
     StageWidget(LabWidget* const parent)
         : BaseWidget(parent)
@@ -169,7 +167,9 @@ public:
     }
 
 protected:
-    void idleCallback() final
+    Page fLastPage = kPageEasy;
+
+    void idleCallback() override
     {
         const Page page = getCurrentPage(fInterface);
         if (fLastPage == page)
