@@ -21,7 +21,8 @@
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
-// The stage is the display, with the starfield behind it, and the control bar floats at its bottom.
+// The stage is the display, with the starfield and the output waveform behind it, and the control bar floats at its
+// bottom.
 // The bar is styled like the mbComp5 band groups.
 
 struct LimiterBarReference : Reference::Zero {
@@ -152,7 +153,7 @@ class LimiterBarWidget final : public ReferenceContainerWidget<LimiterBarReferen
     const std::array<std::shared_ptr<LabWidget>, 10> widgets {
         addWidget<LimiterTogglesWidget>(),
         addSpacer(),
-        addWidget<LimiterNumberBoxWidget<kFaustParameterGain>, Expanding>(kFaustParameterGain),
+        addWidget<LimiterNumberBoxWidget<kFaustParameterThreshold>, Expanding>(kFaustParameterThreshold),
         addWidget<LimiterNumberBoxWidget<kFaustParameterCeiling>, Expanding>(kFaustParameterCeiling),
         addWidget<GapWidget>(),
         addWidget<LimiterNumberBoxWidget<kFaustParameterLookahead>, Expanding>(kFaustParameterLookahead),
@@ -221,9 +222,18 @@ START_NAMESPACE_DISTRHO
 
 class LimiterUI final : public LibreAudioBaseUI
 {
+    using WaveformShaderWidget = LibreAudio::BotShaderWidget<SHADERS_FFT_WAVEFORM_FRAG_DATA,
+                                                             SHADERS_FFT_WAVEFORM_FRAG_LEN,
+                                                             kNumSamplePointsForWaveform>;
+
     const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
         new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
+    };
+
+    // scrolling output peaks, above the starfield
+    const std::unique_ptr<WaveformShaderWidget> fShaderWaveform {
+        new WaveformShaderWidget(this, this)
     };
 
 public:
@@ -232,7 +242,13 @@ public:
     {
         createRootWidget<LibreAudio::LimiterRootWidget>();
 
-        fRootWidget->enableShaders({ fShaderBackground.get() });
+        fRootWidget->enableShaders({ fShaderBackground.get(), fShaderWaveform.get() });
+    }
+
+private:
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+        fShaderWaveform->push(std::max(value.ptr[0], value.ptr[1]));
     }
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LimiterUI)

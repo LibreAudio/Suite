@@ -616,10 +616,11 @@ bool LibreAudioPlugin::run()
         for (uint32_t i = 0; i < bufferSize; ++i)
         {
            #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
-            for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value)
-                    value = v;
+            // mono: the runner buffer holds one value per frame (the channel average), so data has bufferSize floats
+            if (const float v = std::min(1.f, std::abs(data[i])); v > value)
+                value = v;
            #else
+            // stereo: the runner buffer holds the output channels interleaved, so data has bufferSize * 2 floats
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
                 if (const float v = std::min(1.f, std::abs(data[i * DISTRHO_PLUGIN_NUM_OUTPUTS + c])); v > value.ptr[c])
                     value.ptr[c] = v;
