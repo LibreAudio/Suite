@@ -306,7 +306,7 @@ public:
 
 struct MbComp5StageReference : Reference::Stage {
     struct GridLabel {
-        static constexpr const Color color { 140,142,150 };
+        static constexpr const Color color { 140, 142, 150 };
         static constexpr const uint fontSize = 10;
         static constexpr const uint letterSpacing = 0;
     };
@@ -316,6 +316,13 @@ struct MbComp5StageReference : Reference::Stage {
         static constexpr const Color color〡mid { color, 0.45f };
         static constexpr const Color color〡other { color, 0.22f };
         static constexpr const uint width = 1;
+    };
+    struct FreqLine {
+        // font mono
+        static constexpr const Color backgroundColor { Line::color, 0.5f };
+        static constexpr const uint borderRadius = 4;
+        static constexpr const uint fontSize = 11;
+        static constexpr const uint letterSpacing = 0;
     };
 };
 
@@ -395,10 +402,11 @@ private:
         const float freq3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), freq2);
         const float freq4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), freq3);
 
-        const std::array<double, 6> freqs = { kFreqMin, freq1, freq2, freq3, freq4, kFreqMax };
+        char s[24];
+        const std::array<float, 6> freqs = { kFreqMin, freq1, freq2, freq3, freq4, kFreqMax };
 
         // background coloring matching each band dedicated frequency
-        for (uint8_t b = 0; b < 5; ++b)
+        for (uint8_t b = 0; b < freqs.size() - 1; ++b)
         {
             const float x1 = freq2norm(freqs[b]) * w;
             const float x2 = freq2norm(freqs[b + 1]) * w;
@@ -428,10 +436,10 @@ private:
             )) * fScaleFactor;
 
         graph->setBox(gmargin, w, gh);
+        graph->setFreqs({ freq1, freq2, freq3, freq4 });
 
-        // horizontal grid: 9 lines for each power of 10
+        // X grid: 9 lines for each power of 10
         {
-            char s[16];
             textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
 
             for (int dec = 10; dec < kFreqMax; dec *= 10)
@@ -464,7 +472,7 @@ private:
 
                     if ((m == 0 || m == 1 || m == 4) && freq >= 50)
                     {
-                        if (freq >= 1000.f)
+                        if (freq >= 1000)
                             std::snprintf(s, sizeof(s), "%dk", freq / 1000);
                         else
                             std::snprintf(s, sizeof(s), "%d", freq);
@@ -475,10 +483,8 @@ private:
             }
         }
 
-        // vertical grid, 1 line per each 6 dB
+        // Y grid, 1 line per each 6 dB
         {
-            char s[24];
-
             for (int db = kGridDbMin; db <= kGridDbMax; db += 6)
             {
                 const float y = gmargin + static_cast<float>(kGridDbMax - db) / kGridDbRange * gh;
@@ -500,6 +506,68 @@ private:
 
                 textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
                 text(w - gfontsize, y, s);
+            }
+        }
+
+        if (fLastPage == kPageExpert)
+        {
+            fontFace("mono");
+            fontSize(R::FreqLine::fontSize * fScaleFactor);
+            strokeWidth(1.2f * fScaleFactor);
+            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+            textLetterSpacing(R::FreqLine::letterSpacing * fScaleFactor);
+
+            Rectangle<float> bounds;
+
+            for (uint8_t i = 1; i < freqs.size() - 1; ++i)
+            {
+                const float freq = freqs[i];
+                const float x = freq2norm(freq) * w;
+                const float sy = gmargin;
+                const float ey = gmargin + gh;
+
+                const float fade = gh * .18f;
+
+                const Color& color = Reference::kAccentColors[i + 1];
+                const Color colorHalf(color, .5f);
+                const Color colorTrans(color, 0.f);
+
+                beginPath();
+                moveTo(x, sy);
+                lineTo(x, sy + fade);
+                strokePaint(linearGradient(x, sy, x, sy + fade, colorTrans, colorHalf));
+                stroke();
+
+                beginPath();
+                moveTo(x, sy + fade);
+                lineTo(x, ey - fade);
+                strokeColor(colorHalf);
+                stroke();
+
+                beginPath();
+                moveTo(x, ey - fade);
+                lineTo(x, ey);
+                strokePaint(linearGradient(x, ey - fade, x, ey, colorHalf, colorTrans));
+                stroke();
+
+                if (freq >= 1000.f)
+                    std::snprintf(s, sizeof(s), "%.1f kHz", static_cast<float>(freq) * 0.001f);
+                else
+                    std::snprintf(s, sizeof(s), "%.0f Hz", freq);
+
+                textBounds(x, gmargin + gh + margin, s, nullptr, bounds);
+
+                beginPath();
+                BaseWidget::roundedRect(bounds.getX() - gfontsize * 0.25f,
+                                        bounds.getY() - gfontsize * 0.25f,
+                                        bounds.getWidth() + gfontsize * 0.5f,
+                                        bounds.getHeight() + gfontsize * 0.5f,
+                                        R::FreqLine::borderRadius * fScaleFactor);
+                fillColor(R::FreqLine::backgroundColor);
+                fill();
+
+                fillColor(color);
+                text(x, gmargin + gh + margin, s);
             }
         }
     }
