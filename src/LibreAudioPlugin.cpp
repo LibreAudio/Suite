@@ -695,9 +695,6 @@ void LibreAudioPlugin::setVoiceIsolationParameter(const uint32_t index, const fl
 {
     switch (index)
     {
-    case kFaustParameterDepth:
-        fVoiceIsolation.setDepth(value);
-        break;
     case kFaustParameterMax_reduction:
         fVoiceIsolation.setMaxReduction(value);
         break;

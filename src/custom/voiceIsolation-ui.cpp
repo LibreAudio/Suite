@@ -28,10 +28,10 @@ namespace LibreAudio {
 // The stage holds the display, with the starfield behind it, and under it a row of control groups.
 // Each group is a raised glass panel styled like the eq's option bar.
 
+// the controls of a group, under its header; the labelled group around them draws the panel
 struct VoiceIsolationGroupReference : Reference::Zero {
-    static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
     static constexpr const uint borderRadius = 10;
-    static constexpr const uint margin = 11;
+    static constexpr const uint margin = 8;
     static constexpr const uint padding = 6;
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + margin * 2;
 };
@@ -148,8 +148,8 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// A floating panel holding one group of controls: number boxes, which share whatever width the row gives the
-// group, and controls of their own width.
+// One group's controls: number boxes, which share whatever width the row gives the group, and controls of their own
+// width.
 
 class VoiceIsolationGroupWidget : public ReferenceContainerWidget<VoiceIsolationGroupReference>
 {
@@ -185,44 +185,193 @@ public:
     {
         LabWidget::setWidth(width);
     }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// RNNoise's voice activity as a VU style needle, in a box drawn like a number box. The pivot sits below the box, so
+// the needle swings across the arc's upper part. The arc from the gate's Threshold up is drawn in the gate's colour,
+// so it shows where the needle opens the gate.
+
+struct VoiceIsolationVadMeterReference : Reference::Zero {
+    using Box = Reference::Widgets::NumberBox<>;
+    static constexpr const Color scaleColor = Reference::Colors::ink3;
+    static constexpr const Color needleColor = Reference::Colors::ink;
+    // pivot below the box's bottom edge, in box heights
+    static constexpr const float pivotDrop = 0.9f;
+    // room left and right of the arc, and above it
+    static constexpr const float margin = 10.f;
+    static constexpr const float top = 9.f;
+    // widest swing either side of vertical, in degrees
+    static constexpr const float maxAngle = 50.f;
+    // time constant the needle follows the meter with, in seconds
+    static constexpr const double timeConstant = 0.1;
+};
+
+class VoiceIsolationVadMeterWidget final : public LabWidget,
+                                           private IdleCallback
+{
+    using R = VoiceIsolationVadMeterReference;
+
+    // as drawn, in %
+    float fValue = 0.f;
+    float fThreshold = kFaustParameters[kFaustParameterThreshold].init;
+    double fLastTime = 0;
+
+public:
+    explicit VoiceIsolationVadMeterWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        updateSize(false);
+        addIdleCallback(this);
+    }
 
 private:
-    // a light tint, lit along the top edge, shaded along the bottom, with a faint rim all around;
-    // the stage draws its shadow, which reaches outside the panel
+    void idleCallback() final
+    {
+        const double now = getApp().getTime();
+        const double dt = fLastTime != 0 ? std::min(now - fLastTime, 0.1) : 0;
+        fLastTime = now;
+
+        const float target = fInterface->getParameterValue(kParametersMainStart + kFaustParameterVad);
+        const float threshold = fInterface->getParameterValue(kParametersMainStart + kFaustParameterThreshold);
+        bool changed = false;
+
+        if (std::abs(target - fValue) < 0.05f)
+        {
+            if (d_isNotEqual(target, fValue))
+            {
+                fValue = target;
+                changed = true;
+            }
+        }
+        else
+        {
+            fValue += (target - fValue) * static_cast<float>(1.0 - std::exp(-dt / R::timeConstant));
+            changed = true;
+        }
+
+        if (d_isNotEqual(threshold, fThreshold))
+        {
+            fThreshold = threshold;
+            changed = true;
+        }
+
+        if (changed)
+            repaint();
+    }
+
     void onNanoDisplay() final
     {
-        drawReferenceBackground<R>();
-
+        const float s = fScaleFactor;
         const float w = getWidth();
         const float h = getHeight();
-        const float r = R::borderRadius * fScaleFactor;
 
-        const auto edge = [&](const float y0, const float y1, const Color& from, const Color& to) {
-            save();
-            intersectScissor(0, std::min(y0, y1), w, std::abs(y1 - y0));
-            beginPath();
-            roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
-            strokePaint(linearGradient(0, y0, 0, y1, from, to));
-            strokeWidth(1.f);
-            stroke();
-            restore();
+        drawReferenceBackground<R::Box>();
+
+        // inset shading and border, as a number box draws them
+        beginPath();
+        roundedRect(0, 0, w, h, R::Box::borderRadius * s);
+        fillPaint(linearGradient(0, 0, 0, R::Box::margin * s,
+                                 R::Box::insetShadingColor, Reference::Colors::transparent));
+        fill();
+        strokeColor(R::Box::backgroundColor);
+        strokeWidth(R::Box::border * s * 0.5f);
+        stroke();
+
+        // the arc: as wide as the box allows, up to maxAngle either side
+        const float cx = w * 0.5f;
+        const float cy = h * (1.f + R::pivotDrop);
+        const float radius = cy - R::top * s;
+        const float halfWidth = std::max(1.f, cx - R::margin * s);
+        const float maxAngle = std::min(R::maxAngle * static_cast<float>(M_PI) / 180.f,
+                                        std::asin(std::min(1.f, halfWidth / radius)));
+
+        // 0 % at the left end, 100 % at the right, as an angle from vertical
+        const auto angleOf = [=](const float percent) {
+            return -maxAngle + std::clamp(percent, 0.f, 100.f) / 100.f * 2.f * maxAngle;
+        };
+        const auto pointAt = [=](const float angle, const float r) {
+            return Point<float>(cx + std::sin(angle) * r, cy - std::cos(angle) * r);
         };
 
-        edge(0, r, Color(1.f, 1.f, 1.f, 0.12f), Color(1.f, 1.f, 1.f, 0.f));
-        edge(h, h - r, Color(0.f, 0.f, 0.f, 0.22f), Color(0.f, 0.f, 0.f, 0.f));
+        save();
+        intersectScissor(0, 0, w, h);
 
-        beginPath();
-        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
-        strokeColor(Color(1.f, 1.f, 1.f, 0.05f));
-        strokeWidth(1.f);
-        stroke();
+        // scale: grey below the threshold, the gate's colour from it up
+        const float thresholdAngle = angleOf(fThreshold);
+        const auto arc = [&](const float from, const float to, const Color& color) {
+            if (to - from < 0.001f)
+                return;
+            beginPath();
+            this->arc(cx, cy, radius, from - static_cast<float>(M_PI) * 0.5f, to - static_cast<float>(M_PI) * 0.5f, CW);
+            strokeColor(color);
+            strokeWidth(1.2f * s);
+            stroke();
+        };
+        arc(-maxAngle, thresholdAngle, R::scaleColor);
+        arc(thresholdAngle, maxAngle, accentColor<kFaustParameterThreshold>());
+
+        // ticks every 25 %, and the threshold's tick in the gate's colour
+        for (int percent = 0; percent <= 100; percent += 25)
+        {
+            const float angle = angleOf(percent);
+            const Point<float> inner = pointAt(angle, radius - 4.f * s);
+            const Point<float> outer = pointAt(angle, radius);
+            beginPath();
+            moveTo(inner.getX(), inner.getY());
+            lineTo(outer.getX(), outer.getY());
+            strokeColor(angle >= thresholdAngle ? accentColor<kFaustParameterThreshold>() : R::scaleColor);
+            strokeWidth(1.f * s);
+            stroke();
+        }
+        {
+            const Point<float> inner = pointAt(thresholdAngle, radius - 6.f * s);
+            const Point<float> outer = pointAt(thresholdAngle, radius + 2.f * s);
+            beginPath();
+            moveTo(inner.getX(), inner.getY());
+            lineTo(outer.getX(), outer.getY());
+            strokeColor(accentColor<kFaustParameterThreshold>());
+            strokeWidth(1.5f * s);
+            stroke();
+        }
+
+        // the needle, from the pivot below the box to just past the arc
+        {
+            const Point<float> tip = pointAt(angleOf(fValue), radius + 3.f * s);
+            beginPath();
+            moveTo(cx, cy);
+            lineTo(tip.getX(), tip.getY());
+            lineCap(ROUND);
+            strokeColor(R::needleColor);
+            strokeWidth(1.5f * s);
+            stroke();
+        }
+
+        restore();
     }
+
+    // as tall as a number box, as wide as the group makes it
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::Box::height * fScaleFactor));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+class VoiceIsolationVoiceActivityGroupWidget final : public VoiceIsolationGroupWidget
+{
+    const std::array<std::shared_ptr<LabWidget>, 1> widgets {
+        addWidget<VoiceIsolationVadMeterWidget, Expanding>(),
+    };
+
+public:
+    explicit VoiceIsolationVoiceActivityGroupWidget(LabWidget* const parent)
+        : VoiceIsolationGroupWidget(parent, 1) {}
 };
 
 class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
-        addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterDepth>, Expanding>(kFaustParameterDepth),
+    const std::array<std::shared_ptr<LabWidget>, 3> widgets {
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterMax_reduction>, Expanding>(kFaustParameterMax_reduction),
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
         addWidget<VoiceIsolationToggleWidget<kFaustParameterPitch_enhancement>>(),
@@ -230,7 +379,7 @@ class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
 
 public:
     explicit VoiceIsolationDenoiseGroupWidget(LabWidget* const parent)
-        : VoiceIsolationGroupWidget(parent, 3) {}
+        : VoiceIsolationGroupWidget(parent, 2) {}
 };
 
 class VoiceIsolationGateGroupWidget final : public VoiceIsolationGroupWidget
@@ -289,23 +438,32 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// A group's name above its panel, centred, in the suite's bracket text style.
+// A group's header, styled like the reverb's section headers: its name in the group's accent colour, at the panel's
+// top left, in a 20 px row 4 px above the controls.
 
-struct VoiceIsolationGroupLabelReference : Reference::Zero {
-    using Bracket = Reference::Widgets::KnobGroup::Bracket;
-    static constexpr const uint height = 18;
+struct VoiceIsolationGroupHeaderReference : Reference::Zero {
+    static constexpr const float fontSize = 12.f;
+    static constexpr const float letterSpacing = 0.4f;
+    static constexpr const uint row = 20;
+    static constexpr const uint gap = 4;
+    // the panel's top margin, then the row and the gap; the controls' own top margin follows
+    static constexpr const uint height = VoiceIsolationGroupReference::margin + row + gap
+                                       - VoiceIsolationGroupReference::margin;
 };
 
-class VoiceIsolationGroupLabelWidget final : public LabWidget
+class VoiceIsolationGroupHeaderWidget final : public LabWidget
 {
-    using R = VoiceIsolationGroupLabelReference;
+    using R = VoiceIsolationGroupHeaderReference;
+    using G = VoiceIsolationGroupReference;
 
     const char* const fLabel;
+    const Color fColor;
 
 public:
-    VoiceIsolationGroupLabelWidget(LabWidget* const parent, const char* const label)
+    VoiceIsolationGroupHeaderWidget(LabWidget* const parent, const char* const label, const Color color)
         : LabWidget(parent),
-          fLabel(label)
+          fLabel(label),
+          fColor(color)
     {
         updateSize(false);
     }
@@ -314,11 +472,11 @@ private:
     void onNanoDisplay() final
     {
         fontFace("regular");
-        fontSize(R::Bracket::fontSize * fScaleFactor);
-        textLetterSpacing(R::Bracket::letterSpacing * fScaleFactor);
-        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        fillColor(R::Bracket::color);
-        text(getWidth() * 0.5f, getHeight() * 0.5f, fLabel, nullptr);
+        fontSize(R::fontSize * fScaleFactor);
+        textLetterSpacing(R::letterSpacing * fScaleFactor);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+        fillColor(fColor);
+        text((G::border + G::margin) * fScaleFactor, (G::margin + R::row * 0.5f) * fScaleFactor, fLabel, nullptr);
     }
 
     // as wide as the group makes it
@@ -329,11 +487,10 @@ private:
     }
 };
 
-// A panel with its label above it. The row sizes these, and they pass the sizes on to their panel.
+// A group's panel: its header over its controls. The row sizes these, and they pass the sizes on to their controls.
 
 struct VoiceIsolationLabeledGroupReference : Reference::Zero {
-    static constexpr const uint padding = 4;
-    static constexpr const uint height = VoiceIsolationGroupLabelReference::height + padding
+    static constexpr const uint height = VoiceIsolationGroupHeaderReference::height
                                        + VoiceIsolationGroupReference::height;
 };
 
@@ -342,20 +499,15 @@ class VoiceIsolationLabeledGroupWidget : public ReferenceContainerWidget<VoiceIs
     using BaseWidget = ReferenceContainerWidget<VoiceIsolationLabeledGroupReference, kVertical>;
 
     // addWidget's layout only points at its widgets, these own them
-    const std::shared_ptr<VoiceIsolationGroupLabelWidget> fLabel;
+    const std::shared_ptr<VoiceIsolationGroupHeaderWidget> fHeader;
 
 protected:
     std::shared_ptr<VoiceIsolationGroupWidget> fPanel;
 
 public:
-    VoiceIsolationLabeledGroupWidget(LabWidget* const parent, const char* const label)
+    VoiceIsolationLabeledGroupWidget(LabWidget* const parent, const char* const label, const Color color)
         : BaseWidget(parent),
-          fLabel(addWidget<VoiceIsolationGroupLabelWidget>(label)) {}
-
-    [[nodiscard]] const VoiceIsolationGroupWidget& getPanel() const noexcept
-    {
-        return *fPanel;
-    }
+          fHeader(addWidget<VoiceIsolationGroupHeaderWidget>(label, color)) {}
 
     [[nodiscard]] uint getBoxCount() const noexcept
     {
@@ -372,14 +524,49 @@ public:
         LabWidget::setWidth(width);
         fPanel->setGroupWidth(width);
     }
+
+private:
+    // the eq option bar's raised panel: a light tint, lit along the top edge, shaded along the bottom, with a faint
+    // rim all around; the stage draws its shadow, which reaches outside the panel
+    void onNanoDisplay() final
+    {
+        const float w = getWidth();
+        const float h = getHeight();
+        const float r = VoiceIsolationGroupReference::borderRadius * fScaleFactor;
+
+        beginPath();
+        roundedRect(0, 0, w, h, r);
+        fillColor(Color(1.f, 1.f, 1.f, 0.05f));
+        fill();
+
+        const auto edge = [&](const float y0, const float y1, const Color& from, const Color& to) {
+            save();
+            intersectScissor(0, std::min(y0, y1), w, std::abs(y1 - y0));
+            beginPath();
+            roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+            strokePaint(linearGradient(0, y0, 0, y1, from, to));
+            strokeWidth(1.f);
+            stroke();
+            restore();
+        };
+
+        edge(0, r, Color(1.f, 1.f, 1.f, 0.12f), Color(1.f, 1.f, 1.f, 0.f));
+        edge(h, h - r, Color(0.f, 0.f, 0.f, 0.22f), Color(0.f, 0.f, 0.f, 0.f));
+
+        beginPath();
+        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+        strokeColor(Color(1.f, 1.f, 1.f, 0.05f));
+        strokeWidth(1.f);
+        stroke();
+    }
 };
 
 template<class Panel>
 class VoiceIsolationLabeledGroupOf final : public VoiceIsolationLabeledGroupWidget
 {
 public:
-    VoiceIsolationLabeledGroupOf(LabWidget* const parent, const char* const label)
-        : VoiceIsolationLabeledGroupWidget(parent, label)
+    VoiceIsolationLabeledGroupOf(LabWidget* const parent, const char* const label, const Color color)
+        : VoiceIsolationLabeledGroupWidget(parent, label, color)
     {
         fPanel = addWidget<Panel>();
     }
@@ -399,17 +586,22 @@ class VoiceIsolationGroupRowWidget final : public ReferenceContainerWidget<Voice
     using R = VoiceIsolationGroupRowReference;
     using BaseWidget = ReferenceContainerWidget<R>;
 
-    const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 3> fGroups {
-        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationDenoiseGroupWidget>>("DENOISER"),
-        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationGateGroupWidget>>("GATE"),
-        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationMixGroupWidget>>("MIXER"),
+    const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 4> fGroups {
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationDenoiseGroupWidget>>(
+            "DENOISER", accentColor<kFaustParameterMax_reduction>()),
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationVoiceActivityGroupWidget>>(
+            "VOICE ACTIVITY", Reference::Colors::acc2),
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationGateGroupWidget>>(
+            "GATE", accentColor<kFaustParameterThreshold>()),
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationMixGroupWidget>>(
+            "MIXER", Reference::Colors::acc1),
     };
 
 public:
     explicit VoiceIsolationGroupRowWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
-    [[nodiscard]] const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 3>& getGroups() const noexcept
+    [[nodiscard]] const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 4>& getGroups() const noexcept
     {
         return fGroups;
     }
@@ -663,9 +855,12 @@ private:
         save();
         scissor(0, 0, w, h);
 
-        // hairline grid, 0 dB stronger, labelled on both sides as mbComp5 does
+        // hairline grid, 0 dB stronger, labelled on both sides on the lines themselves; each line stops short of its
+        // labels and fades in from them
         {
             const float labelMargin = 10.f * s;
+            const float labelGap = 6.f * s;
+            const float fade = 40.f * s;
             char label[16];
 
             fontFace("regular");
@@ -676,21 +871,37 @@ private:
             for (float db = kDisplayDbMax; db >= kDisplayDbMin; db -= kDisplayDbStep)
             {
                 const float y = std::round(yOfDb(db)) + 0.5f;
-
-                beginPath();
-                moveTo(0, y);
-                lineTo(w, y);
-                strokeColor(Color(0x64, 0x64, 0x70, d_isZero(db) ? 0.5f : 0.22f));
-                stroke();
+                const Color color(0x64, 0x64, 0x70, d_isZero(db) ? 0.5f : 0.22f);
 
                 std::snprintf(label, sizeof(label), "%d%s", static_cast<int>(db),
                               d_isEqual(db, kDisplayDbMin) ? " dB" : "");
 
+                Rectangle<float> bounds;
+                textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+                textBounds(0, 0, label, nullptr, bounds);
+
+                const float x0 = labelMargin + bounds.getWidth() + labelGap;
+                const float x1 = w - x0;
+
+                if (x1 - x0 > fade * 2.f)
+                {
+                    const auto segment = [&](const float from, const float to, const Paint& paint) {
+                        beginPath();
+                        moveTo(from, y);
+                        lineTo(to, y);
+                        strokePaint(paint);
+                        stroke();
+                    };
+
+                    segment(x0, x0 + fade, linearGradient(x0, y, x0 + fade, y, color.withAlpha(0.f), color));
+                    segment(x0 + fade, x1 - fade, linearGradient(x0 + fade, y, x1 - fade, y, color, color));
+                    segment(x1 - fade, x1, linearGradient(x1 - fade, y, x1, y, color, color.withAlpha(0.f)));
+                }
+
                 fillColor(Color(140, 142, 150));
-                textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
-                text(labelMargin, y - 2.f * s, label, nullptr);
-                textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-                text(w - labelMargin, y - 2.f * s, label, nullptr);
+                text(labelMargin, y, label, nullptr);
+                textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
+                text(w - labelMargin, y, label, nullptr);
             }
         }
 
@@ -709,7 +920,7 @@ private:
             }
         }
 
-        // fill between 0 dB and the curve, fading toward 0 dB in the curve's colours
+        // fill between 0 dB and the curve, fading out to fully transparent at 0 dB, in the curve's colours
         const float zero = yOfDb(0.f);
         for (int i = 0; i < kSteps; ++i)
         {
@@ -726,7 +937,7 @@ private:
             lineTo(right, ys[i + 1]);
             lineTo(right, zero);
             closePath();
-            fillPaint(linearGradient(0, zero, 0, edge, rainbow((left + right) / (2 * w), 0.015f),
+            fillPaint(linearGradient(0, zero, 0, edge, rainbow((left + right) / (2 * w), 0.f),
                                                        rainbow((left + right) / (2 * w), 0.24f)));
             fill();
         }
@@ -736,20 +947,20 @@ private:
         {
             const float left = section * w / (kRainbow.size() - 1);
             const float right = (section + 1) * w / (kRainbow.size() - 1);
-            const float opacity = off ? 0.25f : 0.95f;
+            const float opacity = off ? 0.18f : 0.7f;
 
             save();
             intersectScissor(left, 0, right - left, h);
 
             path();
-            strokeColor(rainbow((section + 0.5f) / (kRainbow.size() - 1), off ? 0.04f : 0.13f));
-            strokeWidth(6.f * s);
+            strokeColor(rainbow((section + 0.5f) / (kRainbow.size() - 1), off ? 0.025f : 0.08f));
+            strokeWidth(4.f * s);
             stroke();
 
             path();
             strokePaint(linearGradient(left, 0, right, 0, Color(kRainbow[section], opacity),
                                                           Color(kRainbow[section + 1], opacity)));
-            strokeWidth(2.f * s);
+            strokeWidth(1.2f * s);
             stroke();
 
             restore();
@@ -871,11 +1082,10 @@ private:
 
         for (const std::shared_ptr<VoiceIsolationLabeledGroupWidget>& group : fGroups->getGroups())
         {
-            const VoiceIsolationGroupWidget& panel = group->getPanel();
-            const float x = panel.getAbsoluteX() - getAbsoluteX();
-            const float y = panel.getAbsoluteY() - getAbsoluteY();
-            const float w = panel.getWidth();
-            const float h = panel.getHeight();
+            const float x = group->getAbsoluteX() - getAbsoluteX();
+            const float y = group->getAbsoluteY() - getAbsoluteY();
+            const float w = group->getWidth();
+            const float h = group->getHeight();
 
             beginPath();
             rect(x - 20.f * s, y, w + 40.f * s, h + 24.f * s);
