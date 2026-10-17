@@ -227,6 +227,8 @@ function(las_add_plugin LABEL)
     list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
   elseif("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
+  elseif("${LABEL}" STREQUAL "voiceIsolation")
+    list(APPEND EXTRA_DSP_LIBS las-rnnoise las-speex-resampler)
   endif()
 
   set(EXTRA_UI_LIBS)

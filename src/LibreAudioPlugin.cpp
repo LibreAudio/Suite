@@ -67,6 +67,12 @@ LibreAudioPlugin::LibreAudioPlugin()
     fOutputDSP->init(iSampleRate);
    #endif
 
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    fVoiceIsolation.setSampleRate(sampleRate);
+    for (uint32_t i = 0; i < kFaustParameterCount; ++i)
+        setVoiceIsolationParameter(i, fMainDSP->get(i));
+   #endif
+
    #if DISTRHO_PLUGIN_WANT_LATENCY
     fMainDSP->compute(0, fCycleBuffer);
     updateLatencyIfNeeded();
@@ -312,6 +318,11 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
         break;
    #endif
     }
+
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    if (index >= kParametersMainStart)
+        setVoiceIsolationParameter(index - kParametersMainStart, value);
+   #endif
 }
 
 #ifdef LIBREAUDIO_CUSTOM_UI
@@ -386,6 +397,10 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
        #if LIBREAUDIO_WANT_SPEECH_DETECTION
         fSpeechDetection.reset();
        #endif
+
+       #if LIBREAUDIO_WANT_VOICE_ISOLATION
+        fVoiceIsolation.reset();
+       #endif
     }
 
     float dry, wet;
@@ -432,10 +447,16 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
 
        #if LIBREAUDIO_WANT_COMMON_IO
         fInputDSP->compute(cycleFrames, fCycleBuffer);
+       #endif
+       #if LIBREAUDIO_WANT_VOICE_ISOLATION
+        fVoiceIsolation.process(fCycleBuffer, cycleFrames);
+       #endif
         fMainDSP->compute(cycleFrames, fCycleBuffer);
+       #if LIBREAUDIO_WANT_VOICE_ISOLATION
+        updateVoiceIsolationMeters();
+       #endif
+       #if LIBREAUDIO_WANT_COMMON_IO
         fOutputDSP->compute(cycleFrames, fCycleBuffer);
-       #else
-        fMainDSP->compute(cycleFrames, fCycleBuffer);
        #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
@@ -516,6 +537,10 @@ void LibreAudioPlugin::sampleRateChanged(const double newSampleRate)
    #if LIBREAUDIO_WANT_COMMON_IO
     fInputDSP->instanceConstants(sampleRate);
     fOutputDSP->instanceConstants(sampleRate);
+   #endif
+
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    fVoiceIsolation.setSampleRate(newSampleRate);
    #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
@@ -641,7 +666,11 @@ bool LibreAudioPlugin::run()
 #if DISTRHO_PLUGIN_WANT_LATENCY
 bool LibreAudioPlugin::updateLatencyIfNeeded()
 {
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    const uint32_t latency = fMainDSP->latency() + fVoiceIsolation.latency();
+   #else
     const uint32_t latency = fMainDSP->latency();
+   #endif
     DISTRHO_SAFE_ASSERT_UINT2_RETURN(latency < LIBREAUDIO_MAX_LATENCY_SAMPLES,
                                      latency,
                                      LIBREAUDIO_MAX_LATENCY_SAMPLES, true);
@@ -658,6 +687,50 @@ bool LibreAudioPlugin::updateLatencyIfNeeded()
     setLatency(latency);
 
     return true;
+}
+#endif
+
+#if LIBREAUDIO_WANT_VOICE_ISOLATION
+void LibreAudioPlugin::setVoiceIsolationParameter(const uint32_t index, const float value)
+{
+    switch (index)
+    {
+    case kFaustParameterVoice_isolation:
+        fVoiceIsolation.setEnabled(value > 0.5f);
+        break;
+    case kFaustParameterIntensity:
+        fVoiceIsolation.setIntensity(value);
+        break;
+    case kFaustParameterMax_reduction:
+        fVoiceIsolation.setMaxReduction(value);
+        break;
+    case kFaustParameterRelease:
+        fVoiceIsolation.setRelease(value);
+        break;
+    case kFaustParameterPitch_enhancement:
+        fVoiceIsolation.setPitchEnhancement(value > 0.5f);
+        break;
+    case kFaustParameterThreshold:
+        fVoiceIsolation.setThreshold(value);
+        break;
+    case kFaustParameterGrace_period:
+        fVoiceIsolation.setGracePeriod(value);
+        break;
+    }
+}
+
+void LibreAudioPlugin::updateVoiceIsolationMeters()
+{
+    static_assert(kFaustParameterBand_32 - kFaustParameterBand_1 + 1 == decltype(fVoiceIsolation)::kNumBands,
+                  "band meters must be consecutive, one per rnnoise band");
+
+    fMainDSP->set(kFaustParameterVad, fVoiceIsolation.vadCurrent());
+    fMainDSP->set(kFaustParameterVad_average, fVoiceIsolation.vadAverage());
+    fMainDSP->set(kFaustParameterVad_minimum, fVoiceIsolation.vadMinimum());
+    fMainDSP->set(kFaustParameterVad_maximum, fVoiceIsolation.vadMaximum());
+
+    for (uint32_t i = 0; i < fVoiceIsolation.kNumBands; ++i)
+        fMainDSP->set(kFaustParameterBand_1 + i, fVoiceIsolation.bandReduction(i));
 }
 #endif
 

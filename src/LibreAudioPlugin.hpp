@@ -22,6 +22,9 @@
 #if LIBREAUDIO_WANT_SPEECH_DETECTION
 #include "LibreAudioSpeechDetection.hpp"
 #endif
+#if LIBREAUDIO_WANT_VOICE_ISOLATION
+#include "LibreAudioVoiceIsolation.hpp"
+#endif
 
 struct FaustDSP;
 
@@ -148,6 +151,10 @@ private:
     LibreAudioSpeechDetection<2> fSpeechDetection;
    #endif
 
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    LibreAudioVoiceIsolation<kInternalBlockSize> fVoiceIsolation;
+   #endif
+
     float* const fInternalBuffer = new float[kInternalBlockSize * 2];
     float* fCycleBuffer[2] = {
         fInternalBuffer + (kInternalBlockSize * 0),
@@ -194,6 +201,13 @@ private:
    #if DISTRHO_PLUGIN_WANT_LATENCY
     // called when deactivated or during run()
     bool updateLatencyIfNeeded();
+   #endif
+
+   #if LIBREAUDIO_WANT_VOICE_ISOLATION
+    // forwards a main dsp parameter to fVoiceIsolation, if it is one of its controls
+    void setVoiceIsolationParameter(uint32_t index, float value);
+    // writes the fVoiceIsolation meters into the main dsp, must run after it computes
+    void updateVoiceIsolationMeters();
    #endif
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioPlugin)

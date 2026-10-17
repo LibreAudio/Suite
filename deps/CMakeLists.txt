@@ -59,7 +59,6 @@ target_include_directories(las-rnnoise
 target_sources(las-rnnoise
   PRIVATE
     rnnoise/src/celt_lpc.c
-    rnnoise/src/denoise.c
     rnnoise/src/kiss_fft.c
     rnnoise/src/nnet.c
     rnnoise/src/nnet_default.c
@@ -68,6 +67,8 @@ target_sources(las-rnnoise
     rnnoise/src/rnn.c
     rnnoise/src/rnnoise_tables.c
     rnnoise-model-data/rnnoise_data.c
+    # includes rnnoise/src/denoise.c
+    rnnoise-stereo.c
 )
 
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
@@ -97,5 +98,38 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
         "-msse4.1"
   )
 endif()
+
+# ---------------------------------------------------------------------------------------------------------------------
+# speexdsp resampler library
+
+add_library(las-speex-resampler STATIC)
+
+set_target_properties(las-speex-resampler
+  PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_definitions(las-speex-resampler
+  PUBLIC
+    OUTSIDE_SPEEX
+    RANDOM_PREFIX=las
+)
+
+# upstream code, not ours to fix
+target_compile_options(las-speex-resampler
+  PRIVATE
+    -Wno-sign-compare
+)
+
+target_include_directories(las-speex-resampler
+  PUBLIC
+    speexdsp/include/speex
+)
+
+target_sources(las-speex-resampler
+  PRIVATE
+    speex-resampler.c
+)
 
 # ---------------------------------------------------------------------------------------------------------------------
