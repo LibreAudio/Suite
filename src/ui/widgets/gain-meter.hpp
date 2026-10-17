@@ -226,12 +226,7 @@ private:
             text(w * 0.5f, endy, kParameterGain.unit);
 
             char textBuffer[24];
-
-            if (isInteger())
-                std::snprintf(textBuffer, sizeof(textBuffer), "%d", d_roundToInt(getValue()));
-            else
-                std::snprintf(textBuffer, sizeof(textBuffer), "%.1f", getValue());
-            textBuffer[sizeof(textBuffer) - 1] = '\0';
+            renderParameterValue(textBuffer, kParameterGain, getValue());
 
             fillColor(R::Value::color);
             fontFace("mono");
