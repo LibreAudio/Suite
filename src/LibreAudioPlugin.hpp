@@ -195,6 +195,7 @@ private:
    #endif
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
+    String fIPCFilename;
     bool run() final;
   #endif
 

@@ -86,6 +86,12 @@ public:
         return fSharedMem.isCreatedOrConnected();
     }
 
+    // creator-side only
+    const char* getFilename() const noexcept
+    {
+        return fSharedMem.getDataFilename();
+    }
+
     // adapted from https://github.com/x42/modspectre.lv2/blob/master/src/modspectre.c
     // Copyright (C) 2017 Robin Gareus <robin@gareus.org>
     // SPDX-License-Identifier: GPL-2.0-or-later
@@ -271,6 +277,12 @@ public:
     bool isCreatedOrConnected() const noexcept
     {
         return fSharedMem.isCreatedOrConnected();
+    }
+
+    // creator-side only
+    const char* getFilename() const noexcept
+    {
+        return fSharedMem.getDataFilename();
     }
 
     bool push(const ValueType& value)

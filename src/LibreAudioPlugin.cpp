@@ -329,17 +329,24 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
 void LibreAudioPlugin::setState(const char* const key [[maybe_unused]], const char* const value [[maybe_unused]])
 {
    #if LIBREAUDIO_WANT_GRAPH
+    // A host can create the next UI before the previous one is gone, so the order of open and close
+    // messages is not guaranteed. The DSP follows the most recently opened UI and only disconnects
+    // when that same UI closes.
     if (std::strcmp(key, kStateKeyFileMappingIPC) == 0)
     {
-        if (value[0] == '\0')
+        // the runner must not touch the shared memory while it gets remapped
+        stopRunner();
+        fIPC.close();
+
+        if (! fIPC.connect(value))
         {
-            stopRunner();
-            fRunnerBuffer.deleteBuffer();
-            fIPC.close();
+            fIPCFilename.clear();
             return;
         }
 
-        if (fIPC.connect(value))
+        fIPCFilename = value;
+
+        if (fRunnerBuffer.getSize() == 0)
         {
             static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
             static constexpr const uint32_t kBufferCycles = 32;
@@ -350,8 +357,21 @@ void LibreAudioPlugin::setState(const char* const key [[maybe_unused]], const ch
             fRunnerBufferSize = LibreAudioAnalyzerIPC::kWindowSize;
            #endif
             fRunnerBuffer.createBuffer(fRunnerBufferSize * kDataSize * kBufferCycles);
-            startRunner(kTargetIdleTimeMs);
         }
+
+        startRunner(kTargetIdleTimeMs);
+        return;
+    }
+
+    if (std::strcmp(key, kStateKeyFileMappingIPCClose) == 0)
+    {
+        if (fIPCFilename != value)
+            return;
+
+        stopRunner();
+        fRunnerBuffer.deleteBuffer();
+        fIPC.close();
+        fIPCFilename.clear();
     }
    #endif
 }

@@ -39,7 +39,9 @@ inline constexpr const char* kStateKeys[kStateCount] = {
     LIBREAUDIO_STATE_KEY_SNAPSHOT_VALUES_PREFIX "d",
 };
 
+// UI -> DSP only, never saved: the UI's shared memory filename on open, and again under the close key when it goes away
 inline constexpr const char kStateKeyFileMappingIPC[] = "ipc_file";
+inline constexpr const char kStateKeyFileMappingIPCClose[] = "ipc_file_close";
 
 inline constexpr const uint8_t kNumSnapshots = 4;
 
