@@ -695,12 +695,6 @@ void LibreAudioPlugin::setVoiceIsolationParameter(const uint32_t index, const fl
 {
     switch (index)
     {
-    case kFaustParameterVoice_isolation:
-        fVoiceIsolation.setEnabled(value > 0.5f);
-        break;
-    case kFaustParameterIntensity:
-        fVoiceIsolation.setIntensity(value);
-        break;
     case kFaustParameterMax_reduction:
         fVoiceIsolation.setMaxReduction(value);
         break;

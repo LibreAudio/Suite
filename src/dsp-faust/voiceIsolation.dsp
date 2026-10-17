@@ -13,8 +13,7 @@ import("stdfaust.lib");
 // (src/LibreAudioVoiceIsolation.hpp), stereo-linked: both channels get the
 // same spectral mask, the less attenuated estimate of either side per band.
 // A gate driven by RNNoise's voice activity mutes the denoised signal between
-// speech, then Intensity mixes it with the latency-aligned input.
-// The C++ side reads the controls from here, writes the meters, and reports
+// speech. The C++ side reads the controls from here, writes the meters, and reports
 // its latency to the host.
 //
 // This DSP only passes audio through; attach keeps the controls and meters in the UI.
@@ -27,7 +26,7 @@ numBands = 32;  // LAS_RNNOISE_NB_BANDS in deps/rnnoise-stereo.h
 
 process = attach(_, controls + meters), _;
 
-controls = enabled + intensity + maxReduction + release + pitchEnhancement + threshold + gracePeriod;
+controls = maxReduction + release + pitchEnhancement + threshold + gracePeriod;
 meters = vadMeters :> _ + (bandMeters :> _);
 
 // --- UI structure ---
@@ -39,32 +38,22 @@ uiMeters(x)      = hgroup("[9]", x);
 
 // --- Parameters ---
 
-// checkbox always initialises to 0, so the defaults-on switch is a radio.
-enabled = uiBottomLeft(nentry("[01]Voice Isolation[symbol:voice_isolation][label:Isolation][bracket:DENOISE]
-      [style:radio{'Off':0;'On':1}]
-      [tooltip: Off passes the input unchanged, keeping the latency]",
-                              1, 0, 1, 1));
-
-intensity = uiBottomLeft(hslider("[02]Intensity[style:knob][unit:%][symbol:intensity][label:Intensity][accentcolor:01][bracket:DENOISE][easy]
-      [tooltip: Mix of the denoised signal with the input]",
-                                 100, 0, 100, 1));
-
-maxReduction = uiBottomLeft(hslider("[03]Max Reduction[style:knob][unit:dB][symbol:max_reduction][label:Max Red.][accentcolor:01][bracket:DENOISE]
+maxReduction = uiBottomLeft(hslider("[01]Max Reduction[style:knob][unit:dB][symbol:max_reduction][label:Max Red.][accentcolor:01][bracket:DENOISE][easy]
       [tooltip: Limits how far any band is turned down. 100 dB is no limit]",
                                     100, 0, 100, 1));
 
-release = uiBottomLeft(hslider("[04]Release[style:knob][unit:ms][scale:log][symbol:release][label:Release][accentcolor:03][bracket:DENOISE]
+release = uiBottomLeft(hslider("[02]Release[style:knob][unit:ms][scale:log][symbol:release][label:Release][accentcolor:03][bracket:DENOISE]
       [tooltip: Fastest a band may fall by 60 dB. RNNoise's own is 135 ms]",
                                135, 10, 1000, 1));
 
-pitchEnhancement = uiBottomLeft(checkbox("[05]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][bracket:DENOISE]
+pitchEnhancement = uiBottomLeft(checkbox("[03]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][bracket:DENOISE]
       [tooltip: Restores voice harmonics between the bands, estimated per channel, which can blur the stereo image]"));
 
-threshold = uiBottomRight(hslider("[06]Threshold[style:knob][unit:%][symbol:threshold][label:Threshold][accentcolor:04][bracket:GATE]
+threshold = uiBottomRight(hslider("[04]Threshold[style:knob][unit:%][symbol:threshold][label:Threshold][accentcolor:04][bracket:GATE]
       [tooltip: Voice activity needed to open the gate. 0% keeps it open]",
                                   50, 0, 100, 1));
 
-gracePeriod = uiBottomRight(hslider("[07]Grace Period[style:knob][unit:ms][symbol:grace_period][label:Grace][accentcolor:04][bracket:GATE]
+gracePeriod = uiBottomRight(hslider("[05]Grace Period[style:knob][unit:ms][symbol:grace_period][label:Grace][accentcolor:04][bracket:GATE]
       [tooltip: How long the gate stays open after voice activity drops]",
                                     1000, 0, 2000, 1));
 

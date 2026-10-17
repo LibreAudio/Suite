@@ -20,8 +20,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 // Stereo RNNoise voice isolation, processing audio in place with a fixed latency.
 // RNNoise only works at 48 kHz, other host rates are resampled into and out of it.
-// A gate driven by RNNoise's voice activity mutes the denoised signal between speech,
-// then Intensity mixes it with the latency-aligned input.
+// A gate driven by RNNoise's voice activity mutes the denoised signal between speech.
 
 template<uint32_t maxBlockSize>
 class LibreAudioVoiceIsolation
@@ -70,18 +69,9 @@ private:
     float fFrameIn[2][kFrameSize] = {};
     float fFrameOut[2][kFrameSize] = {};
 
-    // input of the 2 previous frames, the oldest one lines up with rnnoise output
-    float fFrameDry1[2][kFrameSize] = {};
-    float fFrameDry2[2][kFrameSize] = {};
-
     // host rate, one resampled rnnoise frame
     float* fHostOut[2] = {};
     HeapRingBuffer fRingBufferOut[2];
-
-    // wet amount, 0 to 1, at 48 kHz
-    bool fEnabled = true;
-    float fIntensityValue = 1.f;
-    LinearValueSmoother fIntensity;
 
     // gate on the denoised signal, at 48 kHz
     float fThreshold = 0.5f;
@@ -103,10 +93,6 @@ private:
 public:
     LibreAudioVoiceIsolation()
     {
-        fIntensity.setSampleRate(kProcessingRate);
-        fIntensity.setTimeConstant(0.02f);
-        fIntensity.setTargetValue(1.f);
-
         fGate.setSampleRate(kProcessingRate);
         fGate.setTimeConstant(kGateRelease);
         fGate.setTargetValue(0.f);
@@ -123,19 +109,6 @@ public:
 
    /* -----------------------------------------------------------------------------------------------------------------
     * Parameters */
-
-    void setEnabled(const bool enabled) noexcept
-    {
-        fEnabled = enabled;
-        fIntensity.setTargetValue(fEnabled ? fIntensityValue : 0.f);
-    }
-
-    // in %
-    void setIntensity(const float value) noexcept
-    {
-        fIntensityValue = value * 0.01f;
-        fIntensity.setTargetValue(fEnabled ? fIntensityValue : 0.f);
-    }
 
     // voice activity needed to open the gate, in %
     void setThreshold(const float value) noexcept
@@ -252,8 +225,6 @@ public:
         {
             rnnoise_init(fDenoise[c], nullptr);
             std::memset(fFrameOut[c], 0, kFrameSizeF);
-            std::memset(fFrameDry1[c], 0, kFrameSizeF);
-            std::memset(fFrameDry2[c], 0, kFrameSizeF);
         }
 
         if (fResamplerIn != nullptr)
@@ -263,7 +234,6 @@ public:
         }
 
         fFrameInPos = 0;
-        fIntensity.clearToTargetValue();
 
         fGraceFramesLeft = 0;
         fGate.setTimeConstant(kGateRelease);
@@ -386,19 +356,13 @@ private:
             }
 
             const float gate = fGate.next();
-            const float wet = fIntensity.next();
-            const float dry = 1.f - wet;
 
             for (int c = 0; c < 2; ++c)
-                fFrameOut[c][i] = fFrameOut[c][i] * gate * wet + fFrameDry2[c][i] * dry;
+                fFrameOut[c][i] *= gate;
         }
 
         for (int c = 0; c < 2; ++c)
-        {
-            std::memcpy(fFrameDry2[c], fFrameDry1[c], kFrameSizeF);
-            std::memcpy(fFrameDry1[c], fFrameIn[c], kFrameSizeF);
             writeOutput(c);
-        }
     }
 
     void updateMeters(const float vad) noexcept
