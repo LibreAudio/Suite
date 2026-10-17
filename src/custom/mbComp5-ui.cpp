@@ -555,7 +555,7 @@ private:
                 else
                     std::snprintf(s, sizeof(s), "%.0f Hz", freq);
 
-                textBounds(x, gmargin + gh + margin, s, nullptr, bounds);
+                textBounds(x, gmargin + gh, s, nullptr, bounds);
 
                 beginPath();
                 BaseWidget::roundedRect(bounds.getX() - gfontsize * 0.25f,
@@ -567,7 +567,7 @@ private:
                 fill();
 
                 fillColor(color);
-                text(x, gmargin + gh + margin, s);
+                text(x, gmargin + gh, s);
             }
         }
     }
