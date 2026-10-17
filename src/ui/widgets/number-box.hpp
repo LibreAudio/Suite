@@ -22,8 +22,13 @@ class NumberBoxWidget final : public LabKnobWidget
 
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
-        : BaseWidget(parent, kParametersMainStart + id),
-          fParameter(kFaustParameters[id])
+        : NumberBoxWidget(parent, kParametersMainStart + id, &kFaustParameters[id]) {}
+
+    // For a host parameter outside the main dsp, such as the common dry/wet. The description is passed by pointer, as
+    // addWidget copies its arguments, and must outlive the widget.
+    explicit NumberBoxWidget(LabWidget* const parent, const uint32_t parameterId, const FaustParameter* const parameter)
+        : BaseWidget(parent, parameterId),
+          fParameter(*parameter)
     {
         setName(fParameter.name);
         setDefault(fParameter.init);

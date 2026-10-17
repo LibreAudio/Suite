@@ -70,7 +70,7 @@ inline void initCommonParameterValuesToDefault(float values[kCommonParameterCoun
             break;
        #if LIBREAUDIO_WANT_DRYWET
         case kCommonParameterDryWet:
-            values[i] = 50.f;
+            values[i] = LIBREAUDIO_DRYWET_DEFAULT;
        #endif
             break;
         case kCommonParameterCount:

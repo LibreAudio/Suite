@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
+#include <cstring>
+#include <utility>
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -52,8 +55,8 @@ constexpr const Color& accentColor() noexcept
 template<FaustParameterIndex id>
 using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
 
-// An on / off parameter shown as its name only, as tall as a number box: grey when off, accent colour when on,
-// 70% accent when hovered.
+// An on / off parameter shown as its name only, two words on two lines, as tall as a number box: grey when off,
+// accent colour when on, 70% accent when hovered.
 
 struct VoiceIsolationToggleReference : Reference::Zero {
     static constexpr const Color color = Reference::Colors::ink3;
@@ -61,6 +64,8 @@ struct VoiceIsolationToggleReference : Reference::Zero {
     static constexpr const float letterSpacing = fontSize * 0.06f;
     static constexpr const uint margin = 6;
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height;
+    // distance between the two lines of a two-word name
+    static constexpr const float lineHeight = 16.f;
 };
 
 template<FaustParameterIndex id>
@@ -85,24 +90,57 @@ private:
         textLetterSpacing(R::letterSpacing * fScaleFactor);
     }
 
+    // the name in two lines, split at its first space, or one line without a space
+    [[nodiscard]] std::array<std::pair<const char*, const char*>, 2> lines() const noexcept
+    {
+        const char* const name = getName();
+        const char* const space = std::strchr(name, ' ');
+
+        if (space == nullptr)
+            return {{ { name, nullptr }, { nullptr, nullptr } }};
+
+        return {{ { name, space }, { space + 1, nullptr } }};
+    }
+
     void onNanoDisplay() final
     {
         constexpr const Color& accent = accentColor<id>();
+        const auto [first, second] = lines();
+        const float x = R::margin * fScaleFactor;
+        const float cy = getHeight() * 0.5f;
+        const float half = R::lineHeight * 0.5f * fScaleFactor;
 
         setupFont();
         fillColor(isChecked() ? accent : isHovered() ? accent.withAlpha(0.7f) : R::color);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        text(R::margin * fScaleFactor, getHeight() * 0.5f, getName(), nullptr);
+
+        if (second.first == nullptr)
+        {
+            text(x, cy, first.first, first.second);
+            return;
+        }
+
+        text(x, cy - half, first.first, first.second);
+        text(x, cy + half, second.first, second.second);
     }
 
     void updateSize(const bool updateChildren) final
     {
-        Rectangle<float> bounds;
         setupFont();
         textAlign(0);
-        textBounds(0, 0, getName(), nullptr, bounds);
 
-        setSize(d_roundToUnsignedInt(bounds.getWidth() + R::margin * 2 * fScaleFactor),
+        float width = 0.f;
+        for (const auto& [start, end] : lines())
+        {
+            if (start == nullptr)
+                continue;
+
+            Rectangle<float> bounds;
+            textBounds(0, 0, start, end, bounds);
+            width = std::max(width, bounds.getWidth());
+        }
+
+        setSize(d_roundToUnsignedInt(width + R::margin * 2 * fScaleFactor),
                 d_roundToUnsignedInt(R::height * fScaleFactor));
 
         BaseWidget::updateSize(updateChildren);
@@ -183,7 +221,8 @@ private:
 
 class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 3> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
+        addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterDepth>, Expanding>(kFaustParameterDepth),
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterMax_reduction>, Expanding>(kFaustParameterMax_reduction),
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
         addWidget<VoiceIsolationToggleWidget<kFaustParameterPitch_enhancement>>(),
@@ -191,7 +230,7 @@ class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
 
 public:
     explicit VoiceIsolationDenoiseGroupWidget(LabWidget* const parent)
-        : VoiceIsolationGroupWidget(parent, 2) {}
+        : VoiceIsolationGroupWidget(parent, 3) {}
 };
 
 class VoiceIsolationGateGroupWidget final : public VoiceIsolationGroupWidget
@@ -206,13 +245,153 @@ public:
         : VoiceIsolationGroupWidget(parent, 2) {}
 };
 
+// The common Dry / Wet, which LibreAudioPlugin mixes with the latency-aligned input, described for a number box.
+
+static constexpr const FaustParameter kDryWetParameter = {
+    .bracket = "",
+    .label = "Dry-Wet",
+    .shortlabel = "",
+    .name = "Dry / Wet",
+    .symbol = "dry_wet",
+    .tooltip = "",
+    .unit = "%",
+    .init = LIBREAUDIO_DRYWET_DEFAULT,
+    .min = 0.f,
+    .max = 100.f,
+    .step = 1.f,
+    .accentcolor = 1,
+    .scalePoints = nullptr,
+    .scalePointCount = 0,
+    .requirement = {
+        .context = nullptr,
+        .symbol = nullptr,
+        .value = -1,
+    },
+    .isBoolean = false,
+    .isEasy = false,
+    .isEnumerator = false,
+    .isDynamic = false,
+    .isInteger = false,
+    .isLogarithmic = false,
+    .isOutput = false,
+    .isTrigger = false,
+};
+
+class VoiceIsolationMixGroupWidget final : public VoiceIsolationGroupWidget
+{
+    const std::array<std::shared_ptr<LabWidget>, 1> widgets {
+        addWidget<NumberBoxWidget<Reference::Colors::acc1>, Expanding>(kCommonParameterDryWet, &kDryWetParameter),
+    };
+
+public:
+    explicit VoiceIsolationMixGroupWidget(LabWidget* const parent)
+        : VoiceIsolationGroupWidget(parent, 1) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// A group's name above its panel, centred, in the suite's bracket text style.
+
+struct VoiceIsolationGroupLabelReference : Reference::Zero {
+    using Bracket = Reference::Widgets::KnobGroup::Bracket;
+    static constexpr const uint height = 18;
+};
+
+class VoiceIsolationGroupLabelWidget final : public LabWidget
+{
+    using R = VoiceIsolationGroupLabelReference;
+
+    const char* const fLabel;
+
+public:
+    VoiceIsolationGroupLabelWidget(LabWidget* const parent, const char* const label)
+        : LabWidget(parent),
+          fLabel(label)
+    {
+        updateSize(false);
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        fontFace("regular");
+        fontSize(R::Bracket::fontSize * fScaleFactor);
+        textLetterSpacing(R::Bracket::letterSpacing * fScaleFactor);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        fillColor(R::Bracket::color);
+        text(getWidth() * 0.5f, getHeight() * 0.5f, fLabel, nullptr);
+    }
+
+    // as wide as the group makes it
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::height * fScaleFactor));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// A panel with its label above it. The row sizes these, and they pass the sizes on to their panel.
+
+struct VoiceIsolationLabeledGroupReference : Reference::Zero {
+    static constexpr const uint padding = 4;
+    static constexpr const uint height = VoiceIsolationGroupLabelReference::height + padding
+                                       + VoiceIsolationGroupReference::height;
+};
+
+class VoiceIsolationLabeledGroupWidget : public ReferenceContainerWidget<VoiceIsolationLabeledGroupReference, kVertical>
+{
+    using BaseWidget = ReferenceContainerWidget<VoiceIsolationLabeledGroupReference, kVertical>;
+
+    // addWidget's layout only points at its widgets, these own them
+    const std::shared_ptr<VoiceIsolationGroupLabelWidget> fLabel;
+
+protected:
+    std::shared_ptr<VoiceIsolationGroupWidget> fPanel;
+
+public:
+    VoiceIsolationLabeledGroupWidget(LabWidget* const parent, const char* const label)
+        : BaseWidget(parent),
+          fLabel(addWidget<VoiceIsolationGroupLabelWidget>(label)) {}
+
+    [[nodiscard]] const VoiceIsolationGroupWidget& getPanel() const noexcept
+    {
+        return *fPanel;
+    }
+
+    [[nodiscard]] uint getBoxCount() const noexcept
+    {
+        return fPanel->getBoxCount();
+    }
+
+    [[nodiscard]] uint getFixedWidth() const noexcept
+    {
+        return fPanel->getFixedWidth();
+    }
+
+    void setGroupWidth(const uint width)
+    {
+        LabWidget::setWidth(width);
+        fPanel->setGroupWidth(width);
+    }
+};
+
+template<class Panel>
+class VoiceIsolationLabeledGroupOf final : public VoiceIsolationLabeledGroupWidget
+{
+public:
+    VoiceIsolationLabeledGroupOf(LabWidget* const parent, const char* const label)
+        : VoiceIsolationLabeledGroupWidget(parent, label)
+    {
+        fPanel = addWidget<Panel>();
+    }
+};
+
 // --------------------------------------------------------------------------------------------------------------------
 // The row of groups along the bottom of the display, a fixed gap apart. Every number box gets the same width, from
 // what the row has left once the groups' fixed parts and the gaps are taken out.
 
 struct VoiceIsolationGroupRowReference : Reference::Zero {
     static constexpr const uint padding = 8;
-    static constexpr const uint height = VoiceIsolationGroupReference::height;
+    static constexpr const uint height = VoiceIsolationLabeledGroupReference::height;
 };
 
 class VoiceIsolationGroupRowWidget final : public ReferenceContainerWidget<VoiceIsolationGroupRowReference>
@@ -220,16 +399,17 @@ class VoiceIsolationGroupRowWidget final : public ReferenceContainerWidget<Voice
     using R = VoiceIsolationGroupRowReference;
     using BaseWidget = ReferenceContainerWidget<R>;
 
-    const std::array<std::shared_ptr<VoiceIsolationGroupWidget>, 2> fGroups {
-        addWidget<VoiceIsolationDenoiseGroupWidget>(),
-        addWidget<VoiceIsolationGateGroupWidget>(),
+    const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 3> fGroups {
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationDenoiseGroupWidget>>("DENOISER"),
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationGateGroupWidget>>("GATE"),
+        addWidget<VoiceIsolationLabeledGroupOf<VoiceIsolationMixGroupWidget>>("MIXER"),
     };
 
 public:
     explicit VoiceIsolationGroupRowWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
-    [[nodiscard]] const std::array<std::shared_ptr<VoiceIsolationGroupWidget>, 2>& getGroups() const noexcept
+    [[nodiscard]] const std::array<std::shared_ptr<VoiceIsolationLabeledGroupWidget>, 3>& getGroups() const noexcept
     {
         return fGroups;
     }
@@ -241,7 +421,7 @@ private:
         int available = static_cast<int>(getWidth()) - gap * static_cast<int>(fGroups.size() - 1);
         uint boxes = 0;
 
-        for (const std::shared_ptr<VoiceIsolationGroupWidget>& group : fGroups)
+        for (const std::shared_ptr<VoiceIsolationLabeledGroupWidget>& group : fGroups)
         {
             available -= static_cast<int>(group->getFixedWidth());
             boxes += group->getBoxCount();
@@ -249,7 +429,7 @@ private:
 
         const uint boxWidth = boxes != 0 ? static_cast<uint>(std::max(0, available) / static_cast<int>(boxes)) : 0;
 
-        for (const std::shared_ptr<VoiceIsolationGroupWidget>& group : fGroups)
+        for (const std::shared_ptr<VoiceIsolationLabeledGroupWidget>& group : fGroups)
             group->setGroupWidth(group->getFixedWidth() + group->getBoxCount() * boxWidth);
     }
 
@@ -279,6 +459,9 @@ static constexpr const std::array<int, kNumBands + 2> kBandEdges {{
 // out through the bottom
 static constexpr const float kDisplayDbMax = 0.f;
 static constexpr const float kDisplayDbMin = -48.f;
+
+// hairline grid across the scale, labelled on both sides
+static constexpr const float kDisplayDbStep = 6.f;
 
 // how quickly the drawn curve follows the band meters, in seconds
 static constexpr const double kCurveTimeConstant = 0.06;
@@ -310,6 +493,9 @@ class VoiceIsolationDisplayWidget final : public LabWidget,
     // band reduction as drawn, easing towards the band meters, in dB
     std::array<float, kNumBands> fBandReduction {};
     double fLastTime = 0;
+
+    // Max Reduction as drawn, in dB
+    float fMaxReduction = kFaustParameters[kFaustParameterMax_reduction].init;
 
 public:
     explicit VoiceIsolationDisplayWidget(LabWidget* const parent)
@@ -351,6 +537,14 @@ private:
             }
 
             fBandReduction[i] += (target - fBandReduction[i]) * coef;
+            changed = true;
+        }
+
+        const float maxReduction = fInterface->getParameterValue(kParametersMainStart + kFaustParameterMax_reduction);
+
+        if (d_isNotEqual(maxReduction, fMaxReduction))
+        {
+            fMaxReduction = maxReduction;
             changed = true;
         }
 
@@ -468,6 +662,52 @@ private:
         // curve clips itself to the display
         save();
         scissor(0, 0, w, h);
+
+        // hairline grid, 0 dB stronger, labelled on both sides as mbComp5 does
+        {
+            const float labelMargin = 10.f * s;
+            char label[16];
+
+            fontFace("regular");
+            fontSize(10.f * s);
+            textLetterSpacing(0.f);
+            strokeWidth(1.f);
+
+            for (float db = kDisplayDbMax; db >= kDisplayDbMin; db -= kDisplayDbStep)
+            {
+                const float y = std::round(yOfDb(db)) + 0.5f;
+
+                beginPath();
+                moveTo(0, y);
+                lineTo(w, y);
+                strokeColor(Color(0x64, 0x64, 0x70, d_isZero(db) ? 0.5f : 0.22f));
+                stroke();
+
+                std::snprintf(label, sizeof(label), "%d%s", static_cast<int>(db),
+                              d_isEqual(db, kDisplayDbMin) ? " dB" : "");
+
+                fillColor(Color(140, 142, 150));
+                textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
+                text(labelMargin, y - 2.f * s, label, nullptr);
+                textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
+                text(w - labelMargin, y - 2.f * s, label, nullptr);
+            }
+        }
+
+        // Max Reduction, the floor the curve rests on: a dotted grey line, under the display's bottom while unlimited
+        {
+            const float y = yOfDb(-fMaxReduction);
+            const float gap = 6.f * s;
+
+            if (y < h)
+            {
+                beginPath();
+                for (float x = gap * 0.5f; x < w; x += gap)
+                    circle(x, y, 1.2f * s);
+                fillColor(Color(Reference::Colors::ink3, 0.85f));
+                fill();
+            }
+        }
 
         // fill between 0 dB and the curve, fading toward 0 dB in the curve's colours
         const float zero = yOfDb(0.f);
@@ -629,12 +869,13 @@ private:
         const float s = fScaleFactor;
         const float r = VoiceIsolationGroupReference::borderRadius * s;
 
-        for (const std::shared_ptr<VoiceIsolationGroupWidget>& group : fGroups->getGroups())
+        for (const std::shared_ptr<VoiceIsolationLabeledGroupWidget>& group : fGroups->getGroups())
         {
-            const float x = group->getAbsoluteX() - getAbsoluteX();
-            const float y = group->getAbsoluteY() - getAbsoluteY();
-            const float w = group->getWidth();
-            const float h = group->getHeight();
+            const VoiceIsolationGroupWidget& panel = group->getPanel();
+            const float x = panel.getAbsoluteX() - getAbsoluteX();
+            const float y = panel.getAbsoluteY() - getAbsoluteY();
+            const float w = panel.getWidth();
+            const float h = panel.getHeight();
 
             beginPath();
             rect(x - 20.f * s, y, w + 40.f * s, h + 24.f * s);
@@ -723,9 +964,18 @@ START_NAMESPACE_DISTRHO
 
 class VoiceIsolationUI final : public LibreAudioBaseUI
 {
+    using AnalyserShaderWidget = LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA,
+                                                             SHADERS_ANALYSER_FFT_FRAG_LEN,
+                                                             LibreAudioAnalyzerIPC::kNumBins>;
+
     const std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground {
         new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
+    };
+
+    // output spectrum, above the starfield and below the gain reduction curve, as in mbComp5
+    const std::unique_ptr<AnalyserShaderWidget> fShaderAnalyser {
+        new AnalyserShaderWidget(this, this)
     };
 
 public:
@@ -734,10 +984,15 @@ public:
     {
         createRootWidget<LibreAudio::VoiceIsolationRootWidget>();
 
-        fRootWidget->enableShaders({ fShaderBackground.get() });
+        fRootWidget->enableShaders({ fShaderBackground.get(), fShaderAnalyser.get() });
     }
 
 private:
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
+    {
+        fShaderAnalyser->replace(values);
+    }
+
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VoiceIsolationUI)
 };
 

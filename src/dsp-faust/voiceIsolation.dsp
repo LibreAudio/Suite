@@ -6,6 +6,9 @@ declare license "GPL-3.0-or-later";
 declare name "Voice Isolation";
 declare unique_id "LAvi";
 declare voice_isolation "true";
+declare drywet "true";
+declare drywet_default "100";
+declare graph "analyzer";
 
 import("stdfaust.lib");
 
@@ -26,7 +29,7 @@ numBands = 32;  // LAS_RNNOISE_NB_BANDS in deps/rnnoise-stereo.h
 
 process = attach(_, controls + meters), _;
 
-controls = maxReduction + release + pitchEnhancement + threshold + gracePeriod;
+controls = depth + maxReduction + release + pitchEnhancement + threshold + gracePeriod;
 meters = vadMeters :> _ + (bandMeters :> _);
 
 // --- UI structure ---
@@ -38,22 +41,26 @@ uiMeters(x)      = hgroup("[9]", x);
 
 // --- Parameters ---
 
-maxReduction = uiBottomLeft(hslider("[01]Max Reduction[style:knob][unit:dB][symbol:max_reduction][label:Max Red.][accentcolor:01][bracket:DENOISE][easy]
+depth = uiBottomLeft(hslider("[01]Depth[style:knob][unit:%][symbol:depth][label:Depth][accentcolor:01][bracket:DENOISER][easy]
+      [tooltip: Blends the denoiser with its input, band by band, like a dry/wet mix. The gate is not blended]",
+                             100, 0, 100, 1));
+
+maxReduction = uiBottomLeft(hslider("[02]Max Reduction[style:knob][unit:dB][symbol:max_reduction][label:Max Red.][accentcolor:01][bracket:DENOISER]
       [tooltip: Limits how far any band is turned down. 100 dB is no limit]",
                                     100, 0, 100, 1));
 
-release = uiBottomLeft(hslider("[02]Release[style:knob][unit:ms][scale:log][symbol:release][label:Release][accentcolor:03][bracket:DENOISE]
+release = uiBottomLeft(hslider("[03]Release[style:knob][unit:ms][scale:log][symbol:release][label:Release][accentcolor:03][bracket:DENOISER]
       [tooltip: Fastest a band may fall by 60 dB. RNNoise's own is 135 ms]",
                                135, 10, 1000, 1));
 
-pitchEnhancement = uiBottomLeft(checkbox("[03]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][accentcolor:03][bracket:DENOISE]
+pitchEnhancement = uiBottomLeft(checkbox("[04]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][accentcolor:03][bracket:DENOISER]
       [tooltip: Restores voice harmonics between the bands, estimated per channel, which can blur the stereo image]"));
 
-threshold = uiBottomRight(hslider("[04]Threshold[style:knob][unit:%][symbol:threshold][label:Threshold][accentcolor:04][bracket:GATE]
+threshold = uiBottomRight(hslider("[05]Threshold[style:knob][unit:%][symbol:threshold][label:Threshold][accentcolor:04][bracket:GATE]
       [tooltip: Voice activity needed to open the gate. 0% keeps it open]",
                                   50, 0, 100, 1));
 
-gracePeriod = uiBottomRight(hslider("[05]Grace Period[style:knob][unit:ms][symbol:grace_period][label:Grace][accentcolor:04][bracket:GATE]
+gracePeriod = uiBottomRight(hslider("[06]Grace Period[style:knob][unit:ms][symbol:grace_period][label:Grace][accentcolor:04][bracket:GATE]
       [tooltip: How long the gate stays open after voice activity drops]",
                                     1000, 0, 2000, 1));
 

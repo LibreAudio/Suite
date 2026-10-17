@@ -182,7 +182,7 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
        #endif
         parameter.symbol = kCommonParameterSymbols[index];
         parameter.unit = "%";
-        parameter.ranges.def = 50.f;
+        parameter.ranges.def = LIBREAUDIO_DRYWET_DEFAULT;
         parameter.ranges.min = 0.f;
         parameter.ranges.max = 100.f;
         break;
@@ -695,6 +695,9 @@ void LibreAudioPlugin::setVoiceIsolationParameter(const uint32_t index, const fl
 {
     switch (index)
     {
+    case kFaustParameterDepth:
+        fVoiceIsolation.setDepth(value);
+        break;
     case kFaustParameterMax_reduction:
         fVoiceIsolation.setMaxReduction(value);
         break;

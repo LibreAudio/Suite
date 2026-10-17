@@ -46,8 +46,8 @@ float las_rnnoise_process_stereo(DenoiseState* left, DenoiseState* right,
         const float current = Ex[0][i] + Ex[1][i];
         left->lastg[i] = right->lastg[i] =
             MIN16(1.f, linked[i] * (previous + 1e-3f) / (current + 1e-3f));
-        // the floor only limits what is applied, release tracking stays unchanged
-        applied[i] = MAX16(linked[i], settings->minGain);
+        // depth and floor only shape what is applied, release tracking stays unchanged
+        applied[i] = MAX16(1.f - settings->depth * (1.f - linked[i]), settings->minGain);
         if (bandGains != NULL)
             bandGains[i] = applied[i];
     }

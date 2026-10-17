@@ -50,7 +50,7 @@ private:
     // rnnoise handles, keep them const so we never modify them
     DenoiseState* const fDenoise[2] = { rnnoise_create(nullptr), rnnoise_create(nullptr) };
 
-    LasRnnoiseStereoSettings fSettings = { 0.6f, 0.f, 0 };
+    LasRnnoiseStereoSettings fSettings = { 0.6f, 1.f, 0.f, 0 };
 
     // both null when the host runs at kProcessingRate
     SpeexResamplerState* fResamplerIn = nullptr;   // host rate -> 48 kHz
@@ -120,6 +120,12 @@ public:
     void setGracePeriod(const float value) noexcept
     {
         fGracePeriodFrames = d_roundToUnsignedInt(value * kProcessingRate / 1000.0);
+    }
+
+    // blends every band's gain with unity, like a dry/wet mix of the denoiser alone, in %
+    void setDepth(const float value) noexcept
+    {
+        fSettings.depth = value * 0.01f;
     }
 
     // lower limit for the band gains, in dB, kMaxReductionDb or more for no limit

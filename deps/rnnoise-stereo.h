@@ -15,7 +15,9 @@ extern "C" {
 typedef struct {
     // per-frame limit on how fast band gains fall, upstream uses 0.6 (RT60 of 135 ms)
     float decay;
-    // lower limit for the applied band gains, 0 for none
+    // blend of the band gains with unity, as a dry/wet mix of the denoiser does: 1 leaves them as is, 0 removes them
+    float depth;
+    // lower limit for the applied band gains, after depth, 0 for none
     float minGain;
     // adds rnnoise's pitch reconstruction, estimated per channel
     int pitchFilter;

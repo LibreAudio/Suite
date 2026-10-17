@@ -83,6 +83,7 @@
 
 // optional dry/wet control on top of main dsp
 #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
+#define LIBREAUDIO_DRYWET_DEFAULT {{meta.drywet_default if meta.drywet_default is defined else 50}}.f
 
 // optional UI graphs (fft analyzer, waveform, etc)
 #ifdef LIBREAUDIO_CUSTOM_UI
