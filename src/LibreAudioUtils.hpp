@@ -6,6 +6,8 @@
 
 #include "DistrhoUtils.hpp"
 
+#include "FaustParameter.hpp"
+
 #ifndef M_PIf
 #define M_PIf static_cast<float>(M_PI)
 #endif
@@ -58,6 +60,33 @@ inline constexpr const float kFreqScale__log = kLog1000f; // std::log(kFreqScale
 {
     return kFreqMin * std::pow(kFreqScale, norm);
 }
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<size_t size>
+static inline void _renderParameterValue(char str[size], const FaustParameter& param, const float value)
+{
+    if (param.scalePointCount != 0)
+    {
+        if (const int ivalue = d_roundToInt(value); value >= 0 && value < param.scalePointCount)
+        {
+            std::snprintf(str, size, "%s", param.scalePoints[ivalue].label);
+            str[size - 1] = '\0';
+            return;
+        }
+    }
+
+    /**/ if (param.step >= 1.f)
+        std::snprintf(str, size, "%d", d_roundToInt(value));
+    else if (param.step >= 0.1f)
+        std::snprintf(str, size, "%.1f", d_roundToInt(value * 10.f) * 0.1f);
+    else
+        std::snprintf(str, size, "%.2f", d_roundToInt(value * 100.f) * 0.01f);
+
+    str[size - 1] = '\0';
+}
+
+#define renderParameterValue(str, param, value) _renderParameterValue<std::size(str)>(str, param, value)
 
 // --------------------------------------------------------------------------------------------------------------------
 

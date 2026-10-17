@@ -8,6 +8,8 @@
 
 #include "../reference.hpp"
 
+#include "LibreAudioUtils.hpp"
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -73,13 +75,7 @@ private:
             timeNotEllapsed(fLastParameterChangedByHostTime, kTimeForShowingHostParameterChanges, timeNow) ||
             timeNotEllapsed(fLastStateChangedTime, kTimeForValueFadeout, timeNow))
         {
-            if (isInteger())
-                std::snprintf(textBuffer, sizeof(textBuffer), "%d", d_roundToInt(getValue()));
-            else if (std::strcmp(fParameter.unit, "dB") == 0)
-                std::snprintf(textBuffer, sizeof(textBuffer), "%.1f", getValue());
-            else
-                std::snprintf(textBuffer, sizeof(textBuffer), "%.2f", getValue());
-            textBuffer[sizeof(textBuffer) - 1] = '\0';
+            renderParameterValue(textBuffer, fParameter, getValue());
 
             textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
 

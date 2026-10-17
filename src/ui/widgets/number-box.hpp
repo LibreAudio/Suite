@@ -9,6 +9,7 @@
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioUtils.hpp"
 
 namespace LibreAudio {
 
@@ -52,7 +53,7 @@ private:
         const float h = getHeight();
 
         char valuestr[32];
-        std::snprintf(valuestr, sizeof(valuestr), "%.1f", getValue());
+        renderParameterValue(valuestr, fParameter, getValue());
 
         // inset shading
         beginPath();
@@ -75,21 +76,22 @@ private:
         fontSize(R::Value::fontSize * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
         textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
+        text(border2x + margin, h - bh - margin, valuestr, nullptr);
 
-        Rectangle<float> bounds;
-        textBounds(border2x + margin, 0, "-88.8", nullptr, bounds);
-
-        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-        text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
-
-        if (*fParameter.unit != '\0')
+       #ifdef LIBREAUDIO_PLUGIN__mbComp5
+        const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
+                               : fParameter.unit;
+       #else
+        const char* const unit = fParameter.unit;
+       #endif
+        if (*unit != '\0')
         {
             fillColor(R::Unit::color);
             fontFace("regular");
             fontSize(R::Unit::fontSize * fScaleFactor);
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
             textLetterSpacing(R::Unit::letterSpacing * fScaleFactor);
-            text(w - border2x - margin, h - bh - margin, fParameter.unit, nullptr);
+            text(w - border2x - margin, h - bh - margin, unit, nullptr);
         }
 
         // bottom bar

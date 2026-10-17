@@ -97,7 +97,7 @@ private:
     bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
     bool live(int b) const { return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f); }
 
-    float yDb(float db) const { return _box.y+(6-db) / 24 * _box.h; }
+    float yDb(float db) const { return _box.y + (6 - db) / 24 * _box.h; }
 
     Color rainbow(float t, float alpha = 1) const
     {
@@ -134,7 +134,7 @@ private:
 #if 1
         // The solid mid and finer side curves use the real per-channel GR.
         // Match the DSP shelf cascade, including sample-rate frequency warping.
-        // scissor(0,0,_box.w,h);
+        scissor(_box.x, _box.y, _box.w, _box.h);
 
         constexpr int steps = 256;
         const int slope=std::clamp(static_cast<int>(std::round(value(kFaustParameterSlope))), 0, 2);
@@ -195,7 +195,7 @@ private:
                 const float left = section * _box.w / 4;
                 const float right = (section + 1) * _box.w / 4;
                 save();
-                intersectScissor(left, 0, right - left, _box.h);
+                intersectScissor(left, _box.y, right - left, _box.h);
                 if (c == 0)
                 {
                     path();
