@@ -7,7 +7,7 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/number-box.hpp"
-#include "ui/widgets/switch-box.hpp"
+#include "ui/widgets/power-box.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -54,7 +54,7 @@ template<FaustParameterIndex id>
 using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
 
 template<FaustParameterIndex id>
-using VoiceIsolationSwitchBoxWidget = SwitchBoxWidget<accentColor<id>()>;
+using VoiceIsolationPowerBoxWidget = PowerBoxWidget<accentColor<id>()>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // One group's controls: number boxes, which share whatever width the row gives the group, and controls of their own
@@ -283,8 +283,8 @@ class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
     const std::array<std::shared_ptr<LabWidget>, 3> widgets {
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterMax_reduction>, Expanding>(kFaustParameterMax_reduction),
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
-        addWidget<VoiceIsolationSwitchBoxWidget<kFaustParameterPitch_enhancement>, Expanding>(kFaustParameterPitch_enhancement,
-                                                                                         "Pitch Enhance"),
+        addWidget<VoiceIsolationPowerBoxWidget<kFaustParameterPitch_enhancement>, Expanding>(kFaustParameterPitch_enhancement,
+                                                                                        "Pitch Enhance"),
     };
 
 public:
