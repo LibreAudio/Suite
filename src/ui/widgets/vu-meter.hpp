@@ -44,7 +44,8 @@ struct VuMeterReference : Reference::Zero {
     static constexpr const float thresholdDotRadius = 0.8f;
 };
 
-template<const Color& kThresholdColor = Reference::Colors::acc1>
+// kHeight, in unscaled pixels, may make the box taller than a number box; the meter keeps its size, centred in it
+template<const Color& kThresholdColor = Reference::Colors::acc1, uint kHeight = Reference::Widgets::NumberBox<>::height>
 class VuMeterWidget final : public LabWidget,
                             private IdleCallback
 {
@@ -127,10 +128,12 @@ private:
         strokeWidth(R::Box::border * s * 0.5f);
         stroke();
 
-        // the arc: as wide as the box allows, up to maxAngle either side
+        // the arc: as wide as the box allows, up to maxAngle either side, laid out for a number box's height and
+        // centred in this one
+        const float bh = R::Box::height * s;
         const float cx = w * 0.5f;
-        const float cy = h * (1.f + R::pivotDrop);
-        const float radius = cy - R::top * s;
+        const float cy = (h - bh) * 0.5f + bh * (1.f + R::pivotDrop);
+        const float radius = bh * (1.f + R::pivotDrop) - R::top * s;
         const float halfWidth = std::max(1.f, cx - R::margin * s);
         const float maxAngle = std::min(R::maxAngle * static_cast<float>(M_PI) / 180.f,
                                         std::asin(std::min(1.f, halfWidth / radius)));
@@ -203,10 +206,10 @@ private:
         restore();
     }
 
-    // as tall as a number box, as wide as its container makes it
+    // kHeight tall, as wide as its container makes it
     void updateSize(const bool updateChildren) final
     {
-        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::Box::height * fScaleFactor));
+        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(kHeight * fScaleFactor));
         LabWidget::updateSize(updateChildren);
     }
 };

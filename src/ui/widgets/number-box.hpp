@@ -14,7 +14,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
+// kHeight, in unscaled pixels, may make the box taller than the reference, leaving its contents their size
+template<const Color& kAccentColor = Reference::Colors::acc1, uint kHeight = Reference::Widgets::NumberBox<>::height>
 class NumberBoxWidget final : public LabKnobWidget
 {
     using R = Reference::Widgets::NumberBox<kAccentColor>;
@@ -118,7 +119,7 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        updateReferenceSize<R>();
+        setHeight(d_roundToUnsignedInt(kHeight * fScaleFactor));
         BaseWidget::updateSize(updateChildren);
     }
 };

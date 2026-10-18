@@ -27,12 +27,15 @@ namespace LibreAudio {
 // The stage holds the display, with the starfield behind it, and under it a row of control groups.
 // Each group is a raised glass panel styled like the eq's option bar.
 
+// height of the boxes in the groups: taller than a number box, for room around their contents
+static constexpr const uint kBoxHeight = 45;
+
 // the controls of a group, under its header; the labelled group around them draws the panel
 struct VoiceIsolationGroupReference : Reference::Zero {
     static constexpr const uint borderRadius = 10;
     static constexpr const uint margin = 8;
     static constexpr const uint padding = 6;
-    static constexpr const uint height = Reference::Widgets::NumberBox<>::height + margin * 2;
+    static constexpr const uint height = kBoxHeight + margin * 2;
 };
 
 // accent colour of a parameter, as set by [accentcolor] in voiceIsolation.dsp
@@ -52,12 +55,12 @@ constexpr const Color& accentColor() noexcept
 }
 
 template<FaustParameterIndex id>
-using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
+using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>(), kBoxHeight>;
 
 template<FaustParameterIndex id>
-using VoiceIsolationPowerBoxWidget = PowerBoxWidget<accentColor<id>()>;
+using VoiceIsolationPowerBoxWidget = PowerBoxWidget<accentColor<id>(), kBoxHeight>;
 
-using VoiceIsolationVuMeterWidget = VuMeterWidget<accentColor<kFaustParameterThreshold>()>;
+using VoiceIsolationVuMeterWidget = VuMeterWidget<accentColor<kFaustParameterThreshold>(), kBoxHeight>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // One group's controls: number boxes, which share whatever width the row gives the group, and controls of their own
@@ -174,7 +177,8 @@ static constexpr const FaustParameter kDryWetParameter = {
 class VoiceIsolationMixGroupWidget final : public VoiceIsolationGroupWidget
 {
     const std::array<std::shared_ptr<LabWidget>, 1> widgets {
-        addWidget<NumberBoxWidget<Reference::Colors::acc1>, Expanding>(kCommonParameterDryWet, &kDryWetParameter),
+        addWidget<NumberBoxWidget<Reference::Colors::acc1, kBoxHeight>, Expanding>(kCommonParameterDryWet,
+                                                                                 &kDryWetParameter),
     };
 
 public:
@@ -184,13 +188,14 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 // A group's header, styled like the reverb's section headers: its name in the group's accent colour, at the panel's
-// top left, in a 20 px row 4 px above the controls.
+// top left, in a 12 px row 8 px above the controls.
 
 struct VoiceIsolationGroupHeaderReference : Reference::Zero {
     static constexpr const float fontSize = 12.f;
     static constexpr const float letterSpacing = 0.4f;
-    static constexpr const uint row = 20;
-    static constexpr const uint gap = 4;
+    // the label's row, as tall as its font, so it sits as far from the panel's top as from its left
+    static constexpr const uint row = 12;
+    static constexpr const uint gap = 8;
     // the panel's top margin, then the row and the gap; the controls' own top margin follows
     static constexpr const uint height = VoiceIsolationGroupReference::margin + row + gap
                                        - VoiceIsolationGroupReference::margin;
