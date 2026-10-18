@@ -117,11 +117,11 @@ protected:
        #endif
         static_assert(corner == kCornerNone || R::borderRadius != 0, "corner != none requires borderRadius");
 
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
+
         if constexpr (d_isNotZero(backgroundColor.alpha))
         {
-            const float w = BaseWidget::getWidth();
-            const float h = BaseWidget::getHeight();
-
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0 && corner != kCornerNone)
@@ -151,6 +151,40 @@ protected:
                 BaseWidget::fill();
             }
         }
+
+        if constexpr (d_isNotZero(R::shadowColor.alpha) && R::shadowFeather != 0)
+        {
+            const float r = R::borderRadius * fScaleFactor;
+            const float sx = R::shadowOffset.getX() * fScaleFactor;
+            const float sy = R::shadowOffset.getY() * fScaleFactor;
+            const float sw = R::shadowSize.getWidth() * fScaleFactor;
+            const float sh = R::shadowSize.getHeight() * fScaleFactor;
+            const float feather = R::shadowFeather * fScaleFactor;
+            const float fx = sx - feather;
+            const float fy = sy - feather;
+            const float fw = w + sx + feather * 2;
+            const float fh = h + sy + feather * 2;
+
+            BaseWidget::beginPath();
+
+            BaseWidget::rect(fx, fy, fw, fh);
+
+            if constexpr (R::borderRadius != 0)
+                BaseWidget::roundedRect(0, 0, w, h, r);
+            else
+                BaseWidget::roundedRect(0, 0, w, h);
+
+            BaseWidget::pathWinding(BaseWidget::CW);
+            BaseWidget::fillPaint(BaseWidget::boxGradient(sx - sw * 0.5f,
+                                                          sy - sh * 0.5f,
+                                                          w + sw,
+                                                          h + sh,
+                                                          r,
+                                                          feather,
+                                                          R::shadowColor,
+                                                          Color(R::shadowColor, 0.f)));
+            BaseWidget::fill();
+        }
     }
 
     template <class R>
@@ -165,11 +199,11 @@ protected:
         static_assert(d_isZero(R::borderHighlightColor.alpha) || R::borderRadius != 0,
                       "borderRadius must be != 0 if using border highlight color");
 
-        if constexpr (R::border != 0 && d_isNotZero(borderColor.alpha))
-        {
             const float w = BaseWidget::getWidth();
             const float h = BaseWidget::getHeight();
 
+        if constexpr (R::border != 0 && d_isNotZero(borderColor.alpha))
+        {
             const float border = d_roundToIntPositive(R::border * fScaleFactor);
             const float borderh = border * 0.5f;
 
@@ -215,8 +249,8 @@ protected:
             {
                 const float r = R::borderRadius * fScaleFactor;
 
-                BaseWidget::save();
-                BaseWidget::scissor(0, 0, w, r);
+                // BaseWidget::save();
+                // BaseWidget::scissor(0, 0, w, r);
                 BaseWidget::strokePaint(BaseWidget::linearGradient(0,
                                                                    0,
                                                                    0,
@@ -224,7 +258,23 @@ protected:
                                                                    R::borderHighlightColor,
                                                                    Color(R::borderHighlightColor, 0.f)));
                 BaseWidget::stroke();
-                BaseWidget::restore();
+                // BaseWidget::restore();
+            }
+
+            if constexpr (R::borderRadius != 0 && d_isNotZero(R::borderShadowColor.alpha))
+            {
+                const float r = R::borderRadius * fScaleFactor;
+
+                // BaseWidget::save();
+                // BaseWidget::scissor(0, h - r, w, r);
+                BaseWidget::strokePaint(BaseWidget::linearGradient(0,
+                                                                   h - r,
+                                                                   0,
+                                                                   h,
+                                                                   Color(R::borderShadowColor, 0.f),
+                                                                   R::borderShadowColor));
+                BaseWidget::stroke();
+                // BaseWidget::restore();
             }
         }
     }

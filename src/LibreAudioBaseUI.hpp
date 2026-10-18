@@ -79,6 +79,7 @@ private:
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
     bool fFirstIdle = true;
+    bool fNeedsRepaint = false;
 
     uint32_t fCurrentPreset = 0; // TODO
 

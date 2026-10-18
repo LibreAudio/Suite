@@ -28,10 +28,18 @@ struct MbComp5BandGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
     static constexpr const Color borderColor = backgroundColor;
     static constexpr const Color borderHighlightColor { borderColor, 0.12f };
+    static constexpr const Color borderShadowColor { 0, 0, 0, 0.12f };
     static constexpr const uint border = 1;
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
+
+    // TESTING
+    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+    static constexpr const Point<int> shadowOffset = { 0, 5 };
+    // static constexpr const Size<int> shadowSize = { -6, -6 };
+    static constexpr const Size<int> shadowSize = { -12, -12 };
+    static constexpr const uint shadowFeather = 14;
 
     struct Header : Reference::Zero {
         static constexpr const uint height = 18;
@@ -46,11 +54,17 @@ struct MbComp5BandGroupReference : Reference::Zero {
             static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
             static constexpr const Color borderColor = backgroundColor;
             static constexpr const Color borderHighlightColor { borderColor, 0.16f };
+            static constexpr const Color borderShadowColor { 0, 0, 0, 0.16f };
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 6;
             static constexpr const uint margin = 2;
             static constexpr const uint padding = 2;
             static constexpr const uint height = Header::height - Header::margin * 2;
+
+            static constexpr const Color shadowColor { 0, 0, 0, 1.f };
+            static constexpr const Point<int> shadowOffset = { 0, 2 };
+            static constexpr const Size<int> shadowSize = { -6, -6 };
+            static constexpr const uint shadowFeather = 10;
 
             struct Solo : Reference::Zero {
                 static constexpr const Color backgroundColor〡checked = Reference::kAccentColors[band + 1];
@@ -265,14 +279,10 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct MbComp5NonBandParamsGroupReference : Reference::Zero {
+struct MbComp5NonBandParamsGroupReference : MbComp5BandGroupReference<0> {
     static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
     static constexpr const Color borderColor = backgroundColor;
     static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
-    static constexpr const uint border = 1;
-    static constexpr const uint borderRadius = 10;
-    static constexpr const uint margin = kCommonMargin;
-    static constexpr const uint padding = kCommonPadding;
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + (border + margin) * 2;
 };
 

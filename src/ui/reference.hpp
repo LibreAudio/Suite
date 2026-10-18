@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Color.hpp"
+#include "Geometry.hpp"
 // #include "EventHandlers.hpp"
 
 namespace LibreAudio {
@@ -51,8 +52,12 @@ struct Reference {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
         static constexpr const Color borderHighlightColor = Colors::transparent;
+        static constexpr const Color borderShadowColor = Colors::transparent;
         static constexpr const Color color = Colors::transparent;
         static constexpr const Color color〡deactivated = Colors::transparent;
+        static constexpr const Color shadowColor = Colors::transparent;
+        static constexpr const Point<int> shadowOffset = { 0, 0 };
+        static constexpr const Size<int> shadowSize = { 0, 0 }; // FIXME inset vs outset naming
         static constexpr const float fontSize = Common::fontSize;
         static constexpr const float letterSpacing = Common::letterSpacing;
         static constexpr const uint border = 0;
@@ -60,6 +65,7 @@ struct Reference {
         static constexpr const uint height = 0;
         static constexpr const uint padding = 0;
         static constexpr const uint margin = 0;
+        static constexpr const uint shadowFeather = 0;
         static constexpr const uint width = 0;
     };
 
@@ -179,6 +185,12 @@ struct Reference {
         struct ButtonGroup : Zero {
             static constexpr const uint borderRadius = 6;
             static constexpr const uint padding = 1;
+
+            // TESTING
+            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+            static constexpr const Point<int> shadowOffset = { 0, 4 };
+            static constexpr const Size<int> shadowSize = { -12, -12 };
+            static constexpr const uint shadowFeather = 14;
         };
 
         struct Card : Zero {
