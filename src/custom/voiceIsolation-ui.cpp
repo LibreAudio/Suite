@@ -9,6 +9,7 @@
 #include "ui/widgets/number-box.hpp"
 #include "ui/widgets/power-box.hpp"
 #include "ui/widgets/shader.hpp"
+#include "ui/widgets/vu-meter.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -56,6 +57,8 @@ using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
 template<FaustParameterIndex id>
 using VoiceIsolationPowerBoxWidget = PowerBoxWidget<accentColor<id>()>;
 
+using VoiceIsolationVuMeterWidget = VuMeterWidget<accentColor<kFaustParameterThreshold>()>;
+
 // --------------------------------------------------------------------------------------------------------------------
 // One group's controls: number boxes, which share whatever width the row gives the group, and controls of their own
 // width.
@@ -97,180 +100,12 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// RNNoise's voice activity as a VU style needle, in a box drawn like a number box. The pivot sits below the box, so
-// the needle swings across the arc's upper part. The arc from the gate's Threshold up is drawn in the gate's colour,
-// so it shows where the needle opens the gate.
-
-struct VoiceIsolationVadMeterReference : Reference::Zero {
-    using Box = Reference::Widgets::NumberBox<>;
-    static constexpr const Color scaleColor = Reference::Colors::ink3;
-    static constexpr const Color needleColor = Reference::Colors::ink;
-    // pivot below the box's bottom edge, in box heights
-    static constexpr const float pivotDrop = 0.9f;
-    // room left and right of the arc, and above it
-    static constexpr const float margin = 10.f;
-    static constexpr const float top = 9.f;
-    // widest swing either side of vertical, in degrees
-    static constexpr const float maxAngle = 50.f;
-    // time constant the needle follows the meter with, in seconds
-    static constexpr const double timeConstant = 0.1;
-};
-
-class VoiceIsolationVadMeterWidget final : public LabWidget,
-                                           private IdleCallback
-{
-    using R = VoiceIsolationVadMeterReference;
-
-    // as drawn, in %
-    float fValue = 0.f;
-    float fThreshold = kFaustParameters[kFaustParameterThreshold].init;
-    double fLastTime = 0;
-
-public:
-    explicit VoiceIsolationVadMeterWidget(LabWidget* const parent)
-        : LabWidget(parent)
-    {
-        updateSize(false);
-        addIdleCallback(this);
-    }
-
-private:
-    void idleCallback() final
-    {
-        const double now = getApp().getTime();
-        const double dt = fLastTime != 0 ? std::min(now - fLastTime, 0.1) : 0;
-        fLastTime = now;
-
-        const float target = fInterface->getParameterValue(kParametersMainStart + kFaustParameterVad);
-        const float threshold = fInterface->getParameterValue(kParametersMainStart + kFaustParameterThreshold);
-        bool changed = false;
-
-        if (std::abs(target - fValue) < 0.05f)
-        {
-            if (d_isNotEqual(target, fValue))
-            {
-                fValue = target;
-                changed = true;
-            }
-        }
-        else
-        {
-            fValue += (target - fValue) * static_cast<float>(1.0 - std::exp(-dt / R::timeConstant));
-            changed = true;
-        }
-
-        if (d_isNotEqual(threshold, fThreshold))
-        {
-            fThreshold = threshold;
-            changed = true;
-        }
-
-        if (changed)
-            repaint();
-    }
-
-    void onNanoDisplay() final
-    {
-        const float s = fScaleFactor;
-        const float w = getWidth();
-        const float h = getHeight();
-
-        drawReferenceBackground<R::Box>();
-
-        // inset shading and border, as a number box draws them
-        beginPath();
-        roundedRect(0, 0, w, h, R::Box::borderRadius * s);
-        fillPaint(linearGradient(0, 0, 0, R::Box::margin * s,
-                                 R::Box::insetShadingColor, Reference::Colors::transparent));
-        fill();
-        strokeColor(R::Box::backgroundColor);
-        strokeWidth(R::Box::border * s * 0.5f);
-        stroke();
-
-        // the arc: as wide as the box allows, up to maxAngle either side
-        const float cx = w * 0.5f;
-        const float cy = h * (1.f + R::pivotDrop);
-        const float radius = cy - R::top * s;
-        const float halfWidth = std::max(1.f, cx - R::margin * s);
-        const float maxAngle = std::min(R::maxAngle * static_cast<float>(M_PI) / 180.f,
-                                        std::asin(std::min(1.f, halfWidth / radius)));
-
-        // 0 % at the left end, 100 % at the right, as an angle from vertical
-        const auto angleOf = [=](const float percent) {
-            return -maxAngle + std::clamp(percent, 0.f, 100.f) / 100.f * 2.f * maxAngle;
-        };
-        const auto pointAt = [=](const float angle, const float r) {
-            return Point<float>(cx + std::sin(angle) * r, cy - std::cos(angle) * r);
-        };
-
-        save();
-        intersectScissor(0, 0, w, h);
-
-        // scale: grey below the threshold, the gate's colour from it up
-        const float thresholdAngle = angleOf(fThreshold);
-        const auto arc = [&](const float from, const float to, const Color& color) {
-            if (to - from < 0.001f)
-                return;
-            beginPath();
-            this->arc(cx, cy, radius, from - static_cast<float>(M_PI) * 0.5f, to - static_cast<float>(M_PI) * 0.5f, CW);
-            strokeColor(color);
-            strokeWidth(1.2f * s);
-            stroke();
-        };
-        arc(-maxAngle, thresholdAngle, R::scaleColor);
-        arc(thresholdAngle, maxAngle, accentColor<kFaustParameterThreshold>());
-
-        // ticks every 25 %, and the threshold's tick in the gate's colour
-        for (int percent = 0; percent <= 100; percent += 25)
-        {
-            const float angle = angleOf(percent);
-            const Point<float> inner = pointAt(angle, radius - 4.f * s);
-            const Point<float> outer = pointAt(angle, radius);
-            beginPath();
-            moveTo(inner.getX(), inner.getY());
-            lineTo(outer.getX(), outer.getY());
-            strokeColor(angle >= thresholdAngle ? accentColor<kFaustParameterThreshold>() : R::scaleColor);
-            strokeWidth(1.f * s);
-            stroke();
-        }
-        {
-            const Point<float> inner = pointAt(thresholdAngle, radius - 6.f * s);
-            const Point<float> outer = pointAt(thresholdAngle, radius + 2.f * s);
-            beginPath();
-            moveTo(inner.getX(), inner.getY());
-            lineTo(outer.getX(), outer.getY());
-            strokeColor(accentColor<kFaustParameterThreshold>());
-            strokeWidth(1.5f * s);
-            stroke();
-        }
-
-        // the needle, from the pivot below the box to just past the arc
-        {
-            const Point<float> tip = pointAt(angleOf(fValue), radius + 3.f * s);
-            beginPath();
-            moveTo(cx, cy);
-            lineTo(tip.getX(), tip.getY());
-            lineCap(ROUND);
-            strokeColor(R::needleColor);
-            strokeWidth(1.5f * s);
-            stroke();
-        }
-
-        restore();
-    }
-
-    // as tall as a number box, as wide as the group makes it
-    void updateSize(const bool updateChildren) final
-    {
-        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::Box::height * fScaleFactor));
-        LabWidget::updateSize(updateChildren);
-    }
-};
+// RNNoise's voice activity on a VU style meter, with the gate's Threshold marked on its scale.
 
 class VoiceIsolationVoiceActivityGroupWidget final : public VoiceIsolationGroupWidget
 {
     const std::array<std::shared_ptr<LabWidget>, 1> widgets {
-        addWidget<VoiceIsolationVadMeterWidget, Expanding>(),
+        addWidget<VoiceIsolationVuMeterWidget, Expanding>(kFaustParameterVad, kFaustParameterThreshold),
     };
 
 public:
