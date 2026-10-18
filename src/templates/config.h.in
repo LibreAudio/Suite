@@ -50,8 +50,13 @@
 #endif
 
 // optional speech/voice-activity detection control
+// with voice isolation, its own rnnoise voice activity feeds the control instead of a separate detector
 {% for w in active if w.symbol == "dpf_vad" %}
+{% if meta.voice_isolation == "true" %}
+#define LIBREAUDIO_WANT_VOICE_ISOLATION_VAD 1
+{% else %}
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 1
+{% endif %}
 {% endfor %}
 #ifndef LIBREAUDIO_WANT_SPEECH_DETECTION
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 0
@@ -59,24 +64,27 @@
 
 // optional rnnoise voice isolation ahead of the main dsp, controls and meters live in the main dsp
 // (see LibreAudioPlugin::setVoiceIsolationParameter and updateVoiceIsolationMeters)
-// its latency is reported to the host, covering host rates up to 384 kHz
+// its latency is reported to the host, covering host rates up to 384 kHz,
+// plus the latency_samples maximum of the main dsp when it has one
 {% if meta.voice_isolation == "true" %}
-{% for w in passive if w.symbol == "latency_samples" %}
-{{fail("voice_isolation cannot be combined with a latency_samples widget")}}
-{% endfor %}
 #define LIBREAUDIO_WANT_VOICE_ISOLATION 1
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
-#define LIBREAUDIO_MAX_LATENCY_SAMPLES 16384
+#define LIBREAUDIO_MAX_LATENCY_SAMPLES (16384{% for w in passive if w.symbol == "latency_samples" %} + {{w.max|int}}{% endfor %})
 {% endif %}
 #ifndef LIBREAUDIO_WANT_VOICE_ISOLATION
 #define LIBREAUDIO_WANT_VOICE_ISOLATION 0
 #endif
+#ifndef LIBREAUDIO_WANT_VOICE_ISOLATION_VAD
+#define LIBREAUDIO_WANT_VOICE_ISOLATION_VAD 0
+#endif
 
 // optional latency output
+{% if meta.voice_isolation != "true" %}
 {% for w in passive if w.symbol == "latency_samples" %}
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
 #define LIBREAUDIO_MAX_LATENCY_SAMPLES {{w.max|int}}
 {% endfor %}
+{% endif %}
 #ifndef DISTRHO_PLUGIN_WANT_LATENCY
 #define DISTRHO_PLUGIN_WANT_LATENCY 0
 #endif

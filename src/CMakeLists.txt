@@ -7,6 +7,7 @@
 # used for common code and DPF plugins
 
 function(las_generate_faust_cpp TARGET)
+  # any extra arguments are further .dsp/.lib files the dsp imports, relative to this directory
   string(REPLACE "/" "_" OUTPUT ${TARGET})
   string(REPLACE "-" "_" CLASS ${OUTPUT})
 
@@ -26,6 +27,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${ARGN}
       templates/dsp.cpp.in
     VERBATIM
   )
@@ -42,6 +44,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${ARGN}
       templates/dsp.hpp.in
     VERBATIM
   )
@@ -58,6 +61,7 @@ function(las_generate_faust_cpp TARGET)
       ${CMAKE_SOURCE_DIR}/src/dsp-faust/${TARGET}.dsp
     DEPENDS
       dsp-faust/${TARGET}.dsp
+      ${ARGN}
       templates/parameters.hpp.in
     VERBATIM
   )
@@ -68,6 +72,7 @@ endfunction()
 # used for DPF plugins
 
 function(las_generate_faust_plugin TARGET)
+  # any extra arguments are further .dsp/.lib files the dsp imports, relative to this directory
   add_custom_command(
     OUTPUT
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
@@ -92,6 +97,7 @@ function(las_generate_faust_plugin TARGET)
     DEPENDS
       ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}
       dsp-faust/${TARGET}.dsp
+      ${ARGN}
       templates/config.h.in
     VERBATIM
   )
@@ -229,6 +235,14 @@ function(las_add_plugin LABEL)
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   elseif("${LABEL}" STREQUAL "voiceIsolation")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise las-speex-resampler las-kiss-fft)
+  elseif("${LABEL}" STREQUAL "speechEnhancer")
+    list(APPEND EXTRA_DSP_LIBS las-rnnoise las-speex-resampler)
+  endif()
+
+  # faust files imported by the dsp, so that editing them regenerates it
+  set(EXTRA_FAUST_DEPENDS)
+  if("${LABEL}" STREQUAL "speechEnhancer")
+    list(APPEND EXTRA_FAUST_DEPENDS dsp-faust/leveler.dsp)
   endif()
 
   set(EXTRA_UI_LIBS)
@@ -295,8 +309,8 @@ function(las_add_plugin LABEL)
     )
   endif()
 
-  las_generate_faust_cpp(${LABEL})
-  las_generate_faust_plugin(${LABEL})
+  las_generate_faust_cpp(${LABEL} ${EXTRA_FAUST_DEPENDS})
+  las_generate_faust_plugin(${LABEL} ${EXTRA_FAUST_DEPENDS})
 
   set_target_properties(${TARGET}
     PROPERTIES

@@ -313,17 +313,34 @@ with {
 //   gPrev    : total gain in dB, used to refer the brake detector to the
 //              levelled output without creating a delay-free loop
 //   trimPrev : integrated-loudness trim in dB
+//
+// The leveler measures its own input and output.
 
-leveler(gPrev, trimPrev, l, r) = gTotal, trim, outL, outR
+leveler(gPrev, trimPrev, l, r) = levelerCore(kPower(l, r), brakePower(l, r), kPower,
+                                             gPrev, trimPrev, l, r);
+
+// BS.1770 power of a stereo pair, G_L = G_R = 1
+kPower(l, r) = sq(l : kfilter) + sq(r : kfilter);
+// the same, band limited for the brake detector
+brakePower(l, r) = sq(l : kfilter : brakeFilter) + sq(r : kfilter : brakeFilter);
+
+// The leveler with its detectors supplied from outside, so that it can
+// measure a signal other than its own input, such as the output of later
+// processing fed back.
+//
+//   pDetect  : K-weighted power the control detector levels, referred to
+//              the leveler input
+//   pBrake   : band-limited K-weighted power for the brake, referred to
+//              the leveler input
+//   outPower : function of the leveler's output pair giving the power the
+//              LUFS-I trim and the output meters measure
+levelerCore(pDetect, pBrake, outPower, gPrev, trimPrev, l, r) = gTotal, trim, outL, outR
 with {
 
     //------------------------------------------------------------------
-    // Input analysis. One K-filter pair feeds the LUFS-S meter, the
-    // control detector and the brake detector.
+    // Input analysis.
     //------------------------------------------------------------------
-    kl = l : kfilter;
-    kr = r : kfilter;
-    pIn = sq(kl) + sq(kr);                  // BS.1770 power, G_L = G_R = 1
+    pIn = kPower(l, r);
 
     lufsInS = pIn : meanSquare(shortTermWindow) : lufs : meter_lufs_in;
 
@@ -336,7 +353,7 @@ with {
     // brake as its gate and adds only the absolute gate on top. A relative
     // gate would be wrong here: the input is not levelled, so a genuine drop
     // in programme level is indistinguishable from a pause.
-    lufsInG = pIn : gatedLoudness(detectWindow, brake, 0.0) : idleAtTarget;
+    lufsInG = pDetect : gatedLoudness(detectWindow, brake, 0.0) : idleAtTarget;
     // Until something has been gated in there is nothing to correct.
     idleAtTarget(lvl, w) = select2(w > 0.0, target, lvl);
 
@@ -359,7 +376,7 @@ with {
     //------------------------------------------------------------------
     // Output analysis: the real plugin output, post gain and post PostGain.
     //------------------------------------------------------------------
-    pOut = sq(outL0 : kfilter) + sq(outR0 : kfilter);
+    pOut = outPower(outL0, outR0);
     lufsOutS = pOut : meanSquare(shortTermWindow) : lufs : meter_lufs_out;
 
     // The output measurement uses the same "is this programme" decision as
@@ -442,7 +459,6 @@ with {
         : si.lag_ud(brakeAttack, brakeRelease);
 
     lufsBrake = pBrake : meanSquareFast(brakeWindow) : lufs : +(gPrev);
-    pBrake = sq(kl : brakeFilter) + sq(kr : brakeFilter);
 };
 
 // 12 dB/octave band limiting ahead of the brake's level detector.

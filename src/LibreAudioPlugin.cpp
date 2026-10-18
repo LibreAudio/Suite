@@ -471,6 +471,9 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
        #if LIBREAUDIO_WANT_VOICE_ISOLATION
         fVoiceIsolation.process(fCycleBuffer, cycleFrames);
        #endif
+       #if LIBREAUDIO_WANT_VOICE_ISOLATION_VAD
+        fMainDSP->setVAD(fVoiceIsolation.vadCurrent() * 0.01f);
+       #endif
         fMainDSP->compute(cycleFrames, fCycleBuffer);
        #if LIBREAUDIO_WANT_VOICE_ISOLATION
         updateVoiceIsolationMeters();
