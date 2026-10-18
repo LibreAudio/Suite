@@ -337,8 +337,9 @@ struct Reference {
         };
 
         struct PillToggle : Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07 };
-            static constexpr const Color borderColor = { 0xff, 0xff, 0xff, 0.04 };
+            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+            static constexpr const Color borderColor = { backgroundColor, 0.04f };
+            static constexpr const Color borderHighlightColor = { backgroundColor, 0.12f };
             // static constexpr const Color deactivatedColor = Colors::ink3;
             // static constexpr const Color color = Colors::acc;
             // static constexpr const float fontSize = Common::fontSize;
