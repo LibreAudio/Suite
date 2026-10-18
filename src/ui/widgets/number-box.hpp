@@ -44,6 +44,15 @@ public:
 private:
     const FaustParameter& fParameter;
 
+    // the up / down cursor while hovered or dragged, as the value is dragged vertically
+    void stateChanged(const State state, const State oldState) final
+    {
+        BaseWidget::stateChanged(state, oldState);
+
+        if ((state == kKnobStateDefault) != (oldState == kKnobStateDefault))
+            getWindow().setCursor(state == kKnobStateDefault ? kMouseCursorArrow : kMouseCursorUpDown);
+    }
+
     void onNanoDisplay() final
     {
         drawReferenceBackground<R>();
