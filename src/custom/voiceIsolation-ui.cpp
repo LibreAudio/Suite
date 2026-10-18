@@ -7,7 +7,7 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/number-box.hpp"
-#include "ui/widgets/toggle-switch.hpp"
+#include "ui/widgets/switch-box.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -17,8 +17,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
-#include <cstring>
-#include <utility>
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -55,97 +53,8 @@ constexpr const Color& accentColor() noexcept
 template<FaustParameterIndex id>
 using VoiceIsolationNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
 
-// An on / off parameter shown as its name only, two words on two lines, as tall as a number box: grey when off,
-// accent colour when on, 70% accent when hovered.
-
-struct VoiceIsolationToggleReference : Reference::Zero {
-    static constexpr const Color color = Reference::Colors::ink3;
-    static constexpr const float fontSize = 13.f;
-    static constexpr const float letterSpacing = fontSize * 0.06f;
-    static constexpr const uint margin = 6;
-    static constexpr const uint height = Reference::Widgets::NumberBox<>::height;
-    // distance between the two lines of a two-word name
-    static constexpr const float lineHeight = 16.f;
-};
-
 template<FaustParameterIndex id>
-class VoiceIsolationToggleWidget final : public ToggleSwitchBaseWidget
-{
-    using R = VoiceIsolationToggleReference;
-    using BaseWidget = ToggleSwitchBaseWidget;
-
-public:
-    explicit VoiceIsolationToggleWidget(LabWidget* const parent)
-        : BaseWidget(parent, kParametersMainStart + id, kFaustParameters[id].name)
-    {
-        setChecked(d_isNotZero(kFaustParameters[id].init), false);
-        updateSize(false);
-    }
-
-private:
-    void setupFont()
-    {
-        fontFace("regular");
-        fontSize(R::fontSize * fScaleFactor);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
-    }
-
-    // the name in two lines, split at its first space, or one line without a space
-    [[nodiscard]] std::array<std::pair<const char*, const char*>, 2> lines() const noexcept
-    {
-        const char* const name = getName();
-        const char* const space = std::strchr(name, ' ');
-
-        if (space == nullptr)
-            return {{ { name, nullptr }, { nullptr, nullptr } }};
-
-        return {{ { name, space }, { space + 1, nullptr } }};
-    }
-
-    void onNanoDisplay() final
-    {
-        constexpr const Color& accent = accentColor<id>();
-        const auto [first, second] = lines();
-        const float x = R::margin * fScaleFactor;
-        const float cy = getHeight() * 0.5f;
-        const float half = R::lineHeight * 0.5f * fScaleFactor;
-
-        setupFont();
-        fillColor(isChecked() ? accent : isHovered() ? accent.withAlpha(0.7f) : R::color);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-
-        if (second.first == nullptr)
-        {
-            text(x, cy, first.first, first.second);
-            return;
-        }
-
-        text(x, cy - half, first.first, first.second);
-        text(x, cy + half, second.first, second.second);
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        setupFont();
-        textAlign(0);
-
-        float width = 0.f;
-        for (const auto& [start, end] : lines())
-        {
-            if (start == nullptr)
-                continue;
-
-            Rectangle<float> bounds;
-            textBounds(0, 0, start, end, bounds);
-            width = std::max(width, bounds.getWidth());
-        }
-
-        setSize(d_roundToUnsignedInt(width + R::margin * 2 * fScaleFactor),
-                d_roundToUnsignedInt(R::height * fScaleFactor));
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
+using VoiceIsolationSwitchBoxWidget = SwitchBoxWidget<accentColor<id>()>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // One group's controls: number boxes, which share whatever width the row gives the group, and controls of their own
@@ -374,12 +283,13 @@ class VoiceIsolationDenoiseGroupWidget final : public VoiceIsolationGroupWidget
     const std::array<std::shared_ptr<LabWidget>, 3> widgets {
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterMax_reduction>, Expanding>(kFaustParameterMax_reduction),
         addWidget<VoiceIsolationNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
-        addWidget<VoiceIsolationToggleWidget<kFaustParameterPitch_enhancement>>(),
+        addWidget<VoiceIsolationSwitchBoxWidget<kFaustParameterPitch_enhancement>, Expanding>(kFaustParameterPitch_enhancement,
+                                                                                         "Pitch Enhance"),
     };
 
 public:
     explicit VoiceIsolationDenoiseGroupWidget(LabWidget* const parent)
-        : VoiceIsolationGroupWidget(parent, 2) {}
+        : VoiceIsolationGroupWidget(parent, 3) {}
 };
 
 class VoiceIsolationGateGroupWidget final : public VoiceIsolationGroupWidget
