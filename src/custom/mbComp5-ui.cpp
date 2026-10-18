@@ -23,15 +23,63 @@ namespace LibreAudio {
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
 
-static constexpr const uint kHeaderHeight = 20;
-static constexpr const uint kBodyHeight = Reference::Widgets::NumberBox<>::height * 5 + kCommonPadding * 5;
-
+template<uint8_t band>
 struct MbComp5BandGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
+    static constexpr const Color borderColor = backgroundColor;
+    static constexpr const Color borderHighlightColor { borderColor, 0.12f };
+    static constexpr const uint border = 1;
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
-    static constexpr const uint height = kCommonMargin * 2 + kHeaderHeight + kBodyHeight;
+
+    struct Header : Reference::Zero {
+        static constexpr const uint height = 18;
+
+        struct Title : Reference::Zero {
+            static constexpr const Color color = Reference::kAccentColors[band + 1];
+            static constexpr const float fontSize = Header::height * 0.75f;
+            static constexpr const float height = Header::height;
+        };
+
+        struct Buttons : Reference::Zero {
+            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+            static constexpr const Color borderColor = backgroundColor;
+            static constexpr const Color borderHighlightColor { borderColor, 0.16f };
+            static constexpr const uint border = 1;
+            static constexpr const uint borderRadius = 6;
+            static constexpr const uint margin = 2;
+            static constexpr const uint padding = 2;
+            static constexpr const uint height = Header::height - Header::margin * 2;
+
+            struct Solo : Reference::Zero {
+                static constexpr const Color backgroundColor〡checked = Reference::kAccentColors[band + 1];
+                static constexpr const Color color = Reference::Colors::ink2;
+                static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
+                static constexpr const Color color〡hover = Reference::kAccentColors[band + 1];
+                static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+                static constexpr const uint borderRadius = 4;
+                static constexpr const uint width = Header::height;
+            };
+
+            struct Bypass : Solo {
+                static constexpr const Color backgroundColor〡checked = Reference::Widgets::Button〡Bypass::backgroundColorBypass;
+                static constexpr const Color color〡checked = Reference::Widgets::Button〡Bypass::colorBypass;
+                static constexpr const Color color〡hover = Reference::Widgets::Button〡Bypass::colorBypass;
+            };
+        };
+    };
+
+    struct Body : Reference::Zero {
+        static constexpr const uint padding = kCommonPadding;
+        static constexpr const uint height = Reference::Widgets::NumberBox<>::height * 5 + padding * 4;
+
+        struct NumberBoxes : Reference::Zero {
+            static constexpr const uint padding = kCommonPadding;
+        };
+    };
+
+    static constexpr const uint height = margin * 2 + Header::height + padding + Body::height;
 };
 
 inline constexpr const char* bandLabels[] = {
@@ -43,10 +91,8 @@ inline constexpr const char* bandLabels[] = {
 };
 
 template<uint8_t band>
-class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference, kVertical>
+class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference<band>, kVertical>
 {
-    using BaseWidget = ReferenceContainerWidget<MbComp5BandGroupReference, kVertical>;
-
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
 
     static constexpr FaustParameterIndex getParameterIndexForBand(const FaustParameterIndex index)
@@ -61,181 +107,147 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     }
 
     // ----------------------------------------------------------------------------------------------------------------
-    // header: text + buttons
-
-    struct SoloButtonReference : Reference::Zero {
-        static constexpr const Color backgroundColor〡checked = Reference::kAccentColors[band + 1];
-        static constexpr const Color color = Reference::Colors::ink2;
-        static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
-        static constexpr const Color color〡hover = Reference::kAccentColors[band + 1];
-        static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
-        static constexpr const uint borderRadius = 4;
-        static constexpr const uint width = 18;
-    };
-
-    struct BypassButtonReference : SoloButtonReference {
-        static constexpr const Color backgroundColor〡checked = Reference::Widgets::Button〡Bypass::backgroundColorBypass;
-        static constexpr const Color color〡checked = Reference::Widgets::Button〡Bypass::colorBypass;
-        static constexpr const Color color〡hover = Reference::Widgets::Button〡Bypass::colorBypass;
-    };
-
-    struct ButtonGroupReference : Reference::Zero {
-        static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
-        static constexpr const uint borderRadius = 6;
-        static constexpr const uint margin = 2;
-        static constexpr const uint padding = 2;
-    };
-
-    template<class R, const uchar* imageData, uint imageDataSize>
-    class SoloMuteButton : public ImageButtonWidget<kCornerBoth, imageData, imageDataSize, R>
-    {
-        using BaseWidget = ImageButtonWidget<kCornerBoth, imageData, imageDataSize, R>;
-
-    public:
-        explicit SoloMuteButton(LabWidget* const parent)
-            : BaseWidget(parent) {}
-
-    private:
-        void onNanoDisplay() override
-        {
-            if (BaseWidget::isChecked())
-                BaseWidget::template drawReferenceBackground<R, R::backgroundColor〡checked, kCornerBoth>();
-            else
-                BaseWidget::template drawReferenceBackground<R, R::backgroundColor, kCornerBoth>();
-
-            BaseWidget::template drawReferenceBorder<R, R::borderColor>();
-
-            if (BaseWidget::isChecked())
-                BaseWidget::drawColoredImage(R::color〡checked);
-            else if (BaseWidget::isHovered())
-                BaseWidget::drawColoredImage(R::color〡hover);
-            else
-                BaseWidget::drawColoredImage(R::color);
-        }
-    };
-
-    class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<ButtonGroupReference>
-    {
-        using R = ButtonGroupReference;
-        using BaseWidget = ReferenceButtonGroupWidget<R>;
-        using SoloButtonWidget = SoloMuteButton<SoloButtonReference, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
-        using MuteButtonWidget = SoloMuteButton<BypassButtonReference, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>;
-
-    public:
-        explicit SoloMuteGroupWidget(LabWidget* const parent)
-            : BaseWidget(parent)
-        {
-            addButton<SoloButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_listen));
-            addButton<MuteButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_bypass));
-            BaseWidget::done();
-        }
-
-    private:
-        template<class B>
-        std::shared_ptr<ButtonBaseWidget> addButton(const FaustParameterIndex index)
-        {
-            const FaustParameter& parameter = kFaustParameters[index];
-            DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
-            DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
-
-            return BaseWidget::template addButton<B>(kParametersMainStart + index, getFaustParameterLabel(parameter));
-        }
-
-        void onNanoDisplay() final
-        {
-            BaseWidget::template drawReferenceBackground<R>();
-            BaseWidget::template drawReferenceBorder<R>();
-        }
-    };
-
-    class HeaderWidget final : public TransparentSizedContainerWidget<kHorizontal, kHeaderHeight>
-    {
-        using BaseWidget = TransparentSizedContainerWidget<kHorizontal, kHeaderHeight>;
-
-        struct TextReference : Reference::Zero {
-            static constexpr const Color color = Reference::kAccentColors[band + 1];
-            static constexpr const float fontSize = 18;
-        };
-
-        const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            addWidget<ReferenceTextWidget<TextReference>, Expanding>(bandLabels[band]),
-            addWidget<SoloMuteGroupWidget>(),
-        };
-
-    public:
-        explicit HeaderWidget(LabWidget* const parent)
-            : BaseWidget(parent) {}
-    };
-
-    // ----------------------------------------------------------------------------------------------------------------
-    // body: number-boxes stack + meter
-
-    class BodyWidget final : public TransparentPaddedContainerWidget<kHorizontal, kCommonPadding>
-    {
-        using BaseWidget = TransparentPaddedContainerWidget<kHorizontal, kCommonPadding>;
-
-        static constexpr const Color kMeterColor = Reference::kAccentColors[band + 1];
-        using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kMeterColor>>;
-
-        const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            addWidget<NumberBoxStackWidget, Expanding>(),
-            addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
-                                   getLevelParameterIndex(false),
-                                   getLevelParameterIndex(true)),
-        };
-
-    public:
-        explicit BodyWidget(LabWidget* const parent)
-            : BaseWidget(parent) {}
-    };
-
-    // ----------------------------------------------------------------------------------------------------------------
-    // stack of number-boxes
-
-    static constexpr const Color kNumberBoxColor = Reference::kAccentColors[band + 1];
-
-    class NumberBoxStackWidget final : public TransparentPaddedContainerWidget<kVertical, kCommonPadding>
-    {
-        using BaseWidget = TransparentPaddedContainerWidget<kVertical, kCommonPadding>;
-
-        const std::array<std::shared_ptr<LabWidget>, 5> widgets {
-            addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
-            addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
-            addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_attack)),
-            addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_release)),
-            addWidget<NumberBoxWidget<kNumberBoxColor>>(getParameterIndexForBand(kFaustParameterBand1_makeup)),
-        };
-
-    public:
-        explicit NumberBoxStackWidget(LabWidget* const parent)
-            : BaseWidget(parent) {}
-    };
-
-    // ----------------------------------------------------------------------------------------------------------------
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        addWidget<HeaderWidget>(),
-        addWidget<BodyWidget, Expanding>(),
+        BaseWidget::template addWidget<HeaderWidget>(),
+        BaseWidget::template addWidget<BodyWidget, Expanding>(),
     };
 
     // ----------------------------------------------------------------------------------------------------------------
 
 public:
+    static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
+
+    using R = MbComp5BandGroupReference<band>;
+    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kAccentColor>>;
+
     explicit MbComp5BandGroupWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // header: text + buttons
+
+    class HeaderWidget final : public ReferenceContainerWidget<typename R::Header, kHorizontal>
+    {
+        const std::array<std::shared_ptr<LabWidget>, 2> widgets {
+            BaseWidget::template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(bandLabels[band]),
+            BaseWidget::template addWidget<SoloMuteGroupWidget>(),
+        };
+
+    public:
+        using HR = typename R::Header;
+        using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
+
+        explicit HeaderWidget(LabWidget* const parent)
+            : BaseWidget(parent) {}
+
+        class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<typename HR::Buttons>
+        {
+            template<class SMBR, const uchar* imageData, uint imageDataSize>
+            class SoloMuteButton : public ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>
+            {
+            public:
+                using BaseWidget = ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>;
+
+                explicit SoloMuteButton(LabWidget* const parent)
+                    : BaseWidget(parent) {}
+
+            private:
+                void onNanoDisplay() override
+                {
+                    if (BaseWidget::isChecked())
+                        BaseWidget::template drawReferenceBackground<SMBR, SMBR::backgroundColor〡checked, kCornerBoth>();
+                    else
+                        BaseWidget::template drawReferenceBackground<SMBR, SMBR::backgroundColor, kCornerBoth>();
+
+                    BaseWidget::template drawReferenceBorder<SMBR, SMBR::borderColor>();
+
+                    if (BaseWidget::isChecked())
+                        BaseWidget::drawColoredImage(SMBR::color〡checked);
+                    else if (BaseWidget::isHovered())
+                        BaseWidget::drawColoredImage(SMBR::color〡hover);
+                    else
+                        BaseWidget::drawColoredImage(SMBR::color);
+                }
+            };
+
+        public:
+            using SMGR = typename HR::Buttons;
+            using BaseWidget = ReferenceButtonGroupWidget<SMGR>;
+            using SoloButtonWidget = SoloMuteButton<typename SMGR::Solo, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
+            using MuteButtonWidget = SoloMuteButton<typename SMGR::Bypass, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>;
+
+            explicit SoloMuteGroupWidget(LabWidget* const parent)
+                : BaseWidget(parent)
+            {
+                addButton<SoloButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_listen));
+                addButton<MuteButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_bypass));
+                BaseWidget::done();
+            }
+
+        private:
+            template<class B>
+            std::shared_ptr<ButtonBaseWidget> addButton(const FaustParameterIndex index)
+            {
+                const FaustParameter& parameter = kFaustParameters[index];
+                DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
+                DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
+
+                return BaseWidget::template addButton<B>(kParametersMainStart + index, getFaustParameterLabel(parameter));
+            }
+        };
+    };
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // body: number-boxes stack + meter
+
+    class BodyWidget final : public ReferenceContainerWidget<typename R::Body, kHorizontal>
+    {
+        const std::array<std::shared_ptr<LabWidget>, 2> widgets {
+            BaseWidget::template addWidget<NumberBoxStackWidget, Expanding>(),
+            BaseWidget::template addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
+                                                        getLevelParameterIndex(false),
+                                                        getLevelParameterIndex(true)),
+        };
+
+    public:
+        using BR = typename R::Body;
+        using BaseWidget = ReferenceContainerWidget<BR, kHorizontal>;
+
+        explicit BodyWidget(LabWidget* const parent)
+            : BaseWidget(parent) {}
+
+        class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, kVertical>
+        {
+            const std::array<std::shared_ptr<LabWidget>, 5> widgets {
+                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
+                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
+                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
+                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_release)),
+                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_makeup)),
+            };
+
+        public:
+            using NBR = typename BR::NumberBoxes;
+            using BaseWidget = ReferenceContainerWidget<NBR, kVertical>;
+            using NumberBoxWidgetR = NumberBoxWidget<kAccentColor>;
+
+            explicit NumberBoxStackWidget(LabWidget* const parent)
+                : BaseWidget(parent) {}
+        };
+    };
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
 struct MbComp5BandsReference : Reference::Zero {
     static constexpr const uint padding = kCommonPadding;
-    static constexpr const uint height = MbComp5BandGroupReference::height + margin * 2;
+    static constexpr const uint height = MbComp5BandGroupReference<0>::height + margin * 2;
 };
 
 class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsReference, kHorizontal>
 {
-    using BaseWidget = ReferenceContainerWidget<MbComp5BandsReference, kHorizontal>;
-
     const std::array<std::shared_ptr<LabWidget>, 5> widgets {
         addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
         addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
@@ -245,6 +257,8 @@ class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsRef
     };
 
 public:
+    using BaseWidget = ReferenceContainerWidget<MbComp5BandsReference, kHorizontal>;
+
     explicit MbComp5BandsWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 };
@@ -253,6 +267,9 @@ public:
 
 struct MbComp5NonBandParamsGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
+    static constexpr const Color borderColor = backgroundColor;
+    static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
+    static constexpr const uint border = 1;
     static constexpr const uint borderRadius = 10;
     static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
@@ -261,21 +278,22 @@ struct MbComp5NonBandParamsGroupReference : Reference::Zero {
 
 class MbComp5NonBandParamsGroupWidget final : public ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, kHorizontal>
 {
-    using BaseWidget = ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, kHorizontal>;
-
     const std::array<std::shared_ptr<LabWidget>, 9> widgets {
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterSlope),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterKnee),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterRange),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterRms_time),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterShape),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterChan_link),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterBand_link),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterLookahead),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterDrywet),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterSlope),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterKnee),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterRange),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterRms_time),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterShape),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterChan_link),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterBand_link),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterLookahead),
+        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterDrywet),
     };
 
 public:
+    using BaseWidget = ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, kHorizontal>;
+    using NumberBoxWidgetR = NumberBoxWidget<>;
+
     explicit MbComp5NonBandParamsGroupWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 };
@@ -289,8 +307,6 @@ struct MbComp5ExpertPageReference : Reference::Zero {
 
 class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5ExpertPageReference, kVertical>
 {
-    using BaseWidget = ReferenceContainerWidget<MbComp5ExpertPageReference, kVertical>;
-
     const std::array<std::shared_ptr<LabWidget>, 3> widgets {
         addSpacer(),
         addWidget<MbComp5BandsWidget>(),
@@ -298,6 +314,8 @@ class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5Exp
     };
 
 public:
+    using BaseWidget = ReferenceContainerWidget<MbComp5ExpertPageReference, kVertical>;
+
     explicit MbComp5ExpertPageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 };
@@ -328,9 +346,6 @@ struct MbComp5StageReference : Reference::Stage {
 
 class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>
 {
-    using R = MbComp5StageReference;
-    using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
-
     static constexpr const float kCrossoverFreqMin = kFaustParameters[kFaustParameterXover1].min;
     static constexpr const float kCrossoverFreqMax = kFaustParameters[kFaustParameterXover4].max;
     static constexpr const float kCrossoverRatio = 2.f; // 2x previous freq for 1 octave between crossovers
@@ -342,6 +357,9 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
     std::shared_ptr<MbComp5GraphWidget> graph { new MbComp5GraphWidget(this) };
 
 public:
+    using R = MbComp5StageReference;
+    using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
+
     explicit MbComp5StageWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {

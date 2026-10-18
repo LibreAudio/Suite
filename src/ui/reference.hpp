@@ -50,6 +50,7 @@ struct Reference {
     struct Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
+        static constexpr const Color borderHighlightColor = Colors::transparent;
         static constexpr const Color color = Colors::transparent;
         static constexpr const Color color〡deactivated = Colors::transparent;
         static constexpr const float fontSize = Common::fontSize;
@@ -176,8 +177,6 @@ struct Reference {
         };
 
         struct ButtonGroup : Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.08f };
-            static constexpr const Color borderColor = Colors::transparent;
             static constexpr const uint borderRadius = 6;
             static constexpr const uint padding = 1;
         };

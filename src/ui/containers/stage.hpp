@@ -164,6 +164,8 @@ public:
 
     void onNanoDisplay() override
     {
+        drawReferenceBackground<R>();
+        drawReferenceBorder<R>();
     }
 
 protected:

@@ -162,6 +162,9 @@ protected:
     template <class R, const Color& borderColor>
     void drawReferenceBorder()
     {
+        static_assert(d_isZero(R::borderHighlightColor.alpha) || R::borderRadius != 0,
+                      "borderRadius must be != 0 if using border highlight color");
+
         if constexpr (R::border != 0 && d_isNotZero(borderColor.alpha))
         {
             const float w = BaseWidget::getWidth();
@@ -179,21 +182,21 @@ protected:
 
             if constexpr (R::borderRadius != 0)
             {
-                const float borderRadius = R::borderRadius * fScaleFactor;
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius < w * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius < h * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius > border,);
+                const float r = R::borderRadius * fScaleFactor;
+                DISTRHO_SAFE_ASSERT_RETURN(r < w * 0.5f,);
+                DISTRHO_SAFE_ASSERT_RETURN(r < h * 0.5f,);
+                DISTRHO_SAFE_ASSERT_RETURN(r > border,);
 
-                const float arcRadius = borderRadius - border;
+                const float arcRadius = r - border;
 
-                BaseWidget::moveTo(sx + borderRadius, sy);
-                BaseWidget::arcTo(sx, sy, sx, ey - borderRadius, arcRadius);
-                BaseWidget::lineTo(sx, ey - borderRadius);
-                BaseWidget::arcTo(sx, ey, sx + borderRadius, ey, arcRadius);
-                BaseWidget::lineTo(ex - borderRadius, ey);
-                BaseWidget::arcTo(ex, ey, ex, ey - borderRadius, arcRadius);
-                BaseWidget::lineTo(ex, sx + borderRadius);
-                BaseWidget::arcTo(ex, sy, ex - borderRadius, sy, arcRadius);
+                BaseWidget::moveTo(sx + r, sy);
+                BaseWidget::arcTo(sx, sy, sx, ey - r, arcRadius);
+                BaseWidget::lineTo(sx, ey - r);
+                BaseWidget::arcTo(sx, ey, sx + r, ey, arcRadius);
+                BaseWidget::lineTo(ex - r, ey);
+                BaseWidget::arcTo(ex, ey, ex, ey - r, arcRadius);
+                BaseWidget::lineTo(ex, sx + r);
+                BaseWidget::arcTo(ex, sy, ex - r, sy, arcRadius);
             }
             else
             {
@@ -207,6 +210,22 @@ protected:
             BaseWidget::strokeColor(borderColor);
             BaseWidget::strokeWidth(border);
             BaseWidget::stroke();
+
+            if constexpr (R::borderRadius != 0 && d_isNotZero(R::borderHighlightColor.alpha))
+            {
+                const float r = R::borderRadius * fScaleFactor;
+
+                BaseWidget::save();
+                BaseWidget::scissor(0, 0, w, r);
+                BaseWidget::strokePaint(BaseWidget::linearGradient(0,
+                                                                   0,
+                                                                   0,
+                                                                   r,
+                                                                   R::borderHighlightColor,
+                                                                   Color(R::borderHighlightColor, 0.f)));
+                BaseWidget::stroke();
+                BaseWidget::restore();
+            }
         }
     }
 
