@@ -213,7 +213,7 @@ protected:
     template <class R>
     void drawReferenceLine(const float sx, const float sy, const float ex, const float ey)
     {
-        drawReferenceLine<R, R::color>();
+        drawReferenceLine<R, R::color>(sx, sy, ex, ey);
     }
 
     template <class R, const Color& color>
