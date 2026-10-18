@@ -827,7 +827,9 @@ private:
         const float h = getHeight();
         const bool off = bypassed();
 
-        const float top = R::margin * s;
+        // the scale starts half a label below the margin, leaving the frequency labels above it, as in mbComp5
+        const float fontsize = 10.f * s;
+        const float top = R::margin * s + fontsize * 0.5f;
         const float bottom = h - R::margin * s;
 
         const auto yOfDb = [=](const float db) {
@@ -855,6 +857,49 @@ private:
         save();
         scissor(0, 0, w, h);
 
+        fontFace("regular");
+        fontSize(fontsize);
+        textLetterSpacing(0.f);
+        strokeWidth(1.f);
+
+        // mbComp5's frequency grid: 9 lines per decade, each decade's first stronger and its fifth less so, labelled
+        // above the scale at 1, 2 and 5 of each decade from 50 Hz
+        {
+            const Color color(0x3b, 0x3b, 0x44);
+            char label[16];
+
+            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+            fillColor(Color(140, 142, 150));
+
+            for (int dec = 10; dec < kFreqMax; dec *= 10)
+            {
+                for (int m = 0; m < 9; ++m)
+                {
+                    const int freq = (m + 1) * dec;
+                    if (freq <= kFreqMin || freq >= kFreqMax)
+                        continue;
+
+                    const float x = std::round(freq2norm(freq) * w) + 0.5f;
+
+                    beginPath();
+                    moveTo(x, top);
+                    lineTo(x, h);
+                    strokeColor(color.withAlpha(m == 0 ? 0.7f : m == 4 ? 0.45f : 0.22f));
+                    stroke();
+
+                    if ((m == 0 || m == 1 || m == 4) && freq >= 50)
+                    {
+                        if (freq >= 1000)
+                            std::snprintf(label, sizeof(label), "%dk", freq / 1000);
+                        else
+                            std::snprintf(label, sizeof(label), "%d", freq);
+
+                        text(x, top * 0.5f, label, nullptr);
+                    }
+                }
+            }
+        }
+
         // hairline grid, 0 dB stronger, labelled on both sides on the lines themselves; each line stops short of its
         // labels and fades in from them
         {
@@ -862,11 +907,6 @@ private:
             const float labelGap = 6.f * s;
             const float fade = 40.f * s;
             char label[16];
-
-            fontFace("regular");
-            fontSize(10.f * s);
-            textLetterSpacing(0.f);
-            strokeWidth(1.f);
 
             for (float db = kDisplayDbMax; db >= kDisplayDbMin; db -= kDisplayDbStep)
             {
