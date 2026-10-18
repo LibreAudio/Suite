@@ -139,7 +139,16 @@ public:
         return BaseWidget::addButton<LabCardWidget, Expanding>(id, title, subtitle);
     }
 
+    // height of the cards, in unscaled pixels, in place of the reference's, such as to match other controls
+    void setCardHeight(const uint height)
+    {
+        fCardHeight = height;
+        updateSize(true);
+    }
+
 private:
+    uint fCardHeight = R::height;
+
     void updateSize(const bool updateChildren) final
     {
         DISTRHO_SAFE_ASSERT(updateChildren);
@@ -151,8 +160,13 @@ private:
         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
         uint cardsHeight;
 
-        if constexpr (R::height != 0)
-            cardsHeight = d_roundToUnsignedInt(R::height * fScaleFactor);
+        if (fCardHeight != 0)
+        {
+            cardsHeight = d_roundToUnsignedInt(fCardHeight * fScaleFactor);
+
+            for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
+                widget->setHeight(cardsHeight);
+        }
         else if (! fWidgets.empty())
             cardsHeight = fWidgets.front()->getHeight();
         else

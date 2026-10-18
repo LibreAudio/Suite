@@ -834,6 +834,8 @@ private:
         widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
         widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
         widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
+        // as tall as the groups, so the display keeps its height between Easy and Expert mode
+        widget->setCardHeight(VoiceIsolationGroupRowReference::height);
         widget->done();
 
         Layout::widgets.push_back({ widget.get(), Fixed });
