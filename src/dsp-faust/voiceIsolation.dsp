@@ -49,7 +49,7 @@ release = uiBottomLeft(hslider("[02]Release[style:knob][unit:ms][scale:log][symb
       [tooltip: Fastest a band may fall by 60 dB. RNNoise's own is 135 ms]",
                                135, 10, 1000, 1));
 
-pitchEnhancement = uiBottomLeft(checkbox("[03]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][accentcolor:03][bracket:DENOISER]
+pitchEnhancement = uiBottomLeft(checkbox("[03]Pitch Enhancement[symbol:pitch_enhancement][label:Pitch][accentcolor:06][bracket:DENOISER]
       [tooltip: Restores voice harmonics between the bands, estimated per channel, which can blur the stereo image]"));
 
 threshold = uiBottomRight(hslider("[04]Threshold[style:knob][unit:%][symbol:threshold][label:Threshold][accentcolor:04][bracket:GATE]

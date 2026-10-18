@@ -56,8 +56,12 @@ private:
         const float w = getWidth();
         const float h = getHeight();
 
+        // whole numbers for a step of 1, as the knob shows them
         char valuestr[32];
-        std::snprintf(valuestr, sizeof(valuestr), "%.1f", getValue());
+        if (isInteger())
+            std::snprintf(valuestr, sizeof(valuestr), "%d", d_roundToInt(getValue()));
+        else
+            std::snprintf(valuestr, sizeof(valuestr), "%.1f", getValue());
 
         // inset shading
         beginPath();
@@ -80,12 +84,7 @@ private:
         fontSize(R::Value::fontSize * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
         textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
-
-        Rectangle<float> bounds;
-        textBounds(border2x + margin, 0, "-88.8", nullptr, bounds);
-
-        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-        text(bounds.getX() + bounds.getWidth(), h - bh - margin, valuestr, nullptr);
+        text(border2x + margin, h - bh - margin, valuestr, nullptr);
 
         if (*fParameter.unit != '\0')
         {

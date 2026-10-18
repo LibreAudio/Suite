@@ -16,7 +16,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 // An on / off parameter drawn like a number box: its name at the top left, and under it, centred, a power icon, grey
-// when off, lighter grey when hovered and the accent colour when on. A click anywhere on the box toggles it.
+// when off, lighter grey when hovered and the accent colour when on, over the number box's bottom bar, full when on
+// and empty when off. A click anywhere on the box toggles it.
 
 template<const Color& kAccentColor = Reference::Colors::acc1>
 struct PowerBoxReference : Reference::Widgets::NumberBox<kAccentColor> {
@@ -58,6 +59,7 @@ private:
         const float border2x = border * 2;
         const float borderRadius = R::borderRadius * s;
         const float margin = R::margin * s;
+        const float bh = R::Bar::height * s;
         const float w = getWidth();
         const float h = getHeight();
 
@@ -82,7 +84,7 @@ private:
         const float ih = fImage.getHeight() * s / R::Icon::imageScale;
         const float nameBottom = border + margin + R::Name::fontSize * s;
         const float ix = std::round((w - iw) * 0.5f);
-        const float iy = std::round(nameBottom + (h - border - margin - nameBottom - ih) * 0.5f);
+        const float iy = std::round(nameBottom + (h - bh - margin - nameBottom - ih) * 0.5f);
 
         save();
         globalTint(isChecked() ? R::Icon::color〡checked : isHovered() ? R::Icon::color〡hover : R::Icon::color);
@@ -91,6 +93,19 @@ private:
         fillPaint(imagePattern(ix, iy, iw, ih, 0.f, fImage, 1.f));
         fill();
         restore();
+
+        // bottom bar, full when on and empty when off
+        {
+            save();
+
+            scissor(0, h - bh, w, bh);
+            beginPath();
+            roundedRect(0, 0, w, h, borderRadius);
+            fillColor(isChecked() ? R::Bar::color : R::Bar::color〡deactivated);
+            fill();
+
+            restore();
+        }
     }
 
     void updateSize(const bool updateChildren) final
