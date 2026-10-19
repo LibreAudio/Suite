@@ -242,7 +242,7 @@ function(las_add_plugin LABEL)
   # faust files imported by the dsp, so that editing them regenerates it
   set(EXTRA_FAUST_DEPENDS)
   if("${LABEL}" STREQUAL "speechEnhancer")
-    list(APPEND EXTRA_FAUST_DEPENDS dsp-faust/leveler.dsp)
+    list(APPEND EXTRA_FAUST_DEPENDS dsp-faust/leveler.dsp dsp-faust/mbComp5.dsp)
   endif()
 
   set(EXTRA_UI_LIBS)
