@@ -128,8 +128,8 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     // ----------------------------------------------------------------------------------------------------------------
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        BaseWidget::template addWidget<HeaderWidget>(),
-        BaseWidget::template addWidget<BodyWidget, Expanding>(),
+        this->template addWidget<HeaderWidget>(),
+        this->template addWidget<BodyWidget, Expanding>(),
     };
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -149,8 +149,8 @@ public:
         using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            BaseWidget::template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(bandLabels[band]),
-            BaseWidget::template addWidget<SoloMuteGroupWidget>(),
+            this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(bandLabels[band]),
+            this->template addWidget<SoloMuteGroupWidget>(),
         };
 
     public:
@@ -224,10 +224,10 @@ public:
         using BaseWidget = ReferenceContainerWidget<BR, kHorizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            BaseWidget::template addWidget<NumberBoxStackWidget, Expanding>(),
-            BaseWidget::template addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
-                                                        getLevelParameterIndex(false),
-                                                        getLevelParameterIndex(true)),
+            this->template addWidget<NumberBoxStackWidget, Expanding>(),
+            this->template addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
+                                                                           getLevelParameterIndex(false),
+                                                                           getLevelParameterIndex(true)),
         };
 
     public:
@@ -237,11 +237,11 @@ public:
         class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, kVertical>
         {
             const std::array<std::shared_ptr<LabWidget>, 5> widgets {
-                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
-                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
-                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
-                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_release)),
-                BaseWidget::template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_makeup)),
+                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
+                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
+                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
+                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_release)),
+                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_makeup)),
             };
 
         public:
