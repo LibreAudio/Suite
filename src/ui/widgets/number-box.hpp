@@ -9,6 +9,7 @@
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioUtils.hpp"
 
 namespace LibreAudio {
 
@@ -68,10 +69,7 @@ private:
 
         // whole numbers for a step of 1, as the knob shows them
         char valuestr[32];
-        if (isInteger())
-            std::snprintf(valuestr, sizeof(valuestr), "%d", d_roundToInt(getValue()));
-        else
-            std::snprintf(valuestr, sizeof(valuestr), "%.1f", getValue());
+        renderParameterValue(valuestr, fParameter, getValue());
 
         // inset shading
         beginPath();
@@ -96,14 +94,20 @@ private:
         textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
         text(border2x + margin, h - bh - margin, valuestr, nullptr);
 
-        if (*fParameter.unit != '\0')
+       #ifdef LIBREAUDIO_PLUGIN__mbComp5
+        const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
+                               : fParameter.unit;
+       #else
+        const char* const unit = fParameter.unit;
+       #endif
+        if (*unit != '\0')
         {
             fillColor(R::Unit::color);
             fontFace("regular");
             fontSize(R::Unit::fontSize * fScaleFactor);
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
             textLetterSpacing(R::Unit::letterSpacing * fScaleFactor);
-            text(w - border2x - margin, h - bh - margin, fParameter.unit, nullptr);
+            text(w - border2x - margin, h - bh - margin, unit, nullptr);
         }
 
         // bottom bar

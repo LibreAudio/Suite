@@ -74,11 +74,6 @@ protected:
         }
     }
 
-    void onNanoDisplay() override
-    {
-        // TODO divider??
-    }
-
     void updateSize(const bool updateChildren) override
     {
         DISTRHO_SAFE_ASSERT(updateChildren);

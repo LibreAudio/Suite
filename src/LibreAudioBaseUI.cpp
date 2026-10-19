@@ -198,6 +198,12 @@ void LibreAudioBaseUI::uiIdle()
        #endif
     }
 
+    if (fNeedsRepaint)
+    {
+        fNeedsRepaint = false;
+        repaint();
+    }
+
     fSnapshots.idle();
 }
 
@@ -474,6 +480,7 @@ void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 
     fScaleFactor = std::min(static_cast<double>(ev.size.getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
                             static_cast<double>(ev.size.getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);
+    fNeedsRepaint = true;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

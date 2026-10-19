@@ -60,9 +60,9 @@ public:
 
         char filename2[64];
        #ifdef DISTRHO_OS_WINDOWS
-        std::sprintf(filename2, "Local\\dpf_XXXXXX");
+        std::snprintf(filename2, sizeof(filename2), "Local\\dpf_XXXXXX");
        #else
-        std::sprintf(filename2, "/dpf_XXXXXX");
+        std::snprintf(filename2, sizeof(filename2), "/dpf_XXXXXX");
         int fd2;
        #endif
         const std::size_t filename2len = std::strlen(filename2);
