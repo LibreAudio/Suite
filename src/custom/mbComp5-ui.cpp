@@ -359,6 +359,23 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
     static constexpr const float kCrossoverFreqMax = kFaustParameters[kFaustParameterXover4].max;
     static constexpr const float kCrossoverRatio = 2.f; // 2x previous freq for 1 octave between crossovers
 
+    static constexpr const float kCrossoverFreqsMin[6] = {
+        kFreqMinf,
+        kFaustParameters[kFaustParameterXover1].min,
+        kFaustParameters[kFaustParameterXover2].min,
+        kFaustParameters[kFaustParameterXover3].min,
+        kFaustParameters[kFaustParameterXover4].min,
+        kFreqMaxf,
+    };
+    static constexpr const float kCrossoverFreqsMax[6] = {
+        kFreqMinf,
+        kFaustParameters[kFaustParameterXover1].max,
+        kFaustParameters[kFaustParameterXover2].max,
+        kFaustParameters[kFaustParameterXover3].max,
+        kFaustParameters[kFaustParameterXover4].max,
+        kFreqMaxf,
+    };
+
     static constexpr const int kGridDbMin = -18.f;
     static constexpr const int kGridDbMax = 6.f;
     static constexpr const int kGridDbRange = kGridDbMax - kGridDbMin;
@@ -376,6 +393,56 @@ public:
     }
 
 private:
+    std::array<float, 6> fFreqs = {
+        kFreqMin,
+        kFaustParameters[kFaustParameterXover1].init,
+        kFaustParameters[kFaustParameterXover2].init,
+        kFaustParameters[kFaustParameterXover3].init,
+        kFaustParameters[kFaustParameterXover4].init,
+        kFreqMax,
+    };
+    std::array<double, 6> fFreqPos = {};
+    int fFreqDragging = -1;
+
+    void idleCallback() final
+    {
+        BaseWidget::idleCallback();
+
+        // ignore when dragging, to prevent flicker
+        if (fFreqDragging != -1)
+            return;
+
+        const double dw = getWidth();
+
+        if (const float f1 = fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover1); d_isNotEqual(fFreqs[1], f1))
+        {
+            fFreqs[1] = f1;
+            fFreqPos[1] = freq2norm(f1) * dw;
+            repaint();
+        }
+
+        if (const float f2 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover2), fFreqs[1]); d_isNotEqual(fFreqs[2], f2))
+        {
+            fFreqs[2] = f2;
+            fFreqPos[2] = freq2norm(f2) * dw;
+            repaint();
+        }
+
+        if (const float f3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), fFreqs[2]); d_isNotEqual(fFreqs[3], f3))
+        {
+            fFreqs[3] = f3;
+            fFreqPos[3] = freq2norm(f3) * dw;
+            repaint();
+        }
+
+        if (const float f4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), fFreqs[3]); d_isNotEqual(fFreqs[4], f4))
+        {
+            fFreqs[4] = f4;
+            fFreqPos[4] = freq2norm(f4) * dw;
+            repaint();
+        }
+    }
+
     bool bypassed() const { return fInterface->getParameterValue(kCommonParameterBypass) > .5f; }
 
     float value(int p) const { return fInterface->getParameterValue(kParametersMainStart + p); }
@@ -424,19 +491,13 @@ private:
         const float borderRadius = R::borderRadius * fScaleFactor;
         const float margin = R::margin * fScaleFactor;
 
-        const float freq1 = fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover1);
-        const float freq2 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover2), freq1);
-        const float freq3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), freq2);
-        const float freq4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), freq3);
-
         char s[24];
-        const std::array<float, 6> freqs = { kFreqMin, freq1, freq2, freq3, freq4, kFreqMax };
 
         // background coloring matching each band dedicated frequency
-        for (uint8_t b = 0; b < freqs.size() - 1; ++b)
+        for (uint8_t b = 0; b < fFreqs.size() - 1; ++b)
         {
-            const float x1 = freq2norm(freqs[b]) * w;
-            const float x2 = freq2norm(freqs[b + 1]) * w;
+            const float x1 = fFreqPos[b];
+            const float x2 = fFreqPos[b + 1];
             const float rl = b == 0 ? borderRadius : 0;
             const float rr = b == 4 ? borderRadius : 0;
 
@@ -463,7 +524,7 @@ private:
             )) * fScaleFactor;
 
         graph->setBox(gmargin, w, gh);
-        graph->setFreqs({ freq1, freq2, freq3, freq4 });
+        graph->setFreqs({ fFreqs[1], fFreqs[2], fFreqs[3], fFreqs[4] });
 
         // X grid: 9 lines for each power of 10
         {
@@ -546,10 +607,10 @@ private:
 
             Rectangle<float> bounds;
 
-            for (uint8_t i = 1; i < freqs.size() - 1; ++i)
+            for (uint8_t i = 1; i < fFreqs.size() - 1; ++i)
             {
-                const float freq = freqs[i];
-                const float x = freq2norm(freq) * w;
+                const float freq = fFreqs[i];
+                const float x = fFreqPos[i];
                 const float sy = gmargin;
                 const float ey = gmargin + gh;
 
@@ -599,11 +660,115 @@ private:
         }
     }
 
-    void onPositionChanged(const PositionChangedEvent& ev) override
+    bool onMouse(const MouseEvent& ev) final
+    {
+        if (BaseWidget::onMouse(ev))
+            return true;
+
+        if (! ev.press)
+        {
+            if (fFreqDragging != -1)
+            {
+                fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterXover1 + fFreqDragging - 1);
+                fFreqDragging = -1;
+            }
+            return false;
+        }
+
+        const int hit = d_roundToIntPositive(6 * fScaleFactor);
+        const double x = ev.pos.getX();
+        // const int y = ev.pos.getY();
+
+        for (uint i = 1; i < fFreqPos.size() - 1; ++i)
+        {
+            const double fx = fFreqPos[i];
+
+            if (std::abs(fx - x) <= hit)
+            {
+                fFreqDragging = i;
+                fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterXover1 + i - 1);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool onMotion(const MotionEvent& ev) final
+    {
+        if (fFreqDragging != -1)
+        {
+            const int fd = fFreqDragging;
+            DISTRHO_SAFE_ASSERT_RETURN(fd >= 1 && fd <= 4, false);
+
+            const double x = ev.pos.getX();
+
+            if (const float freq = std::clamp(norm2freq(x / getWidth()),
+                                              kCrossoverFreqsMin[fd],
+                                              kCrossoverFreqsMax[fd]); d_isNotEqual(fFreqs[fd], freq))
+            {
+                if (freq < fFreqs[fd - 1] * kCrossoverRatio)
+                {
+                    int fd2 = fd;
+                    float freq2;
+                    do
+                    {
+                        freq2 = fFreqs[fd2] / kCrossoverRatio;
+                        --fd2;
+                        fFreqs[fd2] = freq2;
+                        fFreqPos[fd2] = freq2norm(freq2) * getWidth();
+                        fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd2 - 1, freq2);
+                    }
+                    while (fd2 >= 2 && freq2 < fFreqs[fd2 - 1] * kCrossoverRatio);
+                }
+                else if (freq > fFreqs[fd + 1] / kCrossoverRatio)
+                {
+                    int fd2 = fd;
+                    float freq2;
+                    do
+                    {
+                        freq2 = fFreqs[fd2] * kCrossoverRatio;
+                        ++fd2;
+                        fFreqs[fd2] = freq2;
+                        fFreqPos[fd2] = freq2norm(freq2) * getWidth();
+                        fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd2 - 1, freq2);
+                    }
+                    while (fd2 < 4 && freq2 > fFreqs[fd2 + 1] / kCrossoverRatio);
+                }
+
+                fFreqs[fd] = freq;
+                fFreqPos[fd] = d_roundToIntPositive(x);
+                fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd - 1, freq);
+                repaint();
+            }
+
+            return true;
+        }
+
+        if (BaseWidget::onMotion(ev))
+            return true;
+
+        return false;
+    }
+
+    void onPositionChanged(const PositionChangedEvent& ev) final
     {
         BaseWidget::onPositionChanged(ev);
 
         graph->setAbsolutePos(ev.pos);
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        BaseWidget::onResize(ev);
+
+        const uint w = ev.size.getWidth();
+
+        fFreqPos[1] = d_roundToUnsignedInt(freq2norm(fFreqs[1]) * w);
+        fFreqPos[2] = d_roundToUnsignedInt(freq2norm(fFreqs[2]) * w);
+        fFreqPos[3] = d_roundToUnsignedInt(freq2norm(fFreqs[3]) * w);
+        fFreqPos[4] = d_roundToUnsignedInt(freq2norm(fFreqs[4]) * w);
+        fFreqPos[5] = w;
     }
 
     void updateSize(const bool updateChildren) override
