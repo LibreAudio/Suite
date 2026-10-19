@@ -80,7 +80,7 @@ rmsTime = glob_group(vslider("[2]RMS Time[unit:ms][symbol:rms_time]
        the average collapses to the rectified signal, so the two meet
        continuously and there is no mode switch to click. Turning it up makes
        every band follow loudness instead of transients]",
-                             10, 0, 250, 0.1)) * 0.001;
+                             10, 0, 250, 1)) * 0.001;
 
 // ---- envelope shape ----
 
@@ -119,7 +119,7 @@ bandLink = glob_group(vslider("[5]Band Link[unit:%][symbol:band_link]
 // the detector can be built at, not points on a continuum. See the Shelf
 // section for how the same number reshapes the gain application.
 slopeSel = glob_group(nentry("[6]Slope[symbol:slope]
-      [style:menu{'6 dB/oct':0;'12 dB/oct':1;'24 dB/oct':2}]
+      [style:menu{'6':0;'12':1;'24':2}][unit:dB]
       [tooltip: Steepness of the band split. Applies to both halves of the
        crossover: how selectively each band listens, and how sharply the gain
        it computes is applied. Shallow settings overlap and behave more like a
@@ -131,7 +131,7 @@ slopeSel = glob_group(nentry("[6]Slope[symbol:slope]
 lookaheadMs = glob_group(vslider("[7]Lookahead[unit:ms][symbol:lookahead]
       [tooltip: Delays the audio so the gain is already down when the transient
        arrives. Reported to the host as latency and compensated. 0 = off]",
-                                 0, 0, 50, 0.1));
+                                 0, 0, 50, 1));
 
 drywet = glob_group(vslider("[8]Dry / Wet[unit:%][symbol:drywet]
       [tooltip: Blend of the compressed signal against the untouched input, for
@@ -211,22 +211,22 @@ threshOf(n) = band_group(n, vslider("[0]Threshold[unit:dB][symbol:band%{n}_thres
 ratioOf(n) = band_group(n, vslider("[1]Ratio[scale:log][symbol:band%{n}_ratio]
       [tooltip: dB in per dB out above this band's threshold. 1 = that band is
        left alone]",
-                                   2, 1, 20, 0.01));
+                                   2, 1, 20, 0.1));
 
 // Per-band defaults, fast at the top and slow at the bottom, which is where
 // anyone would end up setting them by hand: a 60 Hz cycle is 17 ms long, so a
 // low band with a 4 ms attack tracks the waveform instead of its envelope.
-attackOf(n) = band_group(n, vslider("[2]Attack[unit:ms][scale:log][symbol:band%{n}_attack]
+attackOf(n) = band_group(n, vslider("[2]Attack[unit:ms][symbol:band%{n}_attack]
       [tooltip: How fast this band's gain moves toward a deeper reduction. A
        1/e time constant, since the attack curve is exponential]",
-                                    ba.take(n, (30, 20, 10, 6, 4)), 0.01, 100, 0.01))
+                                    ba.take(n, (30, 20, 10, 6, 4)), 1, 100, 0.1))
             * 0.001;
 
-releaseOf(n) = band_group(n, vslider("[3]Release[unit:ms][scale:log][symbol:band%{n}_release]
+releaseOf(n) = band_group(n, vslider("[3]Release[unit:ms][symbol:band%{n}_release]
       [tooltip: How fast this band's gain moves back toward unity. Read as a
        1/e time constant at Shape 100%, or as the time to cover 20 dB at
        Shape 0%]",
-                                     ba.take(n, (300, 250, 180, 120, 90)), 1, 2000, 0.1))
+                                     ba.take(n, (300, 250, 180, 120, 90)), 1, 2000, 1))
              * 0.001;
 
 makeupOf(n) = band_group(n, vslider("[4]Makeup[unit:dB][symbol:band%{n}_makeup]
