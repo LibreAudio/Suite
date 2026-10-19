@@ -276,7 +276,7 @@ struct Reference {
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;
-                static constexpr const float letterSpacing = fontSize * 0.11f;
+                static constexpr const float letterSpacing = fontSize * 0.08f;
             };
             struct Value {
                 static constexpr const Color color = kAccentColor;
