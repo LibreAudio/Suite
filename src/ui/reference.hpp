@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Color.hpp"
+#include "Geometry.hpp"
 // #include "EventHandlers.hpp"
 
 namespace LibreAudio {
@@ -50,8 +51,13 @@ struct Reference {
     struct Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
+        static constexpr const Color borderHighlightColor = Colors::transparent;
+        static constexpr const Color borderShadowColor = Colors::transparent;
         static constexpr const Color color = Colors::transparent;
         static constexpr const Color color〡deactivated = Colors::transparent;
+        static constexpr const Color shadowColor = Colors::transparent;
+        static constexpr const Point<int> shadowOffset = { 0, 0 };
+        static constexpr const Size<int> shadowSize = { 0, 0 }; // FIXME inset vs outset naming
         static constexpr const float fontSize = Common::fontSize;
         static constexpr const float letterSpacing = Common::letterSpacing;
         static constexpr const uint border = 0;
@@ -59,6 +65,7 @@ struct Reference {
         static constexpr const uint height = 0;
         static constexpr const uint padding = 0;
         static constexpr const uint margin = 0;
+        static constexpr const uint shadowFeather = 0;
         static constexpr const uint width = 0;
     };
 
@@ -176,10 +183,14 @@ struct Reference {
         };
 
         struct ButtonGroup : Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.08f };
-            static constexpr const Color borderColor = Colors::transparent;
             static constexpr const uint borderRadius = 6;
             static constexpr const uint padding = 1;
+
+            // TESTING
+            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+            static constexpr const Point<int> shadowOffset = { 0, 4 };
+            static constexpr const Size<int> shadowSize = { -12, -12 };
+            static constexpr const uint shadowFeather = 14;
         };
 
         struct Card : Zero {
@@ -265,7 +276,7 @@ struct Reference {
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;
-                static constexpr const float letterSpacing = fontSize * 0.11f;
+                static constexpr const float letterSpacing = fontSize * 0.08f;
             };
             struct Value {
                 static constexpr const Color color = kAccentColor;
@@ -338,8 +349,9 @@ struct Reference {
         };
 
         struct PillToggle : Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07 };
-            static constexpr const Color borderColor = { 0xff, 0xff, 0xff, 0.04 };
+            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+            static constexpr const Color borderColor = { backgroundColor, 0.04f };
+            static constexpr const Color borderHighlightColor = { backgroundColor, 0.12f };
             // static constexpr const Color deactivatedColor = Colors::ink3;
             // static constexpr const Color color = Colors::acc;
             // static constexpr const float fontSize = Common::fontSize;
