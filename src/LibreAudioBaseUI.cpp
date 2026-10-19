@@ -68,7 +68,7 @@ LibreAudioBaseUI::~LibreAudioBaseUI()
    #if LIBREAUDIO_WANT_GRAPH
     if (fIPC.isCreatedOrConnected())
     {
-        setState(kStateKeyFileMappingIPC, "");
+        // setState(kStateKeyFileMappingIPC, "");
         fIPC.close();
     }
    #endif
