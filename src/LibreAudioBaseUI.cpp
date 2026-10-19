@@ -528,6 +528,8 @@ void LibreAudioBaseUI::parameterControlReleased(const uint32_t index)
 
 void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const float value)
 {
+    DISTRHO_SAFE_ASSERT(fParameterPressed[index]);
+
     if (! fParameterPressed[index])
         editParameter(index, true);
 

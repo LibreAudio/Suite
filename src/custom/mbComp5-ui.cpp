@@ -192,7 +192,7 @@ public:
 
         public:
             using SoloButtonWidget = SoloMuteButton<typename SMGR::Solo, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
-            using MuteButtonWidget = SoloMuteButton<typename SMGR::Bypass, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>;
+            using MuteButtonWidget = SoloMuteButton<typename SMGR::Bypass, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
 
             explicit SoloMuteGroupWidget(LabWidget* const parent)
                 : BaseWidget(parent)
@@ -402,14 +402,16 @@ private:
         kFreqMax,
     };
     std::array<double, 6> fFreqPos = {};
-    int fFreqDragging = -1;
+    int fFreqDraggingIndex = -1;
+    int fFreqDraggingHz = 0.f;
+    bool fFreqsDragging[4] = {};
 
     void idleCallback() final
     {
         BaseWidget::idleCallback();
 
         // ignore when dragging, to prevent flicker
-        if (fFreqDragging != -1)
+        if (fFreqDraggingIndex != -1)
             return;
 
         const double dw = getWidth();
@@ -667,17 +669,56 @@ private:
 
         if (! ev.press)
         {
-            if (fFreqDragging != -1)
+            if (fFreqDraggingIndex != -1)
             {
-                fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterXover1 + fFreqDragging - 1);
-                fFreqDragging = -1;
+                const float orig = fFreqDraggingHz;
+
+                // value going up, release bands from highest to lowest
+                if (fFreqs[fFreqDraggingIndex] > orig)
+                {
+                    for (uint8_t i = 3; i != UINT8_MAX; --i)
+                    {
+                        if (fFreqsDragging[i])
+                        {
+                            fFreqsDragging[i] = false;
+                            fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterXover1 + i);
+                        }
+                    }
+                }
+                // value going down, release bands from lowest to highest
+                else
+                {
+                    for (uint8_t i = 0; i < 4; ++i)
+                    {
+                        if (fFreqsDragging[i])
+                        {
+                            fFreqsDragging[i] = false;
+                            fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterXover1 + i);
+                        }
+                    }
+                }
+
+                fFreqDraggingIndex = -1;
             }
             return false;
         }
 
         const int hit = d_roundToIntPositive(6 * fScaleFactor);
         const double x = ev.pos.getX();
-        // const int y = ev.pos.getY();
+        const double y = ev.pos.getY();
+
+        const float gfontsize = R::GridLabel::fontSize * fScaleFactor;
+        const float gmargin = R::margin * fScaleFactor + gfontsize * 0.5f;
+        const float gh = getHeight() - (R::margin * 2 + R::padding + R::GridLabel::fontSize +
+            (fLastPage == kPageExpert
+                ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::padding
+                : Reference::Widgets::CardGroup::height
+            )) * fScaleFactor;
+
+        if (y < gmargin)
+            return false;
+        if (y > gmargin + gh)
+            return false;
 
         for (uint i = 1; i < fFreqPos.size() - 1; ++i)
         {
@@ -685,7 +726,9 @@ private:
 
             if (std::abs(fx - x) <= hit)
             {
-                fFreqDragging = i;
+                fFreqDraggingIndex = i;
+                fFreqDraggingHz = fFreqs[i];
+                fFreqsDragging[i - 1] = true;
                 fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterXover1 + i - 1);
                 return true;
             }
@@ -696,49 +739,71 @@ private:
 
     bool onMotion(const MotionEvent& ev) final
     {
-        if (fFreqDragging != -1)
+        if (fFreqDraggingIndex != -1)
         {
-            const int fd = fFreqDragging;
+            const int fd = fFreqDraggingIndex;
             DISTRHO_SAFE_ASSERT_RETURN(fd >= 1 && fd <= 4, false);
 
             const double x = ev.pos.getX();
+            const double w = getWidth();
 
-            if (const float freq = std::clamp(norm2freq(x / getWidth()),
+            if (const float freq = std::clamp(norm2freq(x / w),
                                               kCrossoverFreqsMin[fd],
                                               kCrossoverFreqsMax[fd]); d_isNotEqual(fFreqs[fd], freq))
             {
+                int fd2 = fd;
+                fFreqs[fd] = freq;
+                fFreqPos[fd] = freq2norm(freq) * w;
+
                 if (freq < fFreqs[fd - 1] * kCrossoverRatio)
                 {
-                    int fd2 = fd;
                     float freq2;
                     do
                     {
                         freq2 = fFreqs[fd2] / kCrossoverRatio;
                         --fd2;
                         fFreqs[fd2] = freq2;
-                        fFreqPos[fd2] = freq2norm(freq2) * getWidth();
-                        fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd2 - 1, freq2);
+                        fFreqPos[fd2] = freq2norm(freq2) * w;
                     }
                     while (fd2 >= 2 && freq2 < fFreqs[fd2 - 1] * kCrossoverRatio);
                 }
                 else if (freq > fFreqs[fd + 1] / kCrossoverRatio)
                 {
-                    int fd2 = fd;
                     float freq2;
                     do
                     {
                         freq2 = fFreqs[fd2] * kCrossoverRatio;
                         ++fd2;
                         fFreqs[fd2] = freq2;
-                        fFreqPos[fd2] = freq2norm(freq2) * getWidth();
-                        fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd2 - 1, freq2);
+                        fFreqPos[fd2] = freq2norm(freq2) * w;
                     }
                     while (fd2 < 4 && freq2 > fFreqs[fd2 + 1] / kCrossoverRatio);
                 }
 
-                fFreqs[fd] = freq;
-                fFreqPos[fd] = d_roundToIntPositive(x);
+                for (int fdc = fd2; fdc > fd; --fdc)
+                {
+                    const uint8_t i = fdc - 1;
+                    if (! fFreqsDragging[i])
+                    {
+                        fFreqsDragging[i] = true;
+                        fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterXover1 + i);
+                    }
+                    fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + i, fFreqs[fdc]);
+                }
+
                 fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + fd - 1, freq);
+
+                for (int fdc = fd - 1; fdc >= fd2; --fdc)
+                {
+                    const uint8_t i = fdc - 1;
+                    if (! fFreqsDragging[i])
+                    {
+                        fFreqsDragging[i] = true;
+                        fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterXover1 + i);
+                    }
+                    fInterface->parameterControlModified(kParametersMainStart + kFaustParameterXover1 + i, fFreqs[fdc]);
+                }
+
                 repaint();
             }
 
