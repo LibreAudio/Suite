@@ -107,6 +107,11 @@ inline constexpr const char* bandLabels[] = {
 template<uint8_t band>
 class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference<band>, kVertical>
 {
+    using R = MbComp5BandGroupReference<band>;
+    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+
+    static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
+
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
 
     static constexpr FaustParameterIndex getParameterIndexForBand(const FaustParameterIndex index)
@@ -130,10 +135,6 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
     // ----------------------------------------------------------------------------------------------------------------
 
 public:
-    static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
-
-    using R = MbComp5BandGroupReference<band>;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
     using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kAccentColor>>;
 
     explicit MbComp5BandGroupWidget(LabWidget* const parent)
@@ -144,20 +145,23 @@ public:
 
     class HeaderWidget final : public ReferenceContainerWidget<typename R::Header, kHorizontal>
     {
+        using HR = typename R::Header;
+        using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
+
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             BaseWidget::template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(bandLabels[band]),
             BaseWidget::template addWidget<SoloMuteGroupWidget>(),
         };
 
     public:
-        using HR = typename R::Header;
-        using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
-
         explicit HeaderWidget(LabWidget* const parent)
             : BaseWidget(parent) {}
 
         class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<typename HR::Buttons>
         {
+            using SMGR = typename HR::Buttons;
+            using BaseWidget = ReferenceButtonGroupWidget<SMGR>;
+
             template<class SMBR, const uchar* imageData, uint imageDataSize>
             class SoloMuteButton : public ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>
             {
@@ -187,8 +191,6 @@ public:
             };
 
         public:
-            using SMGR = typename HR::Buttons;
-            using BaseWidget = ReferenceButtonGroupWidget<SMGR>;
             using SoloButtonWidget = SoloMuteButton<typename SMGR::Solo, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
             using MuteButtonWidget = SoloMuteButton<typename SMGR::Bypass, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>;
 
@@ -218,6 +220,9 @@ public:
 
     class BodyWidget final : public ReferenceContainerWidget<typename R::Body, kHorizontal>
     {
+        using BR = typename R::Body;
+        using BaseWidget = ReferenceContainerWidget<BR, kHorizontal>;
+
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             BaseWidget::template addWidget<NumberBoxStackWidget, Expanding>(),
             BaseWidget::template addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
@@ -226,9 +231,6 @@ public:
         };
 
     public:
-        using BR = typename R::Body;
-        using BaseWidget = ReferenceContainerWidget<BR, kHorizontal>;
-
         explicit BodyWidget(LabWidget* const parent)
             : BaseWidget(parent) {}
 
