@@ -432,11 +432,10 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayRootWidget final : public RootBaseWidget,
+class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
                               private IdleCallback
 {
-    std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
-    std::shared_ptr<DelayMainArea> fMainArea = addWidget<DelayMainArea, Expanding>();
+    using BaseWiwdget = RootWidget<TopBar, DelayMainArea>;
 
     Page fLastPage = kPageEasy;
     BotShaderBaseWidget* fShaderExpert = nullptr;
@@ -444,7 +443,7 @@ class DelayRootWidget final : public RootBaseWidget,
 
 public:
     DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : RootBaseWidget(window, iface)
+        : BaseWiwdget(window, iface)
     {
         addIdleCallback(this);
     }
@@ -461,7 +460,7 @@ public:
         });
         fShaderExpert->setVisible(getCurrentPage(fInterface) == kPageExpert);
 
-        RootBaseWidget::enableShaders(shaders);
+        BaseWiwdget::enableShaders(shaders);
     }
 
 private:
@@ -479,7 +478,7 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        RootBaseWidget::updateSize(updateChildren);
+        BaseWiwdget::updateSize(updateChildren);
 
         const Point<int> pos = fMainArea->getMiddleAreaAbsolutePos(fLastPage);
         const Size<uint> size = fMainArea->getMiddleAreaSize(fLastPage);

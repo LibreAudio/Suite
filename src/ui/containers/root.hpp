@@ -66,7 +66,7 @@ protected:
     std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
     std::shared_ptr<MainArea> fMainArea = addWidget<MainArea, Expanding>();
 
-    void updateSize(const bool updateChildren) final
+    void updateSize(const bool updateChildren) override
     {
         RootBaseWidget::updateSize(updateChildren);
 
