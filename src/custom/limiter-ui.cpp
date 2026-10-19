@@ -29,11 +29,22 @@ namespace LibreAudio {
 // Each group is a panel styled like the mbComp5 band groups.
 
 struct LimiterGroupReference : Reference::Zero {
-    static constexpr const Color backgroundColor { 0xff, 0xff, 0xff, 0.05f };
+    static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
+    static constexpr const Color borderColor = backgroundColor;
+    static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
+    static constexpr const Color borderShadowColor { 0, 0, 0, 0.12f };
+    static constexpr const uint border = 1;
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = 8;
     static constexpr const uint padding = 6;
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + margin * 2;
+
+    // TESTING
+    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+    static constexpr const Point<int> shadowOffset = { 0, 5 };
+    // static constexpr const Size<int> shadowSize = { -6, -6 };
+    static constexpr const Size<int> shadowSize = { -12, -12 };
+    static constexpr const uint shadowFeather = 14;
 };
 
 // accent colour of a parameter, as set by [accentcolor] in limiter.dsp
