@@ -12,7 +12,43 @@ import("stdfaust.lib");
 // The suite's leveler, used as is.
 lv = library("leveler.dsp");
 
-// Based on bbba_gui.dsp 0.33 from BigBlueBetterAudio.
+// The suite's multiband compressor, with fixed settings in place of its controls.
+// The values are the multiband compressor of PodcastPluginTrack.dsp
+// (PodcastPlugins) at its default style, halfway between its two parameter sets;
+// its expander is left out. Every control mbComp5.dsp would declare is
+// redefined here, so the only widgets it brings are its gain reduction meters.
+mb = library("mbComp5.dsp")[
+    knee         = mb_knee;
+    range        = 60;        // mbComp5's widest: PodcastPlugins has no ceiling
+    rmsTime      = 0;         // peak detection, as co.peak_compression_gain_N_chan_db
+    shape        = 1;         // exponential release, Release reads as a time constant
+    chanLink     = 1;         // fully linked, as PodcastPlugins
+    bandLink     = 0;
+    slopeSel     = 1;         // 12 dB/oct: svf shelves at Q .707, as PodcastPlugins'
+    lookaheadMs  = 0;
+    xf(n)        = ba.take(n, mb_xovers);
+    thresh_array = par(b, 5, target + mbParam(mb_thresh1, mb_thresh2, b));
+    // the Compression knob scales the slope above the threshold
+    ratio_array  = par(b, 5, 1 / (1 - mbParam(mb_strength1, mb_strength2, b) * mb_strength));
+    attack_array = par(b, 5, mbParam(mb_att1, mb_att2, b) * 0.001);
+    release_array = par(b, 5, mbParam(mb_rel1, mb_rel2, b) * 0.001);
+    bypassOf(n)  = 0;
+    listenOf(n)  = 0;
+    makeupOf(n)  = mbParam(mb_makeup1, mb_makeup2, n - 1) * mb_strength;
+    // its lookahead is off, and the limiter reports this plugin's latency
+    latency_meter = _;
+    detectorMeter(c, n, x) = x;
+    meter_group(x) = uiMeters(hgroup("[22]Compressor Reduction", x));
+    // named apart from the RNNoise band meters, symbols as in mbComp5.dsp
+    bandMeterM(n) = mb.meterBallistics : mb.mid_meters(hbargraph("[%n]Comp Band %n Mid[unit:dB][symbol:gr_band%{n}_mid][label:Comp %n M]",
+                                                           mb.maxMeter, 0));
+    bandMeterS(n) = mb.meterBallistics : mb.side_meters(hbargraph("[%n]Comp Band %n Side[unit:dB][symbol:gr_band%{n}_side][label:Comp %n S]",
+                                                            mb.maxMeter, 0));
+];
+
+// Based on bbba_gui.dsp 0.33 from BigBlueBetterAudio, with the spectral
+// balancer's band centres and target curve and the multiband compressor's
+// settings from PodcastPluginTrack.dsp (PodcastPlugins).
 //
 // Signal flow:
 //
@@ -20,7 +56,8 @@ lv = library("leveler.dsp");
 //   RNNoise voice isolation, in C++ ahead of this DSP (src/LibreAudioVoiceIsolation.hpp)
 //   low cut
 //   leveler (leveler.dsp)
-//   spectral balancer + multiband compressor, one analyser and one bell cascade
+//   spectral balancer, 20 bands
+//   multiband compressor, 5 bands (mbComp5.dsp)
 //   lookahead limiter
 //   common/output.dsp
 //
@@ -36,7 +73,7 @@ lv = library("leveler.dsp");
 // No Bypass control here: the host wrapper provides one, and input/output trim,
 // phase and M/S come from common/input.dsp and common/output.dsp.
 
-Nbands = 8;     // bands of the spectral balancer and the multiband dynamics
+Nbands = 20;    // bands of the spectral balancer
 numVIBands = 32; // LAS_RNNOISE_NB_BANDS in deps/rnnoise-stereo.h
 
 meters_minimum = -70;
@@ -99,9 +136,14 @@ sb_strength = uiShaping(hslider("[03]Spectral Balance[style:knob][unit:%][symbol
 
 mb_strength = uiShaping(hslider("[04]Compression[style:knob][unit:%][symbol:mb_strength][label:Comp][accentcolor:03][bracket:SHAPING]
       [tooltip: Strength of the multiband compressor]",
-                                50, 0, 100, 1)) / 100 * sbmb_strength;
+                                100, 0, 100, 1)) / 100 * sbmb_strength;
 
-sb_target_spectrum = -10, -5, -5, -8, -9, -10, -7, -4;
+// Target spectrum from PodcastPlugins, band level relative to the full-range
+// level in dB. Two curves, blended by its timbre control, here fixed at its
+// default. The balancer is level neutral, so only the curve's shape counts.
+sb_spectrum1 = -22,-19,-18,-16,  -17,-18,-18,-18,  -18,-19,-20,-22,  -24,-27,-26,-28,  -29,-29,-29,-29;
+sb_spectrum2 = -24,-22,-20,-19,  -18,-18,-18,-18,  -20,-22,-24,-24,  -23,-24,-25,-25,  -24,-23,-20,-16;
+sb_timbre = 0.5;
 
 // Analysis layer. Not exposed: these shape how the balancer decides, not what the user reaches for.
 sb_levelneutral = 1;    // corrections sum to zero: tonal balance only
@@ -143,13 +185,15 @@ viMeters = viVadMeters :> _ + (par(i, numVIBands, viBandMeter(i)) :> _);
 
 // --- Sound shaping ---
 
+// Named apart from the RNNoise band meters. The order keys are two digits wide,
+// so band 10 does not sort between 1 and 2.
 sb_meter(i) = _ <: attach(_, uiMeters(hgroup("[20]Normalized Spectrum",
-    vbargraph("[%i]Band %i[unit:dB][symbol:sb_meter_%i]", -40, 40))));
+    vbargraph("[%o]Balance Level %i[unit:dB][symbol:sb_meter_%i][label:Bal Lvl %i]", -40, 40))))
+with { o = i + 10; };
 // gains arrive in dB, so no linear2db here
 sb_gainmeter(i) = _ <: attach(_, uiMeters(hgroup("[21]Spectral Balance Gain",
-    vbargraph("[%i]Band %i[unit:dB][symbol:sb_gain_%i]", -12, 12))));
-compressor_meter(i) = _ <: attach(_, uiMeters(hgroup("[22]Compressor Gain",
-    vbargraph("[%i]Band %i[unit:dB][symbol:mb_comp_gain_%i]", -12, 12))));
+    vbargraph("[%o]Balance Gain %i[unit:dB][symbol:sb_gain_%i][label:Bal Gain %i]", -12, 12))))
+with { o = i + 10; };
 
 // --- Output ---
 
@@ -180,7 +224,7 @@ levelAndCorrect = loop ~ si.bus(4) : (!,!,!,!,_,_)
 with {
     loop(gPrev, trimPrev, fl, fr, l, r) =
         (gPrev, trimPrev, l, r : uiLeveler(lv.levelerCore(pDetect, pBrake, outPower)))
-        : _, _, (correct <: si.bus(4))
+        : _, _, (spectralBalancer : mb.wetChain <: si.bus(4))
     with {
         unGain = pow(10.0, 0.0 - gPrev / 10.0);
         pOut = lv.kPower(fl, fr);
@@ -209,57 +253,54 @@ pairUp(n) = route(2*n, 2*n, par(i, n, ((i+1, 2*i+1), (n+i+1, 2*i+2))));
 withScalar(n) = route(n+1, 2*n, (par(i, n, (i+1, 2*i+1)),
                                  par(i, n, (n+1, 2*i+2))));
 
-// Compressor gain with the level supplied in dB. The detector chain is
-// abs : lin2db : gain_computer : onePoleSwitching, so scaling the input by a
-// gain is exactly adding that gain to the level in dB, which is how the spectral
-// balancer's correction reaches this compressor without a trip through linear.
-comp_gain_from_db(strength, thresh, att, rel, knee) =
-    gain_computer(strength, thresh, knee) : si.onePoleSwitching(rel, att)
-with {
-    gain_computer(strength, thresh, knee, level) =
-        select3((level>(thresh-(knee/2)))+(level>(thresh+(knee/2))),
-                0,
-                ((level-thresh+(knee/2)) : pow(2)/(2*max(ma.EPSILON,knee))),
-                (level-thresh))
-        : max(0)*-strength;
-};
-
-
 //======================================================================
 // Analysis / correction bank
 //======================================================================
 
-// Geometric centres of one-octave bands.
-fcL = 70.7, 141.4, 282.8, 565.7, 1131.4, 2262.7, 4525.5, 9051.0;
-fcOf(i) = fcL : ba.selector(i, Nbands);
+// Log spaced from 60 Hz to 12 kHz, as PodcastPlugins.
+fcOf(i) = 60 * pow(12000 / 60, i / (Nbands - 1));
+bandSpacing = log(12000 / 60) / log(2.0) / (Nbands - 1);   // octaves
 
 // Q of a filter whose -3 dB bandwidth is bw octaves: Q = 1/(2 sinh(ln2/2 * bw)).
 qOct(bw) = 1.0/(2.0*shx(0.5*log(2.0)*bw)) with { shx(x) = 0.5*(exp(x) - exp(0.0-x)); };
-qAnalysis = qOct(1.0);          // one band spacing wide, to tell bands apart
-bellWidth = 2.0;                // correction bells wider than the spacing, so the
-qBell = qOct(1.0*bellWidth);    // de-overlapped curve does not scallop between centres
+bellWidth = 2.0;                        // correction bells wider than the spacing, so the
+qBell = qOct(bandSpacing*bellWidth);    // de-overlapped curve does not scallop between centres
+
+qAnalysis = qOct(bandSpacing);          // one band spacing wide, to tell bands apart
 
 // Analysis bandpass, unity at centre. Detector only, never in the audio path.
 bandpass(i) = fi.svf.bp(fcOf(i), qAnalysis) : /(qAnalysis);
 
 // De-overlap. The bells overlap, so what the cascade produces at a band centre
-// is the sum of every bell's response there: applied = W . g. W was measured on
-// this exact bank; fi.svf.bell sets k = 1/(Q*A), so its bandwidth moves with gain
-// and the analytic shape does not describe it. Nearest-neighbour leakage measures
-// 0.19, cond(W) = 2.03. Rows below are inv(W).
-// Regenerate if fcL, qBell or Nbands change.
+// is the sum of every bell's response there: applied = W . g. W is measured on
+// this exact bank at 48 kHz with 6 dB bells; fi.svf.bell sets k = 1/(Q*A), so
+// its bandwidth moves with gain and the analytic shape does not describe it.
+// Nearest-neighbour leakage 0.5, cond(W) = 9.5. Rows below are inv(W).
+// Regenerate if fcOf, qBell or Nbands change.
 deconvolve = si.bus(Nbands) <: par(i, Nbands, krow(i))
 with {
     krow(i) = par(j, Nbands, *(kmat(i,j))) :> _;
     kmat(i,j) = Krow(i) : ba.selector(j, Nbands);
-    Krow(0) = 1.35422, -0.77469, 0.22165, -0.05398, 0.01302, -0.00309, 0.00069, -0.00013;
-    Krow(1) = -0.77301, 1.80799, -0.91783, 0.25175, -0.06104, 0.01449, -0.00325, 0.00059;
-    Krow(2) = 0.21506, -0.90890, 1.85152, -0.91688, 0.25042, -0.05976, 0.01340, -0.00243;
-    Krow(3) = -0.05244, 0.25035, -0.91860, 1.84578, -0.91077, 0.24485, -0.05519, 0.00999;
-    Krow(4) = 0.01270, -0.06095, 0.25175, -0.91263, 1.83204, -0.89004, 0.22587, -0.04111;
-    Krow(5) = -0.00302, 0.01451, -0.06024, 0.24587, -0.89053, 1.78298, -0.81733, 0.16725;
-    Krow(6) = 0.00068, -0.00325, 0.01350, -0.05536, 0.22574, -0.81715, 1.62165, -0.60264;
-    Krow(7) = -0.00012, 0.00059, -0.00245, 0.01003, -0.04112, 0.16735, -0.60280, 1.23852;
+    Krow(0) = 1.34138, -0.72205, 0.11677, -0.03558, 0.00113, -0.00296, -0.00076, -0.00051, -0.00023, -0.00012, -0.00006, -0.00003, -0.00001, -0.00001, 0, 0, 0, 0, 0, 0;
+    Krow(1) = -0.72205, 1.73004, -0.78489, 0.13592, -0.03619, 0.00272, -0.00255, -0.00049, -0.00039, -0.00016, -0.00009, -0.00004, -0.00002, -0.00001, -0.00001, 0, 0, 0, 0, 0;
+    Krow(2) = 0.11677, -0.78489, 1.74018, -0.78796, 0.13600, -0.03644, 0.00266, -0.00260, -0.00051, -0.00040, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001, -0.00001, 0, 0, 0, 0;
+    Krow(3) = -0.03558, 0.13592, -0.78796, 1.74106, -0.78793, 0.13605, -0.03641, 0.00267, -0.00259, -0.00050, -0.00040, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001, -0.00001, 0, 0, 0;
+    Krow(4) = 0.00113, -0.03619, 0.13600, -0.78793, 1.74096, -0.78783, 0.13600, -0.03639, 0.00266, -0.00259, -0.00050, -0.00040, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001, -0.00001, 0, 0;
+    Krow(5) = -0.00296, 0.00272, -0.03644, 0.13605, -0.78783, 1.74080, -0.78765, 0.13592, -0.03636, 0.00265, -0.00258, -0.00051, -0.00040, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001, -0.00001, 0;
+    Krow(6) = -0.00076, -0.00255, 0.00266, -0.03641, 0.13600, -0.78765, 1.74050, -0.78734, 0.13577, -0.03630, 0.00263, -0.00258, -0.00051, -0.00040, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001, 0;
+    Krow(7) = -0.00051, -0.00049, -0.00260, 0.00267, -0.03639, 0.13592, -0.78734, 1.73997, -0.78680, 0.13551, -0.03621, 0.00260, -0.00256, -0.00051, -0.00039, -0.00017, -0.00009, -0.00004, -0.00002, -0.00001;
+    Krow(8) = -0.00023, -0.00039, -0.00051, -0.00259, 0.00266, -0.03636, 0.13577, -0.78680, 1.73906, -0.78585, 0.13506, -0.03604, 0.00254, -0.00254, -0.00052, -0.00039, -0.00017, -0.00009, -0.00004, -0.00002;
+    Krow(9) = -0.00012, -0.00016, -0.00040, -0.00050, -0.00259, 0.00265, -0.03630, 0.13551, -0.78585, 1.73746, -0.78421, 0.13427, -0.03574, 0.00244, -0.00250, -0.00052, -0.00038, -0.00017, -0.00008, -0.00004;
+    Krow(10) = -0.00006, -0.00009, -0.00017, -0.00040, -0.00050, -0.00258, 0.00263, -0.03621, 0.13506, -0.78421, 1.73467, -0.78135, 0.13291, -0.03524, 0.00227, -0.00244, -0.00054, -0.00037, -0.00016, -0.00008;
+    Krow(11) = -0.00003, -0.00004, -0.00009, -0.00017, -0.00040, -0.00051, -0.00258, 0.00260, -0.03604, 0.13427, -0.78135, 1.72983, -0.77638, 0.13057, -0.03438, 0.00198, -0.00233, -0.00055, -0.00035, -0.00016;
+    Krow(12) = -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00040, -0.00051, -0.00256, 0.00254, -0.03574, 0.13291, -0.77638, 1.72145, -0.76779, 0.12655, -0.03293, 0.00152, -0.00217, -0.00057, -0.00033;
+    Krow(13) = -0.00001, -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00040, -0.00051, -0.00254, 0.00244, -0.03524, 0.13057, -0.76779, 1.70703, -0.75309, 0.11979, -0.03057, 0.00082, -0.00192, -0.00060;
+    Krow(14) = 0, -0.00001, -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00039, -0.00052, -0.00250, 0.00227, -0.03438, 0.12655, -0.75309, 1.68251, -0.72824, 0.10871, -0.02690, -0.00013, -0.00166;
+    Krow(15) = 0, 0, -0.00001, -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00039, -0.00052, -0.00244, 0.00198, -0.03293, 0.11979, -0.72824, 1.64163, -0.68723, 0.09135, -0.02161, -0.00138;
+    Krow(16) = 0, 0, 0, -0.00001, -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00038, -0.00054, -0.00233, 0.00152, -0.03057, 0.10871, -0.68723, 1.57572, -0.62211, 0.06624, -0.01527;
+    Krow(17) = 0, 0, 0, 0, -0.00001, -0.00001, -0.00002, -0.00004, -0.00009, -0.00017, -0.00037, -0.00055, -0.00217, 0.00082, -0.02690, 0.09135, -0.62211, 1.47531, -0.52474, 0.03290;
+    Krow(18) = 0, 0, 0, 0, 0, -0.00001, -0.00001, -0.00002, -0.00004, -0.00008, -0.00016, -0.00035, -0.00057, -0.00192, -0.00013, -0.02161, 0.06624, -0.52474, 1.33679, -0.39036;
+    Krow(19) = 0, 0, 0, 0, 0, 0, 0, -0.00001, -0.00002, -0.00004, -0.00008, -0.00016, -0.00033, -0.00060, -0.00166, -0.00138, -0.01527, 0.03290, -0.39036, 1.12825;
 };
 
 // fi.svf.bell with the gain in dB. With k = 1/(q*a), scaling the tick divisor
@@ -294,19 +335,17 @@ bellAt(i, g, x) = x : bellv(fcOf(i), qBell, g);
 
 
 //======================================================================
-// Merged correction
+// Spectral balancer
 //======================================================================
 //
-// One analyser drives both stages. The spectral balancer and the multiband
-// compressor each produce a per-band gain in dB; they are summed,
-// de-overlapped, and realised by one cascade of 8 SVF bells per channel.
+// Each band's level relative to the full-range level is compared with the
+// target curve, and the difference applied by one cascade of 20 SVF bells per
+// channel.
 //
-// The stages stay in series, because a gain in dB simply adds to a level in dB:
-// the compressor is fed the band level plus the balancer's gain.
-//
-// Detection is stereo-linked: both channels get the same gains.
+// Detection is stereo-linked: both channels get the same gains. Detected
+// levels are linked, never signed audio, so anti-phase signals survive.
 
-correct = si.bus(2) <: (gainsTotal, si.bus(2)) : stereoBells
+spectralBalancer = si.bus(2) <: (sbGains : deconvolve), si.bus(2) : stereoBells
 with {
     // Duplicate only the gain bus; each bell cascade has its own audio state.
     stereoBells = route(Nbands+2, 2*(Nbands+1),
@@ -314,10 +353,11 @@ with {
          (Nbands+1,Nbands+1), (Nbands+2,2*(Nbands+1)))) : bells,bells;
 
     // ---- analysis -----------------------------------------------------------
-    // Link detected levels, never signed audio, so anti-phase signals survive.
     measure_full = par(c,2,fi.itu_r_bs_1770_4_kfilter : detect) : max;
 
-    kw_offset = 0, -1.33, -0.80, -0.36, 0.80, 2.45, 3.15, 3.30;
+    // bbba's 8 values, interpolated over log frequency
+    kw_offset = 0.00, -0.22, -0.76, -1.29, -1.13, -0.92, -0.72, -0.55, -0.37, 0.09,
+                0.55, 1.11, 1.77, 2.44, 2.73, 3.01, 3.18, 3.24, 3.30, 3.30;
 
     measure_bp(0) = _ * ba.db2linear(12)
                     : fi.itu_r_bs_1770_4_kfilter
@@ -332,8 +372,10 @@ with {
              : pairUp(Nbands)
              : par(i,Nbands, (_-_) : sb_meter(i));
 
-    // ---- spectral balancer --------------------------------------------------
-    sb_limitUP = 6, 9, 12, 12, 12, 12, 9, 6;
+    // ---- gains --------------------------------------------------------------
+    // bbba's 8 values, interpolated over log frequency
+    sb_limitUP = 6, 6.5, 7.7, 8.9, 10.1, 11.3, 12, 12, 12, 12,
+                 12, 12, 12, 12, 10.8, 9.6, 8.4, 7.2, 6, 6;
     sb_limitDOWN = 12;
     sb_limit(i) = max(ma.neg(sb_limitDOWN)) : min(sb_limitUP : ba.selector(i,Nbands));
 
@@ -341,7 +383,8 @@ with {
         tau = 0.2 * ((Nbands-i) / Nbands);
     };
 
-    sb_target(i) = sb_target_spectrum : ba.selector(i,Nbands);
+    sb_target(i) = (sb_spectrum1 : ba.selector(i,Nbands)) * (1 - sb_timbre)
+                 + (sb_spectrum2 : ba.selector(i,Nbands)) * sb_timbre;
 
     weights = si.bus(Nbands) <: (si.bus(Nbands),
                                  (si.bus(Nbands) :> _ : /(Nbands)))
@@ -384,39 +427,34 @@ with {
         applyGain(i, want, gate) = want : sb_envelope(i) : _*gate : sb_gainmeter(i);
     };
 
-    // ---- multiband compressor ----------------------------------------------
-    mb_makeup = 1.5;
-    ratio = 4,4,4,4,4,4,4,4;
-    thresh = -6,-6,-7,-8,-11,-12,-12,-13;
-    att = 30,25,20,15,10,5,3,2;
-    rel = 100,80,60,40,20,15,15,15;
-    knee = 1;
-
-    mbGain(i) = comp_gain_from_db(
-                    ratio2strength(ratio : ba.selector(i,Nbands)),
-                    target + (thresh : ba.selector(i,Nbands)),
-                    att : ba.selector(i,Nbands) : _*0.001,
-                    rel : ba.selector(i,Nbands) : _*0.001,
-                    knee)
-                : +(mb_makeup) : *(mb_strength) : compressor_meter(i);
-
-    // ---- band levels --------------------------------------------------------
-    // the compressor detects instantaneously
-    bandAbs(i) = par(c,2,bandpass(i) : abs) : max;
-    mbLevels = si.bus(2) <: par(i,Nbands, bandAbs(i) : lin2db);
-
-    // ---- sum both decisions, undo the overlap, correct ----------------------
-    gainsTotal = si.bus(2) <: (sbGains, mbLevels)
-               : pairUp(Nbands)
-               : par(i,Nbands, combine(i))
-               : deconvolve
-    with {
-        combine(i, sbg, mlvl) = sbg + (mlvl + sbg : mbGain(i));
-    };
-
     clamp01 = max(0.0) : min(1.0);
     deadband(t, x) = ma.signum(x) * max(0.0, abs(x) - t);
 };
+
+
+//======================================================================
+// Multiband compressor settings
+//======================================================================
+//
+// PodcastPluginTrack.dsp's two parameter sets per band, low band first,
+// blended by its style control, here fixed at its default. Thresholds are
+// relative to the leveler target.
+
+mb_style = 0.5;
+mbParam(set1, set2, b) = ba.take(b+1, set1) * (1 - mb_style) + ba.take(b+1, set2) * mb_style;
+
+mb_xovers    = par(i, 4, 120 * pow(6000 / 120, i / 3));   // Hz, log spaced
+mb_strength1 = par(b, 5, ratio2strength(1.1));
+mb_strength2 = par(b, 5, ratio2strength(2));
+mb_thresh1   = -13, -12, -12, -16, -18;                 // dB below target
+mb_thresh2   = -23, -16, -18, -23, -22;
+mb_att1      = 5, 5, 5, 5, 5;                           // ms
+mb_att2      = 2, 2, 2, 2, 2;
+mb_rel1      = 200, 160, 120, 80, 40;                   // ms
+mb_rel2      = 15, 20, 30, 35, 40;
+mb_makeup1   = 0, 0, 0, 0, 0;                           // dB
+mb_makeup2   = 6, 6, 6, 6, 6;
+mb_knee      = 6 * (1 - mb_style) + 0 * mb_style;       // dB, shared by all bands
 
 
 //======================================================================
