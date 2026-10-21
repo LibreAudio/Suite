@@ -4,4 +4,5 @@
 
 #pragma once
 
-#define DISTRHO_UI_DEFAULT_HEIGHT 720
+// tall enough for the display to leave the compression curve square between its side panels
+#define DISTRHO_UI_DEFAULT_HEIGHT 696
