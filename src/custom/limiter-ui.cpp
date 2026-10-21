@@ -7,7 +7,6 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/number-box.hpp"
-#include "ui/widgets/toggle-switch.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -25,6 +24,10 @@ namespace LibreAudio {
 
 // height of the number boxes, taller than the reference one, as in voiceIsolation
 static constexpr const uint kBoxHeight = 45;
+
+// two dropdowns or checkboxes stack in the height of a number box, this far apart
+static constexpr const uint kRowGap = 5;
+static constexpr const uint kRowHeight = (kBoxHeight - kRowGap) / 2;
 
 // --------------------------------------------------------------------------------------------------------------------
 // The stage is the display, with the starfield, the input waveform and the gain reduction behind it and the level
@@ -68,61 +71,6 @@ constexpr const Color& accentColor() noexcept
 
 template<FaustParameterIndex id>
 using LimiterNumberBoxWidget = NumberBoxWidget<accentColor<id>(), kBoxHeight>;
-
-// An on / off parameter shown as its name only: grey when off, accent colour when on, 70% accent when hovered.
-// Two of them stack in the height of a number box.
-
-struct LimiterToggleReference : Reference::Zero {
-    static constexpr const Color color = Reference::Colors::ink3;
-    static constexpr const float fontSize = 13.f;
-    static constexpr const float letterSpacing = fontSize * 0.06f;
-    static constexpr const uint margin = 6;
-    static constexpr const uint height = kBoxHeight / 2;
-};
-
-template<const Color& kAccentColor>
-class LimiterToggleWidget final : public ToggleSwitchBaseWidget
-{
-    using R = LimiterToggleReference;
-    using BaseWidget = ToggleSwitchBaseWidget;
-
-public:
-    explicit LimiterToggleWidget(LabWidget* const parent, const FaustParameterIndex id)
-        : BaseWidget(parent, kParametersMainStart + id, kFaustParameters[id].name)
-    {
-        setChecked(d_isNotZero(kFaustParameters[id].init), false);
-        updateSize(false);
-    }
-
-private:
-    void setupFont()
-    {
-        fontFace("regular");
-        fontSize(R::fontSize * fScaleFactor);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
-    }
-
-    void onNanoDisplay() final
-    {
-        setupFont();
-        fillColor(isChecked() ? kAccentColor : isHovered() ? kAccentColor.withAlpha(0.7f) : R::color);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        text(R::margin * fScaleFactor, getHeight() * 0.5f, getName(), nullptr);
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        Rectangle<float> bounds;
-        setupFont();
-        textAlign(0);
-        textBounds(0, 0, getName(), nullptr, bounds);
-
-        setSize(d_roundToUnsignedInt(bounds.getWidth() + R::margin * 2 * fScaleFactor),
-                d_roundToUnsignedInt(R::height * fScaleFactor));
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
 
 // sets a parameter as one gesture, the way a click on a control does
 
@@ -283,9 +231,7 @@ class LimiterDropdownWidget final : public LabWidget
 {
     static constexpr const float kBoxWidth = 64.f;
     static constexpr const float kGap = 6.f;
-    static constexpr const float kFontSize = 11.f;
-    static constexpr const float kHeight = kBoxHeight / 2;
-
+    static constexpr const float kFontSize = Reference::Widgets::NumberBox<>::Name::fontSize;
     const FaustParameterIndex fId;
     const FaustParameter& fParameter;
     const Color fAccent;
@@ -320,7 +266,7 @@ private:
     {
         fontFace("regular");
         fontSize(kFontSize * fScaleFactor);
-        textLetterSpacing(kFontSize * 0.06f * fScaleFactor);
+        textLetterSpacing(Reference::Widgets::NumberBox<>::Name::letterSpacing * fScaleFactor);
     }
 
     // defined after the stage, which owns the menu
@@ -331,7 +277,6 @@ private:
         const float s = fScaleFactor;
         const float h = getHeight();
         const float bx = boxX();
-        const float inset = 2.f * s;
 
         setupFont();
         fillColor(Reference::Colors::ink3);
@@ -340,7 +285,7 @@ private:
         textLetterSpacing(0.f);
 
         beginPath();
-        roundedRect(bx, inset, kBoxWidth * s, h - inset * 2, 4.f * s);
+        roundedRect(bx + 0.5f, 0.5f, kBoxWidth * s - 1.f, h - 1.f, 4.f * s);
         fillColor(Reference::Colors::track);
         fill();
         strokeColor(Color(1.f, 1.f, 1.f, fHover ? 0.15f : 0.06f));
@@ -406,19 +351,141 @@ private:
         textLetterSpacing(0.f);
 
         const uint width = d_roundToUnsignedInt(bounds.getWidth() + (kGap + kBoxWidth) * fScaleFactor);
-        setSize(std::max(width, getWidth()), d_roundToUnsignedInt(kHeight * fScaleFactor));
+        setSize(std::max(width, getWidth()), d_roundToUnsignedInt(kRowHeight * fScaleFactor));
 
         LabWidget::updateSize(updateChildren);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// Two controls stacked in the height of a number box, the stack as wide as the wider one.
+// A slim checkbox for an on / off parameter, styled like the dropdown: a square box as tall as the dropdown's at the
+// left edge, with a check mark in the accent colour when on, then its name in grey. A click anywhere on it toggles
+// the parameter.
+
+class LimiterCheckboxWidget final : public LabWidget
+{
+    static constexpr const float kGap = 6.f;
+    static constexpr const float kFontSize = Reference::Widgets::NumberBox<>::Name::fontSize;
+
+    const FaustParameterIndex fId;
+    const FaustParameter& fParameter;
+    const Color fAccent;
+    bool fHover = false;
+
+public:
+    explicit LimiterCheckboxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : LabWidget(parent),
+          fId(id),
+          fParameter(kFaustParameters[id]),
+          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+    {
+        updateSize(false);
+    }
+
+private:
+    [[nodiscard]] float boxSize() const noexcept
+    {
+        return kRowHeight * fScaleFactor;
+    }
+
+    [[nodiscard]] bool isChecked() const noexcept
+    {
+        return d_isNotZero(fInterface->getParameterValue(kParametersMainStart + fId));
+    }
+
+    void setupFont()
+    {
+        fontFace("regular");
+        fontSize(kFontSize * fScaleFactor);
+        textLetterSpacing(Reference::Widgets::NumberBox<>::Name::letterSpacing * fScaleFactor);
+    }
+
+    void onNanoDisplay() final
+    {
+        const float s = fScaleFactor;
+        const float h = getHeight();
+        const float size = boxSize();
+        const float bx = 0.5f;
+        const float by = (h - size) * 0.5f + 0.5f;
+
+        setupFont();
+        fillColor(Reference::Colors::ink3);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+        text(size + kGap * s, h * 0.5f, fParameter.name, nullptr);
+        textLetterSpacing(0.f);
+
+        beginPath();
+        roundedRect(bx, by, size - 1.f, size - 1.f, 4.f * s);
+        fillColor(Reference::Colors::track);
+        fill();
+        strokeColor(Color(1.f, 1.f, 1.f, fHover ? 0.15f : 0.06f));
+        strokeWidth(1.f);
+        stroke();
+
+        if (! isChecked())
+            return;
+
+        const float cx = bx + size * 0.5f;
+        const float cy = by + size * 0.5f;
+        beginPath();
+        moveTo(cx - 4.f * s, cy);
+        lineTo(cx - 1.5f * s, cy + 2.5f * s);
+        lineTo(cx + 4.f * s, cy - 3.f * s);
+        lineCap(ROUND);
+        lineJoin(ROUND);
+        strokeColor(fAccent);
+        strokeWidth(1.6f * s);
+        stroke();
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.press && ev.button == 1 && contains(ev.pos))
+        {
+            setParameterGesture(fInterface, kParametersMainStart + fId, isChecked() ? 0.f : 1.f);
+            repaint();
+            return true;
+        }
+        return LabWidget::onMouse(ev);
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (const bool hover = contains(ev.pos); hover != fHover)
+        {
+            fHover = hover;
+            repaint();
+        }
+        return LabWidget::onMotion(ev);
+    }
+
+    // as wide as its box and name need, or wider when the stack makes it so
+    void updateSize(const bool updateChildren) final
+    {
+        Rectangle<float> bounds;
+        setupFont();
+        textAlign(0);
+        textBounds(0, 0, fParameter.name, nullptr, bounds);
+        textLetterSpacing(0.f);
+
+        const uint width = d_roundToUnsignedInt(bounds.getWidth() + kGap * fScaleFactor + boxSize());
+        setSize(std::max(width, getWidth()), d_roundToUnsignedInt(kRowHeight * fScaleFactor));
+
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// Two controls stacked in the height of a number box, kRowGap apart, the stack as wide as the wider one.
+
+struct LimiterStackReference : Reference::Zero {
+    static constexpr const uint padding = kRowGap;
+};
 
 template<class Top, FaustParameterIndex kTop, class Bottom, FaustParameterIndex kBottom>
-class LimiterStackWidget final : public ReferenceContainerWidget<Reference::Zero, kVertical>
+class LimiterStackWidget final : public ReferenceContainerWidget<LimiterStackReference, kVertical>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::Zero, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<LimiterStackReference, kVertical>;
 
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
         addWidget<Top>(kTop),
@@ -445,10 +512,8 @@ private:
     }
 };
 
-using LimiterTogglesWidget = LimiterStackWidget<LimiterToggleWidget<accentColor<kFaustParameterTrue_peak>()>,
-                                                kFaustParameterTrue_peak,
-                                                LimiterToggleWidget<accentColor<kFaustParameterUnity_gain>()>,
-                                                kFaustParameterUnity_gain>;
+using LimiterTogglesWidget = LimiterStackWidget<LimiterCheckboxWidget, kFaustParameterTrue_peak,
+                                                LimiterCheckboxWidget, kFaustParameterUnity_gain>;
 
 using LimiterDitherWidget = LimiterStackWidget<LimiterDropdownWidget, kFaustParameterDither,
                                                LimiterDropdownWidget, kFaustParameterNoise_shaping>;
