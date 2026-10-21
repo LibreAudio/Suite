@@ -106,39 +106,39 @@ chanScale(1) = scaleRS;
 lookaheadMs = env_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:04]
       [tooltip: Delays the audio so the gain is already down when the transient
        arrives. Reported to the host as latency and compensated. 0 = off]",
-                                0, 0, 50, 0.1));
+                                0, 0, 50, 1));
 
-attack = env_group(vslider("[1]Attack[unit:ms][scale:log][symbol:attack][accentcolor:04]
+attack = env_group(vslider("[1]Attack[unit:ms][symbol:attack][accentcolor:04]
       [tooltip: How fast the gain moves toward a deeper reduction. Read as a
        1/e time constant at Attack Curve +1, or as the time to cover 20 dB at
        Attack Curve 0 and below]",
-                           10, 0.01, 100, 0.01)) * 0.001;
+                           10, 1, 50, 1)) * 0.001;
 
-attackCurve = env_group(vslider("[2]Attack Curve[symbol:attack_curve][accentcolor:04]
+attackCurve = env_group(vslider("[2]Attack Curve[symbol:attack_curve][unit:%][accentcolor:04]
       [tooltip: Shape of the attack ramp. +1 = exponential, analog-style: quick
        off the mark then easing in, and Attack reads as a time constant.
        0 = straight line in dB. -1 = creeps in then snaps shut at the end]",
-                                1, -1, 1, 0.01));
+                                100, -100, 100, 1)) /100;
 
 hold = env_group(vslider("[3]Hold[unit:ms][symbol:hold][accentcolor:04]
       [tooltip: How long the gain reduction is frozen at its deepest point
        before release is allowed to start]",
-                         0, 0, 100, 0.1)) * 0.001;
+                         0, 0, 100, 1)) * 0.001;
 
-release = env_group(vslider("[4]Release[unit:ms][scale:log][symbol:release][accentcolor:04]
+release = env_group(vslider("[4]Release[unit:ms][symbol:release][accentcolor:04]
       [tooltip: How fast the gain moves back up toward a lighter reduction. Read
        as a 1/e time constant at Release Curve +1, or as the time to cover 20 dB
        at Release Curve 0 and below. With Release S-Curve on it is the time to
        cover 20 dB at every Release Curve setting, and shallower recoveries
        take proportionally less]",
-                            150, 1, 2000, 1)) * 0.001;
+                            100, 1, 1000, 1)) * 0.001;
 
-releaseCurve = env_group(vslider("[5]Release Curve[symbol:release_curve][accentcolor:04]
+releaseCurve = env_group(vslider("[5]Release Curve[symbol:release_curve][unit:%][accentcolor:04]
       [tooltip: Shape of the release ramp. +1 = exponential, analog-style: lets
        go quickly then a long tail, and Release reads as a time constant.
        0 = straight line in dB. -1 = hangs, then lets go all at once.
        With Release S-Curve on this slides where the ramp is steepest instead]",
-                                 1, -1, 1, 0.01));
+                                 100, -100, 100, 1)) /100;
 
 releaseS = env_group(checkbox("[6]Release S-Curve[symbol:release_s][accentcolor:04]
       [tooltip: Eases the release out of the reduction and back into unity

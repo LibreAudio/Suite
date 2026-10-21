@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <vector>
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -156,17 +157,19 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 // The envelope display: the gain reduction a 20 dB step gets from the response controls, worked out with the rate law
 // of the ballistics in compressor.dsp. The time axis runs in sections, attack, hold and release, each as wide as the
-// square root of its duration plus a share of the whole, so a short attack stays readable beside a long release. A
-// dashed line marks where the transient reaches the output with lookahead on, and with Auto Release up a faint second
-// release shows it stretched by a sustained 6 dB of reduction. A pane of glass covers it all.
+// square root of its duration, attack and release plus a share of the whole, so a short attack stays readable beside a
+// long release.
+// Behind it a made-up drum hit in faint grey shows where the transient reaches the output, lookahead later than the
+// attack starts, and with Auto Release up a faint second release shows it stretched by a sustained 6 dB of reduction.
+// It sits in a well like a number box's.
 
 struct CompressorEnvelopeReference : Reference::Zero {
     static constexpr const uint height = 100;
-    static constexpr const uint borderRadius = 6;
     static constexpr const float labelFontSize = 9.f;
     // empty space left and right of the sections, as a fraction of the width
     static constexpr const float pad = 0.05f;
-    // the share of the sum of the sections' square roots each section gets on top of its own
+    // the share of the sum of the sections' square roots attack and release get on top of their own; hold gets none,
+    // so it grows from nothing as Hold comes up from 0
     static constexpr const float minSection = 0.15f;
     // where 0 dB and the step's depth sit, as fractions of the height
     static constexpr const float top = 0.2f;
@@ -178,6 +181,7 @@ class CompressorEnvelopeWidget final : public LabWidget,
 {
     using R = CompressorEnvelopeReference;
     using G = CompressorGroupReference;
+    using Well = Reference::Widgets::NumberBox<>;
 
     // constants of the ballistics in compressor.dsp
     static constexpr const float kCurveRef = 20.f;
@@ -219,7 +223,8 @@ class CompressorEnvelopeWidget final : public LabWidget,
 
 public:
     // unscaled
-    static constexpr const uint kHeight = R::height;
+    // unscaled, with a gap above it as wide as the one the controls leave under the header
+    static constexpr const uint kHeight = G::margin + R::height;
 
     explicit CompressorEnvelopeWidget(LabWidget* const parent)
         : LabWidget(parent)
@@ -271,9 +276,9 @@ private:
     void compute()
     {
         const float attack = std::max(1e-5f, fValues[1] * 0.001f);
-        const float attackCurve = fValues[2];
+        const float attackCurve = fValues[2] / 100.f;
         const float release = std::max(1e-3f, fValues[4] * 0.001f);
-        const float releaseCurve = fValues[5];
+        const float releaseCurve = fValues[5] / 100.f;
         const bool sCurve = fValues[6] > 0.5f;
         const float autoRelease = fValues[7] / 100.f;
 
@@ -298,18 +303,42 @@ private:
             });
         };
 
-        fRelease = releaseRamp(release);
+        // Each section is as long as the slowest power-law curve, +1, takes to land, and its ramp is stretched to fill
+        // it, so the curve controls and Release S-Curve show only as the ramps' shapes and leave their lengths alone.
+        const auto section = [](const float time) {
+            return ramp(0.f, -kDepth, time, [=](const float dist) {
+                return powerRate(dist, time, 1.f);
+            }).back().t;
+        };
 
-            // with a sustained kAutoRefDb of reduction, Auto Release stretches the release by 1 + autoRelease
+        const auto stretch = [](std::vector<Sample>& samples, const float length) {
+            if (const float landing = samples.back().t; landing > 0.f)
+                for (Sample& sample : samples)
+                    sample.t *= length / landing;
+        };
+
+        const float attackSection = section(attack);
+        stretch(fAttack, attackSection);
+
+        const float releaseSection = section(release);
+        fRelease = releaseRamp(release);
+        stretch(fRelease, releaseSection);
+
+        // with a sustained kAutoRefDb of reduction, Auto Release stretches the release by 1 + autoRelease
         if (autoRelease > 0.f)
+        {
             fAutoRelease = releaseRamp(release * (1.f + autoRelease));
+            stretch(fAutoRelease, releaseSection * (1.f + autoRelease));
+        }
         else
+        {
             fAutoRelease.clear();
+        }
 
         fDurations = {
-            fAttack.back().t,
+            attackSection,
             fValues[3] * 0.001f,
-            std::max(fRelease.back().t, fAutoRelease.empty() ? 0.f : fAutoRelease.back().t),
+            releaseSection * (1.f + autoRelease),
         };
     }
 
@@ -339,21 +368,28 @@ private:
         const float s = fScaleFactor;
         const float x = (G::border + G::margin) * s;
         const float w = getWidth() - x * 2;
-        const float h = getHeight();
-        const float r = R::borderRadius * s;
+        const float gap = G::margin * s;
+        const float h = getHeight() - gap;
+        const float r = Well::borderRadius * s;
+
+        // the display below the gap
+        translate(0, gap);
 
         if (w <= 0.f)
             return;
 
         const Color& accent = accentColor<kFaustParameterAttack>();
 
-        // the well behind the glass, shaded in from the top
+        // the well, with a number box's inset shading
         beginPath();
         roundedRect(x, 0, w, h, r);
-        fillColor(Color(0.f, 0.f, 0.f, 0.3f));
+        fillColor(Well::backgroundColor);
         fill();
-        fillPaint(linearGradient(0, 0, 0, 10.f * s, Color(0.f, 0.f, 0.f, 0.3f), Color(0.f, 0.f, 0.f, 0.f)));
+        fillPaint(linearGradient(0, 0, 0, Well::margin * s, Well::insetShadingColor, Reference::Colors::transparent));
         fill();
+        strokeColor(Well::backgroundColor);
+        strokeWidth(Well::border * s * 0.5f);
+        stroke();
 
         // the sections across the width
         const float pad = w * R::pad;
@@ -365,7 +401,7 @@ private:
 
             float sum = 0.f;
             for (size_t i = 0; i < widths.size(); ++i)
-                sum += widths[i] = fDurations[i] > 0.f ? std::sqrt(fDurations[i]) + R::minSection * roots : 0.f;
+                sum += widths[i] = std::sqrt(fDurations[i]) + (i != 1 ? R::minSection * roots : 0.f);
 
             for (float& width : widths)
                 width *= sum > 0.f ? (w - pad * 2) / sum : 0.f;
@@ -404,13 +440,15 @@ private:
             stroke();
         }
 
-        // section edges, with the sections' names under the curve where they fit
+        // section edges, with the sections' names under the curve and their times, as the knobs set them, over it,
+        // where they fit
         {
             static constexpr const char* const names[] = { "ATTACK", "HOLD", "RELEASE" };
+            const std::array<float, 3> times { fValues[1], fValues[3], fValues[4] };
 
             fontFace("regular");
             fontSize(R::labelFontSize * s);
-            textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
+            fillColor(Color(Reference::Colors::ink3, 0.8f));
 
             float sx = x + pad;
             for (size_t i = 0; i <= widths.size(); ++i)
@@ -425,12 +463,21 @@ private:
                 if (i == widths.size())
                     break;
 
-                Rectangle<float> bounds;
-                if (widths[i] > 0.f && textBounds(0, 0, names[i], nullptr, bounds) + 6.f * s < widths[i])
-                {
-                    fillColor(Color(Reference::Colors::ink3, 0.8f));
-                    text(sx + widths[i] * 0.5f, h - 4.f * s, names[i], nullptr);
-                }
+                const auto label = [&](const char* const str, const float y, const int align) {
+                    Rectangle<float> bounds;
+                    textAlign(ALIGN_CENTER | align);
+                    if (widths[i] > 0.f && textBounds(0, 0, str, nullptr, bounds) + 6.f * s < widths[i])
+                        text(sx + widths[i] * 0.5f, y, str, nullptr);
+                };
+
+                char timestr[16];
+                if (times[i] < 1000.f)
+                    std::snprintf(timestr, sizeof(timestr), "%.0f ms", times[i]);
+                else
+                    std::snprintf(timestr, sizeof(timestr), "%.3g s", times[i] / 1000.f);
+
+                label(timestr, 4.f * s, ALIGN_TOP);
+                label(names[i], h - 4.f * s, ALIGN_BOTTOM);
 
                 sx += widths[i];
             }
@@ -450,6 +497,45 @@ private:
         };
 
         const float releaseStart = fDurations[0] + fDurations[1];
+
+        // The drum hit: a sine dropping in pitch with a little noise in it, under an envelope that jumps up where the
+        // transient reaches the output and decays over a fixed share of the width. It is the input, so the response
+        // controls only move it with Lookahead and leave its shape alone.
+        {
+            const float yMid = (y0 + yDepth) * 0.5f;
+            const float amp = (yDepth - y0) * 0.5f;
+            const float decay = w * 0.1f;
+            const float xStart = timeToX(fLookahead);
+
+            std::vector<std::pair<float, float>> points;
+            float phase = 0.f;
+            uint32_t noise = 0x12345678u;
+
+            for (float px = xStart; px <= x + w; px += 1.f)
+            {
+                const float dx = px - xStart;
+                const float env = std::exp(-dx / decay) * std::min(1.f, dx / (1.5f * s));
+                if (env < 0.02f && dx > 0.f)
+                    break;
+
+                noise = noise * 1664525u + 1013904223u;
+                const float n = static_cast<float>(noise >> 8) / static_cast<float>(1u << 24) * 2.f - 1.f;
+
+                points.push_back({ px, amp * env * (0.8f * std::sin(phase) + 0.2f * n) });
+                phase += 2.f * static_cast<float>(M_PI) / (s * (3.f + 6.f * (1.f - std::exp(-dx / (40.f * s)))));
+            }
+
+            if (points.size() > 1)
+            {
+                beginPath();
+                moveTo(points.front().first, yMid - points.front().second);
+                for (const std::pair<float, float>& p : points)
+                    lineTo(p.first, yMid - p.second);
+                strokeColor(Color(Reference::Colors::ink3, 0.35f));
+                strokeWidth(1.f);
+                stroke();
+            }
+        }
 
         // the stretched release, faint and behind
         if (! fAutoRelease.empty())
@@ -487,58 +573,7 @@ private:
         strokeWidth(1.5f * s);
         stroke();
 
-        // where the transient reaches the output, dashed
-        if (fLookahead > 0.f)
-        {
-            const float lx = std::round(timeToX(fLookahead)) + 0.5f;
-            const float dash = 3.f * s;
-
-            beginPath();
-            for (float dy = 0.f; dy < h; dy += dash * 2)
-            {
-                moveTo(lx, dy);
-                lineTo(lx, std::min(h, dy + dash));
-            }
-            strokeColor(Color(Reference::Colors::ink2, 0.6f));
-            strokeWidth(1.f);
-            stroke();
-        }
-
         restore();
-
-        // the glass: a gloss over the top half, a faint diagonal sheen, and a rim lit at the top and dark at the bottom
-        save();
-        intersectScissor(x, 0, w, h * 0.5f);
-        beginPath();
-        roundedRect(x, 0, w, h, r);
-        fillPaint(linearGradient(0, 0, 0, h * 0.5f, Color(1.f, 1.f, 1.f, 0.1f), Color(1.f, 1.f, 1.f, 0.02f)));
-        fill();
-        restore();
-
-        save();
-        intersectScissor(x, 0, w, h);
-        beginPath();
-        moveTo(x + w * 0.58f, 0);
-        lineTo(x + w * 0.68f, 0);
-        lineTo(x + w * 0.62f, h);
-        lineTo(x + w * 0.52f, h);
-        closePath();
-        fillPaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.05f), Color(1.f, 1.f, 1.f, 0.01f)));
-        fill();
-        restore();
-
-        beginPath();
-        roundedRect(x + 0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
-        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.22f), Color(0.f, 0.f, 0.f, 0.35f)));
-        strokeWidth(1.f);
-        stroke();
-
-        beginPath();
-        moveTo(x + r, 1.5f);
-        lineTo(x + w - r, 1.5f);
-        strokePaint(linearGradient(x, 0, x + w, 0, Color(1.f, 1.f, 1.f, 0.05f), Color(1.f, 1.f, 1.f, 0.3f)));
-        strokeWidth(1.f);
-        stroke();
     }
 
     // as wide as the group makes it
