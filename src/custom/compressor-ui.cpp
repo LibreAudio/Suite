@@ -6,6 +6,8 @@
 
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
+#include "ui/widgets/button.hpp"
+#include "ui/widgets/button-group.hpp"
 #include "ui/widgets/number-box.hpp"
 #include "ui/widgets/power-box.hpp"
 #include "ui/widgets/shader.hpp"
@@ -639,6 +641,84 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
+// A listen button, taken from mbComp5's band headers: the solo icon in a small raised pill, lit in the accent colour
+// while on. kId is the parameter it switches.
+
+template<const Color& kAccentColor>
+struct CompressorListenButtonGroupReference : Reference::Zero {
+    static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+    static constexpr const Color borderColor = backgroundColor;
+    static constexpr const Color borderHighlightColor { borderColor, 0.16f };
+    static constexpr const Color borderShadowColor { 0, 0, 0, 0.16f };
+    static constexpr const uint border = 1;
+    static constexpr const uint borderRadius = 6;
+    static constexpr const uint margin = 2;
+    static constexpr const uint padding = 2;
+    static constexpr const uint height = 18;
+
+    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+    static constexpr const Point<int> shadowOffset = { 0, 2 };
+    static constexpr const Size<int> shadowSize = { -8, -8 };
+    static constexpr const uint shadowFeather = 12;
+
+    struct Solo : Reference::Zero {
+        static constexpr const Color backgroundColor〡checked = kAccentColor;
+        static constexpr const Color color = Reference::Colors::ink2;
+        static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
+        static constexpr const Color color〡hover = kAccentColor;
+        static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+        static constexpr const uint borderRadius = 4;
+        static constexpr const uint width = height;
+    };
+};
+
+template<FaustParameterIndex kId>
+class CompressorListenButtonWidget final
+    : public ReferenceButtonGroupWidget<CompressorListenButtonGroupReference<accentColor<kId>()>>
+{
+    using GR = CompressorListenButtonGroupReference<accentColor<kId>()>;
+    using SR = typename GR::Solo;
+    using BaseWidget = ReferenceButtonGroupWidget<GR>;
+
+    class SoloButtonWidget final
+        : public ImageButtonWidget<kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN, SR>
+    {
+        using ImageBaseWidget = ImageButtonWidget<kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN, SR>;
+
+    public:
+        explicit SoloButtonWidget(LabWidget* const parent)
+            : ImageBaseWidget(parent) {}
+
+    private:
+        void onNanoDisplay() override
+        {
+            if (ImageBaseWidget::isChecked())
+                ImageBaseWidget::template drawReferenceBackground<SR, SR::backgroundColor〡checked, kCornerBoth>();
+            else
+                ImageBaseWidget::template drawReferenceBackground<SR, SR::backgroundColor, kCornerBoth>();
+
+            ImageBaseWidget::template drawReferenceBorder<SR, SR::borderColor>();
+
+            if (ImageBaseWidget::isChecked())
+                ImageBaseWidget::drawColoredImage(SR::color〡checked);
+            else if (ImageBaseWidget::isHovered())
+                ImageBaseWidget::drawColoredImage(SR::color〡hover);
+            else
+                ImageBaseWidget::drawColoredImage(SR::color);
+        }
+    };
+
+public:
+    explicit CompressorListenButtonWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        BaseWidget::template addButton<SoloButtonWidget>(kParametersMainStart + kId,
+                                                         getFaustParameterLabel(kFaustParameters[kId]));
+        BaseWidget::done();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
 // A group's header, styled like the reverb's section headers: its name in the group's accent colour, at the panel's
 // top left, in a 12 px row 8 px above the controls.
 
@@ -661,12 +741,23 @@ class CompressorGroupHeaderWidget final : public LabWidget
     const char* const fLabel;
     const Color fColor;
 
+    std::unique_ptr<LabWidget> fButton;
+
 public:
     CompressorGroupHeaderWidget(LabWidget* const parent, const char* const label, const Color color)
         : LabWidget(parent),
           fLabel(label),
           fColor(color)
     {
+        updateSize(false);
+    }
+
+    // a button at the right of the label's row, centred on it, as far in from the panel's right as the label is from
+    // its left
+    template<class B, typename... Args>
+    void addButton(Args... args)
+    {
+        fButton.reset(new B(this, args...));
         updateSize(false);
     }
 
@@ -686,6 +777,16 @@ private:
     {
         setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::height * fScaleFactor));
         LabWidget::updateSize(updateChildren);
+
+        if (fButton != nullptr)
+        {
+            const int inset = d_roundToIntPositive((G::border + G::margin) * fScaleFactor);
+            const int rowCentre = d_roundToIntPositive((G::margin + R::row * 0.5f) * fScaleFactor);
+
+            fButton->setAbsolutePos(getAbsoluteX() + static_cast<int>(getWidth()) - inset
+                                        - static_cast<int>(fButton->getWidth()),
+                                    getAbsoluteY() + rowCentre - static_cast<int>(fButton->getHeight()) / 2);
+        }
     }
 };
 
@@ -720,6 +821,12 @@ public:
     [[nodiscard]] uint getGroupHeight() const noexcept
     {
         return fHeight;
+    }
+
+    template<class B, typename... Args>
+    void addHeaderButton(Args... args)
+    {
+        fHeader->addButton<B>(args...);
     }
 
     [[nodiscard]] uint getBoxCount() const noexcept
@@ -883,6 +990,7 @@ public:
     {
         addGroup<CompressorDetectorGroupWidget>("DETECTOR", accentColor<kFaustParameterPeak_rms>());
         addGroup<CompressorSidechainGroupWidget>("SIDECHAIN", accentColor<kFaustParameterSc_mix>());
+        fGroups.back()->addHeaderButton<CompressorListenButtonWidget<kFaustParameterSc_listen>>();
     }
 };
 

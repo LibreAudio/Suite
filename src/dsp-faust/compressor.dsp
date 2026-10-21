@@ -300,6 +300,11 @@ scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt][accentcolor:03]
        cymbals; negative makes it hear the low end]",
                           0, -12, 12, 0.1));
 
+scListen = sc_group(checkbox("[4]Listen[symbol:sc_listen][accentcolor:03]
+      [tooltip: Replaces the output with what the detector hears - the
+       sidechain mix through the sidechain filter - so the filter can be set
+       by ear. Dry / Wet does not apply while it is on]"));
+
 scFreq = 700;
 
 scRes = 0.7; // shelf Q for the tilt pair — flat, no bump at the pivot
@@ -796,7 +801,29 @@ with {
 // sidechain path stays live and testable; only the source is stubbed.
 //
 // To open the real inputs once DPF has a sidechain port group, replace the
-// inner `si.bus(Nch) <: compressorSC` with `compressorSC` and widen the outer
-// split to hand the dry tap the audio pair only.
+// inner `si.bus(Nch) <: compressorSC` with `compressorSC`, do the same for
+// `si.bus(Nch) <: scListenPath`, and widen the outer split to hand the dry tap
+// the audio pair only.
 
-process = si.bus(Nch) <: (si.bus(Nch), (si.bus(Nch) <: compressorSC)) : dryWetMix;
+//======================= Sidechain listen =======================
+// What the detector hears, made audible: the same mix and filter as
+// detTarget, in the same mid/side domain, decoded back for listening. The
+// internal side leaves out the feedback gain - that is the compressor's own
+// reduction, not something the filter is shaping. Delayed by the lookahead
+// so switching Listen does not move the audio in time.
+
+scListenPath = si.bus(2 * Nch)
+             : (msEnc, msEnc)
+             : ro.interleave(Nch, 2)
+             : par(i, Nch, it.interpolate_linear(scMix) : scFilter)
+             : msDec
+             : par(i, Nch, de.delay(maxLookaheadSamples, lookaheadDelay));
+
+// Listen takes over after the Dry/Wet blend, so the blend never mixes the
+// sidechain in with the dry.
+listenSelect = ro.interleave(Nch, 2) : par(i, Nch, select2(scListen));
+
+process = si.bus(Nch)
+       <: ((si.bus(Nch) <: (si.bus(Nch), (si.bus(Nch) <: compressorSC)) : dryWetMix),
+           (si.bus(Nch) <: scListenPath))
+        : listenSelect;
