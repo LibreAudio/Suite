@@ -1375,7 +1375,7 @@ private:
     void onNanoDisplay() final
     {
         drawMeter(*this, getWidth(), getHeight(), fScaleFactor,
-                  { "REDUCTION", accentColor<kFaustParameterThreshold>(), kFloor, kScale, std::size(kScale), true },
+                  { "REDUCTION", accentColor<kFaustParameterMakeup>(), kFloor, kScale, std::size(kScale), true },
                   fValues, fMidSide);
     }
 };
@@ -1468,7 +1468,8 @@ struct CompressorCurveReference : CompressorFloatingReference {
     static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
     static constexpr const Color unityColor { 1.f, 1.f, 1.f, 0.14f };
     static constexpr const Color thresholdColor { 1.f, 1.f, 1.f, 0.2f };
-    static constexpr const Color curveColor = Reference::Colors::ink;
+    // Makeup's accent colour, as the gain reduction meter's
+    static constexpr const Color curveColor = accentColor<kFaustParameterMakeup>();
 };
 
 class CompressorCurveWidget final : public LabWidget,

@@ -48,11 +48,11 @@ out_group(x)   = knob_group(hgroup("[4]Output", x));
 
 //---- gain computer ----
 
-threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold][accentcolor:02]
+threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold][accentcolor:01]
       [tooltip: Level above which the signal is compressed]",
                               -18, maxGR, 0, 0.1));
 
-ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio][accentcolor:02]
+ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio][accentcolor:01]
       [tooltip: dB in per dB out above the threshold. 1 = no compression]",
                           4, 1, 20, 0.01));
 
@@ -85,14 +85,14 @@ rangeKnee = knee;
 // at 100% is the point of having them, and it would be flattened by the
 // parallelMin if it happened before the link.
 
-scaleLM = ctl_group(vslider("[5]Scale L/M[unit:%][symbol:scale_lm][accentcolor:02]
+scaleLM = ctl_group(vslider("[5]Scale L/M[unit:%][symbol:scale_lm][accentcolor:04]
       [tooltip: Multiplies the gain reduction on channel 1 - left, or mid when
        Mid / Side is on. 0% = that channel is not compressed at all whatever
        the other settings say, 100% = as computed, 200% = twice as many dB of
        reduction. Applied before Range, so the Range ceiling still holds]",
                             100, 0, 200, 1)) / 100;
 
-scaleRS = ctl_group(vslider("[6]Scale R/S[unit:%][symbol:scale_rs][accentcolor:02]
+scaleRS = ctl_group(vslider("[6]Scale R/S[unit:%][symbol:scale_rs][accentcolor:04]
       [tooltip: Multiplies the gain reduction on channel 2 - right, or side when
        Mid / Side is on. Pulling this below Scale L/M compresses the centre
        harder than the edges of the image, which is the usual mid/side move]",
@@ -313,7 +313,7 @@ scRes = 0.7; // shelf Q for the tilt pair — flat, no bump at the pivot
 
 // Ordered to follow the audio path: colour, then makeup, then the blend.
 
-satDepth = out_group(vslider("[0]Drive[unit:%][symbol:drive][accentcolor:06]
+satDepth = out_group(vslider("[0]Drive[unit:%][symbol:drive][accentcolor:03]
       [tooltip: How much harmonic colour the output stage adds, scaled by how
        hard the compressor is working. At 0% it is an exact bypass, and it
        stays one at any setting while the compressor is idle - the drive is
