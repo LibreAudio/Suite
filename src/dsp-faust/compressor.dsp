@@ -103,51 +103,51 @@ chanScale(1) = scaleRS;
 
 //---- ballistics ----
 
-lookaheadMs = env_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead]
+lookaheadMs = env_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:04]
       [tooltip: Delays the audio so the gain is already down when the transient
        arrives. Reported to the host as latency and compensated. 0 = off]",
                                 0, 0, 50, 0.1));
 
-attack = env_group(vslider("[1]Attack[unit:ms][scale:log][symbol:attack]
+attack = env_group(vslider("[1]Attack[unit:ms][scale:log][symbol:attack][accentcolor:04]
       [tooltip: How fast the gain moves toward a deeper reduction. Read as a
        1/e time constant at Attack Curve +1, or as the time to cover 20 dB at
        Attack Curve 0 and below]",
                            10, 0.01, 100, 0.01)) * 0.001;
 
-attackCurve = env_group(vslider("[2]Attack Curve[symbol:attack_curve]
+attackCurve = env_group(vslider("[2]Attack Curve[symbol:attack_curve][accentcolor:04]
       [tooltip: Shape of the attack ramp. +1 = exponential, analog-style: quick
        off the mark then easing in, and Attack reads as a time constant.
        0 = straight line in dB. -1 = creeps in then snaps shut at the end]",
                                 1, -1, 1, 0.01));
 
-hold = env_group(vslider("[3]Hold[unit:ms][symbol:hold]
+hold = env_group(vslider("[3]Hold[unit:ms][symbol:hold][accentcolor:04]
       [tooltip: How long the gain reduction is frozen at its deepest point
        before release is allowed to start]",
                          0, 0, 100, 0.1)) * 0.001;
 
-release = env_group(vslider("[4]Release[unit:ms][scale:log][symbol:release]
+release = env_group(vslider("[4]Release[unit:ms][scale:log][symbol:release][accentcolor:04]
       [tooltip: How fast the gain moves back up toward a lighter reduction. Read
        as a 1/e time constant at Release Curve +1, or as the time to cover 20 dB
        at Release Curve 0 and below. With Release S-Curve on it is the time to
        cover 20 dB at every Release Curve setting, and shallower recoveries
        take proportionally less]",
-                            150, 1, 2000, 0.1)) * 0.001;
+                            150, 1, 2000, 1)) * 0.001;
 
-releaseCurve = env_group(vslider("[5]Release Curve[symbol:release_curve]
+releaseCurve = env_group(vslider("[5]Release Curve[symbol:release_curve][accentcolor:04]
       [tooltip: Shape of the release ramp. +1 = exponential, analog-style: lets
        go quickly then a long tail, and Release reads as a time constant.
        0 = straight line in dB. -1 = hangs, then lets go all at once.
        With Release S-Curve on this slides where the ramp is steepest instead]",
                                  1, -1, 1, 0.01));
 
-releaseS = env_group(checkbox("[6]Release S-Curve[symbol:release_s]
+releaseS = env_group(checkbox("[6]Release S-Curve[symbol:release_s][accentcolor:04]
       [tooltip: Eases the release out of the reduction and back into unity
        instead of running at full speed at one end. Release Curve still pushes
        and pulls it, sliding the steep part of the ramp between roughly 1 dB
        and 20 dB from the target - late and abrupt at -1, early and gentle at
        +1 - but both ends keep the soft landing. Affects release only]"));
 
-autoRelease = env_group(vslider("[7]Auto Release[unit:%][symbol:auto_release]
+autoRelease = env_group(vslider("[7]Auto Release[unit:%][symbol:auto_release][accentcolor:04]
       [tooltip: Program dependence. Stretches Release in proportion to how much
        reduction has been sustained recently, so isolated peaks let go quickly
        while a loud passage releases slowly and stops pumping. 0% = fixed]",
@@ -248,28 +248,28 @@ with {
 
 //---- detector ----
 
-peakRms = det_group(vslider("[0]Peak / RMS[unit:%][symbol:peak_rms]
+peakRms = det_group(vslider("[0]Peak / RMS[unit:%][symbol:peak_rms][accentcolor:05]
       [tooltip: What the detector measures. 0% = peak, catches every transient.
        100% = RMS over the window below, follows loudness and ignores spikes]",
                             0, 0, 100, 1)) / 100;
 
-rmsTime = det_group(vslider("[1]RMS Time[unit:ms][symbol:rms_time]
+rmsTime = det_group(vslider("[1]RMS Time[unit:ms][symbol:rms_time][accentcolor:05]
       [tooltip: Averaging window of the RMS half of the detector. Has no effect
        at Peak / RMS 0%]",
                             10, 0, 250, 0.1)) * 0.001;
 
-feedback = det_group(vslider("[2]Feedback[unit:%][symbol:feedback]
+feedback = det_group(vslider("[2]Feedback[unit:%][symbol:feedback][accentcolor:05]
       [tooltip: Where the detector listens. 0% = feed-forward (detector sees
        the input, exact ratio), 100% = feed-back (detector sees the compressed
        output, softer and more program dependent)]",
                              0, 0, 100, 1)) / 100;
 
-link = det_group(vslider("[3]Link[unit:%][symbol:link]
+link = det_group(vslider("[3]Link[unit:%][symbol:link][accentcolor:05]
       [tooltip: 0% = every channel gets its own gain reduction, 100% = all
        channels follow the most-reduced one, so the stereo image never shifts]",
                          100, 0, 100, 1)) / 100;
 
-msOn = det_group(checkbox("[4]Mid / Side[symbol:mid_side]
+msOn = det_group(checkbox("[4]Mid / Side[symbol:mid_side][accentcolor:05]
       [tooltip: Compress mid and side separately instead of left and right.
        Note the common Input and Output sections already carry a global
        mid/side switch that wraps every plugin the same way]"));
@@ -277,7 +277,7 @@ msOn = det_group(checkbox("[4]Mid / Side[symbol:mid_side]
 //---- sidechain source and filter ----
 // Shapes what the detector hears, never the audio.
 
-scMix = sc_group(vslider("[0]SC Mix[unit:%][symbol:sc_mix]
+scMix = sc_group(vslider("[0]External[unit:%][symbol:sc_mix][accentcolor:03]
       [tooltip: Crossfades the detector between the plugin's own audio (0%) and
        the external sidechain (100%). While the sidechain pair is fed from a
        copy of the audio it does little beyond bypassing Feedback, but the
@@ -285,16 +285,16 @@ scMix = sc_group(vslider("[0]SC Mix[unit:%][symbol:sc_mix]
        are wired up]",
                          0, 0, 100, 1)) / 100;
 
-scHp = sc_group(vslider("[1]SC High Pass[unit:Hz][scale:log][symbol:sc_hp]
+scHp = sc_group(vslider("[1]SC High Pass[unit:Hz][scale:log][symbol:sc_hp][accentcolor:03]
       [tooltip: Keeps bass out of the detector so kick and low end stop driving
        the whole gain envelope. 20 Hz = effectively off]",
                         20, 20, 500, 1));
 
-scLp = sc_group(vslider("[2]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp]
+scLp = sc_group(vslider("[2]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp][accentcolor:03]
       [tooltip: Keeps air and hiss out of the detector. 20 kHz = effectively off]",
                         20000, 1000, 20000, 1));
 
-scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt]
+scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt][accentcolor:03]
       [tooltip: Broad weighting of the detector across the spectrum, pivoting at
        SC Freq. Positive makes it hear highs, so it reacts to sibilance and
        cymbals; negative makes it hear the low end]",

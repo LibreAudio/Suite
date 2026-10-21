@@ -15,7 +15,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
+// kHeight, in unscaled pixels, may make the box taller than the reference, leaving its contents their size
+template<const Color& kAccentColor = Reference::Colors::acc1, uint kHeight = Reference::Widgets::NumberBox<>::height>
 class NumberBoxWidget final : public LabKnobWidget
 {
     using R = Reference::Widgets::NumberBox<kAccentColor>;
@@ -23,8 +24,13 @@ class NumberBoxWidget final : public LabKnobWidget
 
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
-        : BaseWidget(parent, kParametersMainStart + id),
-          fParameter(kFaustParameters[id])
+        : NumberBoxWidget(parent, kParametersMainStart + id, &kFaustParameters[id]) {}
+
+    // For a host parameter outside the main dsp, such as the common dry/wet. The description is passed by pointer, as
+    // addWidget copies its arguments, and must outlive the widget.
+    explicit NumberBoxWidget(LabWidget* const parent, const uint32_t parameterId, const FaustParameter* const parameter)
+        : BaseWidget(parent, parameterId),
+          fParameter(*parameter)
     {
         setName(fParameter.name);
         setDefault(fParameter.init);
@@ -39,6 +45,15 @@ public:
 private:
     const FaustParameter& fParameter;
 
+    // the up / down cursor while hovered or dragged, as the value is dragged vertically
+    void stateChanged(const State state, const State oldState) final
+    {
+        BaseWidget::stateChanged(state, oldState);
+
+        if ((state == kKnobStateDefault) != (oldState == kKnobStateDefault))
+            getWindow().setCursor(state == kKnobStateDefault ? kMouseCursorArrow : kMouseCursorUpDown);
+    }
+
     void onNanoDisplay() final
     {
         drawReferenceBackground<R>();
@@ -52,6 +67,7 @@ private:
         const float w = getWidth();
         const float h = getHeight();
 
+        // whole numbers for a step of 1, as the knob shows them
         char valuestr[32];
         renderParameterValue(valuestr, fParameter, getValue());
 
@@ -116,7 +132,7 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        updateReferenceSize<R>();
+        setHeight(d_roundToUnsignedInt(kHeight * fScaleFactor));
         BaseWidget::updateSize(updateChildren);
     }
 };
