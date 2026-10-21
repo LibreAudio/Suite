@@ -601,11 +601,23 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// The display's level scale, shared with the waveform shader: dB at its top and bottom edge.
+// The display's level scale, shared with the waveform shaders: 0 dB at its top edge and the lowest grid line,
+// kDisplayDbFloor, a little above the control groups, so the dB at its bottom edge follows the display's height.
 
 static constexpr const float kDisplayDbMax = 0.f;
-static constexpr const float kDisplayDbMin = -24.f;
+static constexpr const float kDisplayDbFloor = -24.f;
 static constexpr const float kDisplayDbStep = 6.f;
+
+// from the display's bottom edge up to the lowest grid line, in px at scale 1: the groups with the display's padding
+// below and above them
+static constexpr const uint kDisplayFloorOffset = Reference::Stage::padding * 2 + LimiterGroupRowReference::height;
+
+// dB at the bottom edge of a display this tall
+static float displayDbMin(const float height, const float scaleFactor) noexcept
+{
+    const float floorY = std::max(1.f, height - kDisplayFloorOffset * scaleFactor);
+    return kDisplayDbMax + (kDisplayDbFloor - kDisplayDbMax) * height / floorY;
+}
 
 // mbComp5 rainbow
 static constexpr const std::array<Color, 5> kRainbow {{
@@ -705,12 +717,12 @@ private:
 
     [[nodiscard]] float yOfDb(const float db) const noexcept
     {
-        return (kDisplayDbMax - db) / (kDisplayDbMax - kDisplayDbMin) * getHeight();
+        return (kDisplayDbMax - db) / (kDisplayDbMax - displayDbMin(getHeight(), fScaleFactor)) * getHeight();
     }
 
     [[nodiscard]] float dbAtY(const float y) const noexcept
     {
-        return kDisplayDbMax - y / getHeight() * (kDisplayDbMax - kDisplayDbMin);
+        return kDisplayDbMax - y / getHeight() * (kDisplayDbMax - displayDbMin(getHeight(), fScaleFactor));
     }
 
     [[nodiscard]] float threshold() const noexcept
@@ -740,26 +752,32 @@ private:
         const float w = getWidth();
         const float border = R::border * s;
 
-        // level grid and dB ticks below the top edge, which is 0 dB
+        // level grid and dB ticks below the top edge, which is 0 dB, down to the floor above the groups.
+        // Each label sits on its line, and the line fades out just before reaching it.
         fontFace("mono");
         fontSize(10.f * s);
-        textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
 
-        for (float db = kDisplayDbMax - kDisplayDbStep; db > kDisplayDbMin; db -= kDisplayDbStep)
+        const Color gridColor(Reference::Colors::line2, 0.22f);
+
+        for (float db = kDisplayDbMax - kDisplayDbStep; db >= kDisplayDbFloor; db -= kDisplayDbStep)
         {
             const float y = std::round(yOfDb(db)) + 0.5f;
-
-            beginPath();
-            moveTo(border, y);
-            lineTo(w - border, y);
-            strokeColor(Color(Reference::Colors::line2, 0.22f));
-            strokeWidth(1.f);
-            stroke();
 
             char label[8];
             std::snprintf(label, sizeof(label), "%d", static_cast<int>(db));
             fillColor(Reference::Colors::ink3);
-            text(6.f * s, y - 2.f * s, label, nullptr);
+            const float labelEnd = text(6.f * s, y, label, nullptr);
+
+            const float fadeStart = labelEnd + 4.f * s;
+            const float fadeEnd = fadeStart + 16.f * s;
+
+            beginPath();
+            moveTo(fadeStart, y);
+            lineTo(w - border, y);
+            strokePaint(linearGradient(fadeStart, y, fadeEnd, y, gridColor.withAlpha(0.f), gridColor));
+            strokeWidth(1.f);
+            stroke();
         }
 
         // threshold: dotted line coloured through the rainbow from left to right, brighter while hovered or dragged
@@ -908,7 +926,10 @@ public:
         for (LibreAudio::BotShaderBaseWidget* const shader : scrolling)
         {
             shader->setCustomUniform("uHead", [this] { return waveformHead(); });
-            shader->setCustomUniform("uDbMin", [] { return LibreAudio::kDisplayDbMin; });
+            shader->setCustomUniform("uDbMin", [this, shader] {
+                const LabUIWidgetInterface* const iface = this;
+                return LibreAudio::displayDbMin(shader->getHeight(), iface->getScaleFactor());
+            });
             shader->setCustomUniform("uDbMax", [] { return LibreAudio::kDisplayDbMax; });
         }
     }
