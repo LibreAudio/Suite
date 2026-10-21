@@ -9,7 +9,7 @@
 #include "ui/widgets/number-box.hpp"
 #include "ui/widgets/power-box.hpp"
 #include "ui/widgets/shader.hpp"
-#include "ui/widgets/threshold-meter.hpp"
+#include "ui/_lab/knob.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -30,6 +30,9 @@ namespace LibreAudio {
 
 // height of the boxes in the groups: taller than a number box, for room around their contents
 static constexpr const uint kBoxHeight = 45;
+
+// between two groups side by side in a row
+static constexpr const uint kGroupGap = 8;
 
 // the controls of a group, under its header; the labelled group around them draws the panel
 struct CompressorGroupReference : Reference::Zero {
@@ -102,15 +105,47 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// How the gain moves: lookahead, attack, hold and release, with their curves.
+// A gap in a group's controls standing in for the one between two groups: the gap between the groups and their two
+// side margins, less the two spaces between controls it takes the place of. A group of eight with one in the middle
+// then lines its number boxes up with two groups of four under it.
+
+class CompressorGroupSpacerWidget final : public LabWidget
+{
+    using G = CompressorGroupReference;
+
+    static constexpr const uint kWidth = kGroupGap + (G::border + G::margin) * 2 - G::padding * 2;
+
+public:
+    explicit CompressorGroupSpacerWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(d_roundToUnsignedInt(kWidth * fScaleFactor), std::max(1u, getHeight()));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// How the gain moves: lookahead, attack, hold and release, with their curves, the release half spaced off to line up
+// with the sidechain group under it.
 
 class CompressorResponseGroupWidget final : public CompressorGroupWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 8> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 9> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterLookahead>, Expanding>(kFaustParameterLookahead),
         addWidget<CompressorNumberBoxWidget<kFaustParameterAttack>, Expanding>(kFaustParameterAttack),
         addWidget<CompressorNumberBoxWidget<kFaustParameterAttack_curve>, Expanding>(kFaustParameterAttack_curve),
         addWidget<CompressorNumberBoxWidget<kFaustParameterHold>, Expanding>(kFaustParameterHold),
+        addWidget<CompressorGroupSpacerWidget>(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRelease_curve>, Expanding>(kFaustParameterRelease_curve),
         addWidget<CompressorPowerBoxWidget<kFaustParameterRelease_s>, Expanding>(kFaustParameterRelease_s, "S-Curve"),
@@ -769,7 +804,7 @@ public:
 // the row has left once the groups' fixed parts and the gaps are taken out.
 
 struct CompressorGroupRowReference : Reference::Zero {
-    static constexpr const uint padding = 8;
+    static constexpr const uint padding = kGroupGap;
 };
 
 class CompressorGroupRowWidget : public ReferenceContainerWidget<CompressorGroupRowReference>
@@ -859,6 +894,8 @@ struct CompressorFloatingReference : Reference::Zero {
     static constexpr const uint borderRadius = 10;
     // between the panel's edge and its contents
     static constexpr const uint inset = 10;
+    // of the meters and the control stacks
+    static constexpr const uint panelWidth = 110;
     static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.6f };
 };
 
@@ -881,25 +918,230 @@ static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const fl
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// The input meter: mbComp5's band meter on the detector level of each channel, which is what the threshold is
-// compared against, with the threshold's line and triangle over it. Dragging it sets the threshold.
+// The meters floating over the starfield: a title on top, a dB scale down the left, a well with a track for each
+// channel, and the channels' names under the tracks, L and R, or M and S with Mid / Side on. 0 dB is at the top of the
+// well and the meter's floor at the bottom.
 
-class CompressorInputMeterWidget final : public LabWidget
-{
-    using R = CompressorFloatingReference;
-    using MR = Reference::Widgets::ThresholdMeter<accentColor<kFaustParameterThreshold>()>;
-    using MeterWidget = ThresholdMeterWidget<MR>;
-
-    const std::unique_ptr<MeterWidget> fMeter {
-        new MeterWidget(this, kFaustParameterThreshold, kFaustParameterLevel_1, kFaustParameterLevel_2)
+struct CompressorMeterReference : CompressorFloatingReference {
+    struct Title {
+        static constexpr const Color color = Reference::Colors::ink3;
+        static constexpr const float fontSize = 10.f;
+        static constexpr const float letterSpacing = fontSize * 0.08f;
+        static constexpr const uint height = 12;
+        static constexpr const uint gap = 8;
     };
+    struct Channel {
+        static constexpr const Color color = Reference::Colors::ink3;
+        static constexpr const float fontSize = 10.f;
+        static constexpr const uint height = 10;
+        static constexpr const uint gap = 6;
+    };
+    struct Scale {
+        static constexpr const Color color { Reference::Colors::ink3, 0.8f };
+        static constexpr const float fontSize = 9.f;
+        static constexpr const uint width = 22;
+        static constexpr const uint gap = 4;
+    };
+    // the threshold's triangle, right of the well
+    struct Slider {
+        static constexpr const uint width = 8;
+        static constexpr const uint gap = 2;
+    };
+    struct Well {
+        static constexpr const Color backgroundColor = Reference::Colors::track;
+        static constexpr const Color insetShadingColor { 0.f, 0.f, 0.f, 0.55f };
+        static constexpr const uint border = 1;
+        static constexpr const uint borderRadius = 5;
+    };
+    struct Track {
+        static constexpr const uint width = 14;
+        static constexpr const uint gap = 2;
+    };
+    struct Tick {
+        static constexpr const Color color { Reference::Colors::ink3, 0.15f };
+    };
+};
+
+struct CompressorMeterStyle {
+    const char* title;
+    Color color;
+    // dB at the bottom of the well
+    float floor;
+    // dB of the scale's labels and the ticks across the well, from 0 down
+    const float* scale;
+    size_t scaleCount;
+    // the tracks fill down from the top, for gain reduction, rather than up from the bottom
+    bool fromTop;
+};
+
+// The meter's well, between the title and the channel names, right of the scale and left of the triangle.
+// The well is centred across the panel, with the scale to its left and the triangle to its right; x is where the
+// scale starts.
+struct CompressorMeterGeometry {
+    float x, wx, wy, ww, wh;
+
+    CompressorMeterGeometry(const float w, const float h, const float s) noexcept
+    {
+        using R = CompressorMeterReference;
+
+        ww = (R::Well::border * 2 + R::Track::width * 2 + R::Track::gap) * s;
+        wx = std::round((w - ww) * 0.5f);
+        x = wx - (R::Scale::width + R::Scale::gap) * s;
+        wy = (R::inset + R::Title::height + R::Title::gap) * s;
+        wh = h - wy - (R::inset + R::Channel::height + R::Channel::gap) * s;
+    }
+
+    // the track area, inside the well's border
+    [[nodiscard]] float dbToY(const float db, const float floor, const float s) const noexcept
+    {
+        const float b = CompressorMeterReference::Well::border * s;
+        return wy + b + (wh - b * 2) * d_clamp(db / floor, 0.f, 1.f);
+    }
+};
+
+static void drawMeter(NanoVG& vg,
+                      const float w,
+                      const float h,
+                      const float s,
+                      const CompressorMeterStyle& style,
+                      const std::array<float, 2>& values,
+                      const bool midSide)
+{
+    using R = CompressorMeterReference;
+
+    drawFloatingPanel(vg, w, h, s);
+
+    const CompressorMeterGeometry g(w, h, s);
+
+    if (g.wh <= 0.f || g.ww <= 0.f)
+        return;
+
+    const float b = R::Well::border * s;
+    const float wr = R::Well::borderRadius * s;
+    const float tw = R::Track::width * s;
+    const std::array<float, 2> trackX { g.wx + b, g.wx + g.ww - b - tw };
+    const float ty = g.wy + b;
+    const float tb = g.wy + g.wh - b;
+
+    // the title, shrunk to fit the panel if need be
+    {
+        const float maxWidth = w - R::inset * 2 * s;
+        Rectangle<float> bounds;
+
+        vg.fontFace("regular");
+        vg.fontSize(R::Title::fontSize * s);
+        vg.textLetterSpacing(R::Title::letterSpacing * s);
+
+        if (const float titleWidth = vg.textBounds(0, 0, style.title, nullptr, bounds); titleWidth > maxWidth)
+            vg.fontSize(R::Title::fontSize * s * maxWidth / titleWidth);
+
+        vg.textAlign(NanoVG::ALIGN_CENTER | NanoVG::ALIGN_MIDDLE);
+        vg.fillColor(R::Title::color);
+        vg.text(w * 0.5f, (R::inset + R::Title::height * 0.5f) * s, style.title, nullptr);
+        vg.textLetterSpacing(0.f);
+    }
+
+    // the well
+    vg.beginPath();
+    vg.roundedRect(g.wx, g.wy, g.ww, g.wh, wr);
+    vg.fillColor(R::Well::backgroundColor);
+    vg.fill();
+
+    // the tracks, each cut out of the well's shape so the ends follow its corners
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        const float y = g.dbToY(values[i], style.floor, s);
+        const float y0 = style.fromTop ? ty : y;
+        const float y1 = style.fromTop ? y : tb;
+
+        if (y1 - y0 < 0.5f)
+            continue;
+
+        vg.save();
+        vg.scissor(trackX[i], y0, tw, y1 - y0);
+        vg.beginPath();
+        vg.roundedRect(g.wx + b, ty, g.ww - b * 2, tb - ty, wr - b);
+        vg.fillPaint(style.fromTop
+                     ? vg.linearGradient(0, y1, 0, y0, style.color, Color(style.color, 0.45f))
+                     : vg.linearGradient(0, y0, 0, y1, style.color, Color(style.color, 0.45f)));
+        vg.fill();
+        vg.restore();
+    }
+
+    // inset shading
+    vg.beginPath();
+    vg.roundedRect(g.wx, g.wy, g.ww, g.wh, wr);
+    vg.fillPaint(vg.linearGradient(0, g.wy, 0, g.wy + 4 * s, R::Well::insetShadingColor, Reference::Colors::transparent));
+    vg.fill();
+
+    // the scale: ticks across the well, leaving out its ends, and the dB to their left
+    vg.fontSize(R::Scale::fontSize * s);
+    vg.textAlign(NanoVG::ALIGN_RIGHT | NanoVG::ALIGN_MIDDLE);
+    vg.fillColor(R::Scale::color);
+
+    for (size_t i = 0; i < style.scaleCount; ++i)
+    {
+        const float db = style.scale[i];
+        const float y = g.dbToY(db, style.floor, s);
+
+        if (d_isNotZero(db) && d_isNotEqual(db, style.floor))
+        {
+            vg.beginPath();
+            vg.moveTo(g.wx + b, std::round(y) + 0.5f);
+            vg.lineTo(g.wx + g.ww - b, std::round(y) + 0.5f);
+            vg.strokeColor(R::Tick::color);
+            vg.strokeWidth(1.f);
+            vg.stroke();
+        }
+
+        char dbstr[8];
+        std::snprintf(dbstr, sizeof(dbstr), "%.0f", db);
+        vg.text(g.x + R::Scale::width * s, y, dbstr, nullptr);
+    }
+
+    // the channels' names, under their tracks
+    {
+        const char* const names[2][2] = { { "L", "R" }, { "M", "S" } };
+
+        vg.fontSize(R::Channel::fontSize * s);
+        vg.textAlign(NanoVG::ALIGN_CENTER | NanoVG::ALIGN_MIDDLE);
+        vg.fillColor(R::Channel::color);
+
+        const float y = g.wy + g.wh + (R::Channel::gap + R::Channel::height * 0.5f) * s;
+        for (size_t i = 0; i < trackX.size(); ++i)
+            vg.text(trackX[i] + tw * 0.5f, y, names[midSide ? 1 : 0][i], nullptr);
+    }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// The input meter: the detector level of each channel, which is what the threshold is compared against, with the
+// threshold's triangle right of the well and its line across it. Dragging it sets the threshold.
+
+class CompressorInputMeterWidget final : public LabKnobWidget
+{
+    using R = CompressorMeterReference;
+
+    static constexpr const FaustParameter& kParameterSlider = kFaustParameters[kFaustParameterThreshold];
+    static constexpr const std::array<FaustParameterIndex, 2> kMeters { kFaustParameterLevel_1, kFaustParameterLevel_2 };
+    static constexpr const float kFloor = kFaustParameters[kFaustParameterLevel_1].min;
+    static constexpr const float kScale[] = { 0, -12, -24, -36, -48, -60 };
+
+    std::array<float, 2> fValues { kFloor, kFloor };
+    bool fMidSide = false;
 
 public:
     // unscaled
-    static constexpr const uint kWidth = MR::width + R::inset * 2;
+    static constexpr const uint kWidth = R::panelWidth;
 
     explicit CompressorInputMeterWidget(LabWidget* const parent)
-        : LabWidget(parent) {}
+        : LabKnobWidget(parent, kParametersMainStart + kFaustParameterThreshold)
+    {
+        setName(kParameterSlider.label);
+        setDefault(kParameterSlider.init);
+        setRange(kParameterSlider.min, kParameterSlider.max);
+        setStep(kParameterSlider.step);
+        setValue(kParameterSlider.init, false);
+    }
 
     [[nodiscard]] float getBorderRadius() const noexcept
     {
@@ -907,42 +1149,83 @@ public:
     }
 
 private:
-    void onNanoDisplay() final
+    void idleCallback() final
     {
-        drawFloatingPanel(*this, getWidth(), getHeight(), fScaleFactor);
+        for (size_t i = 0; i < kMeters.size(); ++i)
+        {
+            if (const float value = std::clamp(fInterface->getParameterValue(kParametersMainStart + kMeters[i]),
+                                               kFloor, 0.f); d_isNotEqual(fValues[i], value))
+            {
+                fValues[i] = value;
+                repaint();
+            }
+        }
+
+        if (const bool midSide = d_isNotZero(fInterface->getParameterValue(kParametersMainStart
+                                                                           + kFaustParameterMid_side));
+            fMidSide != midSide)
+        {
+            fMidSide = midSide;
+            repaint();
+        }
+
+        LabKnobWidget::idleCallback();
     }
 
-    // the meter fills the panel less its inset
-    void updateSize(const bool updateChildren) final
+    void onNanoDisplay() final
     {
-        const int inset = d_roundToIntPositive(R::inset * fScaleFactor);
+        const float s = fScaleFactor;
+        const float w = getWidth();
+        const float h = getHeight();
+        const Color& color = accentColor<kFaustParameterThreshold>();
 
-        fMeter->setHeight(std::max(1, static_cast<int>(getHeight()) - inset * 2));
-        fMeter->setAbsolutePos(getAbsoluteX() + inset, getAbsoluteY() + inset);
+        drawMeter(*this, w, h, s, { "INPUT", color, kFloor, kScale, std::size(kScale), false }, fValues, fMidSide);
 
-        LabWidget::updateSize(updateChildren);
+        // the threshold: a triangle pointing at the well, and a line across it
+        const CompressorMeterGeometry g(w, h, s);
+
+        if (g.wh <= 0.f)
+            return;
+
+        const float y = g.dbToY(getValue(), kFloor, s);
+        const float sw = R::Slider::width * s;
+        const float sx = g.wx + g.ww + R::Slider::gap * s;
+
+        beginPath();
+        moveTo(sx + sw, y - sw * 0.5f);
+        lineTo(sx, y);
+        lineTo(sx + sw, y + sw * 0.5f);
+        closePath();
+        fillColor(color);
+        fill();
+
+        beginPath();
+        moveTo(g.wx, std::round(y) + 0.5f);
+        lineTo(g.wx + g.ww, std::round(y) + 0.5f);
+        strokeColor(color);
+        strokeWidth(1.f * s);
+        stroke();
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The gain reduction meter: the input meter's tracks, left and right, without the threshold, filling down from the top
-// as each channel is pulled down, to the meter's floor. It floats in a panel like the input meter's.
+// The gain reduction meter: each channel's reduction, filling down from the top, to the meter's floor.
 
 class CompressorGainReductionMeterWidget final : public LabWidget,
                                                  private IdleCallback
 {
-    using R = CompressorFloatingReference;
-    using MR = Reference::Widgets::ThresholdMeter<accentColor<kFaustParameterThreshold>()>;
+    using R = CompressorMeterReference;
 
     static constexpr const std::array<FaustParameterIndex, 2> kMeters { kFaustParameterGr_1, kFaustParameterGr_2 };
     static constexpr const float kFloor = kFaustParameters[kFaustParameterGr_1].min;
-    static constexpr const float ticks[] = { -3, -6, -10, -15 };
+    static constexpr const float kScale[] = { 0, -5, -10, -15, -20 };
 
     std::array<float, 2> fValues {};
+    bool fMidSide = false;
 
 public:
-    // unscaled, the input meter's two tracks and the gap between them, in the panel's inset
-    static constexpr const uint kWidth = MR::Track::width * 2 + MR::padding + R::inset * 2;
+    // unscaled
+    static constexpr const uint kWidth = R::panelWidth;
 
     explicit CompressorGainReductionMeterWidget(LabWidget* const parent)
         : LabWidget(parent)
@@ -967,130 +1250,70 @@ private:
                 repaint();
             }
         }
+
+        if (const bool midSide = d_isNotZero(fInterface->getParameterValue(kParametersMainStart
+                                                                           + kFaustParameterMid_side));
+            fMidSide != midSide)
+        {
+            fMidSide = midSide;
+            repaint();
+        }
     }
 
     void onNanoDisplay() final
     {
-        const float s = fScaleFactor;
-        const float w = getWidth();
-        const float h = getHeight();
-
-        drawFloatingPanel(*this, w, h, s);
-
-        const float inset = R::inset * s;
-        const float mborder = MR::Meter::border * s;
-        const float mr = MR::Meter::borderRadius * s;
-        const float mx = inset;
-        const float my = inset;
-        const float mw = w - inset * 2;
-        const float mh = h - inset * 2;
-
-        const float tx = mx + mborder;
-        const float ty = my + mborder;
-        const float tw2 = mw - mborder * 2;
-        const float tw1 = MR::Track::width * s - 1.5f * s;
-        const float th = mh - mborder * 2;
-
-        if (mh <= 0.f)
-            return;
-
-        const auto reductionToHeight = [&](const float db) {
-            return d_roundToIntPositive(th * d_clamp(db / kFloor, 0.f, 1.f));
-        };
-
-        // background
-        beginPath();
-        roundedRect(mx, my, mw, mh, mr);
-        fillColor(MR::Meter::backgroundColor);
-        fill();
-
-        // the tracks, left and right, from the top down
-        const std::array<float, 2> trackX { tx, mx + mw - mborder - tw1 };
-
-        for (size_t i = 0; i < kMeters.size(); ++i)
-        {
-            const float vh = reductionToHeight(fValues[i]);
-            if (vh <= 0.f)
-                continue;
-
-            beginPath();
-            roundedRect(tx, ty, tw2, th, mr);
-            fillPaint(linearGradient(0, ty + vh, 0, ty, MR::Track::colorGradientStart, MR::Track::colorGradientStop));
-
-            save();
-            scissor(trackX[i], ty, tw1, vh);
-            fill();
-            restore();
-        }
-
-        // inset shading
-        beginPath();
-        roundedRect(mx, my, mw, mh, mr);
-        fillPaint(linearGradient(0, my, 0, my + 4 * s, MR::Meter::insetShadingColor, Reference::Colors::transparent));
-        fill();
-
-        // ticks
-        strokeColor(MR::Tick::color);
-        strokeWidth(MR::Tick::height * s);
-
-        for (const float tick : ticks)
-        {
-            const float lh = reductionToHeight(tick);
-
-            beginPath();
-            moveTo(tx, ty + lh);
-            lineTo(tx + tw2, ty + lh);
-            stroke();
-        }
+        drawMeter(*this, getWidth(), getHeight(), fScaleFactor,
+                  { "REDUCTION", accentColor<kFaustParameterThreshold>(), kFloor, kScale, std::size(kScale), true },
+                  fValues, fMidSide);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// Controls stacked in a floating panel: count number boxes, one above the other, at the height of a group's boxes.
+// Controls stacked in a floating panel: number boxes, one above the other, in the height the display gives it.
 
-template<uint count>
 struct CompressorControlStackReference : CompressorFloatingReference {
     static constexpr const uint margin = inset;
     static constexpr const uint padding = CompressorGroupReference::padding;
-    static constexpr const uint width = 110;
-    static constexpr const uint height = margin * 2 + kBoxHeight * count + padding * (count - 1);
+    static constexpr const uint width = panelWidth;
 };
 
-template<uint count>
-class CompressorControlStackWidget : public ReferenceContainerWidget<CompressorControlStackReference<count>, kVertical>
+class CompressorControlStackWidget : public ReferenceContainerWidget<CompressorControlStackReference, kVertical>
 {
-    using R = CompressorControlStackReference<count>;
+    using R = CompressorControlStackReference;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
 
 public:
     // unscaled
     static constexpr const uint kWidth = R::width;
-    static constexpr const uint kHeight = R::height;
 
     explicit CompressorControlStackWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
     [[nodiscard]] float getBorderRadius() const noexcept
     {
-        return R::borderRadius * this->fScaleFactor;
+        return R::borderRadius * fScaleFactor;
     }
 
 private:
     void onNanoDisplay() final
     {
-        drawFloatingPanel(*this, this->getWidth(), this->getHeight(), this->fScaleFactor);
+        drawFloatingPanel(*this, getWidth(), getHeight(), fScaleFactor);
     }
 };
 
-// The compression controls, next to the input meter.
+// The compression controls, next to the input meter, at the height of a group's boxes: threshold and ratio at the top,
+// Mid / Side at the bottom, and knee and range together halfway between, the spacers around them sharing what is left.
 
-class CompressorThresholdStackWidget final : public CompressorControlStackWidget<4>
+class CompressorThresholdStackWidget final : public CompressorControlStackWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterThreshold>>(kFaustParameterThreshold),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRatio>>(kFaustParameterRatio),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterRange>>(kFaustParameterRange),
+        addSpacer(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterKnee>>(kFaustParameterKnee),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterRange>>(kFaustParameterRange),
+        addSpacer(),
+        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>>(kFaustParameterMid_side),
     };
 
 public:
@@ -1098,16 +1321,18 @@ public:
         : CompressorControlStackWidget(parent) {}
 };
 
-// The channel and output controls, next to the gain reduction meter: the per-channel depth, mid/side, and what
-// happens after the gain stage.
+// The channel and output controls, next to the gain reduction meter, at the height of a group's boxes: the per-channel
+// depth at the top, makeup and dry/wet at the bottom, and drive halfway between, the spacers around it sharing what is
+// left.
 
-class CompressorOutputStackWidget final : public CompressorControlStackWidget<6>
+class CompressorOutputStackWidget final : public CompressorControlStackWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 6> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterScale_lm>>(kFaustParameterScale_lm),
         addWidget<CompressorNumberBoxWidget<kFaustParameterScale_rs>>(kFaustParameterScale_rs),
-        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>>(kFaustParameterMid_side),
+        addSpacer(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterDrive>>(kFaustParameterDrive),
+        addSpacer(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterMakeup>>(kFaustParameterMakeup),
         addWidget<CompressorNumberBoxWidget<kFaustParameterDrywet>>(kFaustParameterDrywet),
     };
@@ -1120,7 +1345,8 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 // The compression curve: output level against input level, both from -60 to 0 dB, for a steady signal, worked out with
 // the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. The second
-// channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield.
+// channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield, in a
+// panel as wide as the display leaves it, with the plot square in the middle.
 
 struct CompressorCurveReference : CompressorFloatingReference {
     static constexpr const float dbMin = -60.f;
@@ -1220,12 +1446,12 @@ private:
 
         drawFloatingPanel(*this, w, h, s);
 
-        // the plot
+        // the plot, square, as large as the panel allows and centred in it
         const float inset = R::inset * s;
-        const float px = inset;
-        const float py = inset;
-        const float pw = w - inset * 2;
-        const float ph = h - inset * 2;
+        const float pw = std::min(w, h) - inset * 2;
+        const float ph = pw;
+        const float px = std::round((w - pw) * 0.5f);
+        const float py = std::round((h - ph) * 0.5f);
 
         if (pw <= 0.f || ph <= 0.f)
             return;
@@ -1324,10 +1550,11 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The display: the starfield fills it, inside a well border, with the compression curve floating in the middle: square,
-// as tall as the display less a margin above and below, and centred across it. The input meter floats as tall at its
-// left, the same margin in from the edge, and next to the meter the compression controls, from the same top. The gain
-// reduction meter floats as tall at the right, the same margin in, with the channel and output controls left of it.
+// The display: the starfield fills it, inside a well border, with panels floating over it, all as tall as the display
+// less a margin above and below. The input meter floats at its left, the same margin
+// in from the edge, and next to the meter the compression controls. The gain reduction meter floats at the right, the
+// same margin in, with the channel and output controls left of it. The compression curve fills the space between the
+// two stacks of controls.
 
 class CompressorDisplayWidget final : public LabWidget
 {
@@ -1424,10 +1651,7 @@ private:
     void updateSize(const bool updateChildren) final
     {
         const int margin = d_roundToIntPositive(kPanelMargin * fScaleFactor);
-        const int side = std::max(1, std::min(static_cast<int>(getHeight()), static_cast<int>(getWidth())) - margin * 2);
-
-        fCurve->setSize(side, side);
-        fCurve->setAbsolutePos(getAbsoluteX() + (static_cast<int>(getWidth()) - side) / 2, getAbsoluteY() + margin);
+        const int side = std::max(1, static_cast<int>(getHeight()) - margin * 2);
 
         fInputMeter->setSize(d_roundToUnsignedInt(CompressorInputMeterWidget::kWidth * fScaleFactor), side);
         fInputMeter->setAbsolutePos(getAbsoluteX() + margin, getAbsoluteY() + margin);
@@ -1441,16 +1665,19 @@ private:
 
         // as widgets, their layouts having a setSize and setAbsolutePos of their own
         LabWidget& controls = *fControls;
-        controls.setSize(d_roundToUnsignedInt(CompressorThresholdStackWidget::kWidth * fScaleFactor),
-                         d_roundToUnsignedInt(CompressorThresholdStackWidget::kHeight * fScaleFactor));
+        controls.setSize(d_roundToUnsignedInt(CompressorThresholdStackWidget::kWidth * fScaleFactor), side);
         controls.setAbsolutePos(fInputMeter->getAbsoluteX() + static_cast<int>(fInputMeter->getWidth()) + gap,
                                 getAbsoluteY() + margin);
 
         LabWidget& outputs = *fOutputs;
-        outputs.setSize(d_roundToUnsignedInt(CompressorOutputStackWidget::kWidth * fScaleFactor),
-                        d_roundToUnsignedInt(CompressorOutputStackWidget::kHeight * fScaleFactor));
+        outputs.setSize(d_roundToUnsignedInt(CompressorOutputStackWidget::kWidth * fScaleFactor), side);
         outputs.setAbsolutePos(fGainReduction->getAbsoluteX() - gap - static_cast<int>(outputs.getWidth()),
                                getAbsoluteY() + margin);
+
+        // the curve takes what is left between the two stacks
+        const int curveX = controls.getAbsoluteX() + static_cast<int>(controls.getWidth()) + gap;
+        fCurve->setSize(std::max(1, outputs.getAbsoluteX() - gap - curveX), side);
+        fCurve->setAbsolutePos(curveX, getAbsoluteY() + margin);
 
         LabWidget::updateSize(updateChildren);
     }

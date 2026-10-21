@@ -256,7 +256,7 @@ peakRms = det_group(vslider("[0]Peak / RMS[unit:%][symbol:peak_rms][accentcolor:
 rmsTime = det_group(vslider("[1]RMS Time[unit:ms][symbol:rms_time][accentcolor:05]
       [tooltip: Averaging window of the RMS half of the detector. Has no effect
        at Peak / RMS 0%]",
-                            10, 0, 250, 0.1)) * 0.001;
+                            5, 0, 50, 1)) * 0.001;
 
 feedback = det_group(vslider("[2]Feedback[unit:%][symbol:feedback][accentcolor:05]
       [tooltip: Where the detector listens. 0% = feed-forward (detector sees
