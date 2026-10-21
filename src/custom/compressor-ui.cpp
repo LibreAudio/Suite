@@ -896,7 +896,7 @@ struct CompressorFloatingReference : Reference::Zero {
     static constexpr const uint inset = 10;
     // of the meters and the control stacks
     static constexpr const uint panelWidth = 110;
-    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.6f };
+    static constexpr const Color backgroundColor { Reference::Colors::bg2, 0.75f };
 };
 
 static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const float scaleFactor)
@@ -1346,7 +1346,7 @@ public:
 // The compression curve: output level against input level, both from -60 to 0 dB, for a steady signal, worked out with
 // the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. The second
 // channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield, in a
-// panel as wide as the display leaves it, with the plot square in the middle.
+// panel as wide as the display leaves it, the plot filling it edge to edge.
 
 struct CompressorCurveReference : CompressorFloatingReference {
     static constexpr const float dbMin = -60.f;
@@ -1446,12 +1446,12 @@ private:
 
         drawFloatingPanel(*this, w, h, s);
 
-        // the plot, square, as large as the panel allows and centred in it
-        const float inset = R::inset * s;
-        const float pw = std::min(w, h) - inset * 2;
-        const float ph = pw;
-        const float px = std::round((w - pw) * 0.5f);
-        const float py = std::round((h - ph) * 0.5f);
+        // the plot fills the panel, edge to edge
+        const float px = 0.f;
+        const float py = 0.f;
+        const float pw = w;
+        const float ph = h;
+        const float r = getBorderRadius();
 
         if (pw <= 0.f || ph <= 0.f)
             return;
@@ -1466,9 +1466,9 @@ private:
         save();
         intersectScissor(px, py, pw, ph);
 
-        // grid every 12 dB, across and down
+        // grid every 12 dB, across and down, leaving the panel's edges to its rim
         beginPath();
-        for (float db = R::dbMin; db <= 0.f; db += R::gridStep)
+        for (float db = R::dbMin + R::gridStep; db < 0.f; db += R::gridStep)
         {
             const float gx = std::round(dbToX(db)) + 0.5f;
             const float gy = std::round(dbToY(db)) + 0.5f;
@@ -1481,69 +1481,112 @@ private:
         strokeWidth(1.f);
         stroke();
 
+        // The top and bottom of the panel's rounded outline at an x.
+        const auto outline = [&](const float x) {
+            const float dx = std::min(r, std::max({ 0.f, px + r - x, x - (px + pw - r) }));
+            const float dy = r - std::sqrt(r * r - dx * dx);
+            return std::make_pair(py + dy, py + ph - dy);
+        };
+
+        // A stroke cut exactly to the outline: in one piece between the corners, and across them a column a pixel wide
+        // at a time, scissored to the outline's height there. path builds the path for the piece from x0 to x1.
+        const auto clippedStroke = [&](const Color& color, const float width, const auto& path) {
+            strokeColor(color);
+            strokeWidth(width);
+
+            const float corner = std::ceil(r);
+
+            save();
+            intersectScissor(px + corner, py, pw - corner * 2, ph);
+            path(px + corner, px + pw - corner);
+            stroke();
+            restore();
+
+            for (float i = 0.f; i < corner; i += 1.f)
+            {
+                for (const float cx : { px + i, px + pw - 1.f - i })
+                {
+                    const auto [top, bottom] = outline(cx + 0.5f);
+
+                    save();
+                    intersectScissor(cx, top, 1.f, bottom - top);
+                    path(cx, cx + 1.f);
+                    stroke();
+                    restore();
+                }
+            }
+        };
+
         // 1:1
-        beginPath();
-        moveTo(dbToX(R::dbMin), dbToY(R::dbMin));
-        lineTo(dbToX(0.f), dbToY(0.f));
-        strokeColor(R::unityColor);
-        strokeWidth(1.f);
-        stroke();
+        clippedStroke(R::unityColor, 1.f, [&](float, float) {
+            beginPath();
+            moveTo(dbToX(R::dbMin), dbToY(R::dbMin));
+            lineTo(dbToX(0.f), dbToY(0.f));
+        });
 
         // the threshold, up to where it meets the diagonal and across to the left
         {
             const float tx = std::round(dbToX(fValues[0])) + 0.5f;
             const float ty = std::round(dbToY(fValues[0])) + 0.5f;
 
-            beginPath();
-            moveTo(tx, py + ph);
-            lineTo(tx, ty);
-            lineTo(px, ty);
-            strokeColor(R::thresholdColor);
-            strokeWidth(1.f);
-            stroke();
+            clippedStroke(R::thresholdColor, 1.f, [&](float, float) {
+                beginPath();
+                moveTo(tx, py + ph);
+                lineTo(tx, ty);
+                lineTo(px, ty);
+            });
         }
 
-        // a curve a pixel at a time
-        const auto curve = [&](const float scale) {
+        // The curve a pixel at a time from x0 to x1, held to the outline when it is to be filled, which for the area
+        // under it is the same as cutting it there.
+        const auto curve = [&](const float scale, const float x0, const float x1, const bool held) {
             beginPath();
-            for (float x = 0.f; x <= pw; x += 1.f)
+            const float first = std::max(0.f, std::floor(x0 - px));
+            const float last = std::min(pw, std::ceil(x1 - px));
+            for (float x = first; x <= last; x += 1.f)
             {
                 const float in = R::dbMin + x / pw * -R::dbMin;
-                const float y = dbToY(in + gainReduction(in, scale));
-                if (x == 0.f)
+                float y = dbToY(in + gainReduction(in, scale));
+
+                if (held)
+                {
+                    const auto [top, bottom] = outline(px + x);
+                    y = std::clamp(y, top, bottom);
+                }
+
+                if (x == first)
                     moveTo(px + x, y);
                 else
                     lineTo(px + x, y);
             }
         };
 
+        // the curve's line, cut exactly to the outline, taking the curve only as far past each piece as the line is wide
+        const auto line = [&](const float scale, const Color& color, const float width) {
+            lineJoin(ROUND);
+            clippedStroke(color, width, [&](const float x0, const float x1) {
+                curve(scale, x0 - width - 1.f, x1 + width + 1.f, false);
+            });
+        };
+
         const float scale1 = fValues[4] / 100.f;
         const float scale2 = fValues[5] / 100.f;
 
         if (d_isNotEqual(scale1, scale2))
-        {
-            curve(scale2);
-            strokeColor(Color(R::curveColor, 0.35f));
-            strokeWidth(1.f * s);
-            stroke();
-        }
+            line(scale2, Color(R::curveColor, 0.35f), 1.f * s);
 
-        // filled down to the bottom, then the line with a glow
-        curve(scale1);
-        lineTo(px + pw, py + ph);
-        lineTo(px, py + ph);
+        // filled down to the bottom, round its corners as the panel's, then the line with a glow
+        curve(scale1, px, px + pw, true);
+        lineTo(px + pw, py + ph - r);
+        arcTo(px + pw, py + ph, px + pw - r, py + ph, r);
+        lineTo(px + r, py + ph);
+        arcTo(px, py + ph, px, py + ph - r, r);
         closePath();
         fillPaint(linearGradient(0, py, 0, py + ph, Color(R::curveColor, 0.12f), Color(R::curveColor, 0.02f)));
         fill();
 
-        curve(scale1);
-        lineJoin(ROUND);
-        strokeColor(Color(R::curveColor, 0.2f));
-        strokeWidth(4.f * s);
-        stroke();
-        strokeColor(R::curveColor);
-        strokeWidth(1.5f * s);
-        stroke();
+        line(scale1, Color(R::curveColor, 0.2f), 4.f * s);
+        line(scale1, R::curveColor, 1.5f * s);
 
         restore();
     }
@@ -1560,8 +1603,8 @@ class CompressorDisplayWidget final : public LabWidget
 {
     using R = Reference::Stage;
 
-    // between the floating panels and the display's edges
-    static constexpr const uint kPanelMargin = 16;
+    // between the floating panels and the display's edges, as between the panels' edges and their contents
+    static constexpr const uint kPanelMargin = CompressorFloatingReference::inset;
     // between the floating panels side by side
     static constexpr const uint kPanelGap = 8;
 
