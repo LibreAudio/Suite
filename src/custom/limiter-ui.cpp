@@ -224,7 +224,7 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// A slim dropdown for a parameter with options: its name in grey, then a small box with the current option in the
+// A slim dropdown for a parameter with options: its name in the accent colour, then a small box with the current option in the
 // accent colour and a chevron. A click on the box opens the menu, scrolling over it steps through the options.
 
 class LimiterDropdownWidget final : public LabWidget
@@ -279,7 +279,7 @@ private:
         const float bx = boxX();
 
         setupFont();
-        fillColor(Reference::Colors::ink3);
+        fillColor(fAccent);
         textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
         text(bx - kGap * s, h * 0.5f, fParameter.name, nullptr);
         textLetterSpacing(0.f);
@@ -359,7 +359,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 // A slim checkbox for an on / off parameter, styled like the dropdown: a square box as tall as the dropdown's at the
-// left edge, with a check mark in the accent colour when on, then its name in grey. A click anywhere on it toggles
+// left edge, with a check mark in the accent colour when on, then its name in the accent colour. A click anywhere on it toggles
 // the parameter.
 
 class LimiterCheckboxWidget final : public LabWidget
@@ -409,7 +409,7 @@ private:
         const float by = (h - size) * 0.5f + 0.5f;
 
         setupFont();
-        fillColor(Reference::Colors::ink3);
+        fillColor(fAccent);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
         text(size + kGap * s, h * 0.5f, fParameter.name, nullptr);
         textLetterSpacing(0.f);
