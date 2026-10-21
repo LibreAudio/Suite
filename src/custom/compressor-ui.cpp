@@ -899,7 +899,11 @@ struct CompressorFloatingReference : Reference::Zero {
     static constexpr const Color backgroundColor { Reference::Colors::bg2, 0.75f };
 };
 
-static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const float scaleFactor)
+static void drawFloatingPanel(NanoVG& vg,
+                              const float w,
+                              const float h,
+                              const float scaleFactor,
+                              const Color& backgroundColor = CompressorFloatingReference::backgroundColor)
 {
     using R = CompressorFloatingReference;
 
@@ -907,7 +911,7 @@ static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const fl
 
     vg.beginPath();
     vg.roundedRect(0, 0, w, h, r);
-    vg.fillColor(R::backgroundColor);
+    vg.fillColor(backgroundColor);
     vg.fill();
 
     vg.beginPath();
@@ -1349,6 +1353,8 @@ public:
 // panel as wide as the display leaves it, the plot filling it edge to edge.
 
 struct CompressorCurveReference : CompressorFloatingReference {
+    // darker than the other panels, for the plot to stand out
+    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.8f };
     static constexpr const float dbMin = -60.f;
     static constexpr const float gridStep = 12.f;
     static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
@@ -1444,7 +1450,7 @@ private:
         const float w = getWidth();
         const float h = getHeight();
 
-        drawFloatingPanel(*this, w, h, s);
+        drawFloatingPanel(*this, w, h, s, R::backgroundColor);
 
         // the plot fills the panel, edge to edge
         const float px = 0.f;
