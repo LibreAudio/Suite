@@ -852,11 +852,239 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The display: the starfield fills it, inside a well border.
+// The compression curve: output level against input level, both from -60 to 0 dB, for a steady signal, worked out with
+// the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. The second
+// channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield in a
+// dark, see-through panel; the display draws the panel's shadow, which reaches outside it.
+
+struct CompressorCurveReference : Reference::Zero {
+    static constexpr const uint borderRadius = 10;
+    // between the panel's edge and the plot
+    static constexpr const uint inset = 10;
+    static constexpr const float dbMin = -60.f;
+    static constexpr const float gridStep = 12.f;
+    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.6f };
+    static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
+    static constexpr const Color unityColor { 1.f, 1.f, 1.f, 0.14f };
+    static constexpr const Color thresholdColor { 1.f, 1.f, 1.f, 0.2f };
+    static constexpr const Color curveColor = Reference::Colors::ink;
+};
+
+class CompressorCurveWidget final : public LabWidget,
+                                    private IdleCallback
+{
+    using R = CompressorCurveReference;
+
+    static constexpr const std::array<FaustParameterIndex, 6> kParameters {
+        kFaustParameterThreshold,
+        kFaustParameterRatio,
+        kFaustParameterKnee,
+        kFaustParameterRange,
+        kFaustParameterScale_lm,
+        kFaustParameterScale_rs,
+    };
+
+    std::array<float, kParameters.size()> fValues {};
+
+public:
+    explicit CompressorCurveWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        for (size_t i = 0; i < kParameters.size(); ++i)
+            fValues[i] = kFaustParameters[kParameters[i]].init;
+
+        addIdleCallback(this);
+    }
+
+    [[nodiscard]] float getBorderRadius() const noexcept
+    {
+        return R::borderRadius * fScaleFactor;
+    }
+
+private:
+    // gain reduction in dB for an input level, scaled for a channel, then held above the Range ceiling
+    [[nodiscard]] float gainReduction(const float level, const float scale) const noexcept
+    {
+        const float threshold = fValues[0];
+        const float slope = 1.f - 1.f / std::max(1.f, fValues[1]);
+        const float knee = fValues[2];
+        const float range = fValues[3];
+
+        // the gain computer, with a quadratic across the knee
+        const float over = level - threshold;
+        float gr;
+        if (over <= -knee / 2)
+            gr = 0.f;
+        else if (over > knee / 2)
+            gr = -slope * over;
+        else
+            gr = -slope * (over + knee / 2) * (over + knee / 2) / (2 * std::max(1e-9f, knee));
+
+        gr *= scale;
+
+        // the Range ceiling, eased into over a knee as wide as Knee and at most twice the Range
+        const float lim = -range;
+        const float d = gr - lim;
+        const float rk = std::min(knee, 2 * range);
+        if (d <= -rk / 2)
+            return lim;
+        if (d > rk / 2)
+            return gr;
+        return lim + (d + rk / 2) * (d + rk / 2) / (2 * std::max(1e-9f, rk));
+    }
+
+    void idleCallback() final
+    {
+        bool changed = false;
+
+        for (size_t i = 0; i < kParameters.size(); ++i)
+        {
+            if (const float value = fInterface->getParameterValue(kParametersMainStart + kParameters[i]);
+                d_isNotEqual(fValues[i], value))
+            {
+                fValues[i] = value;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            repaint();
+    }
+
+    void onNanoDisplay() final
+    {
+        const float s = fScaleFactor;
+        const float w = getWidth();
+        const float h = getHeight();
+        const float r = getBorderRadius();
+
+        // the panel: dark and see-through, lit along the top edge
+        beginPath();
+        roundedRect(0, 0, w, h, r);
+        fillColor(R::backgroundColor);
+        fill();
+
+        beginPath();
+        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.14f), Color(1.f, 1.f, 1.f, 0.03f)));
+        strokeWidth(1.f);
+        stroke();
+
+        // the plot
+        const float inset = R::inset * s;
+        const float px = inset;
+        const float py = inset;
+        const float pw = w - inset * 2;
+        const float ph = h - inset * 2;
+
+        if (pw <= 0.f || ph <= 0.f)
+            return;
+
+        const auto dbToX = [&](const float db) {
+            return px + (db - R::dbMin) / -R::dbMin * pw;
+        };
+        const auto dbToY = [&](const float db) {
+            return py + ph - (db - R::dbMin) / -R::dbMin * ph;
+        };
+
+        save();
+        intersectScissor(px, py, pw, ph);
+
+        // grid every 12 dB, across and down
+        beginPath();
+        for (float db = R::dbMin; db <= 0.f; db += R::gridStep)
+        {
+            const float gx = std::round(dbToX(db)) + 0.5f;
+            const float gy = std::round(dbToY(db)) + 0.5f;
+            moveTo(gx, py);
+            lineTo(gx, py + ph);
+            moveTo(px, gy);
+            lineTo(px + pw, gy);
+        }
+        strokeColor(R::gridColor);
+        strokeWidth(1.f);
+        stroke();
+
+        // 1:1
+        beginPath();
+        moveTo(dbToX(R::dbMin), dbToY(R::dbMin));
+        lineTo(dbToX(0.f), dbToY(0.f));
+        strokeColor(R::unityColor);
+        strokeWidth(1.f);
+        stroke();
+
+        // the threshold, up to where it meets the diagonal and across to the left
+        {
+            const float tx = std::round(dbToX(fValues[0])) + 0.5f;
+            const float ty = std::round(dbToY(fValues[0])) + 0.5f;
+
+            beginPath();
+            moveTo(tx, py + ph);
+            lineTo(tx, ty);
+            lineTo(px, ty);
+            strokeColor(R::thresholdColor);
+            strokeWidth(1.f);
+            stroke();
+        }
+
+        // a curve a pixel at a time
+        const auto curve = [&](const float scale) {
+            beginPath();
+            for (float x = 0.f; x <= pw; x += 1.f)
+            {
+                const float in = R::dbMin + x / pw * -R::dbMin;
+                const float y = dbToY(in + gainReduction(in, scale));
+                if (x == 0.f)
+                    moveTo(px + x, y);
+                else
+                    lineTo(px + x, y);
+            }
+        };
+
+        const float scale1 = fValues[4] / 100.f;
+        const float scale2 = fValues[5] / 100.f;
+
+        if (d_isNotEqual(scale1, scale2))
+        {
+            curve(scale2);
+            strokeColor(Color(R::curveColor, 0.35f));
+            strokeWidth(1.f * s);
+            stroke();
+        }
+
+        // filled down to the bottom, then the line with a glow
+        curve(scale1);
+        lineTo(px + pw, py + ph);
+        lineTo(px, py + ph);
+        closePath();
+        fillPaint(linearGradient(0, py, 0, py + ph, Color(R::curveColor, 0.12f), Color(R::curveColor, 0.02f)));
+        fill();
+
+        curve(scale1);
+        lineJoin(ROUND);
+        strokeColor(Color(R::curveColor, 0.2f));
+        strokeWidth(4.f * s);
+        stroke();
+        strokeColor(R::curveColor);
+        strokeWidth(1.5f * s);
+        stroke();
+
+        restore();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// The display: the starfield fills it, inside a well border, with the compression curve floating in the middle: square,
+// as tall as the display less a margin above and below, and centred across it.
 
 class CompressorDisplayWidget final : public LabWidget
 {
     using R = Reference::Stage;
+
+    // between the curve and the display's top and bottom
+    static constexpr const uint kCurveMargin = 16;
+
+    const std::unique_ptr<CompressorCurveWidget> fCurve { new CompressorCurveWidget(this) };
 
 public:
     explicit CompressorDisplayWidget(LabWidget* const parent)
@@ -898,6 +1126,24 @@ private:
             fill();
         }
 
+        // the curve's shadow, as the group panels have theirs: 4 px down, blurred 14 px, pulled in 6 px, left out
+        // where the panel is
+        {
+            const float x = fCurve->getAbsoluteX() - getAbsoluteX();
+            const float y = fCurve->getAbsoluteY() - getAbsoluteY();
+            const float cw = fCurve->getWidth();
+            const float ch = fCurve->getHeight();
+            const float r = fCurve->getBorderRadius();
+
+            beginPath();
+            rect(x - 20.f * s, y, cw + 40.f * s, ch + 24.f * s);
+            roundedRect(x, y, cw, ch, r);
+            pathWinding(CW);
+            fillPaint(boxGradient(x + 6.f * s, y + 10.f * s, cw - 12.f * s, ch - 12.f * s, r, 14.f * s,
+                                  Color(0.f, 0.f, 0.f, 0.6f), Color(0.f, 0.f, 0.f, 0.f)));
+            fill();
+        }
+
         // well border, over everything
         const float border = std::max(1, d_roundToIntPositive(R::border * s));
         const float half = border * 0.5f;
@@ -907,6 +1153,18 @@ private:
         strokeColor(R::borderColor);
         strokeWidth(border);
         stroke();
+    }
+
+    // the curve follows the display, which the stage has placed by the time this runs a second time
+    void updateSize(const bool updateChildren) final
+    {
+        const int margin = d_roundToIntPositive(kCurveMargin * fScaleFactor);
+        const int side = std::max(1, std::min(static_cast<int>(getHeight()), static_cast<int>(getWidth())) - margin * 2);
+
+        fCurve->setSize(side, side);
+        fCurve->setAbsolutePos(getAbsoluteX() + (static_cast<int>(getWidth()) - side) / 2, getAbsoluteY() + margin);
+
+        LabWidget::updateSize(updateChildren);
     }
 };
 
