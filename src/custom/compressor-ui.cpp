@@ -1350,7 +1350,7 @@ public:
 // The compression curve: output level against input level, both from -60 to 0 dB, for a steady signal, worked out with
 // the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. The second
 // channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield, in a
-// panel as wide as the display leaves it, the plot filling it edge to edge.
+// panel as wide as the display leaves it, the plot filling it edge to edge under a pane of glass.
 
 struct CompressorCurveReference : CompressorFloatingReference {
     // darker than the other panels, for the plot to stand out
@@ -1595,6 +1595,52 @@ private:
         line(scale1, R::curveColor, 1.5f * s);
 
         restore();
+
+        drawGlass(w, h, r);
+    }
+
+    // A pane of glass over the plot: a gloss over the top whose lower edge sweeps up to the right, a faint diagonal
+    // sheen across the middle, kept clear of the corners, a rim lit at the top and fading down, and a bright line just
+    // inside the top edge.
+    void drawGlass(const float w, const float h, const float r)
+    {
+        // gloss
+        beginPath();
+        moveTo(0, h * 0.46f);
+        lineTo(0, r);
+        arcTo(0, 0, r, 0, r);
+        lineTo(w - r, 0);
+        arcTo(w, 0, w, r, r);
+        lineTo(w, h * 0.26f);
+        quadTo(w * 0.45f, h * 0.30f, 0, h * 0.46f);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h * 0.46f, Color(1.f, 1.f, 1.f, 0.09f), Color(1.f, 1.f, 1.f, 0.015f)));
+        fill();
+
+        // sheen
+        beginPath();
+        moveTo(w * 0.60f, 0);
+        lineTo(w * 0.70f, 0);
+        lineTo(w * 0.56f, h);
+        lineTo(w * 0.46f, h);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.045f), Color(1.f, 1.f, 1.f, 0.005f)));
+        fill();
+
+        // rim
+        beginPath();
+        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.22f), Color(1.f, 1.f, 1.f, 0.04f)));
+        strokeWidth(1.f);
+        stroke();
+
+        // top edge highlight
+        beginPath();
+        moveTo(r, 1.5f);
+        lineTo(w - r, 1.5f);
+        strokePaint(linearGradient(r, 0, w - r, 0, Color(1.f, 1.f, 1.f, 0.08f), Color(1.f, 1.f, 1.f, 0.32f)));
+        strokeWidth(1.f);
+        stroke();
     }
 };
 
