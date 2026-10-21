@@ -23,6 +23,9 @@
 
 namespace LibreAudio {
 
+// height of the number boxes, taller than the reference one, as in voiceIsolation
+static constexpr const uint kBoxHeight = 45;
+
 // --------------------------------------------------------------------------------------------------------------------
 // The stage is the display, with the starfield, the input waveform and the gain reduction behind it and the level
 // grid and threshold line over them, and a row of control groups floats at its bottom.
@@ -37,7 +40,7 @@ struct LimiterGroupReference : Reference::Zero {
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = 8;
     static constexpr const uint padding = 6;
-    static constexpr const uint height = Reference::Widgets::NumberBox<>::height + margin * 2;
+    static constexpr const uint height = kBoxHeight + margin * 2;
 
     // TESTING
     static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
@@ -64,7 +67,7 @@ constexpr const Color& accentColor() noexcept
 }
 
 template<FaustParameterIndex id>
-using LimiterNumberBoxWidget = NumberBoxWidget<accentColor<id>()>;
+using LimiterNumberBoxWidget = NumberBoxWidget<accentColor<id>(), kBoxHeight>;
 
 // An on / off parameter shown as its name only: grey when off, accent colour when on, 70% accent when hovered.
 // Two of them stack in the height of a number box.
@@ -74,7 +77,7 @@ struct LimiterToggleReference : Reference::Zero {
     static constexpr const float fontSize = 13.f;
     static constexpr const float letterSpacing = fontSize * 0.06f;
     static constexpr const uint margin = 6;
-    static constexpr const uint height = Reference::Widgets::NumberBox<>::height / 2;
+    static constexpr const uint height = kBoxHeight / 2;
 };
 
 template<const Color& kAccentColor>
@@ -281,7 +284,7 @@ class LimiterDropdownWidget final : public LabWidget
     static constexpr const float kBoxWidth = 64.f;
     static constexpr const float kGap = 6.f;
     static constexpr const float kFontSize = 11.f;
-    static constexpr const float kHeight = Reference::Widgets::NumberBox<>::height / 2;
+    static constexpr const float kHeight = kBoxHeight / 2;
 
     const FaustParameterIndex fId;
     const FaustParameter& fParameter;
@@ -436,7 +439,7 @@ private:
         for (const std::shared_ptr<LabWidget>& widget : widgets)
             width = std::max(width, widget->getWidth());
 
-        LabWidget::setSize(width, d_roundToUnsignedInt(Reference::Widgets::NumberBox<>::height * fScaleFactor));
+        LabWidget::setSize(width, d_roundToUnsignedInt(kBoxHeight * fScaleFactor));
 
         BaseWidget::updateSize(updateChildren);
     }
