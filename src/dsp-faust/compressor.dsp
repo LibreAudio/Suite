@@ -48,24 +48,24 @@ out_group(x)   = knob_group(hgroup("[4]Output", x));
 
 //---- gain computer ----
 
-threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold]
+threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold][accentcolor:02]
       [tooltip: Level above which the signal is compressed]",
                               -18, maxGR, 0, 0.1));
 
-ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio]
+ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio][accentcolor:02]
       [tooltip: dB in per dB out above the threshold. 1 = no compression]",
                           4, 1, 20, 0.01));
 
 // slope = the fraction of every dB of overshoot that gets removed
 slope = 1 - 1 / max(1, ratio);
 
-knee = ctl_group(vslider("[2]Knee[unit:dB][symbol:knee]
+knee = ctl_group(vslider("[2]Knee[unit:dB][symbol:knee][accentcolor:02]
       [tooltip: Width of the soft transition around the threshold. The ratio
        reaches its full value knee/2 dB above the threshold and is 1:1
        knee/2 dB below it]",
                          6, 0, 24, 0.1));
 
-range = ctl_group(vslider("[3]Range[unit:dB][symbol:range]
+range = ctl_group(vslider("[3]Range[unit:dB][symbol:range][accentcolor:02]
       [tooltip: Ceiling on total gain reduction. The compressor never pulls
        the signal down by more than this, no matter how far over threshold]",
                           60, 0, 0 - maxGR, 0.1));
@@ -363,6 +363,21 @@ meter2 = _ <: (_, (max(maxMeter) : meter_group(hbargraph("[1]GR 2[unit:dB][symbo
 chanMeter(0) = meter1;
 chanMeter(1) = meter2;
 
+// Passive taps of the detector level for the UI's threshold meter: the level
+// the threshold is compared against, after the sidechain mix and filter and
+// the peak/RMS detector, so mid and side when Mid / Side is on. Same ballistics
+// as mbComp5's detector meters, rising is louder.
+meterAtt = 0.005;
+meterRel = 0.15;
+
+level1 = _ <: (_, (max(maxGR) : min(0) : si.onePoleSwitching(meterAtt, meterRel)
+                  : meter_group(hbargraph("[3]Level 1[unit:dB][symbol:level_1]", maxGR, 0)))) : attach;
+level2 = _ <: (_, (max(maxGR) : min(0) : si.onePoleSwitching(meterAtt, meterRel)
+                  : meter_group(hbargraph("[4]Level 2[unit:dB][symbol:level_2]", maxGR, 0)))) : attach;
+
+chanLevel(0) = level1;
+chanLevel(1) = level2;
+
 // A passive widget with this exact symbol is what the build turns into the
 // plugin's reported latency (see the latency_samples cases in
 // src/templates/dsp.cpp.in), so the host delay-compensates Lookahead.
@@ -574,7 +589,7 @@ with {
 grComputeN = loop ~ si.bus(Nch)
 with {
     loop = ro.interleave(Nch, 3)
-         : par(i, Nch, detTarget)
+         : par(i, Nch, detTarget(i))
          : linkN(Nch, link)
          : par(i, Nch, *(chanScale(i)) : rangeLimit)
          : par(i, Nch, ballistics);
@@ -584,8 +599,8 @@ with {
     // sources reads as their sum - which is what mixing a key into the program
     // should do. Only the internal side carries the feedback gain; the external
     // input is not the compressor's own output, so it is never fed back.
-    detTarget(grPrev, x, sc) = it.interpolate_linear(scMix, internal, sc)
-                             : scFilter : levelDb : gainComputer
+    detTarget(i, grPrev, x, sc) = it.interpolate_linear(scMix, internal, sc)
+                                : scFilter : levelDb : chanLevel(i) : gainComputer
     with {
         internal = x * ba.db2linear(grPrev * feedback);
     };
