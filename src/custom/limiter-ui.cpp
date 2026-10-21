@@ -608,6 +608,11 @@ static constexpr const float kDisplayDbMax = 0.f;
 static constexpr const float kDisplayDbFloor = -24.f;
 static constexpr const float kDisplayDbStep = 6.f;
 
+// The display's time scale: seconds of waveform across its width, now at the right edge, the oldest 256 points left
+// out as MARGIN in waveform-scroll.frag; and the time grid's spacing.
+static constexpr const float kDisplaySeconds = kNumSecondsForWaveform * (1.f - 256.f / kNumSamplePointsForWaveform);
+static constexpr const float kDisplayTimeStep = 1.f;
+
 // from the display's bottom edge up to the lowest grid line, in px at scale 1: the groups with the display's padding
 // below and above them
 static constexpr const uint kDisplayFloorOffset = Reference::Stage::padding * 2 + LimiterGroupRowReference::height;
@@ -758,7 +763,21 @@ private:
         fontSize(10.f * s);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
 
-        const Color gridColor(Reference::Colors::line2, 0.22f);
+        const Color gridColor(Reference::Colors::line2, 0.3f);
+        const float floorY = std::round(yOfDb(kDisplayDbFloor)) + 0.5f;
+
+        // time grid, a line per kDisplayTimeStep back from now at the right edge, down to the floor
+        for (float t = kDisplayTimeStep; t < kDisplaySeconds; t += kDisplayTimeStep)
+        {
+            const float x = std::round(w * (1.f - t / kDisplaySeconds)) + 0.5f;
+
+            beginPath();
+            moveTo(x, border);
+            lineTo(x, floorY);
+            strokeColor(gridColor);
+            strokeWidth(1.f);
+            stroke();
+        }
 
         for (float db = kDisplayDbMax - kDisplayDbStep; db >= kDisplayDbFloor; db -= kDisplayDbStep)
         {
