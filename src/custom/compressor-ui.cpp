@@ -126,17 +126,16 @@ public:
 
 class CompressorDetectorGroupWidget final : public CompressorGroupWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterPeak_rms>, Expanding>(kFaustParameterPeak_rms),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRms_time>, Expanding>(kFaustParameterRms_time),
         addWidget<CompressorNumberBoxWidget<kFaustParameterFeedback>, Expanding>(kFaustParameterFeedback),
         addWidget<CompressorNumberBoxWidget<kFaustParameterLink>, Expanding>(kFaustParameterLink),
-        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>, Expanding>(kFaustParameterMid_side),
     };
 
 public:
     explicit CompressorDetectorGroupWidget(LabWidget* const parent)
-        : CompressorGroupWidget(parent, 5) {}
+        : CompressorGroupWidget(parent, 4) {}
 };
 
 // The sidechain source and the filters shaping what the detector hears.
@@ -1047,26 +1046,21 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The compression controls next to the input meter: threshold, ratio, range and knee, stacked in a floating panel.
+// Controls stacked in a floating panel: count number boxes, one above the other, at the height of a group's boxes.
 
+template<uint count>
 struct CompressorControlStackReference : CompressorFloatingReference {
     static constexpr const uint margin = inset;
     static constexpr const uint padding = CompressorGroupReference::padding;
     static constexpr const uint width = 110;
-    static constexpr const uint height = margin * 2 + kBoxHeight * 4 + padding * 3;
+    static constexpr const uint height = margin * 2 + kBoxHeight * count + padding * (count - 1);
 };
 
-class CompressorControlStackWidget final : public ReferenceContainerWidget<CompressorControlStackReference, kVertical>
+template<uint count>
+class CompressorControlStackWidget : public ReferenceContainerWidget<CompressorControlStackReference<count>, kVertical>
 {
-    using R = CompressorControlStackReference;
+    using R = CompressorControlStackReference<count>;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
-
-    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
-        addWidget<CompressorNumberBoxWidget<kFaustParameterThreshold>>(kFaustParameterThreshold),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterRatio>>(kFaustParameterRatio),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterRange>>(kFaustParameterRange),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterKnee>>(kFaustParameterKnee),
-    };
 
 public:
     // unscaled
@@ -1078,14 +1072,49 @@ public:
 
     [[nodiscard]] float getBorderRadius() const noexcept
     {
-        return R::borderRadius * fScaleFactor;
+        return R::borderRadius * this->fScaleFactor;
     }
 
 private:
     void onNanoDisplay() final
     {
-        drawFloatingPanel(*this, getWidth(), getHeight(), fScaleFactor);
+        drawFloatingPanel(*this, this->getWidth(), this->getHeight(), this->fScaleFactor);
     }
+};
+
+// The compression controls, next to the input meter.
+
+class CompressorThresholdStackWidget final : public CompressorControlStackWidget<4>
+{
+    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
+        addWidget<CompressorNumberBoxWidget<kFaustParameterThreshold>>(kFaustParameterThreshold),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterRatio>>(kFaustParameterRatio),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterRange>>(kFaustParameterRange),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterKnee>>(kFaustParameterKnee),
+    };
+
+public:
+    explicit CompressorThresholdStackWidget(LabWidget* const parent)
+        : CompressorControlStackWidget(parent) {}
+};
+
+// The channel and output controls, next to the gain reduction meter: the per-channel depth, mid/side, and what
+// happens after the gain stage.
+
+class CompressorOutputStackWidget final : public CompressorControlStackWidget<6>
+{
+    const std::array<std::shared_ptr<LabWidget>, 6> widgets {
+        addWidget<CompressorNumberBoxWidget<kFaustParameterScale_lm>>(kFaustParameterScale_lm),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterScale_rs>>(kFaustParameterScale_rs),
+        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>>(kFaustParameterMid_side),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterDrive>>(kFaustParameterDrive),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterMakeup>>(kFaustParameterMakeup),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterDrywet>>(kFaustParameterDrywet),
+    };
+
+public:
+    explicit CompressorOutputStackWidget(LabWidget* const parent)
+        : CompressorControlStackWidget(parent) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -1298,7 +1327,7 @@ private:
 // The display: the starfield fills it, inside a well border, with the compression curve floating in the middle: square,
 // as tall as the display less a margin above and below, and centred across it. The input meter floats as tall at its
 // left, the same margin in from the edge, and next to the meter the compression controls, from the same top. The gain
-// reduction meter floats as tall at the right, the same margin in.
+// reduction meter floats as tall at the right, the same margin in, with the channel and output controls left of it.
 
 class CompressorDisplayWidget final : public LabWidget
 {
@@ -1310,7 +1339,8 @@ class CompressorDisplayWidget final : public LabWidget
     static constexpr const uint kPanelGap = 8;
 
     const std::unique_ptr<CompressorInputMeterWidget> fInputMeter { new CompressorInputMeterWidget(this) };
-    const std::unique_ptr<CompressorControlStackWidget> fControls { new CompressorControlStackWidget(this) };
+    const std::unique_ptr<CompressorThresholdStackWidget> fControls { new CompressorThresholdStackWidget(this) };
+    const std::unique_ptr<CompressorOutputStackWidget> fOutputs { new CompressorOutputStackWidget(this) };
     const std::unique_ptr<CompressorCurveWidget> fCurve { new CompressorCurveWidget(this) };
     const std::unique_ptr<CompressorGainReductionMeterWidget> fGainReduction {
         new CompressorGainReductionMeterWidget(this)
@@ -1375,6 +1405,7 @@ private:
 
         shadow(*fInputMeter, fInputMeter->getBorderRadius());
         shadow(*fControls, fControls->getBorderRadius());
+        shadow(*fOutputs, fOutputs->getBorderRadius());
         shadow(*fCurve, fCurve->getBorderRadius());
         shadow(*fGainReduction, fGainReduction->getBorderRadius());
 
@@ -1406,13 +1437,20 @@ private:
         fGainReduction->setAbsolutePos(getAbsoluteX() + static_cast<int>(getWidth()) - margin - grWidth,
                                        getAbsoluteY() + margin);
 
-        // as a widget, its layout having a setSize and setAbsolutePos of its own
+        const int gap = d_roundToIntPositive(kPanelGap * fScaleFactor);
+
+        // as widgets, their layouts having a setSize and setAbsolutePos of their own
         LabWidget& controls = *fControls;
-        controls.setSize(d_roundToUnsignedInt(CompressorControlStackWidget::kWidth * fScaleFactor),
-                         d_roundToUnsignedInt(CompressorControlStackWidget::kHeight * fScaleFactor));
-        controls.setAbsolutePos(fInputMeter->getAbsoluteX() + static_cast<int>(fInputMeter->getWidth())
-                                    + d_roundToIntPositive(kPanelGap * fScaleFactor),
+        controls.setSize(d_roundToUnsignedInt(CompressorThresholdStackWidget::kWidth * fScaleFactor),
+                         d_roundToUnsignedInt(CompressorThresholdStackWidget::kHeight * fScaleFactor));
+        controls.setAbsolutePos(fInputMeter->getAbsoluteX() + static_cast<int>(fInputMeter->getWidth()) + gap,
                                 getAbsoluteY() + margin);
+
+        LabWidget& outputs = *fOutputs;
+        outputs.setSize(d_roundToUnsignedInt(CompressorOutputStackWidget::kWidth * fScaleFactor),
+                        d_roundToUnsignedInt(CompressorOutputStackWidget::kHeight * fScaleFactor));
+        outputs.setAbsolutePos(fGainReduction->getAbsoluteX() - gap - static_cast<int>(outputs.getWidth()),
+                               getAbsoluteY() + margin);
 
         LabWidget::updateSize(updateChildren);
     }
