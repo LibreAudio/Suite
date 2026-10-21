@@ -166,8 +166,6 @@ public:
 struct CompressorEnvelopeReference : Reference::Zero {
     static constexpr const uint height = 100;
     static constexpr const float labelFontSize = 9.f;
-    // empty space left and right of the sections, as a fraction of the width
-    static constexpr const float pad = 0.05f;
     // the share of the sum of the sections' square roots attack and release get on top of their own; hold gets none,
     // so it grows from nothing as Hold comes up from 0
     static constexpr const float minSection = 0.15f;
@@ -398,7 +396,6 @@ private:
         stroke();
 
         // the sections across the width
-        const float pad = w * R::pad;
         std::array<float, 3> widths {};
         {
             float roots = 0.f;
@@ -410,12 +407,12 @@ private:
                 sum += widths[i] = std::sqrt(fDurations[i]) + (i != 1 ? R::minSection * roots : 0.f);
 
             for (float& width : widths)
-                width *= sum > 0.f ? (w - pad * 2) / sum : 0.f;
+                width *= sum > 0.f ? w / sum : 0.f;
         }
 
         // x of a time, in seconds from the start of the attack
         const auto timeToX = [&](float t) {
-            float tx = x + pad;
+            float tx = x;
             for (size_t i = 0; i < widths.size(); ++i)
             {
                 if (t <= fDurations[i])
@@ -455,18 +452,19 @@ private:
             fontFace("regular");
             fontSize(R::labelFontSize * s);
 
-            float sx = x + pad;
-            for (size_t i = 0; i <= widths.size(); ++i)
+            float sx = x;
+            for (size_t i = 0; i < widths.size(); ++i)
             {
-                beginPath();
-                moveTo(std::round(sx) + 0.5f, 0);
-                lineTo(std::round(sx) + 0.5f, h);
-                strokeColor(Color(1.f, 1.f, 1.f, 0.07f));
-                strokeWidth(1.f);
-                stroke();
-
-                if (i == widths.size())
-                    break;
+                // between sections only, the well's sides being the outer edges
+                if (i != 0)
+                {
+                    beginPath();
+                    moveTo(std::round(sx) + 0.5f, 0);
+                    lineTo(std::round(sx) + 0.5f, h);
+                    strokeColor(Color(1.f, 1.f, 1.f, 0.07f));
+                    strokeWidth(1.f);
+                    stroke();
+                }
 
                 const auto label = [&](const char* const str, const float y, const int align) {
                     Rectangle<float> bounds;
