@@ -158,10 +158,10 @@ public:
 // The envelope display: the gain reduction a 20 dB step gets from the response controls, worked out with the rate law
 // of the ballistics in compressor.dsp. The time axis runs in sections, attack, hold and release, each as wide as the
 // square root of its duration, attack and release plus a share of the whole, so a short attack stays readable beside a
-// long release.
-// Behind it a made-up drum hit in faint grey shows where the transient reaches the output, lookahead later than the
-// attack starts, and with Auto Release up a faint second release shows it stretched by a sustained 6 dB of reduction.
-// It sits in a well like a number box's.
+// long release. Each section is drawn in its parameter's accent colour. Behind it a made-up drum hit, faint in
+// Lookahead's accent colour, shows where the transient reaches the output, lookahead later than the attack starts, and
+// with Auto Release up a faint second release shows it stretched by a sustained 6 dB of reduction. It sits in a well
+// like a number box's.
 
 struct CompressorEnvelopeReference : Reference::Zero {
     static constexpr const uint height = 100;
@@ -378,7 +378,13 @@ private:
         if (w <= 0.f)
             return;
 
-        const Color& accent = accentColor<kFaustParameterAttack>();
+        // the parameters' accent colours: lookahead for the drum hit, the others for their sections
+        const Color& lookaheadColor = accentColor<kFaustParameterLookahead>();
+        const std::array<Color, 3> colors {
+            accentColor<kFaustParameterAttack>(),
+            accentColor<kFaustParameterHold>(),
+            accentColor<kFaustParameterRelease>(),
+        };
 
         // the well, with a number box's inset shading
         beginPath();
@@ -440,15 +446,14 @@ private:
             stroke();
         }
 
-        // section edges, with the sections' names under the curve and their times, as the knobs set them, over it,
-        // where they fit
+        // section edges, with the sections' names under the curve and their times, as the knobs set them and in their
+        // accent colours, over it, where they fit
         {
             static constexpr const char* const names[] = { "ATTACK", "HOLD", "RELEASE" };
             const std::array<float, 3> times { fValues[1], fValues[3], fValues[4] };
 
             fontFace("regular");
             fontSize(R::labelFontSize * s);
-            fillColor(Color(Reference::Colors::ink3, 0.8f));
 
             float sx = x + pad;
             for (size_t i = 0; i <= widths.size(); ++i)
@@ -476,7 +481,9 @@ private:
                 else
                     std::snprintf(timestr, sizeof(timestr), "%.3g s", times[i] / 1000.f);
 
+                fillColor(Color(colors[i], 0.8f));
                 label(timestr, 4.f * s, ALIGN_TOP);
+                fillColor(Color(Reference::Colors::ink3, 0.8f));
                 label(names[i], h - 4.f * s, ALIGN_BOTTOM);
 
                 sx += widths[i];
@@ -531,7 +538,7 @@ private:
                 moveTo(points.front().first, yMid - points.front().second);
                 for (const std::pair<float, float>& p : points)
                     lineTo(p.first, yMid - p.second);
-                strokeColor(Color(Reference::Colors::ink3, 0.35f));
+                strokeColor(Color(lookaheadColor, 0.35f));
                 strokeWidth(1.f);
                 stroke();
             }
@@ -543,7 +550,7 @@ private:
             beginPath();
             moveTo(timeToX(releaseStart), dbToY(-kDepth));
             addRamp(fAutoRelease, releaseStart);
-            strokeColor(Color(accent, 0.35f));
+            strokeColor(Color(colors[2], 0.35f));
             strokeWidth(1.f * s);
             stroke();
         }
@@ -559,19 +566,33 @@ private:
             lineTo(x + w, y0);
         };
 
-        curve();
-        closePath();
-        fillPaint(linearGradient(0, y0, 0, yDepth, Color(accent, 0.04f), Color(accent, 0.3f)));
-        fill();
+        // drawn once per section, cut to it, in its colour: the attack from the left edge, the release to the right
+        const std::array<float, 4> edges { x, timeToX(fDurations[0]), timeToX(releaseStart), x + w };
 
-        curve();
-        strokeColor(Color(accent, 0.25f));
-        strokeWidth(4.f * s);
-        lineJoin(ROUND);
-        stroke();
-        strokeColor(accent);
-        strokeWidth(1.5f * s);
-        stroke();
+        for (size_t i = 0; i < colors.size(); ++i)
+        {
+            if (edges[i + 1] <= edges[i])
+                continue;
+
+            save();
+            intersectScissor(edges[i], 0, edges[i + 1] - edges[i], h);
+
+            curve();
+            closePath();
+            fillPaint(linearGradient(0, y0, 0, yDepth, Color(colors[i], 0.04f), Color(colors[i], 0.3f)));
+            fill();
+
+            curve();
+            strokeColor(Color(colors[i], 0.25f));
+            strokeWidth(4.f * s);
+            lineJoin(ROUND);
+            stroke();
+            strokeColor(colors[i]);
+            strokeWidth(1.5f * s);
+            stroke();
+
+            restore();
+        }
 
         restore();
     }
