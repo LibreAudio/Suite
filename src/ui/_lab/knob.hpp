@@ -29,8 +29,17 @@ public:
         setCallback(this);
         setMouseDeceleration(kMouseDeceleration);
         setOrientation(Vertical);
+        setResetModifier(static_cast<Modifier>(0));
+        setSlowModifier(kModifierShift);
 
         addIdleCallback(this);
+    }
+
+    void setLinkedParameters(const std::vector<uint32_t>& linked)
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(std::find(linked.cbegin(), linked.cend(), getId()) == linked.end(),);
+
+        fLinkedParameters =  linked;
     }
 
 protected:
@@ -44,18 +53,63 @@ protected:
     virtual void parameterChangedByHost() {}
 
 private:
+    bool fDragStarted = false;
+    bool fDragShiftMod = false;
+    bool fDraggingMulti = false;
+    float fLastMotionValue = 0.f;
+    std::vector<uint32_t> fLinkedParameters;
+
     void knobDragStarted(SubWidget* const widget) final
     {
+        fDragStarted = true;
+        fLastMotionValue = getValue();
         fInterface->parameterControlPressed(widget->getId());
     }
 
     void knobDragFinished(SubWidget* const widget) final
     {
+        fDragStarted = false;
+
+        if (fDraggingMulti)
+        {
+            fDraggingMulti = false;
+
+            for (uint32_t id : fLinkedParameters)
+                fInterface->parameterControlReleased(id);
+        }
+
         fInterface->parameterControlReleased(widget->getId());
     }
 
     void knobValueChanged(SubWidget* const widget, const float value) final
     {
+        if (fDragShiftMod)
+        {
+            if (! fDraggingMulti)
+            {
+                fDraggingMulti = true;
+
+                for (uint32_t id : fLinkedParameters)
+                    fInterface->parameterControlPressed(id);
+            }
+
+            if (! fLinkedParameters.empty())
+            {
+                const float diff = value - fLastMotionValue;
+                const float min = getMinimum();
+                const float max = getMaximum();
+
+                for (uint32_t id : fLinkedParameters)
+                {
+                    const float old = fInterface->getParameterValue(id);
+
+                    if (const float nvalue = std::clamp(old + diff, min, max); d_isNotEqual(nvalue, old))
+                        fInterface->parameterControlModified(id, nvalue);
+                }
+            }
+        }
+
+        fLastMotionValue = value;
         fInterface->parameterControlModified(widget->getId(), value);
     }
 
@@ -75,8 +129,11 @@ private:
 
     bool onMotion(const Widget::MotionEvent& ev) final
     {
+        fDragShiftMod = fDragStarted && (ev.mod & kModifierControl) != 0;
+
         if (motionEvent(ev, fScaleFactor))
             return true;
+
         return LabWidget::onMotion(ev);
     }
 

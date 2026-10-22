@@ -96,7 +96,9 @@ struct MbComp5BandGroupReference : Reference::Zero {
     static constexpr const uint height = margin * 2 + Header::height + padding + Body::height;
 };
 
-inline constexpr const char* bandLabels[] = {
+inline constexpr const uint8_t kNumBands = 5;
+
+inline constexpr const char* kBandLabels[kNumBands] = {
     "LOW",
     "LOW MID",
     "MID",
@@ -112,6 +114,7 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
 
+    static constexpr const uint32_t kFirstIdInBand = kParametersMainStart + kFaustParameterBand1_threshold;
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
 
     static constexpr FaustParameterIndex getParameterIndexForBand(const FaustParameterIndex index)
@@ -149,7 +152,7 @@ public:
         using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(bandLabels[band]),
+            this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
             this->template addWidget<SoloMuteGroupWidget>(),
         };
 
@@ -232,11 +235,21 @@ public:
 
     public:
         explicit BodyWidget(LabWidget* const parent)
-            : BaseWidget(parent) {}
+            : BaseWidget(parent)
+        {
+            std::vector<uint32_t> linked;
+            linked.reserve(kNumBands);
+
+            for (uint8_t b = 0; b < kNumBands; ++b)
+                if (band != b)
+                    linked.emplace_back(kFirstIdInBand + b * kNumParamsPerBand);
+
+            static_cast<MeterWidget*>(widgets.back().get())->setLinkedParameters(linked);
+        }
 
         class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, kVertical>
         {
-            const std::array<std::shared_ptr<LabWidget>, 5> widgets {
+            const std::array<std::shared_ptr<LabKnobWidget>, 5> widgets {
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
@@ -250,7 +263,23 @@ public:
             using NumberBoxWidgetR = NumberBoxWidget<kAccentColor>;
 
             explicit NumberBoxStackWidget(LabWidget* const parent)
-                : BaseWidget(parent) {}
+                : BaseWidget(parent)
+            {
+                std::vector<uint32_t> linked;
+                linked.reserve(kNumBands);
+
+                for (std::shared_ptr<LabKnobWidget> knob : widgets)
+                {
+                    const uint32_t offset = (knob->getId() - kFirstIdInBand) % kNumParamsPerBand;
+                    linked.clear();
+
+                    for (uint8_t b = 0; b < kNumBands; ++b)
+                        if (band != b)
+                            linked.emplace_back(kFirstIdInBand + b * kNumParamsPerBand + offset);
+
+                    knob->setLinkedParameters(linked);
+                }
+            }
         };
     };
 };
