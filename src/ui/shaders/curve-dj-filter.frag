@@ -18,8 +18,8 @@
    lifting Q. Curve only: the background stays black and fully transparent
    (alpha 0), so it drops onto anything.
 
-   Only the two filters are drawn for now -- the overdrive, the reverb send
-   and the volume fadeout at the knob extremes are not reflected here.
+   Only the two filters are drawn -- the volume fadeout at the knob extremes
+   is not reflected here.
 
    Every parameter that shapes the curve is a `uniform float` below. Drive
    them from your host. For standalone testing in the Shadertoy editor (which

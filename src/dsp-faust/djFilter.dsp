@@ -8,14 +8,13 @@ declare unique_id "LAdj";
 
 Nch = 2;                            // djFilter is stereo
 
-// Signal chain: highpass → lowpass → volume fadeout → reverb send/return → limiter
-process = si.bus(Nch) : with_highpass : with_lowpass : with_overdrive : volume_apply : with_reverb : limiter;
+// Signal chain: highpass → lowpass → volume fadeout → limiter
+process = si.bus(Nch) : with_highpass : with_lowpass : volume_apply : limiter;
 
 // UI structure
 uiTop(x)    = hgroup("[0]Stage Top", x);
 uiBottom(x) = hgroup("[8]Stage Bottom", x);
 uiBottomLeft(x) = uiBottom(hgroup("[1]Stage Bottom Left", x));
-uiBottomRight(x) = uiBottom(hgroup("[1]Stage Bottom Right", x));
 
 // --- Knob ---
 knob = uiBottomLeft(hslider("[01]DJ Filter[style:knob][symbol:knob][label:Filter][accentcolor:01][easy]", 0, -1, 1, 0.0001)) : si.smoo;
@@ -96,36 +95,5 @@ t_fadeout_lo = max(0, (-knob - (1 - 2*fadeout)) / (2*fadeout));
 volume = pow(1 - t_fadeout_hi, 2) * pow(1 - t_fadeout_lo, 2);
 volume_apply = par(i, Nch, *(volume));
 
-// Overdrive: slider sets max amount, scales 0→max as knob moves to either extreme
-overdrive_amount = uiBottomRight(hslider("[03]Overdrive[style:knob][symbol:overdrive][label:Drive][accentcolor:05]", 0, 0, 1, 0.001));
-
-overdrive_t = overdrive_amount * max(t_highpass, t_lowpass)^0.7;
-overdrive_drive = 1 + overdrive_t * 7;
-// tanh(x*drive)/drive keeps small-signal gain at unity; wet/dry blend avoids loudness increase
-overdrive_mono = _ <: *(1 - overdrive_t), (*(overdrive_drive) : ma.tanh : /(overdrive_drive) : *(overdrive_t)) :> _;
-with_overdrive = par(i, Nch, overdrive_mono);
-
-// Reverb send: adjustable maximum, scales 0→max as knob moves to either extreme
-reverb_send_max = uiBottomRight(hslider("[04]Reverb Send[style:knob][symbol:reverb_send][label:Reverb][accentcolor:04]", 0, 0, 1, 0.001));
-reverb_send = reverb_send_max * max(t_highpass, t_lowpass)^0.7;
-
-// Send/return: dry signal + reverb-processed send, summed together
-with_reverb = si.bus(Nch) <: si.bus(Nch), (par(i, Nch, *(reverb_send)) : reverb )
-            :> si.bus(Nch);
-
 limiter = par(i, Nch, co.limiter_1176_R4_mono);
 
-reverb = re.vital_rev(prelow, prehigh, lowcutoff, highcutoff, lowgain, highgain, chorus_amt, chorus_freq, predelay, time, size, mix) with {
-    prelow = 0.01;
-    prehigh = 0.8;
-    lowcutoff = 0;
-    highcutoff = 1;
-    lowgain = 1;
-    highgain = 0.8;
-    chorus_amt = 0.1;
-    chorus_freq = 0.1;
-    predelay = 0;
-    time = 0.60;
-    size = 0.5;
-    mix = 1;
-};
