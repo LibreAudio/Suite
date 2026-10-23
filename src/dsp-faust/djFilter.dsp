@@ -9,7 +9,7 @@ declare unique_id "LAdj";
 Nch = 2;                            // djFilter is stereo
 
 // Signal chain: highpass → lowpass → volume fadeout → limiter
-process = si.bus(Nch) : with_highpass : with_lowpass : volume_apply : limiter;
+process = si.bus(Nch) : with_highpass : with_lowpass : volume_apply;
 
 // UI structure
 uiTop(x)    = hgroup("[0]Stage Top", x);
