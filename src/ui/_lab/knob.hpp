@@ -19,6 +19,13 @@ class LabKnobWidget : public LabWidget,
                       private KnobEventHandler::Callback
 {
     static constexpr const float kMouseDeceleration = 500.f;
+    static constexpr const Modifier kGroupModifier = kModifierAlt; // Option
+   #ifdef DISTRHO_OS_MAC
+    static constexpr const Modifier kResetModifier = kModifierSuper; // Command
+   #else
+    static constexpr const Modifier kResetModifier = kModifierControl;
+   #endif
+    static constexpr const Modifier kSlowModifier = kModifierShift;
 
 public:
     explicit LabKnobWidget(LabWidget* const parent, const uint32_t id)
@@ -29,8 +36,8 @@ public:
         setCallback(this);
         setMouseDeceleration(kMouseDeceleration);
         setOrientation(Vertical);
-        setResetModifier(static_cast<Modifier>(0));
-        setSlowModifier(kModifierShift);
+        setResetModifier(kResetModifier);
+        setSlowModifier(kSlowModifier);
 
         addIdleCallback(this);
     }
@@ -129,7 +136,7 @@ private:
 
     bool onMotion(const Widget::MotionEvent& ev) final
     {
-        fDragShiftMod = fDragStarted && (ev.mod & kModifierControl) != 0;
+        fDragShiftMod = fDragStarted && (ev.mod & kGroupModifier) != 0;
 
         if (motionEvent(ev, fScaleFactor))
             return true;
@@ -139,8 +146,16 @@ private:
 
     bool onScroll(const Widget::ScrollEvent& ev) final
     {
-        if (scrollEvent(ev))
+        if (contains(ev.pos))
+        {
+            fDragShiftMod = (ev.mod & kGroupModifier) != 0;
+            knobDragStarted(this);
+            scrollEvent(ev);
+            knobDragFinished(this);
+            fDragShiftMod = false;
             return true;
+        }
+
         return LabWidget::onScroll(ev);
     }
 };
