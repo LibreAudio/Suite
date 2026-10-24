@@ -54,7 +54,7 @@ threshold = ctl_group(vslider("[0]Threshold[unit:dB][symbol:threshold][accentcol
 
 ratio = ctl_group(vslider("[1]Ratio[scale:log][symbol:ratio][accentcolor:01]
       [tooltip: dB in per dB out above the threshold. 1 = no compression]",
-                          4, 1, 20, 0.01));
+                          4, 1, 20, 0.1));
 
 // slope = the fraction of every dB of overshoot that gets removed
 slope = 1 - 1 / max(1, ratio);
@@ -149,18 +149,18 @@ curveBound = 8;
 peakRms = det_group(vslider("[0]Peak / RMS[unit:%][symbol:peak_rms][accentcolor:05]
       [tooltip: What the detector measures. 0% = peak, catches every transient.
        100% = RMS over the window below, follows loudness and ignores spikes]",
-                            0, 0, 100, 1)) / 100;
+                            100, 0, 100, 10)) / 100;
 
 rmsTime = det_group(vslider("[1]RMS Time[unit:ms][symbol:rms_time][accentcolor:05]
       [tooltip: Averaging window of the RMS half of the detector. Has no effect
        at Peak / RMS 0%]",
-                            5, 0, 50, 1)) * 0.001;
+                            10, 0, 50, 1)) * 0.001;
 
 feedback = det_group(vslider("[2]Feedback[unit:%][symbol:feedback][accentcolor:05]
       [tooltip: Where the detector listens. 0% = feed-forward (detector sees
        the input, exact ratio), 100% = feed-back (detector sees the compressed
        output, softer and more program dependent)]",
-                             0, 0, 100, 1)) / 100;
+                             100, 0, 100, 10)) / 100;
 
 link = det_group(vslider("[3]Link[unit:%][symbol:link][accentcolor:05]
       [tooltip: 0% = every channel gets its own gain reduction, 100% = all
