@@ -347,9 +347,9 @@ with {
 };
 
 //======================= Ballistics =======================
-// compressor.dsp's rate law, with hold, auto-release and the S-curve dropped -
+// compressor.dsp's rate law, with hold and auto-release dropped -
 // they were not asked for here, and five bands' worth of them would have been
-// thirty more parameters.
+// ten more parameters.
 //
 // A one-pole lag can only ever be exponential, so the envelope is written as
 // an explicit rate law instead. Each sample the gain moves toward the target

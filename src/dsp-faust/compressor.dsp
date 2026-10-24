@@ -109,16 +109,14 @@ lookaheadMs = env_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentc
                                 0, 0, 50, 1));
 
 attack = env_group(vslider("[1]Attack[unit:ms][symbol:attack][accentcolor:04]
-      [tooltip: How fast the gain moves toward a deeper reduction. Read as a
-       1/e time constant at Attack Curve +1, or as the time to cover 20 dB at
-       Attack Curve 0 and below]",
+      [tooltip: How fast the gain moves toward a deeper reduction. A 20 dB
+       step starts out at 20 dB per Attack time and eases in as it nears the
+       target]",
                            10, 1, 50, 1)) * 0.001;
 
-attackCurve = env_group(vslider("[2]Attack Curve[symbol:attack_curve][unit:%][accentcolor:04]
-      [tooltip: Shape of the attack ramp. +1 = exponential, analog-style: quick
-       off the mark then easing in, and Attack reads as a time constant.
-       0 = straight line in dB. -1 = creeps in then snaps shut at the end]",
-                                100, -100, 100, 1)) /100;
+// Fixed shape of the attack ramp, halfway between a straight line in dB (0)
+// and exponential (1)
+attackCurve = 0.5;
 
 hold = env_group(vslider("[3]Hold[unit:ms][symbol:hold][accentcolor:03]
       [tooltip: How long the gain reduction is frozen at its deepest point
@@ -128,26 +126,16 @@ hold = env_group(vslider("[3]Hold[unit:ms][symbol:hold][accentcolor:03]
 release = env_group(vslider("[4]Release[unit:ms][symbol:release][accentcolor:01]
       [tooltip: How fast the gain moves back up toward a lighter reduction. Read
        as a 1/e time constant at Release Curve +1, or as the time to cover 20 dB
-       at Release Curve 0 and below. With Release S-Curve on it is the time to
-       cover 20 dB at every Release Curve setting, and shallower recoveries
-       take proportionally less]",
+       at Release Curve 0]",
                             100, 1, 1000, 1)) * 0.001;
 
 releaseCurve = env_group(vslider("[5]Release Curve[symbol:release_curve][unit:%][accentcolor:01]
       [tooltip: Shape of the release ramp. +1 = exponential, analog-style: lets
        go quickly then a long tail, and Release reads as a time constant.
-       0 = straight line in dB. -1 = hangs, then lets go all at once.
-       With Release S-Curve on this slides where the ramp is steepest instead]",
-                                 100, -100, 100, 1)) /100;
+       0 = straight line in dB]",
+                                 100, 0, 100, 1)) /100;
 
-releaseS = env_group(checkbox("[6]Release S-Curve[symbol:release_s][accentcolor:01]
-      [tooltip: Eases the release out of the reduction and back into unity
-       instead of running at full speed at one end. Release Curve still pushes
-       and pulls it, sliding the steep part of the ramp between roughly 1 dB
-       and 20 dB from the target - late and abrupt at -1, early and gentle at
-       +1 - but both ends keep the soft landing. Affects release only]"));
-
-autoRelease = env_group(vslider("[7]Auto Release[unit:%][symbol:auto_release][accentcolor:01]
+autoRelease = env_group(vslider("[6]Auto Release[unit:%][symbol:auto_release][accentcolor:01]
       [tooltip: Program dependence. Stretches Release in proportion to how much
        reduction has been sustained recently, so isolated peaks let go quickly
        while a loud passage releases slowly and stops pumping. 0% = fixed]",
@@ -175,76 +163,11 @@ autoRefDb = 6;
 curveRef = 20;
 
 // How far the curve is allowed to scale the nominal rate, in either
-// direction. Both ends need the cap: at curve = -1 the rate goes as 1/distance
-// and would run away to thousands of dB/s in the last fraction of a dB (a peak
-// detector's ripple then wipes out the release entirely), and at curve = +1 the
-// exponential tail would asymptote forever instead of settling. Clamping the
-// distance is equivalent and cheaper than clamping the result.
+// direction. Near the target the cap stops the curved tail from asymptoting
+// forever instead of settling; far from it, it stops a deep excursion from
+// slamming at many times the nominal rate. Clamping the distance is equivalent
+// and cheaper than clamping the result.
 curveBound = 8;
-
-// ---- S-curve release ----
-// See the Ballistics section for the rate law.
-//
-// The one thing this shape needs that the power law does not is a sense of
-// scale. An S has to be slow, then fast, then slow, and "then" only means
-// something relative to the length of the ramp: an inflection point fixed at
-// some number of dB from the target is either crossed or it is not, so the
-// same setting that gives a clean S on a 20 dB release gives a plain
-// exponential on a 4 dB one, which is most of what a compressor actually
-// does. Measured: with the inflection pinned 5 dB out, excursions under about
-// 3 dB came out with their steepest point at t = 0, i.e. no S at all.
-//
-// So the ramp is measured as a *fraction of its own span* instead, and the
-// span is carried in the loop below as sp. That makes the curve self-similar:
-// the same S at 2 dB as at 20 dB, only shorter.
-//
-// sPeakMid    where the ramp is steepest with Release Curve at 0, as a
-//             fraction of the span. 0.45 is just short of halfway.
-// sPeakSpread how far Release Curve slides that point. 1.8 spans 0.25 to 0.81
-//             of the way through - late and abrupt at -1, early and gentle at
-//             +1. It has to stay clear of both 0 and 1 or the S degenerates
-//             into a one-sided curve at the ends of the knob.
-// sBound      the same job curveBound does for the power law, but wider, and
-//             for a different reason: here it truncates the soft landing
-//             rather than stopping a runaway. At 8 the ramp is still at 80%
-//             of full speed when the clamp takes over and the ease-out is
-//             barely audible; 64 lets it get down to an eighth. The near
-//             branch decays toward zero instead of blowing up, so widening it
-//             is safe - the cost is only the last 1/64 of the span taking a
-//             little longer.
-// sSpanFloor  smallest span the shape is computed against, in dB. Keeps the
-//             division honest when the gain is sitting still.
-sPeakMid    = 0.45;
-sPeakSpread = 1.8;
-sBound      = 64;
-sSpanFloor  = 0.5;
-
-sPeak = sPeakMid * pow(sPeakSpread, releaseCurve);
-
-// How long the remembered span takes to fade once nothing is renewing it.
-// Tied to Release so it always outlasts the ramp it is measuring - a fixed
-// time constant would either forget mid-release at the slow end of the knob
-// or hold a stale span across separate events at the fast end.
-sSpanTau  = max(0.05, 4 * release);
-sSpanPole = ba.tau2pole(sSpanTau);
-
-// Timing normalisation. sNorm is the closed form of the raw shape's transit
-// time - the integral of 1/sShape from w = 1 down to the clamp, plus the
-// clamped remainder - so dividing it back out fixes the total. Release then
-// means the same thing it means at Release Curve 0 in the power law, the time
-// to cover curveRef dB, and Release Curve reshapes the ramp without also
-// retiming it. Because w is a fraction of the span, that scales: a 5 dB
-// release takes a quarter as long as a 20 dB one, at constant dB per second.
-sNorm = sPeak * (log(sBound) + 1) / 2 + (1 + 1 / (sBound * sBound)) / (4 * sPeak);
-
-// Rate multiplier: a hump in the fraction of the span still to go, peaking at
-// sPeak. It is the harmonic mean of the two power-law extremes - w^-1 far
-// from the target, w^+1 near it - which is exactly why it inherits the slow
-// start of Release Curve -1 and the slow finish of +1 in one ramp.
-sShape(dist, span) = sNorm * 2 * sPeak * w / (sPeak * sPeak + w * w)
-with {
-    w = min(1, max(1 / sBound, dist / span));
-};
 
 //---- detector ----
 
@@ -459,8 +382,8 @@ with {
 //   m = +1  step proportional to the remaining distance -> exponential decay,
 //           and `time` is exactly the 1/e time constant (curveRef cancels)
 //   m =  0  step constant -> straight line in dB, curveRef dB per `time`
-//   m = -1  step inversely proportional to the distance -> hangs back, then
-//           accelerates into the target
+//
+// Release Curve sets m for the release; the attack uses attackCurve.
 //
 // The step deliberately depends on the current distance and nothing else.
 // The obvious alternative - interpolating s + (target-s)*p^k along a segment
@@ -470,43 +393,13 @@ with {
 // that way, this compressor measurably froze at 0.0001 dB of reduction.
 // Distance carries no progress, so there is nothing for a reversal to reset.
 //
-// Release S-Curve swaps that power of m for a different function of the same
-// distance, and changes nothing else:
-//
-//     step per sample = (curveRef / (time * SR)) * sNorm * 2f w / (f^2 + w^2)
-//
-// with w = the fraction of the span still to go and f = where in that span
-// the ramp is steepest, which is what Release Curve now sets. The shape is
-// the harmonic mean of the m = -1 and m = +1 laws, so it starts slow like one
-// and lands slow like the other, and Release Curve slides the fast part
-// between them. Measured on a 20 dB release, the steepest point moves from
-// 9% of the way through at +1 to 76% at -1, and holds that spread down to 5 dB
-// excursions; total time stays within 15% of the knob across the whole range,
-// where the power law's +1 setting takes three times its nominal.
-//
-// Because the switch is ANDed with the release half, an attack always takes
-// the power law. Verified as bit-identical, though only once the detector is
-// given a ripple-free signal - on ordinary material the level ripples, the
-// envelope micro-releases inside the attack, and those samples do differ,
-// which is the release law doing its job rather than a leak.
-//
 // Hold freezes the gain while the target is trying to release, until the
 // counter runs out. Any renewed attack resets the counter, so hold always
 // measures from the most recent deepest point.
-//
-// The S-curve release is the one shape that needs more than the current
-// distance, because "halfway" is only meaningful against a total. sp carries
-// that total: a peak-hold of the distance with a slow decay, which reads as
-// the depth of the excursion currently being released. It is deliberately a
-// peak-hold rather than a latch on the release edge - with peak detection the
-// target reverses constantly, and a latch would re-arm on every one of those
-// reversals and collapse the span to the ripple. Note this is still not
-// progress: the rate stays strictly positive at every distance, so there is
-// nothing here that a reversal can freeze.
 
-ballistics = loop ~ si.bus(3) : (_, !, !)
+ballistics = loop ~ si.bus(2) : (_, !)
 with {
-    loop(y, hc, sp, target) = ny, nhc, nsp
+    loop(y, hc, target) = ny, nhc
     with {
         diff = target - y;
         dist = abs(diff);
@@ -514,8 +407,6 @@ with {
 
         nhc     = select2(atk, min(holdSamples, hc + 1), 0);
         holding = (diff > 0) * (nhc < holdSamples);
-
-        nsp = max(sSpanFloor, max(dist, sp * sSpanPole));
 
         // Program dependence, read off the compressor's own recent history:
         // a slow average of how much reduction has been in effect. A lone
@@ -527,32 +418,9 @@ with {
         tSec = select2(atk, relEff, attack);
         m    = select2(atk, releaseCurve, attackCurve);
 
-        // Integrating the rate law over a full curveRef-dB span gives a
-        // transit time of tSec/(1-m), so without this the same knob setting
-        // would run twice as fast at curve = -1 as at curve = 0. Only the
-        // m <= 0 half is corrected; above it the knob is deliberately drifting
-        // toward its time-constant meaning, which diverges at m = 1.
-        norm = 1 / (1 - min(0, m));
-        rate = norm * curveRef / max(ma.EPSILON, tSec * ma.SR);
+        rate = curveRef / max(ma.EPSILON, tSec * ma.SR);
 
-        // The S-curve is an alternative shape for the same rate law, not an
-        // alternative envelope: it swaps out the distance-to-step function and
-        // nothing else, so hold, Auto Release and the never-overshoot clamp
-        // below all keep working untouched. Release side only - the switch is
-        // ANDed with the release half, so an attack always uses the power law
-        // whatever the checkbox says.
-        //
-        // The two are selected as finished steps rather than as shapes sharing
-        // one rate, so that the power-law branch stays the exact expression it
-        // always was. Factoring norm out of rate to share it would reassociate
-        // the multiply, and a last-bit change inside a recursive envelope does
-        // not stay a last-bit change: measured over two seconds it random-walks
-        // to about 1e-4 relative. Inaudible, but it would make this switch look
-        // like it alters the sound when it is off.
-        powStep = rate * pow(min(curveBound, max(1 / curveBound, dist / curveRef)), m);
-        sStep   = curveRef / max(ma.EPSILON, tSec * ma.SR) * sShape(dist, nsp);
-
-        step = select2(releaseS * (1 - atk), powStep, sStep);
+        step = rate * pow(min(curveBound, max(1 / curveBound, dist / curveRef)), m);
 
         // never step past the target, so short times land exactly on it
         // instead of chattering around it

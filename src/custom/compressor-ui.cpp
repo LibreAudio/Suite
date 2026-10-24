@@ -137,26 +137,24 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// How the gain moves: lookahead, attack, hold and release, with their curves, the release half spaced off to line up
-// with the sidechain group under it.
+// How the gain moves: lookahead, attack, hold and release, with the release's curve, the release half spaced off from
+// the attack half.
 
 class CompressorResponseGroupWidget final : public CompressorGroupWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 9> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterLookahead>, Expanding>(kFaustParameterLookahead),
         addWidget<CompressorNumberBoxWidget<kFaustParameterAttack>, Expanding>(kFaustParameterAttack),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterAttack_curve>, Expanding>(kFaustParameterAttack_curve),
         addWidget<CompressorNumberBoxWidget<kFaustParameterHold>, Expanding>(kFaustParameterHold),
         addWidget<CompressorGroupSpacerWidget>(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRelease>, Expanding>(kFaustParameterRelease),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRelease_curve>, Expanding>(kFaustParameterRelease_curve),
-        addWidget<CompressorPowerBoxWidget<kFaustParameterRelease_s>, Expanding>(kFaustParameterRelease_s, "S-Curve"),
         addWidget<CompressorNumberBoxWidget<kFaustParameterAuto_release>, Expanding>(kFaustParameterAuto_release),
     };
 
 public:
     explicit CompressorResponseGroupWidget(LabWidget* const parent)
-        : CompressorGroupWidget(parent, 8) {}
+        : CompressorGroupWidget(parent, 6) {}
 };
 
 // What the detector measures and how the channels are linked.
@@ -221,10 +219,7 @@ class CompressorEnvelopeWidget final : public LabWidget,
     // constants of the ballistics in compressor.dsp
     static constexpr const float kCurveRef = 20.f;
     static constexpr const float kCurveBound = 8.f;
-    static constexpr const float kSPeakMid = 0.45f;
-    static constexpr const float kSPeakSpread = 1.8f;
-    static constexpr const float kSBound = 64.f;
-    static constexpr const float kSSpanFloor = 0.5f;
+    static constexpr const float kAttackCurve = 0.5f;
     static constexpr const float kAutoRefDb = 6.f;
 
     // depth of the step, in dB
@@ -233,14 +228,12 @@ class CompressorEnvelopeWidget final : public LabWidget,
     static constexpr const float kStepsPerTime = 1000.f;
     static constexpr const uint kMaxSteps = 20000;
 
-    static constexpr const std::array<FaustParameterIndex, 8> kParameters {
+    static constexpr const std::array<FaustParameterIndex, 6> kParameters {
         kFaustParameterLookahead,
         kFaustParameterAttack,
-        kFaustParameterAttack_curve,
         kFaustParameterHold,
         kFaustParameterRelease,
         kFaustParameterRelease_curve,
-        kFaustParameterRelease_s,
         kFaustParameterAuto_release,
     };
 
@@ -276,17 +269,7 @@ private:
     // dB per second of the power law at a distance from the target
     static float powerRate(const float dist, const float time, const float curve) noexcept
     {
-        const float norm = 1.f / (1.f - std::min(0.f, curve));
-        return norm * kCurveRef / time * std::pow(std::clamp(dist / kCurveRef, 1.f / kCurveBound, kCurveBound), curve);
-    }
-
-    // dB per second of the S-curve release at a distance from the target, over a span
-    static float sCurveRate(const float dist, const float span, const float time, const float curve) noexcept
-    {
-        const float peak = kSPeakMid * std::pow(kSPeakSpread, curve);
-        const float norm = peak * (std::log(kSBound) + 1.f) / 2.f + (1.f + 1.f / (kSBound * kSBound)) / (4.f * peak);
-        const float w = std::clamp(dist / span, 1.f / kSBound, 1.f);
-        return kCurveRef / time * norm * 2.f * peak * w / (peak * peak + w * w);
+        return kCurveRef / time * std::pow(std::clamp(dist / kCurveRef, 1.f / kCurveBound, kCurveBound), curve);
     }
 
     // a ramp from one dB to another, stepped until it lands, never stepping past the target
@@ -311,35 +294,24 @@ private:
     void compute()
     {
         const float attack = std::max(1e-5f, fValues[1] * 0.001f);
-        const float attackCurve = fValues[2] / 100.f;
-        const float release = std::max(1e-3f, fValues[4] * 0.001f);
-        const float releaseCurve = fValues[5] / 100.f;
-        const bool sCurve = fValues[6] > 0.5f;
-        const float autoRelease = fValues[7] / 100.f;
+        const float release = std::max(1e-3f, fValues[3] * 0.001f);
+        const float releaseCurve = fValues[4] / 100.f;
+        const float autoRelease = fValues[5] / 100.f;
 
         fLookahead = fValues[0] * 0.001f;
 
         fAttack = ramp(0.f, -kDepth, attack, [=](const float dist) {
-            return powerRate(dist, attack, attackCurve);
+            return powerRate(dist, attack, kAttackCurve);
         });
 
-        // the span is the peak-hold of the distance, fading over four times the release
         const auto releaseRamp = [=](const float time) {
-            if (! sCurve)
-                return ramp(-kDepth, 0.f, time, [=](const float dist) {
-                    return powerRate(dist, time, releaseCurve);
-                });
-
-            const float pole = std::exp(-time / kStepsPerTime / std::max(0.05f, 4.f * release));
-            float span = kDepth;
-            return ramp(-kDepth, 0.f, time, [=](const float dist) mutable {
-                span = std::max(kSSpanFloor, std::max(dist, span * pole));
-                return sCurveRate(dist, span, time, releaseCurve);
+            return ramp(-kDepth, 0.f, time, [=](const float dist) {
+                return powerRate(dist, time, releaseCurve);
             });
         };
 
-        // Each section is as long as the slowest power-law curve, +1, takes to land, and its ramp is stretched to fill
-        // it, so the curve controls and Release S-Curve show only as the ramps' shapes and leave their lengths alone.
+        // Each section is as long as the slowest curve, +1, takes to land, and its ramp is stretched to fill it, so the
+        // curves show only as the ramps' shapes and leave their lengths alone.
         const auto section = [](const float time) {
             return ramp(0.f, -kDepth, time, [=](const float dist) {
                 return powerRate(dist, time, 1.f);
@@ -372,7 +344,7 @@ private:
 
         fDurations = {
             attackSection,
-            fValues[3] * 0.001f,
+            fValues[2] * 0.001f,
             releaseSection * (1.f + autoRelease),
         };
     }
@@ -484,7 +456,7 @@ private:
         // accent colours, over it, where they fit
         {
             static constexpr const char* const names[] = { "ATTACK", "HOLD", "RELEASE" };
-            const std::array<float, 3> times { fValues[1], fValues[3], fValues[4] };
+            const std::array<float, 3> times { fValues[1], fValues[2], fValues[3] };
 
             fontFace("regular");
             fontSize(R::labelFontSize * s);
