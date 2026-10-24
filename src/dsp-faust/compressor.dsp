@@ -76,31 +76,6 @@ rangeKnee = knee;
 //        softens the approach to the threshold. 0 = hard clamp]",
 //                               6, 0, 24, 0.1));
 
-// Per-channel depth trims. Channel 1 is left or mid and channel 2 is right or
-// side, depending on the Mid / Side switch, hence the paired labels.
-//
-// These are applied after linking, so they still separate the two channels at
-// Link 100%: linking decides what the pair *detects* together, Scale decides
-// how much of that each one acts on. Turning Side down to 40% while Mid stays
-// at 100% is the point of having them, and it would be flattened by the
-// parallelMin if it happened before the link.
-
-scaleLM = ctl_group(vslider("[5]Scale L/M[unit:%][symbol:scale_lm][accentcolor:04]
-      [tooltip: Multiplies the gain reduction on channel 1 - left, or mid when
-       Mid / Side is on. 0% = that channel is not compressed at all whatever
-       the other settings say, 100% = as computed, 200% = twice as many dB of
-       reduction. Applied before Range, so the Range ceiling still holds]",
-                            100, 0, 200, 1)) / 100;
-
-scaleRS = ctl_group(vslider("[6]Scale R/S[unit:%][symbol:scale_rs][accentcolor:04]
-      [tooltip: Multiplies the gain reduction on channel 2 - right, or side when
-       Mid / Side is on. Pulling this below Scale L/M compresses the centre
-       harder than the edges of the image, which is the usual mid/side move]",
-                            100, 0, 200, 1)) / 100;
-
-chanScale(0) = scaleLM;
-chanScale(1) = scaleRS;
-
 //---- ballistics ----
 
 lookaheadMs = env_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:06]
@@ -443,17 +418,12 @@ with {
 // Linking happens on the gain computer's *target*, before the ballistics,
 // so linked channels share one envelope instead of two envelopes racing.
 //
-// The order of the last three stages is deliberate:
+//   gain computer -> link -> Range -> ballistics
 //
-//   gain computer -> link -> Scale -> Range -> ballistics
-//
-// Link before Scale, so the per-channel Scale trims survive linking instead of
-// being flattened by the parallelMin. Range after Scale, so the Range ceiling
-// still caps the reduction that is actually applied at any Scale. And both
-// before the ballistics, so what the envelope chases is the finished target.
-// Moving Range past the link costs nothing: it is monotonic, so limiting each
-// channel and then taking the minimum gives the same answer as taking the
-// minimum and then limiting.
+// Range before the ballistics, so what the envelope chases is the finished
+// target. Having it after the link costs nothing: it is monotonic, so limiting
+// each channel and then taking the minimum gives the same answer as taking
+// the minimum and then limiting.
 //
 // Takes 2*Nch inputs - the audio, then the external sidechain - and returns
 // Nch gain reductions in dB. ro.interleave(Nch,3) turns the loop's
@@ -464,7 +434,7 @@ with {
     loop = ro.interleave(Nch, 3)
          : par(i, Nch, detTarget(i))
          : linkN(Nch, link)
-         : par(i, Nch, *(chanScale(i)) : rangeLimit)
+         : par(i, Nch, rangeLimit)
          : par(i, Nch, ballistics);
 
     // SC Mix crossfades in the signal domain, ahead of the filter, so there is
@@ -542,14 +512,12 @@ satDriveCurve(depth) = depth * depth;
 
 // One drive for both channels, taken from the deeper of the two reductions.
 // Per-channel drive would let left and right saturate by different amounts
-// whenever Link is below 100% or the Scale trims are uneven, and a nonlinearity
-// harder on one side than the other pulls the image toward the quieter one.
-// Measured with Link 0% and the Scale trims 100/40, turning Drive from 0 to
-// 100% moves the left/right balance of the fundamental by 0.002 dB.
+// whenever Link is below 100%, and a nonlinearity harder on one side than the
+// other pulls the image toward the quieter one.
 //
-// The two channels still end up with slightly different harmonic content -
-// 3.9% against 5.2% in that same test - because they arrive at the output
-// stage at different levels and the shaper acts on level. That is a timbre
+// The two channels can still end up with slightly different harmonic content,
+// because they arrive at the output stage at different levels and the shaper
+// acts on level. That is a timbre
 // difference rather than a pan shift, and it is what a pair of output stages
 // fed at different levels would do anyway.
 satDriveOf(grDb) = satDriveCurve(satDepth) * satDriveMax * min(1, (0 - grDb) / satRefDb);
@@ -630,7 +598,7 @@ applyGain(i, grDb, x) = x * (grDb : chanMeter(i) : ba.db2linear);
 //======================= Dry/wet =======================
 // Sits at the very end of the audio path, after makeup, so Makeup trims the
 // compressed signal on its way into the blend the way the fader on a parallel
-// bus would. Everything upstream — mid/side, Scale, Range — stays on the wet
+// bus would. Everything upstream — mid/side, Range — stays on the wet
 // side only; the dry is the audio exactly as this DSP received it.
 //
 // Linear crossfade, not equal-power. Dry and wet here are the *same* signal

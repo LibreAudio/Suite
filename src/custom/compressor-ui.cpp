@@ -1386,18 +1386,16 @@ private:
 };
 
 // The compression controls, next to the input meter, at the height of a group's boxes: threshold and ratio at the top,
-// Mid / Side at the bottom, and knee and range together halfway between, the spacers around them sharing what is left.
+// knee and range at the bottom, the spacer between them taking what is left.
 
 class CompressorThresholdStackWidget final : public CompressorControlStackWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
+    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterThreshold>>(kFaustParameterThreshold),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRatio>>(kFaustParameterRatio),
         addSpacer(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterKnee>>(kFaustParameterKnee),
         addWidget<CompressorNumberBoxWidget<kFaustParameterRange>>(kFaustParameterRange),
-        addSpacer(),
-        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>>(kFaustParameterMid_side),
     };
 
 public:
@@ -1405,17 +1403,14 @@ public:
         : CompressorControlStackWidget(parent) {}
 };
 
-// The channel and output controls, next to the gain reduction meter, at the height of a group's boxes: the per-channel
-// depth at the top, makeup and dry/wet at the bottom, and drive halfway between, the spacers around it sharing what is
-// left.
+// The output controls, next to the gain reduction meter, at the height of a group's boxes: drive and Mid / Side at the
+// top, makeup and dry/wet at the bottom, the spacer between them taking what is left.
 
 class CompressorOutputStackWidget final : public CompressorControlStackWidget
 {
-    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
-        addWidget<CompressorNumberBoxWidget<kFaustParameterScale_lm>>(kFaustParameterScale_lm),
-        addWidget<CompressorNumberBoxWidget<kFaustParameterScale_rs>>(kFaustParameterScale_rs),
-        addSpacer(),
+    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterDrive>>(kFaustParameterDrive),
+        addWidget<CompressorPowerBoxWidget<kFaustParameterMid_side>>(kFaustParameterMid_side),
         addSpacer(),
         addWidget<CompressorNumberBoxWidget<kFaustParameterMakeup>>(kFaustParameterMakeup),
         addWidget<CompressorNumberBoxWidget<kFaustParameterDrywet>>(kFaustParameterDrywet),
@@ -1428,9 +1423,8 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 // The compression curve: output level against input level, both from -60 to 0 dB, for a steady signal, worked out with
-// the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. The second
-// channel's curve shows faintly when the Scale controls set the two channels apart. It floats over the starfield, in a
-// panel as wide as the display leaves it, the plot filling it edge to edge under a pane of glass.
+// the gain computer and the Range ceiling of compressor.dsp. Makeup is left out, so 1:1 is the diagonal. It floats
+// over the starfield, in a panel as wide as the display leaves it, the plot filling it edge to edge under a pane of glass.
 
 struct CompressorCurveReference : CompressorFloatingReference {
     // darker than the other panels, for the plot to stand out
@@ -1449,13 +1443,11 @@ class CompressorCurveWidget final : public LabWidget,
 {
     using R = CompressorCurveReference;
 
-    static constexpr const std::array<FaustParameterIndex, 6> kParameters {
+    static constexpr const std::array<FaustParameterIndex, 4> kParameters {
         kFaustParameterThreshold,
         kFaustParameterRatio,
         kFaustParameterKnee,
         kFaustParameterRange,
-        kFaustParameterScale_lm,
-        kFaustParameterScale_rs,
     };
 
     std::array<float, kParameters.size()> fValues {};
@@ -1476,8 +1468,8 @@ public:
     }
 
 private:
-    // gain reduction in dB for an input level, scaled for a channel, then held above the Range ceiling
-    [[nodiscard]] float gainReduction(const float level, const float scale) const noexcept
+    // gain reduction in dB for an input level, held above the Range ceiling
+    [[nodiscard]] float gainReduction(const float level) const noexcept
     {
         const float threshold = fValues[0];
         const float slope = 1.f - 1.f / std::max(1.f, fValues[1]);
@@ -1493,8 +1485,6 @@ private:
             gr = -slope * over;
         else
             gr = -slope * (over + knee / 2) * (over + knee / 2) / (2 * std::max(1e-9f, knee));
-
-        gr *= scale;
 
         // the Range ceiling, eased into over a knee as wide as Knee and at most twice the Range
         const float lim = -range;
@@ -1626,14 +1616,14 @@ private:
 
         // The curve a pixel at a time from x0 to x1, held to the outline when it is to be filled, which for the area
         // under it is the same as cutting it there.
-        const auto curve = [&](const float scale, const float x0, const float x1, const bool held) {
+        const auto curve = [&](const float x0, const float x1, const bool held) {
             beginPath();
             const float first = std::max(0.f, std::floor(x0 - px));
             const float last = std::min(pw, std::ceil(x1 - px));
             for (float x = first; x <= last; x += 1.f)
             {
                 const float in = R::dbMin + x / pw * -R::dbMin;
-                float y = dbToY(in + gainReduction(in, scale));
+                float y = dbToY(in + gainReduction(in));
 
                 if (held)
                 {
@@ -1649,21 +1639,15 @@ private:
         };
 
         // the curve's line, cut exactly to the outline, taking the curve only as far past each piece as the line is wide
-        const auto line = [&](const float scale, const Color& color, const float width) {
+        const auto line = [&](const Color& color, const float width) {
             lineJoin(ROUND);
             clippedStroke(color, width, [&](const float x0, const float x1) {
-                curve(scale, x0 - width - 1.f, x1 + width + 1.f, false);
+                curve(x0 - width - 1.f, x1 + width + 1.f, false);
             });
         };
 
-        const float scale1 = fValues[4] / 100.f;
-        const float scale2 = fValues[5] / 100.f;
-
-        if (d_isNotEqual(scale1, scale2))
-            line(scale2, Color(R::curveColor, 0.35f), 1.f * s);
-
         // filled down to the bottom, round its corners as the panel's, then the line with a glow
-        curve(scale1, px, px + pw, true);
+        curve(px, px + pw, true);
         lineTo(px + pw, py + ph - r);
         arcTo(px + pw, py + ph, px + pw - r, py + ph, r);
         lineTo(px + r, py + ph);
@@ -1672,8 +1656,8 @@ private:
         fillPaint(linearGradient(0, py, 0, py + ph, Color(R::curveColor, 0.12f), Color(R::curveColor, 0.02f)));
         fill();
 
-        line(scale1, Color(R::curveColor, 0.2f), 4.f * s);
-        line(scale1, R::curveColor, 1.5f * s);
+        line(Color(R::curveColor, 0.2f), 4.f * s);
+        line(R::curveColor, 1.5f * s);
 
         restore();
 
