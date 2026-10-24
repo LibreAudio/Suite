@@ -1429,8 +1429,8 @@ public:
 // over the starfield, in a panel as wide as the display leaves it, the plot filling it edge to edge under a pane of glass.
 
 struct CompressorCurveReference : CompressorFloatingReference {
-    // darker than the other panels, for the plot to stand out
-    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.8f };
+    // see-through, the starfield showing behind the plot
+    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.f };
     static constexpr const float dbMin = -60.f;
     static constexpr const float gridStep = 12.f;
     static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
