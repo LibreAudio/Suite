@@ -24,7 +24,8 @@ class NumberBoxWidget final : public LabKnobWidget
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
         : BaseWidget(parent, kParametersMainStart + id),
-          fParameter(kFaustParameters[id])
+          fParameter(kFaustParameters[id]),
+          fMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
     {
         setName(fParameter.name);
         setDefault(fParameter.init);
@@ -38,6 +39,7 @@ public:
 
 private:
     const FaustParameter& fParameter;
+    const bool fMiddleSplitBar;
 
     void knobDoubleClicked(SubWidget*) final
     {
@@ -111,6 +113,8 @@ private:
 
         // bottom bar
         {
+            const float normvalue = getNormalizedValue();
+
             save();
 
             scissor(0, h - bh, w, bh);
@@ -119,7 +123,23 @@ private:
             fillColor(R::Bar::color〡deactivated);
             fill();
 
-            scissor(0, h - bh, border2x + getNormalizedValue() * (w - border2x), bh);
+            if (fMiddleSplitBar)
+            {
+                if (normvalue < 0.5f)
+                {
+                    const float x = normvalue * w;
+                    scissor(x, h - bh, w * 0.5f - x, bh);
+                }
+                else
+                {
+                    scissor(w * 0.5f, h - bh, (normvalue - 0.5f) * w, bh);
+                }
+            }
+            else
+            {
+                scissor(0, h - bh, normvalue * w, bh);
+            }
+
             beginPath();
             roundedRect(0, 0, w, h, borderRadius);
             fillColor(R::Bar::color);
