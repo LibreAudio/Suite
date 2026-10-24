@@ -186,7 +186,7 @@ scMix = sc_group(vslider("[0]External[unit:%][symbol:sc_mix][accentcolor:03]
                          0, 0, 100, 1)) / 100;
 
 scMode = sc_group(nentry("[1]SC Filter[symbol:sc_filter][accentcolor:03]
-      [style:radio{'HP / LP':0;'Band':1;'Bell':2}]
+      [style:radio{'Filters':0;'Bandpass':1;'Bell':2}]
       [tooltip: Which filter shapes the detector: a high pass and low pass pair,
        a band pass, or a bell. Only the chosen filter's controls apply]",
                          0, 0, 2, 1)) : int;
@@ -201,11 +201,11 @@ scLp = sc_group(vslider("[3]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp][accent
                         20000, 1000, 20000, 1));
 
 scBandFreq = sc_group(vslider("[4]SC Band Freq[unit:Hz][scale:log][symbol:sc_band_freq][accentcolor:03]
-      [tooltip: Centre of the band the detector hears, in Band mode]",
+      [tooltip: Centre of the band the detector hears, in Bandpass mode]",
                               1000, 40, 16000, 1));
 
 scBandQ = sc_group(vslider("[5]SC Band Q[scale:log][symbol:sc_band_q][accentcolor:03]
-      [tooltip: Width of the band the detector hears, in Band mode. Higher is
+      [tooltip: Width of the band the detector hears, in Bandpass mode. Higher is
        narrower. The centre stays at 0 dB at any setting]",
                            1, 0.3, 10, 0.01));
 
