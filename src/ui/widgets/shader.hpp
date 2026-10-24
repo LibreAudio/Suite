@@ -336,7 +336,7 @@ private:
 
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
-        glUniform1f(gl3.dpfScaleFactor, fInterface->getScaleFactor());
+        glUniform1f(gl3.dpfScaleFactor, fInterface->getInterfaceScaleFactor());
 
         glUniform3f(gl3.iMouse, fMouseX.next(), fMouseY.next(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);

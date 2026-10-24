@@ -190,11 +190,12 @@ if (${LIBREAUDIO_CUSTOM_UI})
   )
 
   target_include_directories(las-ui
+    PUBLIC
+      ../deps/DPF-Widgets/opengl
     PRIVATE
       .
       ../deps/DPF/distrho
       ../deps/DPF-Widgets/generic
-      ../deps/DPF-Widgets/opengl
   )
 
   target_link_libraries(las-ui

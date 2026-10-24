@@ -39,6 +39,21 @@ public:
 private:
     const FaustParameter& fParameter;
 
+    void knobDoubleClicked(SubWidget*) final
+    {
+        char valuestr[64];
+        renderParameterValue(valuestr, fParameter, getValue());
+
+        fInterface->openTextInput(this,
+                                  valuestr,
+                                  getAbsoluteArea(),
+                                  R::Name::color,
+                                  R::Value::color,
+                                  R::borderRadius,
+                                  R::Value::fontSize,
+                                  true);
+    }
+
     void onNanoDisplay() final
     {
         drawReferenceBackground<R>();

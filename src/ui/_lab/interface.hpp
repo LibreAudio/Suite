@@ -5,10 +5,13 @@
 #pragma once
 
 #include "DistrhoUtils.hpp"
+#include "Geometry.hpp"
 
 START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
+
+class LabWidget;
 
 class LabUIWidgetInterface
 {
@@ -23,11 +26,21 @@ public:
     virtual void parameterControlReleased(uint32_t index) = 0;
     virtual void parameterControlModified(uint32_t index, float value) = 0;
 
+    virtual void openTextInput(LabWidget* widget,
+                               const char* text,
+                               const Rectangle<int>& area,
+                               const Color& textColor,
+                               const Color& highlightColor,
+                               uint borderRadius,
+                               uint fontSize,
+                               bool isNumber) = 0;
+
     virtual void buttonClicked(uint32_t id) = 0;
     [[nodiscard]] virtual bool isButtonEnabled(uint32_t id) const noexcept = 0;
     [[nodiscard]] virtual bool isButtonChecked(uint32_t id) const noexcept = 0;
 
-    [[nodiscard]] virtual float getScaleFactor() const noexcept = 0;
+    [[nodiscard]] virtual double getInterfaceSampleRate() const noexcept = 0;
+    [[nodiscard]] virtual float getInterfaceScaleFactor() const noexcept = 0;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

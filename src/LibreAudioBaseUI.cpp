@@ -456,6 +456,26 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 // --------------------------------------------------------------------------------------------------------------------
 // Widget Callbacks
 
+void LibreAudioBaseUI::doubleClickHelperDone(SubWidget* const widget, const char* const text)
+{
+    const uint32_t id = widget->getId();
+
+    if (id < kWidgetIdsStart)
+    {
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id >= kParametersMainStart, id,);
+
+        const FaustParameter& param = kFaustParameters[id - kParametersMainStart];
+
+        float value;
+        if (string2number(text, value, param.step >= 1.f))
+            parameterControlModified(id, std::clamp(value, param.min, param.max));
+
+        parameterControlReleased(id);
+    }
+
+    fDoubleClickHelper.reset();
+}
+
 void LibreAudioBaseUI::onNanoDisplay()
 {
     const float w = getWidth();
@@ -538,6 +558,36 @@ void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const floa
 
     if (! fParameterPressed[index])
         editParameter(index, false);
+}
+
+void LibreAudioBaseUI::openTextInput(LabWidget* const widget,
+                                     const char* const text,
+                                     const Rectangle<int>& area,
+                                     const Color& textColor,
+                                     const Color& highlightColor,
+                                     const uint borderRadius,
+                                     const uint fontSize,
+                                     const bool isNumber)
+{
+    if (isNumber)
+    {
+        const uint32_t id = widget->getId();
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id >= kParametersMainStart, id,);
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id < kWidgetIdsStart, id,);
+
+        parameterControlPressed(id);
+    }
+
+    fDoubleClickHelper = std::make_unique<DoubleClickHelper>(this,
+                                                             this,
+                                                             widget,
+                                                             text,
+                                                             area,
+                                                             textColor,
+                                                             highlightColor,
+                                                             borderRadius * fScaleFactor,
+                                                             fontSize * fScaleFactor,
+                                                             isNumber);
 }
 
 void LibreAudioBaseUI::buttonClicked(const uint32_t id)

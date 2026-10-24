@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DistrhoUtils.hpp"
+#include "extra/ScopedSafeLocale.hpp"
 
 #include "FaustParameter.hpp"
 
@@ -59,6 +59,29 @@ inline constexpr const float kFreqScale__log = kLog1000f; // std::log(kFreqScale
 [[nodiscard]] inline constexpr float norm2freq(const float norm)
 {
     return kFreqMin * std::pow(kFreqScale, norm);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+[[nodiscard]] inline bool string2number(const char* const string, float& value, bool integer = false) noexcept
+{
+    char* end = nullptr;
+    int errnoval;
+    errno = 0;
+
+    if (integer)
+    {
+        value = std::strtol(string, &end, 10);
+        errnoval = errno;
+    }
+    else
+    {
+        const ScopedSafeLocale ssl;
+        value = std::strtof(string, &end);
+        errnoval = errno;
+    }
+
+    return errnoval == 0 && string != end;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

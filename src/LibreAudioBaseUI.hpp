@@ -9,6 +9,8 @@
 #include "LibreAudioSnapshots.hpp"
 #include "LibreAudioIPC.hpp"
 
+#include "dpf-widgets/DoubleClickHelper.hpp"
+
 #include "ui/base.hpp"
 #include "ui/reference.hpp"
 #include "ui/containers/root.hpp"
@@ -20,6 +22,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioBaseUI : public UI,
+                         public DoubleClickHelper::Callback,
                          private LibreAudioSnapshots::Callback
 {
     using R = LibreAudio::Reference::Window;
@@ -71,6 +74,8 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
+    std::unique_ptr<DoubleClickHelper> fDoubleClickHelper;
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -86,7 +91,8 @@ private:
     float fScaleFactor = 1.f;
     int32_t fNumParameterPressed = 0;
 
-    [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
+    [[nodiscard]] float getInterfaceScaleFactor() const noexcept final { return fScaleFactor; }
+    [[nodiscard]] double getInterfaceSampleRate() const noexcept final { return getSampleRate(); }
 
     void pageButtonClicked(LibreAudio::Page page);
     void snapshotButtonClicked(uint32_t button);
@@ -111,6 +117,7 @@ private:
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks
 
+    void doubleClickHelperDone(SubWidget* widget, const char* text) final;
     void onNanoDisplay() final;
     void onResize(const ResizeEvent& ev) final;
 
@@ -124,6 +131,15 @@ private:
     void parameterControlPressed(uint32_t index) final;
     void parameterControlReleased(uint32_t index) final;
     void parameterControlModified(uint32_t index, float value) final;
+
+    void openTextInput(LabWidget* widget,
+                       const char* text,
+                       const Rectangle<int>& area,
+                       const Color& textColor,
+                       const Color& highlightColor,
+                       uint borderRadius,
+                       uint fontSize,
+                       bool isNumber) final;
 
     void buttonClicked(uint32_t id) final;
     [[nodiscard]] bool isButtonEnabled(uint32_t id) const noexcept final;

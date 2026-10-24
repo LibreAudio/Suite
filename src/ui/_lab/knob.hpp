@@ -16,7 +16,7 @@ START_NAMESPACE_DGL
 class LabKnobWidget : public LabWidget,
                       public KnobEventHandler,
                       protected IdleCallback,
-                      private KnobEventHandler::Callback
+                      protected KnobEventHandler::Callback
 {
     static constexpr const float kMouseDeceleration = 500.f;
     static constexpr const Modifier kGroupModifier = kModifierAlt; // Option
@@ -118,13 +118,6 @@ private:
 
         fLastMotionValue = value;
         fInterface->parameterControlModified(widget->getId(), value);
-    }
-
-    void knobDoubleClicked(SubWidget* const widget) final
-    {
-        fInterface->parameterControlPressed(widget->getId());
-        setValue(getDefault(), true);
-        fInterface->parameterControlReleased(widget->getId());
     }
 
     bool onMouse(const Widget::MouseEvent& ev) final

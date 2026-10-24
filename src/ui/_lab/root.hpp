@@ -32,7 +32,7 @@ public:
 
     void updateScaleFactorAndSize() final
     {
-        BaseWidget::updateScaleFactor(this->fInterface->getScaleFactor());
+        BaseWidget::updateScaleFactor(this->fInterface->getInterfaceScaleFactor());
         this->updateSize(true);
     }
 
