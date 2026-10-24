@@ -8,6 +8,7 @@
 
 #include "../reference.hpp"
 
+#include "LibreAudioParameters.hpp"
 #include "FaustParameter.hpp"
 
 namespace LibreAudio {
@@ -27,6 +28,12 @@ public:
         : BaseWidget(parent, id, parameter.name)
     {
         BaseWidget::setChecked(d_isNotZero(parameter.init), false);
+    }
+
+    explicit ToggleSwitchWidget(LabWidget* const parent, const FaustParameterIndex index)
+        : BaseWidget(parent, kParametersMainStart + index, kFaustParameters[index].name)
+    {
+        BaseWidget::setChecked(d_isNotZero(kFaustParameters[index].init), false);
     }
 };
 
