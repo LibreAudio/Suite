@@ -30,7 +30,9 @@ Nch = 2;
 // bottom of the file for the one-line change that opens the real inputs.
 
 maxGR = -60; // meter floor, also the widest Range setting
-maxMeter = -20;
+// span of the gain meter, which shows the gain reduction with Makeup added
+meterFloor = -12;
+meterCeiling = 6;
 
 maxLookaheadSamples = 9600; // 50 ms at 192 kHz
 
@@ -257,11 +259,12 @@ scFilter = fi.highpass(2, scHp)
 
 //---- meters ----
 
-meter1 = _ <: (_, (max(maxMeter) : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", maxMeter, 0)))) : attach;
-meter2 = _ <: (_, (max(maxMeter) : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", maxMeter, 0)))) : attach;
+// The net gain the audio gets: the reduction plus Makeup. Added on the meter's
+// branch only, so the gain reduction itself stays free of Makeup.
+meterGain = +(makeupDb) : max(meterFloor) : min(meterCeiling);
 
-//meter1 = _ <: (_, ( ma.neg : min(maxMeter) : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", 0, maxMeter)))) : attach;
-//meter2 = _ <: (_, ( ma.neg : min(maxMeter) : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", 0, maxMeter)))) : attach;
+meter1 = _ <: (_, (meterGain : meter_group(hbargraph("[0]GR 1[unit:dB][symbol:gr_1]", meterFloor, meterCeiling)))) : attach;
+meter2 = _ <: (_, (meterGain : meter_group(hbargraph("[1]GR 2[unit:dB][symbol:gr_2]", meterFloor, meterCeiling)))) : attach;
 
 chanMeter(0) = meter1;
 chanMeter(1) = meter2;

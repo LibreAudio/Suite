@@ -1049,13 +1049,14 @@ struct CompressorMeterReference : CompressorFloatingReference {
 struct CompressorMeterStyle {
     const char* title;
     Color color;
-    // dB at the bottom of the well
+    // dB at the top and the bottom of the well
+    float top;
     float floor;
-    // dB of the scale's labels and the ticks across the well, from 0 down
+    // dB the tracks fill from, toward the value
+    float origin;
+    // dB of the scale's labels and the ticks across the well, from the top down
     const float* scale;
     size_t scaleCount;
-    // the tracks fill down from the top, for gain reduction, rather than up from the bottom
-    bool fromTop;
 };
 
 // The meter's well, between the title and the channel names, right of the scale and left of the triangle.
@@ -1076,10 +1077,10 @@ struct CompressorMeterGeometry {
     }
 
     // the track area, inside the well's border
-    [[nodiscard]] float dbToY(const float db, const float floor, const float s) const noexcept
+    [[nodiscard]] float dbToY(const float db, const float top, const float floor, const float s) const noexcept
     {
         const float b = CompressorMeterReference::Well::border * s;
-        return wy + b + (wh - b * 2) * d_clamp(db / floor, 0.f, 1.f);
+        return wy + b + (wh - b * 2) * d_clamp((top - db) / (top - floor), 0.f, 1.f);
     }
 };
 
@@ -1134,9 +1135,10 @@ static void drawMeter(NanoVG& vg,
     // the tracks, each cut out of the well's shape so the ends follow its corners
     for (size_t i = 0; i < values.size(); ++i)
     {
-        const float y = g.dbToY(values[i], style.floor, s);
-        const float y0 = style.fromTop ? ty : y;
-        const float y1 = style.fromTop ? y : tb;
+        const float y = g.dbToY(values[i], style.top, style.floor, s);
+        const float yo = g.dbToY(style.origin, style.top, style.floor, s);
+        const float y0 = std::min(y, yo);
+        const float y1 = std::max(y, yo);
 
         if (y1 - y0 < 0.5f)
             continue;
@@ -1145,9 +1147,7 @@ static void drawMeter(NanoVG& vg,
         vg.scissor(trackX[i], y0, tw, y1 - y0);
         vg.beginPath();
         vg.roundedRect(g.wx + b, ty, g.ww - b * 2, tb - ty, wr - b);
-        vg.fillPaint(style.fromTop
-                     ? vg.linearGradient(0, y1, 0, y0, style.color, Color(style.color, 0.45f))
-                     : vg.linearGradient(0, y0, 0, y1, style.color, Color(style.color, 0.45f)));
+        vg.fillPaint(vg.linearGradient(0, y, 0, yo, style.color, Color(style.color, 0.45f)));
         vg.fill();
         vg.restore();
     }
@@ -1166,9 +1166,9 @@ static void drawMeter(NanoVG& vg,
     for (size_t i = 0; i < style.scaleCount; ++i)
     {
         const float db = style.scale[i];
-        const float y = g.dbToY(db, style.floor, s);
+        const float y = g.dbToY(db, style.top, style.floor, s);
 
-        if (d_isNotZero(db) && d_isNotEqual(db, style.floor))
+        if (d_isNotEqual(db, style.top) && d_isNotEqual(db, style.floor))
         {
             vg.beginPath();
             vg.moveTo(g.wx + b, std::round(y) + 0.5f);
@@ -1179,7 +1179,7 @@ static void drawMeter(NanoVG& vg,
         }
 
         char dbstr[8];
-        std::snprintf(dbstr, sizeof(dbstr), "%.0f", db);
+        std::snprintf(dbstr, sizeof(dbstr), db > 0.f ? "+%.0f" : "%.0f", db);
         vg.text(g.x + R::Scale::width * s, y, dbstr, nullptr);
     }
 
@@ -1263,7 +1263,7 @@ private:
         const float h = getHeight();
         const Color& color = accentColor<kFaustParameterThreshold>();
 
-        drawMeter(*this, w, h, s, { "INPUT", color, kFloor, kScale, std::size(kScale), false }, fValues, fMidSide);
+        drawMeter(*this, w, h, s, { "INPUT", color, 0.f, kFloor, kFloor, kScale, std::size(kScale) }, fValues, fMidSide);
 
         // the threshold: a triangle pointing at the well, and a line across it
         const CompressorMeterGeometry g(w, h, s);
@@ -1271,7 +1271,7 @@ private:
         if (g.wh <= 0.f)
             return;
 
-        const float y = g.dbToY(getValue(), kFloor, s);
+        const float y = g.dbToY(getValue(), 0.f, kFloor, s);
         const float sw = R::Slider::width * s;
         const float sx = g.wx + g.ww + R::Slider::gap * s;
 
@@ -1293,7 +1293,8 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The gain reduction meter: each channel's reduction, filling down from the top, to the meter's floor.
+// The gain reduction meter: each channel's reduction with Makeup added, filling from 0 dB, down for a net cut and up
+// for a net boost, between the meter's ceiling and floor.
 
 class CompressorGainReductionMeterWidget final : public LabWidget,
                                                  private IdleCallback
@@ -1301,8 +1302,9 @@ class CompressorGainReductionMeterWidget final : public LabWidget,
     using R = CompressorMeterReference;
 
     static constexpr const std::array<FaustParameterIndex, 2> kMeters { kFaustParameterGr_1, kFaustParameterGr_2 };
+    static constexpr const float kCeiling = kFaustParameters[kFaustParameterGr_1].max;
     static constexpr const float kFloor = kFaustParameters[kFaustParameterGr_1].min;
-    static constexpr const float kScale[] = { 0, -5, -10, -15, -20 };
+    static constexpr const float kScale[] = { 6, 3, 0, -3, -6, -9, -12 };
 
     std::array<float, 2> fValues {};
     bool fMidSide = false;
@@ -1328,7 +1330,7 @@ private:
         for (size_t i = 0; i < kMeters.size(); ++i)
         {
             if (const float value = std::clamp(fInterface->getParameterValue(kParametersMainStart + kMeters[i]),
-                                               kFloor, 0.f); d_isNotEqual(fValues[i], value))
+                                               kFloor, kCeiling); d_isNotEqual(fValues[i], value))
             {
                 fValues[i] = value;
                 repaint();
@@ -1347,7 +1349,7 @@ private:
     void onNanoDisplay() final
     {
         drawMeter(*this, getWidth(), getHeight(), fScaleFactor,
-                  { "REDUCTION", accentColor<kFaustParameterMakeup>(), kFloor, kScale, std::size(kScale), true },
+                  { "GAIN", accentColor<kFaustParameterMakeup>(), kCeiling, kFloor, 0.f, kScale, std::size(kScale) },
                   fValues, fMidSide);
     }
 };
