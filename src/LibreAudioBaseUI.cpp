@@ -458,7 +458,7 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 
 void LibreAudioBaseUI::doubleClickHelperDone(SubWidget* const widget, const char* const text)
 {
-    const uint32_t id = widget->getId();
+    const uint id = widget->getId();
 
     if (id < kWidgetIdsStart)
     {
@@ -497,6 +497,14 @@ void LibreAudioBaseUI::onNanoDisplay()
 void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 {
     UI::onResize(ev);
+
+    if (DoubleClickHelper* const dch = fDoubleClickHelper.get())
+    {
+        if (const uint id = dch->getWidgetId(); id < kWidgetIdsStart)
+            parameterControlReleased(id);
+
+        fDoubleClickHelper.reset();
+    }
 
     fScaleFactor = std::min(static_cast<double>(ev.size.getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
                             static_cast<double>(ev.size.getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);

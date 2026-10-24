@@ -93,6 +93,11 @@ public:
         io.Fonts->Build();
     }
 
+    [[nodiscard]] uint getWidgetId() const noexcept
+    {
+        return widget->getId();
+    }
+
 private:
     Callback* const callback;
     SubWidget* const widget;
