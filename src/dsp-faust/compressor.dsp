@@ -185,22 +185,46 @@ scMix = sc_group(vslider("[0]External[unit:%][symbol:sc_mix][accentcolor:03]
        are wired up]",
                          0, 0, 100, 1)) / 100;
 
-scHp = sc_group(vslider("[1]SC High Pass[unit:Hz][scale:log][symbol:sc_hp][accentcolor:03]
+scMode = sc_group(nentry("[1]SC Filter[symbol:sc_filter][accentcolor:03]
+      [style:radio{'HP / LP':0;'Band':1;'Bell':2}]
+      [tooltip: Which filter shapes the detector: a high pass and low pass pair,
+       a band pass, or a bell. Only the chosen filter's controls apply]",
+                         0, 0, 2, 1)) : int;
+
+scHp = sc_group(vslider("[2]SC High Pass[unit:Hz][scale:log][symbol:sc_hp][accentcolor:03]
       [tooltip: Keeps bass out of the detector so kick and low end stop driving
        the whole gain envelope. 20 Hz = effectively off]",
                         20, 20, 500, 1));
 
-scLp = sc_group(vslider("[2]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp][accentcolor:03]
+scLp = sc_group(vslider("[3]SC Low Pass[unit:Hz][scale:log][symbol:sc_lp][accentcolor:03]
       [tooltip: Keeps air and hiss out of the detector. 20 kHz = effectively off]",
                         20000, 1000, 20000, 1));
 
-scTilt = sc_group(vslider("[3]SC Tilt[unit:dB][symbol:sc_tilt][accentcolor:03]
+scBandFreq = sc_group(vslider("[4]SC Band Freq[unit:Hz][scale:log][symbol:sc_band_freq][accentcolor:03]
+      [tooltip: Centre of the band the detector hears, in Band mode]",
+                              1000, 40, 16000, 1));
+
+scBandQ = sc_group(vslider("[5]SC Band Q[scale:log][symbol:sc_band_q][accentcolor:03]
+      [tooltip: Width of the band the detector hears, in Band mode. Higher is
+       narrower. The centre stays at 0 dB at any setting]",
+                           1, 0.3, 10, 0.01));
+
+scBellFreq = sc_group(vslider("[6]SC Bell Freq[unit:Hz][scale:log][symbol:sc_bell_freq][accentcolor:03]
+      [tooltip: Centre of the bell weighting the detector, in Bell mode]",
+                              1000, 40, 16000, 1));
+
+scBellGain = sc_group(vslider("[7]SC Bell Gain[unit:dB][symbol:sc_bell_gain][accentcolor:03]
+      [tooltip: Boost or cut of the bell, in Bell mode. A boost makes the
+       detector react more to that band, as for de-essing]",
+                              0, -18, 18, 0.1));
+
+scTilt = sc_group(vslider("[8]SC Tilt[unit:dB][symbol:sc_tilt][accentcolor:03]
       [tooltip: Broad weighting of the detector across the spectrum, pivoting at
        SC Freq. Positive makes it hear highs, so it reacts to sibilance and
        cymbals; negative makes it hear the low end]",
                           0, -12, 12, 0.1));
 
-scListen = sc_group(checkbox("[4]Listen[symbol:sc_listen][accentcolor:03]
+scListen = sc_group(checkbox("[9]Listen[symbol:sc_listen][accentcolor:03]
       [tooltip: Replaces the output with what the detector hears - the
        sidechain mix through the sidechain filter - so the filter can be set
        by ear. Dry / Wet does not apply while it is on]"));
@@ -208,6 +232,8 @@ scListen = sc_group(checkbox("[4]Listen[symbol:sc_listen][accentcolor:03]
 scFreq = 700;
 
 scRes = 0.7; // shelf Q for the tilt pair — flat, no bump at the pivot
+
+scBellQ = 1; // about an octave and a half wide
 
 //---- output ----
 
@@ -250,12 +276,17 @@ drywet = out_group(vslider("[3]Dry / Wet[unit:%][symbol:drywet][accentcolor:06]
 // and release ramps are already the smoothing.
 makeupGain = makeupDb : si.smoo : ba.db2linear;
 
-// Shelf pair pivoting at scFreq, same construction as the Shelf mode of
-// tiltEQ.dsp: equal and opposite low and high shelves.
-scFilter = fi.highpass(2, scHp)
-         : fi.lowpass(2, scLp)
+// The mode's filter, then the tilt: a shelf pair pivoting at scFreq, same
+// construction as the Shelf mode of tiltEQ.dsp, equal and opposite low and
+// high shelves. The band pass is scaled by 1/Q, as svf.bp peaks at Q.
+scFilter = _ <: (scHpLp, scBand, scBell) : select3(scMode)
          : fi.svf.ls(scFreq, scRes, 0 - scTilt)
-         : fi.svf.hs(scFreq, scRes, scTilt);
+         : fi.svf.hs(scFreq, scRes, scTilt)
+with {
+    scHpLp = fi.highpass(2, scHp) : fi.lowpass(2, scLp);
+    scBand = fi.svf.bp(scBandFreq, scBandQ) : /(scBandQ);
+    scBell = fi.svf.bell(scBellFreq, scBellQ, scBellGain);
+};
 
 //---- meters ----
 

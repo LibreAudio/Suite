@@ -87,17 +87,24 @@ public:
         return fBoxCount;
     }
 
-    // width without the number boxes: panel margins, the space between controls and any control of its own width
+    // width without the number boxes: panel margins, the space between the shown controls and any control of its own
+    // width
     [[nodiscard]] uint getFixedWidth() const noexcept
     {
         const uint margin = d_roundToUnsignedInt((R::border + R::margin) * fScaleFactor);
         const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
 
-        uint width = margin * 2 + padding * (static_cast<uint>(Layout::widgets.size()) - 1);
+        uint width = margin * 2;
+        uint shown = 0;
         for (const SubWidgetWithSizeHint& s : Layout::widgets)
+        {
+            if (! s.widget->isVisible())
+                continue;
             if (s.sizeHint == Fixed)
                 width += s.widget->getWidth();
-        return width;
+            ++shown;
+        }
+        return width + padding * (std::max(1u, shown) - 1);
     }
 
     void setGroupWidth(const uint width)
@@ -173,20 +180,56 @@ public:
         : CompressorGroupWidget(parent, 4) {}
 };
 
-// The sidechain source and the filters shaping what the detector hears.
+// The sidechain source and the filters shaping what the detector hears: External and SC Tilt, with the two boxes of
+// the filter SC Filter picks between them.
 
-class CompressorSidechainGroupWidget final : public CompressorGroupWidget
+class CompressorSidechainGroupWidget final : public CompressorGroupWidget,
+                                             private IdleCallback
 {
-    const std::array<std::shared_ptr<LabWidget>, 4> widgets {
+    // a filter's two boxes follow External, in the order of SC Filter's values
+    static constexpr const uint kFilterStart = 1;
+
+    const std::array<std::shared_ptr<LabWidget>, 8> widgets {
         addWidget<CompressorNumberBoxWidget<kFaustParameterSc_mix>, Expanding>(kFaustParameterSc_mix),
         addWidget<CompressorNumberBoxWidget<kFaustParameterSc_hp>, Expanding>(kFaustParameterSc_hp),
         addWidget<CompressorNumberBoxWidget<kFaustParameterSc_lp>, Expanding>(kFaustParameterSc_lp),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterSc_band_freq>, Expanding>(kFaustParameterSc_band_freq),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterSc_band_q>, Expanding>(kFaustParameterSc_band_q),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterSc_bell_freq>, Expanding>(kFaustParameterSc_bell_freq),
+        addWidget<CompressorNumberBoxWidget<kFaustParameterSc_bell_gain>, Expanding>(kFaustParameterSc_bell_gain),
         addWidget<CompressorNumberBoxWidget<kFaustParameterSc_tilt>, Expanding>(kFaustParameterSc_tilt),
     };
 
+    uint fFilter = UINT_MAX;
+
 public:
     explicit CompressorSidechainGroupWidget(LabWidget* const parent)
-        : CompressorGroupWidget(parent, 4) {}
+        : CompressorGroupWidget(parent, 4)
+    {
+        addIdleCallback(this);
+        showFilter(d_roundToUnsignedInt(kFaustParameters[kFaustParameterSc_filter].init));
+    }
+
+private:
+    bool showFilter(const uint filter)
+    {
+        if (filter == fFilter)
+            return false;
+
+        fFilter = filter;
+
+        for (uint i = kFilterStart; i < widgets.size() - 1; ++i)
+            widgets[i]->setVisible((i - kFilterStart) / 2 == filter);
+
+        return true;
+    }
+
+    void idleCallback() final
+    {
+        if (showFilter(d_roundToUnsignedInt(fInterface->getParameterValue(kParametersMainStart
+                                                                          + kFaustParameterSc_filter))))
+            updateSize(true);
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -613,11 +656,11 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// A listen button, taken from mbComp5's band headers: the solo icon in a small raised pill, lit in the accent colour
-// while on. kId is the parameter it switches.
+// The buttons in a group's header, taken from mbComp5's band headers: a small raised pill, its button lit in the
+// accent colour while on.
 
 template<const Color& kAccentColor>
-struct CompressorListenButtonGroupReference : Reference::Zero {
+struct CompressorHeaderButtonGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
     static constexpr const Color borderColor = backgroundColor;
     static constexpr const Color borderHighlightColor { borderColor, 0.16f };
@@ -642,13 +685,24 @@ struct CompressorListenButtonGroupReference : Reference::Zero {
         static constexpr const uint borderRadius = 4;
         static constexpr const uint width = height;
     };
+
+    // as Solo, with a name in place of the icon
+    struct Choice : Solo {
+        static constexpr const float fontSize = 10.f;
+        static constexpr const float letterSpacing = 0.4f;
+        // either side of the name
+        static constexpr const uint margin = 5;
+        static constexpr const uint width = 0;
+    };
 };
+
+// A listen button: the solo icon in the pill. kId is the parameter it switches.
 
 template<FaustParameterIndex kId>
 class CompressorListenButtonWidget final
-    : public ReferenceButtonGroupWidget<CompressorListenButtonGroupReference<accentColor<kId>()>>
+    : public ReferenceButtonGroupWidget<CompressorHeaderButtonGroupReference<accentColor<kId>()>>
 {
-    using GR = CompressorListenButtonGroupReference<accentColor<kId>()>;
+    using GR = CompressorHeaderButtonGroupReference<accentColor<kId>()>;
     using SR = typename GR::Solo;
     using BaseWidget = ReferenceButtonGroupWidget<GR>;
 
@@ -690,6 +744,148 @@ public:
     }
 };
 
+// A choice between the values of a radio parameter: their names side by side in the pill, the one set lit. kId is the
+// parameter it sets.
+
+template<FaustParameterIndex kId>
+class CompressorChoiceButtonWidget final
+    : public ReferenceContainerWidget<CompressorHeaderButtonGroupReference<accentColor<kId>()>>,
+      private ButtonEventHandler::Callback,
+      private IdleCallback
+{
+    using GR = CompressorHeaderButtonGroupReference<accentColor<kId>()>;
+    using CR = typename GR::Choice;
+    using BaseWidget = ReferenceContainerWidget<GR>;
+
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kId];
+
+    class ChoiceWidget final : public ReferenceButtonWidget<CR, kCornerBoth>
+    {
+        using ButtonWidget = ReferenceButtonWidget<CR, kCornerBoth>;
+
+    public:
+        ChoiceWidget(LabWidget* const parent, const uint value, const char* const label)
+            : ButtonWidget(parent)
+        {
+            ButtonWidget::setCheckable(true);
+            ButtonWidget::setId(value);
+            ButtonWidget::setName(label);
+        }
+
+    private:
+        void onNanoDisplay() final
+        {
+            ButtonWidget::fontFace("regular");
+
+            if (ButtonWidget::isChecked())
+            {
+                ButtonWidget::template drawReferenceBackground<CR, CR::backgroundColor〡checked, kCornerBoth>();
+                ButtonWidget::template drawReferenceBorder<CR, CR::borderColor>();
+                ButtonWidget::template drawReferenceText<CR, CR::color〡checked>(ButtonWidget::getName());
+            }
+            else
+            {
+                ButtonWidget::template drawReferenceBackground<CR, CR::backgroundColor, kCornerBoth>();
+                ButtonWidget::template drawReferenceBorder<CR, CR::borderColor>();
+
+                if (ButtonWidget::isHovered())
+                    ButtonWidget::template drawReferenceText<CR, CR::color〡hover>(ButtonWidget::getName());
+                else
+                    ButtonWidget::template drawReferenceText<CR, CR::color>(ButtonWidget::getName());
+            }
+        }
+
+        // as wide as its name, and the margins either side
+        void updateSize(const bool updateChildren) final
+        {
+            const float s = ButtonWidget::fScaleFactor;
+
+            Rectangle<float> bounds;
+            ButtonWidget::fontFace("regular");
+            ButtonWidget::fontSize(CR::fontSize * s);
+            ButtonWidget::textAlign(0);
+            ButtonWidget::textLetterSpacing(CR::letterSpacing * s);
+            ButtonWidget::textBounds(0, 0, ButtonWidget::getName(), nullptr, bounds);
+            ButtonWidget::setWidth(d_roundToUnsignedInt(bounds.getWidth() + CR::margin * 2 * s));
+
+            ButtonWidget::updateSize(updateChildren);
+        }
+    };
+
+    std::list<std::unique_ptr<ChoiceWidget>> fChoices;
+
+public:
+    explicit CompressorChoiceButtonWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        BaseWidget::addIdleCallback(this);
+        BaseWidget::setId(kParametersMainStart + kId);
+
+        for (uint i = 0; i < kParameter.scalePointCount; ++i)
+        {
+            std::unique_ptr<ChoiceWidget> widget {
+                new ChoiceWidget(this, kParameter.scalePoints[i].value, kParameter.scalePoints[i].label)
+            };
+            widget->setCallback(this);
+            BaseWidget::widgets.push_back({ widget.get(), Fixed });
+            fChoices.emplace_back(std::move(widget));
+        }
+
+        idleCallback();
+        updateSize(true);
+    }
+
+private:
+    void buttonClicked(SubWidget* const widget, int) final
+    {
+        ChoiceWidget* const choice = static_cast<ChoiceWidget*>(widget);
+
+        // the one set stays lit
+        if (! choice->isChecked())
+        {
+            choice->setChecked(true, false);
+            return;
+        }
+
+        for (const std::unique_ptr<ChoiceWidget>& other : fChoices)
+            if (other.get() != choice)
+                other->setChecked(false, false);
+
+        const uint id = BaseWidget::getId();
+        BaseWidget::fInterface->parameterControlPressed(id);
+        BaseWidget::fInterface->parameterControlModified(id, choice->getId());
+        BaseWidget::fInterface->parameterControlReleased(id);
+    }
+
+    void idleCallback() final
+    {
+        const uint value = d_roundToUnsignedInt(BaseWidget::fInterface->getParameterValue(BaseWidget::getId()));
+
+        for (const std::unique_ptr<ChoiceWidget>& choice : fChoices)
+            choice->setChecked(choice->getId() == value, false);
+    }
+
+    // as wide as its choices, the pill's padding between them and its margins
+    void updateSize(const bool updateChildren) final
+    {
+        DISTRHO_SAFE_ASSERT(updateChildren);
+
+        BaseWidget::updateSize(true);
+
+        const uint border = d_roundToUnsignedInt(GR::border * BaseWidget::fScaleFactor);
+        const uint margin = d_roundToUnsignedInt(GR::margin * BaseWidget::fScaleFactor);
+        const uint padding = d_roundToUnsignedInt(GR::padding * BaseWidget::fScaleFactor);
+
+        uint width = (border + margin) * 2 + padding * (std::max<uint>(1, fChoices.size()) - 1);
+        for (const std::unique_ptr<ChoiceWidget>& choice : fChoices)
+            width += choice->getWidth();
+
+        LabWidget::setWidth(width);
+
+        BaseWidget::updateSize(false);
+    }
+};
+
 // --------------------------------------------------------------------------------------------------------------------
 // A group's header, styled like the reverb's section headers: its name in the group's accent colour, at the panel's
 // top left, in a 12 px row 8 px above the controls.
@@ -700,6 +896,8 @@ struct CompressorGroupHeaderReference : Reference::Zero {
     // the label's row, as tall as its font, so it sits as far from the panel's top as from its left
     static constexpr const uint row = 12;
     static constexpr const uint gap = 8;
+    // between two buttons
+    static constexpr const uint buttonGap = 6;
     // the panel's top margin, then the row and the gap; the controls' own top margin follows
     static constexpr const uint height = CompressorGroupReference::margin + row + gap
                                        - CompressorGroupReference::margin;
@@ -713,7 +911,7 @@ class CompressorGroupHeaderWidget final : public LabWidget
     const char* const fLabel;
     const Color fColor;
 
-    std::unique_ptr<LabWidget> fButton;
+    std::vector<std::unique_ptr<LabWidget>> fButtons;
 
 public:
     CompressorGroupHeaderWidget(LabWidget* const parent, const char* const label, const Color color)
@@ -724,12 +922,12 @@ public:
         updateSize(false);
     }
 
-    // a button at the right of the label's row, centred on it, as far in from the panel's right as the label is from
-    // its left
+    // buttons at the right of the label's row, centred on it, the first as far in from the panel's right as the label
+    // is from its left and each one after left of the one before
     template<class B, typename... Args>
     void addButton(Args... args)
     {
-        fButton.reset(new B(this, args...));
+        fButtons.emplace_back(new B(this, args...));
         updateSize(false);
     }
 
@@ -750,14 +948,16 @@ private:
         setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(R::height * fScaleFactor));
         LabWidget::updateSize(updateChildren);
 
-        if (fButton != nullptr)
-        {
-            const int inset = d_roundToIntPositive((G::border + G::margin) * fScaleFactor);
-            const int rowCentre = d_roundToIntPositive((G::margin + R::row * 0.5f) * fScaleFactor);
+        const int gap = d_roundToIntPositive(R::buttonGap * fScaleFactor);
+        const int rowCentre = d_roundToIntPositive((G::margin + R::row * 0.5f) * fScaleFactor);
+        int right = getAbsoluteX() + static_cast<int>(getWidth())
+                  - d_roundToIntPositive((G::border + G::margin) * fScaleFactor);
 
-            fButton->setAbsolutePos(getAbsoluteX() + static_cast<int>(getWidth()) - inset
-                                        - static_cast<int>(fButton->getWidth()),
-                                    getAbsoluteY() + rowCentre - static_cast<int>(fButton->getHeight()) / 2);
+        for (const std::unique_ptr<LabWidget>& button : fButtons)
+        {
+            right -= static_cast<int>(button->getWidth());
+            button->setAbsolutePos(right, getAbsoluteY() + rowCentre - static_cast<int>(button->getHeight()) / 2);
+            right -= gap;
         }
     }
 };
@@ -963,6 +1163,7 @@ public:
         addGroup<CompressorDetectorGroupWidget>("DETECTOR", accentColor<kFaustParameterPeak_rms>());
         addGroup<CompressorSidechainGroupWidget>("SIDECHAIN", accentColor<kFaustParameterSc_mix>());
         fGroups.back()->addHeaderButton<CompressorListenButtonWidget<kFaustParameterSc_listen>>();
+        fGroups.back()->addHeaderButton<CompressorChoiceButtonWidget<kFaustParameterSc_filter>>();
     }
 };
 
