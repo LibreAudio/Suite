@@ -225,17 +225,36 @@ struct Reference {
 
         template<const Color& kAccentColor = Colors::acc1>
         struct CheckBox : Zero {
-            static constexpr const uint margin = 4;
-            static constexpr const uint height = 16;
+            static constexpr const Color color = Colors::ink;
+            static constexpr const Color color〡checked = kAccentColor;
+            static constexpr const uint padding = Common::margin / 2;
+            static constexpr const float fontSize = 13.f;
+            static constexpr const float letterSpacing = fontSize * 0.08f;
+            struct Box {
+                static constexpr const Color backgroundColor = Colors::track;
+                static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
+                static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
+                static constexpr const uint border = 1;
+                static constexpr const uint borderRadius = 4;
+            };
         };
 
         template<const Color& kAccentColor = Colors::acc1>
         struct ComboBox : Zero {
-            static constexpr const Color backgroundColor = Colors::track;
-            static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            static constexpr const Color color = kAccentColor;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
-            static constexpr const uint height = 16;
+            static constexpr const uint padding = Common::margin / 2;
+            static constexpr const float fontSize = 13.f;
+            static constexpr const float letterSpacing = fontSize * 0.08f;
+            struct Box {
+                static constexpr const Color backgroundColor = Colors::track;
+                static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
+                static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
+                static constexpr const uint border = 1;
+                static constexpr const uint borderRadius = 4;
+                static constexpr const uint margin = ComboBox::padding;
+            };
         };
 
         struct DualSlider : Zero {
@@ -279,7 +298,7 @@ struct Reference {
             };
         };
 
-        template<const Color& kAccentColor = Colors::acc1>
+        template<const Color& kAccentColor = Colors::acc1, uint _height = 40>
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
             static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
@@ -287,7 +306,7 @@ struct Reference {
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
             static constexpr const uint margin = 4;
-            static constexpr const uint height = 40;
+            static constexpr const uint height = _height;
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;

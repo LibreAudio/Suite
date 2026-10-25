@@ -5,12 +5,41 @@
 #pragma once
 
 #include "../_lab/button.hpp"
-
 #include "../reference.hpp"
+
+#include "LibreAudioParameters.hpp"
 
 #include "las-resources.h"
 
 namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Corner corner = kCornerAuto>
+class ParameterReferenceButtonWidget : public ReferenceButtonWidget<R, corner>
+{
+    using BaseWidget = ReferenceButtonWidget<R, corner>;
+
+public:
+    explicit ParameterReferenceButtonWidget(LabWidget* const parent, const FaustParameterIndex index)
+        : BaseWidget(parent, kParametersMainStart + index),
+          fParameter(kFaustParameters[index])
+    {
+        BaseWidget::setName(fParameter.name);
+
+        if (fParameter.isBoolean)
+        {
+            DISTRHO_SAFE_ASSERT(d_isZero(fParameter.min));
+            DISTRHO_SAFE_ASSERT(d_isNotZero(fParameter.max));
+
+            BaseWidget::setCheckable(true);
+            BaseWidget::setChecked(d_isNotZero(fParameter.init), false);
+        }
+    }
+
+protected:
+    const FaustParameter& fParameter;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

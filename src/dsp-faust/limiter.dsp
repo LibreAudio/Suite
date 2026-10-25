@@ -8,8 +8,8 @@ declare description "Lookahead brickwall limiter for mastering";
 declare license "GPL-3.0-or-later";
 declare name "Limiter";
 declare unique_id "LAli";
-declare graph "waveform";
-declare graph_source "input";
+// declare graph "waveform-gr";
+// declare graph_source "input";
 
 
 
@@ -42,13 +42,11 @@ ceiling = gain_group(vslider("[1]Ceiling[unit:dB][symbol:ceiling][accentcolor:06
        only the samples themselves]",
                              -1, -24, 0, 0.1));
 
-tpOn = gain_group(nentry("[2]True Peak[symbol:true_peak][accentcolor:06][bracket:CEILING]
-      [style:radio{'Off':0;'On':1}]
+tpOn = gain_group(checkbox("[2]True Peak[symbol:true_peak][accentcolor:06][bracket:CEILING]
       [tooltip: Limits the waveform between the samples too, not just the
        samples, so the Ceiling still holds after digital-to-analogue
        conversion or sample rate conversion. Costs a little more reduction
-       on bright material. Latency is the same either way]",
-                         1, 0, 1, 1));
+       on bright material. Latency is the same either way]"));
 
 unityGain = gain_group(checkbox("[3]Unity Gain[symbol:unity_gain][accentcolor:04]
       [tooltip: Takes the make-up gain back off at the output, so switching the

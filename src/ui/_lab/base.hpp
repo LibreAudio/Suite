@@ -199,48 +199,20 @@ protected:
         static_assert(d_isZero(R::borderHighlightColor.alpha) || R::borderRadius != 0,
                       "borderRadius must be != 0 if using border highlight color");
 
-            const float w = BaseWidget::getWidth();
-            const float h = BaseWidget::getHeight();
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
 
         if constexpr (R::border != 0 && d_isNotZero(borderColor.alpha))
         {
             const float border = d_roundToIntPositive(R::border * fScaleFactor);
-            const float borderh = border * 0.5f;
-
-            const float sx = borderh;
-            const float sy = borderh;
-            const float ex = w - borderh;
-            const float ey = h - borderh;
 
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0)
-            {
-                const float r = R::borderRadius * fScaleFactor;
-                DISTRHO_SAFE_ASSERT_RETURN(r < w * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(r < h * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(r > border,);
-
-                const float arcRadius = r - border;
-
-                BaseWidget::moveTo(sx + r, sy);
-                BaseWidget::arcTo(sx, sy, sx, ey - r, arcRadius);
-                BaseWidget::lineTo(sx, ey - r);
-                BaseWidget::arcTo(sx, ey, sx + r, ey, arcRadius);
-                BaseWidget::lineTo(ex - r, ey);
-                BaseWidget::arcTo(ex, ey, ex, ey - r, arcRadius);
-                BaseWidget::lineTo(ex, sx + r);
-                BaseWidget::arcTo(ex, sy, ex - r, sy, arcRadius);
-            }
+                borderRoundedRect(0, 0, w, h, border, d_roundToIntPositive(R::borderRadius * fScaleFactor));
             else
-            {
-                BaseWidget::moveTo(sx, sy);
-                BaseWidget::lineTo(sx, ey);
-                BaseWidget::lineTo(ex, ey);
-                BaseWidget::lineTo(ex, sy);
-            }
+                borderRect(0, 0, w, h, border);
 
-            BaseWidget::closePath();
             BaseWidget::strokeColor(borderColor);
             BaseWidget::strokeWidth(border);
             BaseWidget::stroke();
@@ -324,6 +296,47 @@ protected:
             BaseWidget::textLetterSpacing(R::letterSpacing * fScaleFactor);
             BaseWidget::text(w * 0.5f, h * 0.5f, text);
         }
+    }
+
+    // mimic nanovg rect() but make it better suited for border lines
+    void borderRect(float x, float y, float w, float h, const float border)
+    {
+        const float borderh = border * 0.5f;
+        x += borderh;
+        y += borderh;
+        w -= borderh;
+        h -= borderh;
+
+        BaseWidget::moveTo(x, y);
+        BaseWidget::lineTo(x, y + h);
+        BaseWidget::lineTo(x + w, y + h);
+        BaseWidget::lineTo(x + w, y);
+        BaseWidget::closePath();
+    }
+
+    // mimic nanovg roundedRect() but make it better suited for border lines
+    void borderRoundedRect(float x, float y, float w, float h, const float border, const float r)
+    {
+        const float arcRadius = r - border;
+        const float borderh = border * 0.5f;
+        x += borderh;
+        y += borderh;
+        w -= borderh;
+        h -= borderh;
+
+        DISTRHO_SAFE_ASSERT_RETURN(r < w * 0.5f,);
+        DISTRHO_SAFE_ASSERT_RETURN(r < h * 0.5f,);
+        DISTRHO_SAFE_ASSERT_RETURN(r > border,);
+
+        BaseWidget::moveTo(x + r, y);
+        BaseWidget::arcTo(x, y, x, y + h - r, arcRadius);
+        BaseWidget::lineTo(x, y + h - r);
+        BaseWidget::arcTo(x, y + h, x + r, y + h, arcRadius);
+        BaseWidget::lineTo(x + w - r, y + h);
+        BaseWidget::arcTo(x + w, y + h, x + w, y + h - r, arcRadius);
+        BaseWidget::lineTo(x + w, x + r);
+        BaseWidget::arcTo(x + w, y, x + w - r, y, arcRadius);
+        BaseWidget::closePath();
     }
 
     template <class R>

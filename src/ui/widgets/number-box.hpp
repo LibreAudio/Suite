@@ -15,10 +15,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
+template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::NumberBox<>::height>
 class NumberBoxWidget final : public LabKnobWidget
 {
-    using R = Reference::Widgets::NumberBox<kAccentColor>;
+    using R = Reference::Widgets::NumberBox<kAccentColor, height>;
     using BaseWidget = LabKnobWidget;
 
 public:
