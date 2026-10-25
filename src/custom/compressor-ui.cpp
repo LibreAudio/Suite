@@ -1635,8 +1635,22 @@ struct CompressorCurveReference : CompressorFloatingReference {
     static constexpr const float dbMin = -60.f;
     static constexpr const float gridStep = 12.f;
     static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
+    // the grid's dB, input along the bottom and output down the left, each on its line
+    struct GridLabel {
+        static constexpr const Color color { 1.f, 1.f, 1.f, 0.22f };
+        static constexpr const float fontSize = 9.f;
+        // from the panel's edge
+        static constexpr const float inset = 4.f;
+        // between a label and its line's end
+        static constexpr const float gap = 3.f;
+        // how far a line takes to fade out toward its label
+        static constexpr const float fade = 24.f;
+    };
     static constexpr const Color unityColor { 1.f, 1.f, 1.f, 0.14f };
-    static constexpr const Color thresholdColor { 1.f, 1.f, 1.f, 0.2f };
+    static constexpr const Color thresholdColor { 1.f, 1.f, 1.f, 0.35f };
+    // the threshold's hairlines are dotted: a dot this long, every this far, unscaled
+    static constexpr const float thresholdDot = 1.f;
+    static constexpr const float thresholdDotStep = 3.f;
     // mbComp5's curve colours, from left to right, blended between
     static constexpr const std::array<Color, 5> curveColors {{
         { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 }
@@ -1779,20 +1793,66 @@ private:
         save();
         intersectScissor(px, py, pw, ph);
 
-        // grid every 12 dB, across and down, leaving the panel's edges to its rim
-        beginPath();
+        // Grid every 12 dB, across and down, its dB on each line as mbComp5's: input centred on its line along the
+        // bottom, output centred on its line down the left. Each line stops short of its label and fades out at both
+        // ends, toward its label and toward the panel's edge.
+        fontFace("regular");
+        fontSize(R::GridLabel::fontSize * s);
+        strokeWidth(1.f);
+
+        const float inset = R::GridLabel::inset * s;
+        const float gap = R::GridLabel::gap * s;
+        const float fade = R::GridLabel::fade * s;
+        const Color clear { R::gridColor, 0.f };
+
+        // a grid line from start to end, across at y = at or down at x = at, in two halves each fading out at its end
+        const auto gridLine = [&](const bool across, const float at, const float start, const float end) {
+            const float mid = (start + end) * 0.5f;
+            const auto point = [&](const float v) {
+                across ? lineTo(v, at) : lineTo(at, v);
+            };
+            const auto gradient = [&](const float from, const float to) {
+                return across ? linearGradient(from, 0, to, 0, clear, R::gridColor)
+                              : linearGradient(0, from, 0, to, clear, R::gridColor);
+            };
+
+            beginPath();
+            across ? moveTo(start, at) : moveTo(at, start);
+            point(mid);
+            strokePaint(gradient(start, start + fade));
+            stroke();
+
+            beginPath();
+            across ? moveTo(mid, at) : moveTo(at, mid);
+            point(end);
+            strokePaint(gradient(end, end - fade));
+            stroke();
+        };
+
         for (float db = R::dbMin + R::gridStep; db < 0.f; db += R::gridStep)
         {
             const float gx = std::round(dbToX(db)) + 0.5f;
             const float gy = std::round(dbToY(db)) + 0.5f;
-            moveTo(gx, py);
-            lineTo(gx, py + ph);
-            moveTo(px, gy);
-            lineTo(px + pw, gy);
+
+            char dbstr[8];
+            std::snprintf(dbstr, sizeof(dbstr), "%.0f", db);
+
+            Rectangle<float> bounds;
+            textBounds(0, 0, dbstr, nullptr, bounds);
+
+            // across, from the label at the left
+            gridLine(true, gy, px + inset + bounds.getWidth() + gap, px + pw);
+
+            // down, to the label at the bottom
+            const float cy = py + ph - inset - R::GridLabel::fontSize * 0.5f * s;
+            gridLine(false, gx, py, cy - R::GridLabel::fontSize * 0.5f * s - gap);
+
+            fillColor(R::GridLabel::color);
+            textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+            text(px + inset, gy, dbstr, nullptr);
+            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+            text(gx, cy, dbstr, nullptr);
         }
-        strokeColor(R::gridColor);
-        strokeWidth(1.f);
-        stroke();
 
         // The top and bottom of the panel's rounded outline at an x.
         const auto outline = [&](const float x) {
@@ -1838,17 +1898,35 @@ private:
             lineTo(dbToX(0.f), dbToY(0.f));
         });
 
-        // the threshold, up to where it meets the diagonal and across to the left
+        // the threshold, dotted, up to where it meets the diagonal and across to the left, fading out at the edges as
+        // the grid does, the dots on whole pixels from where the two meet
         {
-            const float tx = std::round(dbToX(fValues[0])) + 0.5f;
-            const float ty = std::round(dbToY(fValues[0])) + 0.5f;
+            const float tx = std::round(dbToX(fValues[0]));
+            const float ty = std::round(dbToY(fValues[0]));
+            const float dot = std::max(1.f, std::round(R::thresholdDot * s));
+            const float step = std::max(dot + 1.f, std::round(R::thresholdDotStep * s));
+            const Color clear { R::thresholdColor, 0.f };
 
-            clippedStroke([&] { strokeColor(R::thresholdColor); }, 1.f, [&](float, float) {
-                beginPath();
-                moveTo(tx, py + ph);
-                lineTo(tx, ty);
-                lineTo(px, ty);
-            });
+            strokeWidth(1.f);
+            lineCap(BUTT);
+
+            beginPath();
+            for (float y = ty; y < py + ph; y += step)
+            {
+                moveTo(tx + 0.5f, y);
+                lineTo(tx + 0.5f, y + dot);
+            }
+            strokePaint(linearGradient(0, py + ph - fade, 0, py + ph, R::thresholdColor, clear));
+            stroke();
+
+            beginPath();
+            for (float x = tx; x > px; x -= step)
+            {
+                moveTo(x, ty + 0.5f);
+                lineTo(x - dot, ty + 0.5f);
+            }
+            strokePaint(linearGradient(px + fade, 0, px, 0, R::thresholdColor, clear));
+            stroke();
         }
 
         // The curve a pixel at a time from x0 to x1, held to the outline when it is to be filled, which for the area
