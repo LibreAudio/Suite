@@ -32,7 +32,6 @@ public:
     explicit ContainerBaseWidgetOf(Window& windowToMapTo, LabUIWidgetInterface* const iface)
         : BaseWidget(windowToMapTo, iface) {}
 
-protected:
     template<class W = LabEmptyWidget>
     std::shared_ptr<W> addSpacer()
     {
