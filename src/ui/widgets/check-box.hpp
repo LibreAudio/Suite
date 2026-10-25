@@ -14,12 +14,12 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
-class CheckBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::CheckBox<kAccentColor>>,
+template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::CheckBox<>::height>
+class CheckBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::CheckBox<kAccentColor, height>>,
                              private ButtonEventHandler::Callback,
                              private IdleCallback
 {
-    using R = Reference::Widgets::CheckBox<kAccentColor>;
+    using R = Reference::Widgets::CheckBox<kAccentColor, height>;
     using BaseWidget = ParameterReferenceButtonWidget<R, kCornerAuto>;
     using State = typename BaseWidget::State;
 

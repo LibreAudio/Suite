@@ -11,12 +11,12 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
-class ComboBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::ComboBox<kAccentColor>>,
+template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::ComboBox<>::height>
+class ComboBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::ComboBox<kAccentColor, height>>,
                              private ButtonEventHandler::Callback,
                              private IdleCallback
 {
-    using R = Reference::Widgets::ComboBox<kAccentColor>;
+    using R = Reference::Widgets::ComboBox<kAccentColor, height>;
     using BaseWidget = ParameterReferenceButtonWidget<R>;
 
 public:

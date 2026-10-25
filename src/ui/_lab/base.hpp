@@ -334,7 +334,7 @@ protected:
         BaseWidget::arcTo(x, y + h, x + r, y + h, arcRadius);
         BaseWidget::lineTo(x + w - r, y + h);
         BaseWidget::arcTo(x + w, y + h, x + w, y + h - r, arcRadius);
-        BaseWidget::lineTo(x + w, x + r);
+        BaseWidget::lineTo(x + w, y + r);
         BaseWidget::arcTo(x + w, y, x + w - r, y, arcRadius);
         BaseWidget::closePath();
     }

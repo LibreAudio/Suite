@@ -24,13 +24,19 @@ static constexpr const uint kNumberBoxHeight = 50;
 static constexpr const uint kGroupsWidth[5] = { 115, 0, 0, 0, 140 };
 
 template<const Color& kAccentColor>
+using LimiterCheckBoxWidget = CheckBoxWidget<kAccentColor, (kNumberBoxHeight - kCommonPadding) / 2>;
+
+template<const Color& kAccentColor>
+using LimiterComboBoxWidget = ComboBoxWidget<kAccentColor, (kNumberBoxHeight - kCommonPadding) / 2>;
+
+template<const Color& kAccentColor>
 using LimiterNumberBoxWidget = NumberBoxWidget<kAccentColor, kNumberBoxHeight>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace widgets {
-    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, CheckBoxWidget<Reference::Colors::acc6>>;
-    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, CheckBoxWidget<Reference::Colors::acc4>>;
+    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, LimiterCheckBoxWidget<Reference::Colors::acc6>>;
+    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, LimiterCheckBoxWidget<Reference::Colors::acc4>>;
 
     using Threshold = ParameterWidgetPair<kFaustParameterThreshold, LimiterNumberBoxWidget<Reference::Colors::acc1>>;
     using Ceiling = ParameterWidgetPair<kFaustParameterCeiling, LimiterNumberBoxWidget<Reference::Colors::acc6>>;
@@ -41,8 +47,8 @@ namespace widgets {
     using Release = ParameterWidgetPair<kFaustParameterRelease, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
     using AutoRelease = ParameterWidgetPair<kFaustParameterAuto_release, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
 
-    using Dither = ParameterWidgetPair<kFaustParameterDither, ComboBoxWidget<Reference::Colors::acc2>>;
-    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, ComboBoxWidget<Reference::Colors::acc2>>;
+    using Dither = ParameterWidgetPair<kFaustParameterDither, LimiterComboBoxWidget<Reference::Colors::acc2>>;
+    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, LimiterComboBoxWidget<Reference::Colors::acc2>>;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
