@@ -41,12 +41,9 @@ import("stdfaust.lib");
 // towards one end of the spectrum. Listen monitors that filtered signal so it
 // can be set by ear.
 //
-// S-Curve rounds the release: a second switching one-pole in series with the
-// gate's own. A plain exponential is steepest the instant it starts and only
-// ever slows down; the pair leaves gently, reaches its fastest partway down and
-// then eases into silence, so it cannot chop the front off a tail. The S is on
-// the gain axis -- on a dB meter it reads as a ramp that gets steeper, because
-// a straight dB ramp *is* the plain exponential.
+// Release Curve shapes the way down, with the same rate law as compressor.dsp:
+// at 0% the gain falls in a straight line in dB, at 100% it drops quickly and
+// then eases into the Range floor with a long tail.
 //
 // Lookahead delays the audio while the detector keeps reading it undelayed, so
 // the gate is already open by the time the transient arrives at the output.
@@ -95,24 +92,16 @@ hysteresis = uiBottomLeft(hslider("[02]Hysteresis[style:knob][unit:dB][symbol:hy
       [tooltip: How far below Threshold the level must fall before the gate closes. Stops it chattering on a signal that hovers at the threshold. 0 dB = off]",
       0, 0, 20, 0.1));
 
-// The top of the knob is a true mute, not db2linear(-60): the multiply by
-// (range < rangeMax) drops the floor to exactly zero there, so the default is
-// bit-identical to a gate with no Range at all. The step it introduces at the
-// very top of the travel is from -60 dB to silence, which is the "infinity"
-// mark on a hardware Range control and is inaudible either way.
-//
-// Smoothed after the conversion, not before: db2linear of a bare slider stays
-// a per-block scalar, and si.smoo on the result is a one-pole per sample
-// rather than a pow per sample. It has to be smoothed at all because the floor
-// scales the output gain directly -- turning Range while the gate is shut
-// would otherwise step the audio.
+// Range is the floor the envelope runs down to, in dB. The top of the knob is a
+// true mute: once the envelope reaches -60 dB the gain drops to exactly zero.
+// That step from -60 dB to silence is the "infinity" mark on a hardware Range
+// control and is inaudible. Not smoothed: a move of the floor is chased by the
+// envelope like any other change of target, so it ramps rather than steps.
 rangeMax = 60;
 
 range = uiBottomLeft(hslider("[03]Range[style:knob][unit:dB][symbol:range][label:Range][accentcolor:01]
       [tooltip: Ceiling on how far the gate pulls the signal down. Lower values duck instead of muting, so room tone stays. At maximum the gate mutes completely]",
       rangeMax, 0, rangeMax, 0.1));
-
-grFloor = ba.db2linear(0 - range) * (range < rangeMax) : si.smoo;
 
 //---- sidechain source and filter ----
 // Shapes what the detector hears, never the audio. The defaults leave the
@@ -212,29 +201,26 @@ hold = uiBottomRight(hslider("[12]Hold[style:knob][unit:ms][scale:log][symbol:ho
       200, 1, 1000, 1)) : *(0.001) : max(oneSample);
 
 release = uiBottomRight(hslider("[13]Release[style:knob][unit:ms][scale:log][symbol:release][label:Release][accentcolor:03][bracket:ENVELOPE]
-      [tooltip: Time constant for the gate to close (exponentially) from unmuted to muted]",
+      [tooltip: Time constant for the gate to close. At Release Curve 0% the gain falls 8.7 dB per Release time; at 100% it covers 63% of the way to the Range floor in one Release time]",
       100, 1, 1000, 1)) : *(0.001) : max(oneSample);
 
-// Cascading two one-poles of equal time constant stretches the 1/e point from
-// one time constant to 2.146 of them -- the root of (1 + t/tau)*exp(-t/tau) =
-// 1/e -- so both stages run at release/2.146 when the curve is engaged and the
-// knob keeps meaning what it says. Measured at Release 100 ms: 96.0 ms to
-// -8.686 dB either way.
-sCurveStretch = 2.146;
+releaseCurve = uiBottomRight(hslider("[14]Release Curve[style:knob][unit:%][symbol:release_curve][label:Curve][accentcolor:03][bracket:ENVELOPE]
+      [tooltip: Shape of the release. 0% = straight line in dB, the classic gate fade. 100% = exponential into the Range floor: lets go quickly, then a long tail]",
+      0, 0, 100, 1)) / 100;
 
-sCurve = uiBottomRight(checkbox("[14]Release S-Curve[symbol:release_scurve][label:S-Curve][bracket:ENVELOPE]
-      [tooltip: Rounds the release into an S: it leaves gently, falls fastest partway down and eases into silence, instead of being steepest the moment it starts]")) : si.smoo;
+// The dB span Release is measured over at curve 0: 20/ln(10), the 8.686 dB a
+// one-pole in linear gain falls per time constant. That makes curve 0 exactly
+// the library gate's release, and at curve 1 curveRef drops out entirely.
+curveRef = 20 / log(10);
 
-// Both the shaped and unshaped envelopes are computed and crossfaded, so
-// toggling mid-note slides between them instead of jumping. At 0 the blend
-// returns the unshaped envelope exactly and the release time is untouched.
-releaseShaped = release / it.interpolate_linear(sCurve, 1.0, sCurveStretch) : max(oneSample);
+// How far the curve may scale the nominal rate, in either direction. Near the
+// floor it stops the tail from asymptoting forever instead of landing on it.
+curveBound = 8;
 
 // --- Meter ---
 
 // Shown as reduction (positive dB down) like the other LAS meters, hence the
-// sign flip. Floored before the log: a fully closed gate has a gain of exactly
-// 0, and ba.linear2db(0) is -inf.
+// sign flip. Read straight off the dB envelope, so it tops out at Range.
 maxGR = 60;
 gate_meter = uiMeters(hbargraph("[1]Gate Reduction[unit:dB][symbol:gate_meter]", 0, maxGR));
 
@@ -251,10 +237,11 @@ lookaheadSamples = lookaheadDelay : latency_meter;
 // --- Gate gain ---
 
 
-// ef.gate_gain_mono, with its one stateless comparison replaced by a Schmitt
-// trigger so the threshold can differ on the way up and on the way down.
-// Everything else -- the level follower, the hold counter, the attack/release
-// envelope -- is the library's, kept as it stands.
+// ef.gate_gain_mono up to its envelope, with its one stateless comparison
+// replaced by a Schmitt trigger so the threshold can differ on the way up and
+// on the way down. The level follower and the hold counter are the library's,
+// kept as they stand. Returns the held decision, 1 = open; gateEnvelope turns
+// it into a gain.
 //
 // The comparison had to move in here rather than wrap the library call: the
 // `>` inside gate_gain_mono is memoryless, so there is nowhere outside it to
@@ -264,10 +251,10 @@ lookaheadSamples = lookaheadDelay : latency_meter;
 // on both branches and the expression collapses to exactly the library's
 // `inlevel > db2linear(thresh)` -- same sample, no added delay, bit-identical
 // output. Verified against the library build over 120k samples.
-gateGain(x) = x : extendedrawgate : si.onePoleSwitching(attack, releaseShaped)
+gateGain(x) = x : extendedrawgate
 with {
     // The library's detector, untouched.
-    minrate = min(attack, releaseShaped);
+    minrate = min(attack, release);
     inlevel = an.amp_follower_ar(minrate, minrate);
 
     // One pow per sample for the open threshold, as before; the close
@@ -306,6 +293,46 @@ with {
     };
 };
 
+// --- Envelope ---
+
+// Runs in dB, between 0 (open) and -range (closed), because Release Curve is a
+// shape in dB and needs a finite floor to aim at.
+//
+// Attack is the library's one-pole in linear gain, taken there and back, so it
+// opens exactly as before. Release is compressor.dsp's rate law:
+//
+//     step per sample = (curveRef / (release * SR)) * (distance / curveRef)^curve
+//
+// curve 0 is a constant step, a straight line in dB -- which is what a
+// one-pole in linear gain does on its way to zero. curve 1 is a step
+// proportional to the distance left, an exponential in dB into the floor.
+// The step never overshoots the target, so the envelope lands on the floor
+// exactly, and the mute at Range maximum can test for it.
+//
+// The state starts on the target, so the gate starts closed rather than
+// fading in from open.
+gateEnvelope(open) = loop ~ _
+with {
+    target   = (open - 1) * range;
+    floorLin = ba.db2linear(0 - range);
+    pole     = ba.tau2pole(attack);
+
+    loop(yPrev) = select2(atk, rel, atk_)
+    with {
+        y    = select2(1 - 1', yPrev, target);
+        diff = target - y;
+        dist = abs(diff);
+        atk  = diff > 0;
+
+        tLin = select2(open > 0.5, floorLin, 1);
+        atk_ = ba.linear2db(tLin + (ba.db2linear(y) - tLin) * pole);
+
+        rate = curveRef / (release * ma.SR);
+        step = rate * pow(min(curveBound, max(1 / curveBound, dist / curveRef)), releaseCurve);
+        rel  = y - min(step, dist);
+    };
+};
+
 // --- Gate ---
 
 // The gain is computed once and applied to both channels, rather than calling
@@ -336,24 +363,13 @@ with {
     scL = it.interpolate_linear(scMix, l, scInL) : scFilter;
     scR = it.interpolate_linear(scMix, r, scInR) : scFilter;
 
-    // Stage one is gateGain's own envelope; stage two is a second switching
-    // one-pole whose attack is a single sample, so it passes the opening
-    // through untouched and only shapes the way down. Two equal poles in
-    // series give a step response with zero initial slope and an inflection --
-    // an S -- while still decaying to true zero, which a warp of the gain into
-    // a bounded dB range would not.
-    grRaw  = gateGain(abs(scL) + abs(scR));
-    grGate = it.interpolate_linear(sCurve, grRaw, grRaw : si.onePoleSwitching(oneSample, releaseShaped));
+    envDb = gateGain(abs(scL) + abs(scR)) : gateEnvelope;
 
-    // Range rescales the envelope's travel rather than clamping it: the gate
-    // still moves over its whole range, it just runs between grFloor and 1
-    // instead of between 0 and 1. A clamp would put a corner in the curve at
-    // the moment the floor is reached, and would need the reduction in dB --
-    // another pow per sample -- to find that moment.
-    gr = grFloor + grGate * (1 - grFloor);
+    // Mute at the top of Range, once the envelope has landed on the floor.
+    gr = ba.db2linear(envDb) * ((range < rangeMax) | (envDb > 0 - range));
 
     // The meter reads what is actually applied, so it tops out at Range.
-    reductionDb = 0 - (gr : max(ba.db2linear(0 - maxGR)) : ba.linear2db);
+    reductionDb = 0 - envDb;
 
     // The monitored sidechain goes through the same delay as the audio, so
     // what is heard stays aligned with the latency the host is compensating
