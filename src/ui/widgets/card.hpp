@@ -123,7 +123,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class CardGroupWidget final : public ReferenceButtonGroupWidget<Reference::Widgets::CardGroup>
+class CardGroupWidget : public ReferenceButtonGroupWidget<Reference::Widgets::CardGroup>
 {
     using R = Reference::Widgets::CardGroup;
     using BaseWidget = ReferenceButtonGroupWidget<R>;

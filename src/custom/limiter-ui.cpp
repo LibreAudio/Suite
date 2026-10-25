@@ -57,13 +57,12 @@ struct LimiterGroupReference : Reference::Zero {
     static constexpr const uint shadowFeather = 14;
 };
 
-template <Orientation orientation, class W1, class W2>
-using LimiterGroupWidget = StaticParameterContainerWidget<LimiterGroupReference, orientation, Expanding, W1, W2>;
+template <Orientation orientation, typename... Args>
+using LimiterGroupWidget = StaticParameterContainerWidget<LimiterGroupReference, orientation, Expanding, Args...>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
 struct LimiterGroupsContainerReference : Reference::Zero {
-    static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
     static constexpr const uint height = LimiterGroupReference::height + (border + margin) * 2;
 };
@@ -81,16 +80,66 @@ using LimiterGroupsContainerWidget = StaticContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct LimiterExpertPageReference : Reference::Zero {
+class LimiterPresetCardsWidget : public CardGroupWidget
+{
+    const std::array<std::shared_ptr<LabCardWidget>, 4> cards = {
+        addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
+        addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
+        addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
+        addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack"),
+    };
+
+public:
+    explicit LimiterPresetCardsWidget(LabWidget* const parent)
+        : CardGroupWidget(parent)
+    {
+        done();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+struct LimiterEasyExpertPageReference : Reference::Zero {
     static constexpr const uint margin = 12;
     static constexpr const uint padding = 8;
 };
 
-using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<LimiterExpertPageReference, LimiterGroupsContainerWidget>;
+using LimterEasyPageWidget = StaticBottomAlignedContainerWidget<
+    LimiterEasyExpertPageReference,
+    LimiterPresetCardsWidget
+>;
+
+using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
+    LimiterEasyExpertPageReference,
+    LimiterGroupsContainerWidget
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using LimterStageWidget = StageWidget<EasyStageWidget, LimterExpertPageWidget>;
+class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>
+{
+    using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
+
+public:
+    LimterStageWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+    }
+
+    void onResize(const ResizeEvent& ev) override
+    {
+        BaseWidget::onResize(ev);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 using LimiterMainArea = MainAreaContainerWidget<LimterStageWidget>;
 using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
 

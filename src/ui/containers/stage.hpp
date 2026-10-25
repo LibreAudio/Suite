@@ -168,12 +168,6 @@ public:
         return R::borderRadius * fScaleFactor;
     }
 
-    void onNanoDisplay() override
-    {
-        drawReferenceBackground<R>();
-        drawReferenceBorder<R>();
-    }
-
 protected:
     Page fLastPage = kPageEasy;
 
@@ -200,6 +194,12 @@ protected:
         case kPageSettings:
             break;
         }
+    }
+
+    void onNanoDisplay() override
+    {
+        drawReferenceBackground<R>();
+        drawReferenceBorder<R>();
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) override
