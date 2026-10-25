@@ -79,6 +79,12 @@ inline void initCommonParameterValuesToDefault(float values[kCommonParameterCoun
     }
 }
 
+template <FaustParameterIndex index, class W>
+struct ParameterWidgetPair {
+    static constexpr FaustParameterIndex Index = index;
+    using Widget = W;
+};
+
 // --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO

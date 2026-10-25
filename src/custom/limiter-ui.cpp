@@ -16,6 +16,25 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+namespace widgets {
+    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, NumberBoxWidget<Reference::Colors::acc6>>;
+    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, NumberBoxWidget<Reference::Colors::acc4>>;
+
+    using Threshold = ParameterWidgetPair<kFaustParameterThreshold, NumberBoxWidget<Reference::Colors::acc1>>;
+    using Ceiling = ParameterWidgetPair<kFaustParameterCeiling, NumberBoxWidget<Reference::Colors::acc6>>;
+
+    using Attack = ParameterWidgetPair<kFaustParameterAttack, NumberBoxWidget<Reference::Colors::acc5>>;
+    using AttackShape = ParameterWidgetPair<kFaustParameterAttack_shape, NumberBoxWidget<Reference::Colors::acc5>>;
+
+    using Release = ParameterWidgetPair<kFaustParameterRelease, NumberBoxWidget<Reference::Colors::acc3>>;
+    using AutoRelease = ParameterWidgetPair<kFaustParameterAuto_release, NumberBoxWidget<Reference::Colors::acc3>>;
+
+    using Dither = ParameterWidgetPair<kFaustParameterDither, NumberBoxWidget<Reference::Colors::acc2>>;
+    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, NumberBoxWidget<Reference::Colors::acc2>>;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
 
@@ -38,20 +57,8 @@ struct LimiterGroupReference : Reference::Zero {
     static constexpr const uint shadowFeather = 14;
 };
 
-template <Orientation orientation, FaustParameterIndex i1, class W1, FaustParameterIndex i2, class W2>
-class LimiterGroupWidget final : public ReferenceContainerWidget<LimiterGroupReference, orientation>
-{
-    const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        BaseWidget::template addWidget<W1, Expanding>(i1),
-        BaseWidget::template addWidget<W2, Expanding>(i2),
-    };
-
-public:
-    using BaseWidget = ReferenceContainerWidget<LimiterGroupReference, orientation>;
-
-    explicit LimiterGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+template <Orientation orientation, class W1, class W2>
+using LimiterGroupWidget = StaticParameterContainerWidget<LimiterGroupReference, orientation, Expanding, W1, W2>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -61,49 +68,16 @@ struct LimiterGroupsContainerReference : Reference::Zero {
     static constexpr const uint height = LimiterGroupReference::height + (border + margin) * 2;
 };
 
-class LimiterGroupsContainerWidget final : public ReferenceContainerWidget<LimiterGroupsContainerReference, kHorizontal>
-{
-    using Group1 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterTrue_peak,
-                                      NumberBoxWidget<Reference::Colors::acc6>,
-                                      kFaustParameterUnity_gain,
-                                      NumberBoxWidget<Reference::Colors::acc4>>;
-    using Group2 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterThreshold,
-                                      NumberBoxWidget<Reference::Colors::acc1>,
-                                      kFaustParameterCeiling,
-                                      NumberBoxWidget<Reference::Colors::acc6>>;
-    using Group3 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterAttack,
-                                      NumberBoxWidget<Reference::Colors::acc5>,
-                                      kFaustParameterAttack_shape,
-                                      NumberBoxWidget<Reference::Colors::acc5>>;
-    using Group4 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterRelease,
-                                      NumberBoxWidget<Reference::Colors::acc3>,
-                                      kFaustParameterAuto_release,
-                                      NumberBoxWidget<Reference::Colors::acc3>>;
-    using Group5 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterDither,
-                                      NumberBoxWidget<Reference::Colors::acc2>,
-                                      kFaustParameterNoise_shaping,
-                                      NumberBoxWidget<Reference::Colors::acc2>>;
-
-    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
-        addWidget<Group1, Expanding>(),
-        addWidget<Group2, Expanding>(),
-        addWidget<Group3, Expanding>(),
-        addWidget<Group4, Expanding>(),
-        addWidget<Group5, Expanding>(),
-    };
-
-public:
-    using R = LimiterGroupsContainerReference;
-    using BaseWidget = ReferenceContainerWidget<R, kHorizontal>;
-
-    explicit LimiterGroupsContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using LimiterGroupsContainerWidget = StaticContainerWidget<
+    LimiterGroupsContainerReference,
+    kHorizontal,
+    Expanding,
+    LimiterGroupWidget<kHorizontal, widgets::TruePeak, widgets::UnityGain>,
+    LimiterGroupWidget<kHorizontal, widgets::Threshold, widgets::Ceiling>,
+    LimiterGroupWidget<kHorizontal, widgets::Attack, widgets::AttackShape>,
+    LimiterGroupWidget<kHorizontal, widgets::Release, widgets::AutoRelease>,
+    LimiterGroupWidget<kHorizontal, widgets::Dither, widgets::NoiseShaping>
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -112,36 +86,11 @@ struct LimiterExpertPageReference : Reference::Zero {
     static constexpr const uint padding = 8;
 };
 
-class LimterExpertPageWidget final : public ReferenceContainerWidget<LimiterExpertPageReference, kVertical>
-{
-    const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        addSpacer(),
-        addWidget<LimiterGroupsContainerWidget>(),
-    };
-
-public:
-    using BaseWidget = ReferenceContainerWidget<LimiterExpertPageReference, kVertical>;
-
-    explicit LimterExpertPageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<LimiterExpertPageReference, LimiterGroupsContainerWidget>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimterStageWidget : public StageWidget<EasyStageWidget, LimterExpertPageWidget>
-{
-public:
-    // using R = LimterStageReference;
-    using BaseWidget = StageWidget<EasyStageWidget, LimterExpertPageWidget>;
-
-    explicit LimterStageWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
+using LimterStageWidget = StageWidget<EasyStageWidget, LimterExpertPageWidget>;
 using LimiterMainArea = MainAreaContainerWidget<LimterStageWidget>;
 using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
 

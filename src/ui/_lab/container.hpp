@@ -49,10 +49,13 @@ protected:
     {
         std::shared_ptr<W> widget { new W(this, args...) };
         Layout::widgets.push_back({ widget.get(), sizeHint });
-        if (sizeHint == Fixed && widget->getSize().isNull())
-            d_stderr2("Error: addWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
-                      widget->getId(),
-                      widget->getName());
+        if constexpr (sizeHint == Fixed)
+        {
+            if (widget->getSize().isNull())
+                d_stderr2("Error: addWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
+                          widget->getId(),
+                          widget->getName());
+        }
         return widget;
     }
 };

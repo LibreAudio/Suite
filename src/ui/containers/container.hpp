@@ -39,4 +39,70 @@ using TransparentSizedContainerWidget = ReferenceContainerWidget<TransparentSize
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
+class StaticContainerWidget : public ReferenceContainerWidget<R, orientation>
+{
+    using BaseWidget = ReferenceContainerWidget<R, orientation>;
+
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
+        BaseWidget::template addWidget<Args, sizeHint>()...
+    };
+
+public:
+    explicit StaticContainerWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
+class StaticParameterContainerWidget : public ReferenceContainerWidget<R, orientation>
+{
+    using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using Layout = typename BaseWidget::Layout;
+
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
+        addParameterWidget<Args>()...
+    };
+
+    template<class PW, typename = std::enable_if_t<std::is_base_of_v<LabWidget, typename PW::Widget>>>
+    std::shared_ptr<typename PW::Widget> addParameterWidget()
+    {
+        using W = typename PW::Widget;
+        std::shared_ptr<W> widget { new W(this, PW::Index) };
+        Layout::widgets.push_back({ widget.get(), sizeHint });
+        if constexpr (sizeHint == Fixed)
+        {
+            if (widget->getSize().isNull())
+                d_stderr2("Error: addParameterWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
+                          PW::Index,
+                          widget->getName());
+        }
+        return widget;
+    }
+
+public:
+    explicit StaticParameterContainerWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, typename... Args>
+class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, kVertical>
+{
+    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+
+    const std::array<std::shared_ptr<LabWidget>, 1 + sizeof...(Args)> widgets {
+        BaseWidget::addSpacer(),
+        BaseWidget::template addWidget<Args, Fixed>()...
+    };
+
+public:
+    explicit StaticBottomAlignedContainerWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 } /* namespace LibreAudio */
