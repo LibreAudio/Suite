@@ -4,6 +4,9 @@ declare license "GPL-3.0-or-later";
 declare name "Gate";
 declare unique_id "LAga";
 
+// For some parts of this file, a large language model was involved as a coding assistant.
+// The ideas, the design decisions and the listening behind it are purely human.
+
 // declare drywet "true";
 
 import("stdfaust.lib");
@@ -30,11 +33,13 @@ import("stdfaust.lib");
 // channels. Two independent detectors would open the channels by different
 // amounts on the same transient and swing the stereo image with it.
 //
-// The sidechain filters shape what the detector hears and never the audio:
-// a high pass keeps the kick from holding the gate open, a low pass keeps
-// hiss and cymbal spill from doing the same, and the tilt weights the whole
-// detector towards one end of the spectrum. Listen monitors that filtered
-// signal so they can be set by ear.
+// The sidechain section shapes what the detector hears and never the audio.
+// External crossfades the detector from the plugin's own audio to an external
+// sidechain. The filter is a high pass and low pass pair, a band pass or a
+// bell: the pair keeps kick and hiss from holding the gate open, the band pass
+// and bell key it on one region, and the tilt weights the whole detector
+// towards one end of the spectrum. Listen monitors that filtered signal so it
+// can be set by ear.
 //
 // S-Curve rounds the release: a second switching one-pole in series with the
 // gate's own. A plain exponential is steepest the instant it starts and only
@@ -57,7 +62,12 @@ maxSR = 192000;
 maxLookaheadMs = 10;
 maxLookaheadSamples = int(maxLookaheadMs * maxSR / 1000);   // 1920
 
-process = si.bus(Nch) : gate;
+// The gate engine takes 4 inputs: 1-2 audio, 3-4 external sidechain.
+// src/DistrhoPluginInfo.h #errors on anything but 2 inputs, so until the DPF
+// side grows a sidechain port group `si.bus(Nch) <: si.bus(2 * Nch)` fans the
+// audio out as [L, R, L, R] and the sidechain pair receives a copy of it. To
+// open the real inputs, replace the line with `process = gate;`.
+process = si.bus(Nch) <: si.bus(2 * Nch) : gate;
 
 // --- UI structure ---
 
@@ -104,24 +114,51 @@ range = uiBottomLeft(hslider("[03]Range[style:knob][unit:dB][symbol:range][label
 
 grFloor = ba.db2linear(0 - range) * (range < rangeMax) : si.smoo;
 
-//---- sidechain filter ----
-// Shapes what the detector hears, never the audio. Both defaults are at the
-// end of their range where the filter is effectively out of circuit.
+//---- sidechain source and filter ----
+// Shapes what the detector hears, never the audio. The defaults leave the
+// filter effectively out of circuit.
 
-scHp = uiBottomLeft(hslider("[04]SC High Pass[style:knob][unit:Hz][scale:log][symbol:sc_hp][label:SC HP][accentcolor:06][bracket:SIDECHAIN]
+scMix = uiBottomLeft(hslider("[04]External[style:knob][unit:%][symbol:sc_mix][label:External][accentcolor:06][bracket:SIDECHAIN]
+      [tooltip: Crossfades the detector between the plugin's own audio (0%) and the external sidechain (100%). While the sidechain pair is fed from a copy of the audio it changes nothing, but the parameter is here so the layout does not change once the real inputs are wired up]",
+      0, 0, 100, 1)) / 100;
+
+scMode = uiBottomLeft(nentry("[05]SC Filter[symbol:sc_filter][label:SC Filter][accentcolor:06][bracket:SIDECHAIN]
+      [style:radio{'Filters':0;'Bandpass':1;'Bell':2}]
+      [tooltip: Which filter shapes the detector: a high pass and low pass pair, a band pass, or a bell. Only the chosen filter's controls apply]",
+      0, 0, 2, 1)) : int;
+
+scHp = uiBottomLeft(hslider("[06]SC High Pass[style:knob][unit:Hz][scale:log][symbol:sc_hp][label:SC HP][accentcolor:06][bracket:SIDECHAIN]
       [tooltip: Keeps bass out of the detector, so kick and rumble stop holding the gate open. 20 Hz = effectively off]",
       20, 20, 500, 1));
 
-scLp = uiBottomLeft(hslider("[05]SC Low Pass[style:knob][unit:Hz][scale:log][symbol:sc_lp][label:SC LP][accentcolor:06][bracket:SIDECHAIN]
+scLp = uiBottomLeft(hslider("[07]SC Low Pass[style:knob][unit:Hz][scale:log][symbol:sc_lp][label:SC LP][accentcolor:06][bracket:SIDECHAIN]
       [tooltip: Keeps air, hiss and cymbal spill out of the detector. 20 kHz = effectively off]",
       20000, 1000, 20000, 1));
+
+scBandFreq = uiBottomLeft(hslider("[08]SC Band Freq[style:knob][unit:Hz][scale:log][symbol:sc_band_freq][label:Band Freq][accentcolor:06][bracket:SIDECHAIN]
+      [tooltip: Centre of the band the detector hears, in Bandpass mode]",
+      1000, 40, 16000, 1));
+
+scBandQ = uiBottomLeft(hslider("[09]SC Band Q[style:knob][scale:log][symbol:sc_band_q][label:Band Q][accentcolor:06][bracket:SIDECHAIN]
+      [tooltip: Width of the band the detector hears, in Bandpass mode. Higher is narrower. The centre stays at 0 dB at any setting]",
+      1, 0.3, 10, 0.01));
+
+scBellFreq = uiBottomLeft(hslider("[10]SC Bell Freq[style:knob][unit:Hz][scale:log][symbol:sc_bell_freq][label:Bell Freq][accentcolor:06][bracket:SIDECHAIN]
+      [tooltip: Centre of the bell weighting the detector, in Bell mode]",
+      1000, 40, 16000, 1));
+
+scBellGain = uiBottomLeft(hslider("[11]SC Bell Gain[style:knob][unit:dB][symbol:sc_bell_gain][label:Bell Gain][accentcolor:06][bracket:SIDECHAIN]
+      [tooltip: Boost or cut of the bell, in Bell mode. A boost makes the detector react more to that band, so the gate opens on it]",
+      0, -18, 18, 0.1));
+
+scBellQ = 1;   // about an octave and a half wide
 
 // One knob instead of a bell's three: a shelf pair pivoting at a fixed
 // frequency, weighting the detector towards the highs or towards the lows
 // rather than picking out one band. The same tilt compressor.dsp puts on its
 // sidechain. At 0 dB both shelves collapse to unity, so an idle tilt is an
 // exact bypass.
-scTilt = uiBottomLeft(hslider("[06]SC Tilt[style:knob][unit:dB][symbol:sc_tilt][label:SC Tilt][accentcolor:04][bracket:SIDECHAIN]
+scTilt = uiBottomLeft(hslider("[12]SC Tilt[style:knob][unit:dB][symbol:sc_tilt][label:SC Tilt][accentcolor:04][bracket:SIDECHAIN]
       [tooltip: Weights the detector across the spectrum, pivoting at 700 Hz. Positive makes it hear the highs, so it reacts to snare and sibilance; negative makes it hear the low end]",
       0, -12, 12, 0.1));
 
@@ -137,12 +174,18 @@ scTiltRes  = 0.7;   // shelf Q -- flat, no bump at the pivot
 scListen = uiMonitor(checkbox("[01]Listen[symbol:sc_listen][label:Listen]
       [tooltip: Monitors the filtered sidechain, ungated, for setting the sidechain filters by ear. Turn off before printing]")) : si.smoo;
 
-// Both pivot constants, so the SVFs' tan() folds away at compile time and only
-// the gain-dependent scalars are recomputed when the knob moves.
-scFilter = fi.highpass(2, scHp)
-         : fi.lowpass(2, scLp)
+// The mode's filter, then the tilt, same construction as compressor.dsp. The
+// band pass is scaled by 1/Q, as svf.bp peaks at Q. The tilt's pivot is
+// constant, so its SVFs' tan() folds away at compile time and only the
+// gain-dependent scalars are recomputed when the knob moves.
+scFilter = _ <: (scHpLp, scBand, scBell) : select3(scMode)
          : fi.svf.ls(scTiltFreq, scTiltRes, 0 - scTilt)
-         : fi.svf.hs(scTiltFreq, scTiltRes, scTilt);
+         : fi.svf.hs(scTiltFreq, scTiltRes, scTilt)
+with {
+    scHpLp = fi.highpass(2, scHp) : fi.lowpass(2, scLp);
+    scBand = fi.svf.bp(scBandFreq, scBandQ) : /(scBandQ);
+    scBell = fi.svf.bell(scBellFreq, scBellQ, scBellGain);
+};
 
 // Times are floored at one sample: an.amp_follower_ar turns a zero time
 // constant into a division by zero.
@@ -273,17 +316,25 @@ with {
 // transient reaches the multiplier. Both channels share one delay length, so
 // the two references to lookaheadSamples are the same signal and the latency
 // bargraph is instantiated once.
-gate(l, r) = attach(outL, reductionDb : gate_meter), outR
+// External is attached to the output as well as used: while the sidechain
+// pair is a copy of the audio its crossfade is between two equal signals, the
+// compiler folds it away and would drop the parameter with it.
+gate(l, r, scInL, scInR) = attach(outL, reductionDb : gate_meter), attach(outR, scMix)
 with {
     delayed = de.delay(maxLookaheadSamples, lookaheadSamples);
 
+    // External crossfades in the signal domain, ahead of the filter, so there
+    // is one filter per channel and a blend of two sources reads as their sum.
+    // The sidechain is not delayed: it is only ever looked at, like the
+    // undelayed audio the detector reads.
+    //
     // Filtered per channel and rectified afterwards, rather than filtering a
     // mono sum: |L| + |R| is the magnitude ef.gate_stereo feeds its detector,
     // so Threshold keeps meaning exactly what it did before the filters
     // existed. A mono sum would read 6 dB lower on correlated material and
     // silently move every stored Threshold with it.
-    scL = l : scFilter;
-    scR = r : scFilter;
+    scL = it.interpolate_linear(scMix, l, scInL) : scFilter;
+    scR = it.interpolate_linear(scMix, r, scInR) : scFilter;
 
     // Stage one is gateGain's own envelope; stage two is a second switching
     // one-pole whose attack is a single sample, so it passes the opening
