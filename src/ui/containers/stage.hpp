@@ -44,9 +44,10 @@ private:
         return widget;
     }
 
+#if 0
     void onNanoDisplay() final
     {
-        drawReferenceBackground<R>();
+        // drawReferenceBackground<R>();
 
         const float w = getWidth();
         const float h = getHeight();
@@ -67,7 +68,10 @@ private:
                                  Reference::Colors::transparent,
                                  Color(0.f, 0.f, 0.f, 0.2f)));
         fill();
+
+        drawReferenceBorder<R>();
     }
+#endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -87,6 +91,7 @@ public:
     explicit ExpertStageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
+#if 0
 private:
     void onNanoDisplay() final
     {
@@ -103,22 +108,23 @@ private:
         else
             rect(0, 0, w, h);
 
-        if constexpr (d_isNotZero(R::backgroundColor.alpha))
-        {
-            fillColor(R::backgroundColor);
-            fill();
-        }
+        // if constexpr (d_isNotZero(R::backgroundColor.alpha))
+        // {
+        //     fillColor(R::backgroundColor);
+        //     fill();
+        // }
 
-        fillPaint(linearGradient(0, h - h * 0.4f, 0, h - h * 0.2f, Reference::Colors::transparent, Color(0.f, 0.f, 0.f, 0.2f)));
+        fillPaint(linearGradient(0,
+                                 h - h * 0.4f,
+                                 0,
+                                 h - h * 0.2f,
+                                 Reference::Colors::transparent,
+                                 Color(0.f, 0.f, 0.f, 0.2f)));
         fill();
 
-        if constexpr (R::border != 0 && d_isNotZero(R::borderColor.alpha))
-        {
-            strokeColor(R::borderColor);
-            strokeWidth(R::border * 2 * fScaleFactor);
-            stroke();
-        }
+        drawReferenceBorder<R>();
     }
+#endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
