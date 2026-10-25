@@ -13,8 +13,7 @@ namespace LibreAudio {
 
 template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::ComboBox<>::height>
 class ComboBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::ComboBox<kAccentColor, height>>,
-                             private ButtonEventHandler::Callback,
-                             private IdleCallback
+                             private ButtonEventHandler::Callback
 {
     using R = Reference::Widgets::ComboBox<kAccentColor, height>;
     using BaseWidget = ParameterReferenceButtonWidget<R>;
@@ -25,19 +24,22 @@ public:
     {
         DISTRHO_SAFE_ASSERT_RETURN(this->fParameter.isEnumerator,);
 
-        BaseWidget::addIdleCallback(this);
         BaseWidget::setCallback(this);
     }
 
 private:
     void buttonClicked(SubWidget*, int) final
     {
-        // TODO open menu
-    }
+        std::vector<const char*> items;
+        items.reserve(this->fParameter.scalePointCount);
 
-    void idleCallback() final
-    {
-        // TODO change to new item position if needed
+        for (uint i = 0; i < this->fParameter.scalePointCount; ++i)
+            items.push_back(this->fParameter.scalePoints[i].label);
+
+        this->fInterface->openMenu(
+            { int(BaseWidget::getAbsoluteX() + BaseWidget::getWidth() / 2), BaseWidget::getAbsoluteY() },
+            BaseWidget::getId(),
+            items);
     }
 
     void onNanoDisplay() final

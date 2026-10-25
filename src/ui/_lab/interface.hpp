@@ -7,6 +7,8 @@
 #include "DistrhoUtils.hpp"
 #include "Geometry.hpp"
 
+#include <vector>
+
 START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -26,6 +28,7 @@ public:
     virtual void parameterControlReleased(uint32_t index) = 0;
     virtual void parameterControlModified(uint32_t index, float value) = 0;
 
+    virtual void openMenu(const Point<int>& pos, uint32_t id, const std::vector<const char*>& items) = 0;
     virtual void openTextInput(LabWidget* widget,
                                const char* text,
                                const Rectangle<int>& area,

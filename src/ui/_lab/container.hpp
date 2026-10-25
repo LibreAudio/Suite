@@ -156,6 +156,9 @@ public:
 
     explicit ReferenceContainerTopLevelWidget(Window& windowToMapTo, LabUIWidgetInterface* const iface)
         : BaseWidget(windowToMapTo, iface) {}
+
+    explicit ReferenceContainerTopLevelWidget(LabTopLevelWidget* const parent)
+        : BaseWidget(parent) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

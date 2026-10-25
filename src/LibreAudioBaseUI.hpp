@@ -13,6 +13,7 @@
 
 #include "ui/base.hpp"
 #include "ui/reference.hpp"
+#include "ui/containers/menu.hpp"
 #include "ui/containers/root.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -75,6 +76,7 @@ private:
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
     std::unique_ptr<DoubleClickHelper> fDoubleClickHelper;
+    std::shared_ptr<LibreAudio::MenuWidget> fMenuWidget;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
@@ -132,6 +134,7 @@ private:
     void parameterControlReleased(uint32_t index) final;
     void parameterControlModified(uint32_t index, float value) final;
 
+    void openMenu(const Point<int>& pos, uint32_t id, const std::vector<const char*>& items) final;
     void openTextInput(LabWidget* widget,
                        const char* text,
                        const Rectangle<int>& area,

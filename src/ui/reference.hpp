@@ -310,6 +310,26 @@ struct Reference {
             };
         };
 
+        struct Menu : Zero {
+            static constexpr const Color backgroundColor = Colors::track;
+            static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            static constexpr const uint border = 1;
+            static constexpr const uint borderRadius = 5;
+            static constexpr const uint margin = 4;
+            static constexpr const uint padding = 4;
+            struct Item : Zero {
+                static constexpr const Color backgroundColor〡checked = Colors::acc1;
+                static constexpr const Color backgroundColor〡hover = Color(Colors::acc1, 0.45f);
+                static constexpr const Color color = Colors::ink2;
+                static constexpr const Color color〡checked = Colors::track;
+                static constexpr const float fontSize = 15;
+                static constexpr const uint border = 1;
+                static constexpr const uint borderRadius = 5;
+                static constexpr const uint height = 18;
+                static constexpr const uint margin = 4;
+            };
+        };
+
         template<const Color& kAccentColor = Colors::acc1, uint _height = 40>
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;

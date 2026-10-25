@@ -205,6 +205,9 @@ void LibreAudioBaseUI::uiIdle()
     }
 
     fSnapshots.idle();
+
+    if (LibreAudio::MenuWidget* const menu = fMenuWidget.get(); menu != nullptr && menu->shouldClose())
+        fMenuWidget.reset();
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -506,6 +509,8 @@ void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
         fDoubleClickHelper.reset();
     }
 
+    fMenuWidget.reset();
+
     fScaleFactor = std::min(static_cast<double>(ev.size.getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
                             static_cast<double>(ev.size.getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);
     fNeedsRepaint = true;
@@ -566,6 +571,11 @@ void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const floa
 
     if (! fParameterPressed[index])
         editParameter(index, false);
+}
+
+void LibreAudioBaseUI::openMenu(const Point<int>& pos, const uint32_t id, const std::vector<const char*>& items)
+{
+    fMenuWidget.reset(new LibreAudio::MenuWidget(fRootWidget.get(), pos, id, items));
 }
 
 void LibreAudioBaseUI::openTextInput(LabWidget* const widget,
