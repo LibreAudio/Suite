@@ -1637,8 +1637,12 @@ struct CompressorCurveReference : CompressorFloatingReference {
     static constexpr const Color gridColor { 1.f, 1.f, 1.f, 0.06f };
     static constexpr const Color unityColor { 1.f, 1.f, 1.f, 0.14f };
     static constexpr const Color thresholdColor { 1.f, 1.f, 1.f, 0.2f };
-    // Makeup's accent colour, as the gain reduction meter's
-    static constexpr const Color curveColor = accentColor<kFaustParameterMakeup>();
+    // mbComp5's curve colours, from left to right, blended between
+    static constexpr const std::array<Color, 5> curveColors {{
+        { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 }
+    }};
+    // the area under the curve is filled in columns, each in the curve's colour above it
+    static constexpr const uint fillColumns = 32;
 };
 
 class CompressorCurveWidget final : public LabWidget,
@@ -1671,6 +1675,14 @@ public:
     }
 
 private:
+    // the curve's colour at t, from 0 at the left to 1 at the right
+    [[nodiscard]] static Color curveColor(const float t, const float alpha) noexcept
+    {
+        const float p = std::clamp(t, 0.f, 1.f) * (R::curveColors.size() - 1);
+        const size_t i = std::min(R::curveColors.size() - 2, static_cast<size_t>(p));
+        return Color(Color(R::curveColors[i], R::curveColors[i + 1], p - i), alpha);
+    }
+
     // gain reduction in dB for an input level, held above the Range ceiling
     [[nodiscard]] float gainReduction(const float level) const noexcept
     {
@@ -1769,9 +1781,10 @@ private:
         };
 
         // A stroke cut exactly to the outline: in one piece between the corners, and across them a column a pixel wide
-        // at a time, scissored to the outline's height there. path builds the path for the piece from x0 to x1.
-        const auto clippedStroke = [&](const Color& color, const float width, const auto& path) {
-            strokeColor(color);
+        // at a time, scissored to the outline's height there. style sets the stroke's colour or paint, path builds the
+        // path for the piece from x0 to x1.
+        const auto clippedStroke = [&](const auto& style, const float width, const auto& path) {
+            style();
             strokeWidth(width);
 
             const float corner = std::ceil(r);
@@ -1798,7 +1811,7 @@ private:
         };
 
         // 1:1
-        clippedStroke(R::unityColor, 1.f, [&](float, float) {
+        clippedStroke([&] { strokeColor(R::unityColor); }, 1.f, [&](float, float) {
             beginPath();
             moveTo(dbToX(R::dbMin), dbToY(R::dbMin));
             lineTo(dbToX(0.f), dbToY(0.f));
@@ -1809,7 +1822,7 @@ private:
             const float tx = std::round(dbToX(fValues[0])) + 0.5f;
             const float ty = std::round(dbToY(fValues[0])) + 0.5f;
 
-            clippedStroke(R::thresholdColor, 1.f, [&](float, float) {
+            clippedStroke([&] { strokeColor(R::thresholdColor); }, 1.f, [&](float, float) {
                 beginPath();
                 moveTo(tx, py + ph);
                 lineTo(tx, ty);
@@ -1841,26 +1854,56 @@ private:
             }
         };
 
-        // the curve's line, cut exactly to the outline, taking the curve only as far past each piece as the line is wide
-        const auto line = [&](const Color& color, const float width) {
+        // The curve's line, cut exactly to the outline, taking the curve only as far past each piece as the line is
+        // wide. It is drawn in a section between each two of the curve's colours, blended across it.
+        const auto line = [&](const float alpha, const float width) {
             lineJoin(ROUND);
-            clippedStroke(color, width, [&](const float x0, const float x1) {
-                curve(x0 - width - 1.f, x1 + width + 1.f, false);
-            });
+
+            const size_t sections = R::curveColors.size() - 1;
+            for (size_t i = 0; i < sections; ++i)
+            {
+                const float left = px + pw * i / sections;
+                const float right = px + pw * (i + 1) / sections;
+
+                save();
+                intersectScissor(left, py, right - left, ph);
+                clippedStroke(
+                    [&] {
+                        strokePaint(linearGradient(left, 0, right, 0,
+                                                   Color(R::curveColors[i], alpha),
+                                                   Color(R::curveColors[i + 1], alpha)));
+                    },
+                    width,
+                    [&](const float x0, const float x1) {
+                        curve(std::max(x0, left) - width - 1.f, std::min(x1, right) + width + 1.f, false);
+                    });
+                restore();
+            }
         };
 
-        // filled down to the bottom, round its corners as the panel's, then the line with a glow
-        curve(px, px + pw, true);
-        lineTo(px + pw, py + ph - r);
-        arcTo(px + pw, py + ph, px + pw - r, py + ph, r);
-        lineTo(px + r, py + ph);
-        arcTo(px, py + ph, px, py + ph - r, r);
-        closePath();
-        fillPaint(linearGradient(0, py, 0, py + ph, Color(R::curveColor, 0.12f), Color(R::curveColor, 0.02f)));
-        fill();
+        // Filled down to the bottom, round its corners as the panel's, in columns each fading down from the curve's
+        // colour above it, then the line with a glow.
+        for (uint i = 0; i < R::fillColumns; ++i)
+        {
+            const float left = std::round(px + pw * i / R::fillColumns);
+            const float right = std::round(px + pw * (i + 1) / R::fillColumns);
+            const float t = (i + 0.5f) / R::fillColumns;
 
-        line(Color(R::curveColor, 0.2f), 4.f * s);
-        line(R::curveColor, 1.5f * s);
+            save();
+            intersectScissor(left, py, right - left, ph);
+            curve(px, px + pw, true);
+            lineTo(px + pw, py + ph - r);
+            arcTo(px + pw, py + ph, px + pw - r, py + ph, r);
+            lineTo(px + r, py + ph);
+            arcTo(px, py + ph, px, py + ph - r, r);
+            closePath();
+            fillPaint(linearGradient(0, py, 0, py + ph, curveColor(t, 0.12f), curveColor(t, 0.02f)));
+            fill();
+            restore();
+        }
+
+        line(0.2f, 4.f * s);
+        line(1.f, 1.5f * s);
 
         restore();
 
