@@ -71,6 +71,15 @@ private:
         char valuestr[32];
         renderParameterValue(valuestr, fParameter, getValue());
 
+       #ifdef LIBREAUDIO_PLUGIN__expanderGate
+        // the top of Ratio is an infinite ratio, a gate, and an RMS Time of 0 is a peak detector, read without a unit
+        const bool peak = std::strcmp(fParameter.symbol, "rms_time") == 0 && getValue() <= fParameter.min;
+        if (std::strcmp(fParameter.symbol, "ratio") == 0 && getValue() >= fParameter.max)
+            std::snprintf(valuestr, sizeof(valuestr), "\xe2\x88\x9e");
+        else if (peak)
+            std::snprintf(valuestr, sizeof(valuestr), "Peak");
+       #endif
+
         // inset shading
         beginPath();
         roundedRect(0, 0, w, h, borderRadius);
@@ -97,6 +106,8 @@ private:
        #ifdef LIBREAUDIO_PLUGIN__mbComp5
         const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
                                : fParameter.unit;
+       #elif defined(LIBREAUDIO_PLUGIN__expanderGate)
+        const char* const unit = peak ? "" : fParameter.unit;
        #else
         const char* const unit = fParameter.unit;
        #endif

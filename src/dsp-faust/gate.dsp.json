@@ -1,0 +1,504 @@
+{
+	"name": "Gate",
+	"filename": "gate.dsp",
+	"version": "2.85.9",
+	"compile_options": "-lang cpp -fpga-mem-th 4 -ct 1 -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 0",
+	"library_list": ["/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/stdfaust.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/signals.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/basics.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/maths.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/platform.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/interpolators.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/filters.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/routes.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/analyzers.lib","/opt/homebrew/Cellar/faust/2.85.9_1/share/faust/delays.lib"],
+	"include_pathnames": ["/opt/homebrew/Cellar/faust/2.85.9_1/share/faust","/usr/local/share/faust","/usr/share/faust",".","/Users/klausscheuermann/Projects_local/las/Suite3/src/dsp-faust"],
+	"size": 33144,
+	"inputs": 2,
+	"outputs": 2,
+	"meta": [ 
+		{ "analyzers.lib/amp_follower_ar:author": "Jonatan Liljedahl, revised by Romain Michon" },
+		{ "analyzers.lib/name": "Faust Analyzer Library" },
+		{ "analyzers.lib/version": "1.3.0" },
+		{ "author": "Klaus Scheuermann" },
+		{ "basics.lib/name": "Faust Basic Element Library" },
+		{ "basics.lib/version": "1.22.0" },
+		{ "compile_options": "-lang cpp -fpga-mem-th 4 -ct 1 -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 0" },
+		{ "delays.lib/name": "Faust Delay Library" },
+		{ "delays.lib/version": "1.2.0" },
+		{ "description": "" },
+		{ "filename": "gate.dsp" },
+		{ "filters.lib/fir:author": "Julius O. Smith III" },
+		{ "filters.lib/fir:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/fir:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/highpass:author": "Julius O. Smith III" },
+		{ "filters.lib/highpass:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/iir:author": "Julius O. Smith III" },
+		{ "filters.lib/iir:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/iir:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/lowpass0_highpass1": "MIT-style STK-4.3 license" },
+		{ "filters.lib/lowpass0_highpass1:author": "Julius O. Smith III" },
+		{ "filters.lib/lowpass:author": "Julius O. Smith III" },
+		{ "filters.lib/lowpass:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/lowpass:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/name": "Faust Filters Library" },
+		{ "filters.lib/svf:author": "Oleg Nesterov" },
+		{ "filters.lib/svf:copyright": "Copyright (C) 2020 Oleg Nesterov <oleg@redhat.com>" },
+		{ "filters.lib/svf:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/tf2:author": "Julius O. Smith III" },
+		{ "filters.lib/tf2:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/tf2:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/tf2s:author": "Julius O. Smith III" },
+		{ "filters.lib/tf2s:copyright": "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>" },
+		{ "filters.lib/tf2s:license": "MIT-style STK-4.3 license" },
+		{ "filters.lib/version": "1.7.1" },
+		{ "interpolators.lib/interpolate_linear:author": "Stéphane Letz" },
+		{ "interpolators.lib/interpolate_linear:licence": "MIT" },
+		{ "interpolators.lib/name": "Faust Interpolator Library" },
+		{ "interpolators.lib/version": "1.4.0" },
+		{ "license": "GPL-3.0-or-later" },
+		{ "maths.lib/author": "GRAME" },
+		{ "maths.lib/copyright": "GRAME" },
+		{ "maths.lib/license": "LGPL with exception" },
+		{ "maths.lib/name": "Faust Math Library" },
+		{ "maths.lib/version": "2.9.0" },
+		{ "name": "Gate" },
+		{ "platform.lib/name": "Generic Platform Library" },
+		{ "platform.lib/version": "1.3.0" },
+		{ "routes.lib/name": "Faust Signal Routing Library" },
+		{ "routes.lib/version": "1.3.0" },
+		{ "signals.lib/name": "Faust Routing Library" },
+		{ "signals.lib/onePoleSwitching:author": "Jonatan Liljedahl, revised by Dario Sanfilippo" },
+		{ "signals.lib/onePoleSwitching:licence": "STK-4.3" },
+		{ "signals.lib/version": "1.6.0" },
+		{ "unique_id": "LAga" }
+	],
+	"ui": [ 
+		{
+			"type": "vgroup",
+			"label": "Gate",
+			"items": [ 
+				{
+					"type": "hgroup",
+					"label": "Stage Top",
+					"meta": [
+						{ "0": "" }
+					],
+					"items": [ 
+						{
+							"type": "hgroup",
+							"label": "Monitor",
+							"meta": [
+								{ "0": "" }
+							],
+							"items": [ 
+								{
+									"type": "checkbox",
+									"label": "Listen",
+									"varname": "fCheckbox1",
+									"shortname": "Listen",
+									"address": "/Gate/Stage_Top/Monitor/Listen",
+									"meta": [
+										{ "01": "" },
+										{ "label": "Listen" },
+										{ "symbol": "sc_listen" },
+										{ "tooltip": "Monitors the filtered sidechain, ungated, for setting the sidechain filters by ear. Turn off before printing" }
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "hgroup",
+					"label": "Stage Bottom",
+					"meta": [
+						{ "8": "" }
+					],
+					"items": [ 
+						{
+							"type": "hgroup",
+							"label": "Stage Bottom Left",
+							"meta": [
+								{ "1": "" }
+							],
+							"items": [ 
+								{
+									"type": "hslider",
+									"label": "Threshold",
+									"varname": "fHslider10",
+									"shortname": "Threshold",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/Threshold",
+									"meta": [
+										{ "01": "" },
+										{ "accentcolor": "01" },
+										{ "easy": "" },
+										{ "label": "Threshold" },
+										{ "style": "knob" },
+										{ "symbol": "threshold" },
+										{ "tooltip": "Level below which the signal is muted" },
+										{ "unit": "dB" }
+									],
+									"init": -30,
+									"min": -120,
+									"max": 0,
+									"step": 0.1
+								},
+								{
+									"type": "hslider",
+									"label": "Hysteresis",
+									"varname": "fHslider11",
+									"shortname": "Hysteresis",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/Hysteresis",
+									"meta": [
+										{ "02": "" },
+										{ "accentcolor": "01" },
+										{ "label": "Hysteresis" },
+										{ "style": "knob" },
+										{ "symbol": "hysteresis" },
+										{ "tooltip": "How far below Threshold the level must fall before the gate closes. Stops it chattering on a signal that hovers at the threshold. 0 dB = off" },
+										{ "unit": "dB" }
+									],
+									"init": 0,
+									"min": 0,
+									"max": 20,
+									"step": 0.1
+								},
+								{
+									"type": "hslider",
+									"label": "Range",
+									"varname": "fHslider0",
+									"shortname": "Range",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/Range",
+									"meta": [
+										{ "03": "" },
+										{ "accentcolor": "01" },
+										{ "label": "Range" },
+										{ "style": "knob" },
+										{ "symbol": "range" },
+										{ "tooltip": "Ceiling on how far the gate pulls the signal down. Lower values duck instead of muting, so room tone stays. At maximum the gate mutes completely" },
+										{ "unit": "dB" }
+									],
+									"init": 60,
+									"min": 0,
+									"max": 60,
+									"step": 0.1
+								},
+								{
+									"type": "nentry",
+									"label": "SC Filter",
+									"varname": "fEntry0",
+									"shortname": "SC_Filter",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Filter",
+									"meta": [
+										{ "05": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "SC Filter" },
+										{ "style": "radio{'Filters':0;'Bandpass':1;'Bell':2}" },
+										{ "symbol": "sc_filter" },
+										{ "tooltip": "Which filter shapes the detector: a high pass and low pass pair, a band pass, or a bell. Only the chosen filter's controls apply" }
+									],
+									"init": 0,
+									"min": 0,
+									"max": 2,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "SC High Pass",
+									"varname": "fHslider7",
+									"shortname": "SC_High_Pass",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_High_Pass",
+									"meta": [
+										{ "06": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "SC HP" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "sc_hp" },
+										{ "tooltip": "Keeps bass out of the detector, so kick and rumble stop holding the gate open. 20 Hz = effectively off" },
+										{ "unit": "Hz" }
+									],
+									"init": 20,
+									"min": 20,
+									"max": 500,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "SC Low Pass",
+									"varname": "fHslider6",
+									"shortname": "SC_Low_Pass",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Low_Pass",
+									"meta": [
+										{ "07": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "SC LP" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "sc_lp" },
+										{ "tooltip": "Keeps air, hiss and cymbal spill out of the detector. 20 kHz = effectively off" },
+										{ "unit": "Hz" }
+									],
+									"init": 20000,
+									"min": 1000,
+									"max": 20000,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "SC Band Freq",
+									"varname": "fHslider5",
+									"shortname": "SC_Band_Freq",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Band_Freq",
+									"meta": [
+										{ "08": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "Band Freq" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "sc_band_freq" },
+										{ "tooltip": "Centre of the band the detector hears, in Bandpass mode" },
+										{ "unit": "Hz" }
+									],
+									"init": 1000,
+									"min": 40,
+									"max": 16000,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "SC Band Q",
+									"varname": "fHslider4",
+									"shortname": "SC_Band_Q",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Band_Q",
+									"meta": [
+										{ "09": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "Band Q" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "sc_band_q" },
+										{ "tooltip": "Width of the band the detector hears, in Bandpass mode. Higher is narrower. The centre stays at 0 dB at any setting" }
+									],
+									"init": 1,
+									"min": 0.3,
+									"max": 10,
+									"step": 0.01
+								},
+								{
+									"type": "hslider",
+									"label": "SC Bell Freq",
+									"varname": "fHslider3",
+									"shortname": "SC_Bell_Freq",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Bell_Freq",
+									"meta": [
+										{ "10": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "Bell Freq" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "sc_bell_freq" },
+										{ "tooltip": "Centre of the bell weighting the detector, in Bell mode" },
+										{ "unit": "Hz" }
+									],
+									"init": 1000,
+									"min": 40,
+									"max": 16000,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "SC Bell Gain",
+									"varname": "fHslider2",
+									"shortname": "SC_Bell_Gain",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Bell_Gain",
+									"meta": [
+										{ "11": "" },
+										{ "accentcolor": "06" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "Bell Gain" },
+										{ "style": "knob" },
+										{ "symbol": "sc_bell_gain" },
+										{ "tooltip": "Boost or cut of the bell, in Bell mode. A boost makes the detector react more to that band, so the gate opens on it" },
+										{ "unit": "dB" }
+									],
+									"init": 0,
+									"min": -18,
+									"max": 18,
+									"step": 0.1
+								},
+								{
+									"type": "hslider",
+									"label": "SC Tilt",
+									"varname": "fHslider1",
+									"shortname": "SC_Tilt",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Left/SC_Tilt",
+									"meta": [
+										{ "12": "" },
+										{ "accentcolor": "04" },
+										{ "bracket": "SIDECHAIN" },
+										{ "label": "SC Tilt" },
+										{ "style": "knob" },
+										{ "symbol": "sc_tilt" },
+										{ "tooltip": "Weights the detector across the spectrum, pivoting at 700 Hz. Positive makes it hear the highs, so it reacts to snare and sibilance; negative makes it hear the low end" },
+										{ "unit": "dB" }
+									],
+									"init": 0,
+									"min": -12,
+									"max": 12,
+									"step": 0.1
+								}
+							]
+						},
+						{
+							"type": "hgroup",
+							"label": "Stage Bottom Right",
+							"meta": [
+								{ "1": "" }
+							],
+							"items": [ 
+								{
+									"type": "hslider",
+									"label": "Lookahead",
+									"varname": "fHslider13",
+									"shortname": "Lookahead",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Right/Lookahead",
+									"meta": [
+										{ "10": "" },
+										{ "accentcolor": "03" },
+										{ "bracket": "ENVELOPE" },
+										{ "label": "Lookahead" },
+										{ "style": "knob" },
+										{ "symbol": "lookahead" },
+										{ "tooltip": "Delays the audio so the gate is already open when the transient arrives. Reported to the host as latency and compensated. 0 = off" },
+										{ "unit": "ms" }
+									],
+									"init": 0,
+									"min": 0,
+									"max": 10,
+									"step": 0.1
+								},
+								{
+									"type": "hslider",
+									"label": "Attack",
+									"varname": "fHslider8",
+									"shortname": "Attack",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Right/Attack",
+									"meta": [
+										{ "11": "" },
+										{ "accentcolor": "03" },
+										{ "bracket": "ENVELOPE" },
+										{ "label": "Attack" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "attack" },
+										{ "tooltip": "Time constant for the gate to open (exponentially) from muted to unmuted" },
+										{ "unit": "ms" }
+									],
+									"init": 0.01,
+									"min": 0.01,
+									"max": 10,
+									"step": 0.001
+								},
+								{
+									"type": "hslider",
+									"label": "Hold",
+									"varname": "fHslider12",
+									"shortname": "Hold",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Right/Hold",
+									"meta": [
+										{ "12": "" },
+										{ "accentcolor": "03" },
+										{ "bracket": "ENVELOPE" },
+										{ "label": "Hold" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "hold" },
+										{ "tooltip": "Time the gate stays open after the level falls below the Threshold" },
+										{ "unit": "ms" }
+									],
+									"init": 200,
+									"min": 1,
+									"max": 1000,
+									"step": 1
+								},
+								{
+									"type": "hslider",
+									"label": "Release",
+									"varname": "fHslider9",
+									"shortname": "Release",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Right/Release",
+									"meta": [
+										{ "13": "" },
+										{ "accentcolor": "03" },
+										{ "bracket": "ENVELOPE" },
+										{ "label": "Release" },
+										{ "scale": "log" },
+										{ "style": "knob" },
+										{ "symbol": "release" },
+										{ "tooltip": "Time constant for the gate to close (exponentially) from unmuted to muted" },
+										{ "unit": "ms" }
+									],
+									"init": 100,
+									"min": 1,
+									"max": 1000,
+									"step": 1
+								},
+								{
+									"type": "checkbox",
+									"label": "Release S-Curve",
+									"varname": "fCheckbox0",
+									"shortname": "Release_S_Curve",
+									"address": "/Gate/Stage_Bottom/Stage_Bottom_Right/Release_S-Curve",
+									"meta": [
+										{ "14": "" },
+										{ "bracket": "ENVELOPE" },
+										{ "label": "S-Curve" },
+										{ "symbol": "release_scurve" },
+										{ "tooltip": "Rounds the release into an S: it leaves gently, falls fastest partway down and eases into silence, instead of being steepest the moment it starts" }
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "hgroup",
+					"label": "0x00",
+					"meta": [
+						{ "9": "" }
+					],
+					"items": [ 
+						{
+							"type": "hbargraph",
+							"label": "Gate Reduction",
+							"varname": "fHbargraph0",
+							"shortname": "Gate_Reduction",
+							"address": "/Gate/0x00/Gate_Reduction",
+							"meta": [
+								{ "1": "" },
+								{ "symbol": "gate_meter" },
+								{ "unit": "dB" }
+							],
+							"min": 0,
+							"max": 60
+						},
+						{
+							"type": "hbargraph",
+							"label": "latency_samples",
+							"varname": "fHbargraph1",
+							"shortname": "latency_samples",
+							"address": "/Gate/0x00/latency_samples",
+							"meta": [
+								{ "2": "" },
+								{ "symbol": "latency_samples" },
+								{ "unit": "samples" }
+							],
+							"min": 0,
+							"max": 1921
+						}
+					]
+				}
+			]
+		}
+	]
+}
