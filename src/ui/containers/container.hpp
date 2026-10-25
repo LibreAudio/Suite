@@ -113,7 +113,7 @@ class StaticContainerPairWidget : public ReferenceContainerWidget<R, orientation
     using BaseWidget = ReferenceContainerWidget<R, orientation>;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-        BaseWidget::template addWidget<typename Args::Widget, Args::kSizeHint>()...
+        this->template addWidget<typename Args::Widget, Args::kSizeHint>()...
     };
 
 public:
@@ -130,7 +130,7 @@ class StaticParameterContainerWidget : public ParameterReferenceContainerWidget<
     using BaseWidget = ParameterReferenceContainerWidget<R, orientation>;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-        BaseWidget::template addParameterWidgetPair<Args, sizeHint>()...
+        this->template addParameterWidgetPair<Args, sizeHint>()...
     };
 
 public:
@@ -144,7 +144,7 @@ class StaticParameterContainerPairWidget : public ParameterReferenceContainerWid
     using BaseWidget = ParameterReferenceContainerWidget<R, orientation>;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-        BaseWidget::template addParameterWidgetPair<typename Args::Widget, Args::kSizeHint>()...
+        this->template addParameterWidgetPair<typename Args::Widget, Args::kSizeHint>()...
     };
 
 public:
@@ -161,7 +161,7 @@ class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Ve
 
     const std::array<std::shared_ptr<LabWidget>, 1 + sizeof...(Args)> widgets {
         BaseWidget::addSpacer(),
-        BaseWidget::template addWidget<Args, Fixed>()...
+        this->template addWidget<Args, Fixed>()...
     };
 
 public:
