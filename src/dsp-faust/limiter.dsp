@@ -8,7 +8,8 @@ declare description "Lookahead brickwall limiter for mastering";
 declare license "GPL-3.0-or-later";
 declare name "Limiter";
 declare unique_id "LAli";
-declare graph "waveform-stereo";
+declare graph "waveform";
+declare graph_source "input";
 
 
 
@@ -54,19 +55,26 @@ unityGain = gain_group(checkbox("[3]Unity Gain[symbol:unity_gain][accentcolor:04
        limiter in and out compares its effect at matched level instead of
        rewarding the louder side]"));
 
-lookaheadMs = time_group(vslider("[0]Lookahead[unit:ms][symbol:lookahead][accentcolor:05]
+attackMs = time_group(vslider("[0]Attack[unit:ms][symbol:attack][accentcolor:05][bracket:ENVELOPE]
       [tooltip: How far ahead the limiter sees, and so how long it takes to
        reach full reduction. Longer is smoother and cleaner on low end, shorter
        keeps more punch. Reported to the host as latency]",
-                                 2, 0.1, 5, 0.1));
+                              2, 0.1, 5, 0.1));
 
-releaseMs = time_group(vslider("[1]Release[unit:ms][scale:log][symbol:release][accentcolor:03][bracket:ENVELOPE]
+attackShape = time_group(vslider("[1]Shape[unit:%][symbol:attack_shape][accentcolor:05][bracket:ENVELOPE]
+      [tooltip: The curve the gain follows into reduction over the Attack
+       time. 100% is a smooth S that eases in and out, 0% a straight ramp
+       that starts and arrives abruptly, for a harder, more forward attack.
+       The Ceiling holds at every setting]",
+                                 100, 0, 100, 1)) / 100;
+
+releaseMs = time_group(vslider("[2]Release[unit:ms][scale:log][symbol:release][accentcolor:03][bracket:ENVELOPE]
       [tooltip: How quickly the gain recovers once the peaks have passed. With
        Auto Release up this is the recovery under sustained limiting, and short
        peaks let go several times faster]",
                                50, 1, 200, 1));
 
-autoAmt = time_group(vslider("[2]Auto Release[unit:%][symbol:auto_release][accentcolor:03][bracket:ENVELOPE]
+autoAmt = time_group(vslider("[3]Adaptive[unit:%][symbol:auto_release][accentcolor:03][bracket:ENVELOPE]
       [tooltip: Program dependent release. Isolated peaks recover quickly, dense
        passages recover at the Release time, so the limiter neither leaves
        holes after transients nor pumps on sustained material. 0% = fixed
@@ -81,7 +89,7 @@ ditherMode = out_group(nentry("[0]Dither[symbol:dither][accentcolor:02][bracket:
        the level afterwards undoes it]",
                              0, 0, 2, 1)) : int;
 
-shapeMode = out_group(nentry("[1]Noise Shaping[symbol:noise_shaping][accentcolor:02][bracket:DITHER]
+shapeMode = out_group(nentry("[1]Shaping[symbol:noise_shaping][accentcolor:02][bracket:DITHER]
       [style:radio{'Off':0;'Simple':1;'Weighted':2}]
       [tooltip: Moves the dither noise away from where hearing is most sensitive.
        Simple tilts it towards the top octave at any sample rate. Weighted
@@ -184,25 +192,28 @@ with {
 // t + LA, and the smoothed gain at that moment is an average of held values
 // from t to t + LA. Every one of those windows contained t, so every one is at
 // most r, and an average of values that are all at most r is at most r. So no
-// sample overshoots, for any signal and any Lookahead, and there is no clamp
+// sample overshoots, for any signal and any Attack, and there is no clamp
 // behind it adding distortion of its own. Release only ever pulls the held
 // gain further down, so it cannot break this.
 //
 // Measured: noise, random impulses, a 20 Hz - 20 kHz sweep and 3 kHz tone
-// bursts, all with 18 dB of make-up, at Lookahead 0.1, 2 and 5 ms, Auto
+// bursts, all with 18 dB of make-up, at Attack 0.1, 2 and 5 ms, Auto
 // Release and True Peak each on and off, at 44.1, 48, 96 and 192 kHz. The
 // worst sample out of all of them is within 0.00001 dB of the Ceiling, from
 // the first sample after the plugin starts.
 //
 // Two boxes rather than one turn the attack from a straight ramp, which has a
 // corner at each end, into a piecewise-parabolic S with none. Averaging in dB
-// means the ramp is even in dB, as heard, rather than in amplitude.
+// means the ramp is even in dB, as heard, rather than in amplitude. Attack
+// Shape sets how the span is split between the two: evenly for the S, all of
+// it in the second for the straight ramp, anything between for an S with
+// shorter rounded ends. The measurements above are with the even split.
 
 MAXLA = 1024;               // samples; 5 ms at 192 kHz is 960, plus OSDELAY
-MAXBOX = MAXLA / 2 + 1;     // longest of the two smoothing boxes, see below
+MAXBOX = MAXLA;             // longest smoothing box: the whole held window at Attack Shape 0%
 EPS = 0.000001;
 
-LA = int(lookaheadMs * ma.SR / 1000 + 0.5) : max(1) : min(MAXLA - 1 - OSDELAY);
+LA = int(attackMs * ma.SR / 1000 + 0.5) : max(1) : min(MAXLA - 1 - OSDELAY);
 
 // The audio waits for the detector's interpolator as well as the lookahead.
 LATENCY = LA + OSDELAY;
@@ -216,7 +227,7 @@ LATENCY = LA + OSDELAY;
 //
 // Unity Gain takes off the same smoothed make-up, delayed to meet the audio it
 // was applied to. Undelayed, the two disagree for as long as it is moving:
-// a 12 dB jump at Lookahead 5 ms put an error only 16.4 dB under the
+// a 12 dB jump at Attack 5 ms put an error only 16.4 dB under the
 // signal's peak on the output. Delayed, what is left is float rounding, 142 dB
 // under. A level-matched comparison should not depend on holding still.
 //
@@ -279,7 +290,7 @@ postGain = 0 - de.delay(MAXLA, LATENCY, makeupDb) * (unityGain : smooI) : ba.db2
 // 200 came out 6 dB dirtier than Auto off. The ripple under any Release
 // setting worth using stays inside half a dB, so past M0 it is not ripple.
 //
-// Measured, 48 kHz, Lookahead 2 ms, True Peak on. Bass THD is a sine held 2
+// Measured, 48 kHz, Attack 2 ms, True Peak on. Bass THD is a sine held 2
 // and 7 dB into the ceiling. Recovery is from a 3 ms burst taking 10 dB, on
 // silence, to within 1 dB. Hole is the extra reduction a 60 Hz line (3 dB in)
 // suffers after a burst taking about 13 dB every 400 ms, integrated, in dB*ms:
@@ -319,9 +330,11 @@ with {
 releaseStage = releaseStep ~ (_, _, _) : (_, !, !);
 
 // The two boxes are one sample longer between them than the lookahead, so the
-// span they average over is exactly the held window.
-B1 = int(LA / 2) + 1;
-B2 = LA - int(LA / 2) + 1 : max(1) : min(MAXBOX);
+// span they average over is exactly the held window. Attack Shape gives the
+// first up to half of it; at 0% it is a single sample, which passes the gain
+// through, and the second box is the whole ramp.
+B1 = int(LA / 2 * attackShape) + 1;
+B2 = LA - (B1 - 1) + 1 : max(1) : min(MAXBOX);
 box(n) = ba.slidingSump(float(n), MAXBOX) / n;
 
 limiter(l, r) = (l : delayA) * g, (r : delayA) * g

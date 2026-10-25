@@ -65,27 +65,27 @@ class LimiterGroupsContainerWidget final : public ReferenceContainerWidget<Limit
 {
     using Group1 = LimiterGroupWidget<kHorizontal,
                                       kFaustParameterTrue_peak,
-                                      NumberBoxWidget<Reference::Colors::acc1>,
+                                      NumberBoxWidget<Reference::Colors::acc6>,
                                       kFaustParameterUnity_gain,
-                                      NumberBoxWidget<Reference::Colors::acc2>>;
+                                      NumberBoxWidget<Reference::Colors::acc4>>;
     using Group2 = LimiterGroupWidget<kHorizontal,
                                       kFaustParameterThreshold,
                                       NumberBoxWidget<Reference::Colors::acc1>,
                                       kFaustParameterCeiling,
-                                      NumberBoxWidget<Reference::Colors::acc2>>;
+                                      NumberBoxWidget<Reference::Colors::acc6>>;
     using Group3 = LimiterGroupWidget<kHorizontal,
-                                      kFaustParameterLookahead,
-                                      NumberBoxWidget<Reference::Colors::acc3>,
-                                      kFaustParameterLookahead,
-                                      NumberBoxWidget<Reference::Colors::acc3>>;
+                                      kFaustParameterAttack,
+                                      NumberBoxWidget<Reference::Colors::acc5>,
+                                      kFaustParameterAttack_shape,
+                                      NumberBoxWidget<Reference::Colors::acc5>>;
     using Group4 = LimiterGroupWidget<kHorizontal,
                                       kFaustParameterRelease,
-                                      NumberBoxWidget<Reference::Colors::acc4>,
-                                      kFaustParameterRelease,
-                                      NumberBoxWidget<Reference::Colors::acc4>>;
+                                      NumberBoxWidget<Reference::Colors::acc3>,
+                                      kFaustParameterAuto_release,
+                                      NumberBoxWidget<Reference::Colors::acc3>>;
     using Group5 = LimiterGroupWidget<kHorizontal,
                                       kFaustParameterDither,
-                                      NumberBoxWidget<Reference::Colors::acc1>,
+                                      NumberBoxWidget<Reference::Colors::acc2>,
                                       kFaustParameterNoise_shaping,
                                       NumberBoxWidget<Reference::Colors::acc2>>;
 
