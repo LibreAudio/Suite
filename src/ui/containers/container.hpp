@@ -15,8 +15,8 @@ namespace LibreAudio {
 template<Orientation orientation>
 using TransparentContainerWidget = ReferenceContainerWidget<Reference::Zero, orientation>;
 
-using TransparentHorizontalContainerWidget = TransparentContainerWidget<kHorizontal>;
-using TransparentVerticalContainerWidget = TransparentContainerWidget<kVertical>;
+using TransparentHorizontalContainerWidget = TransparentContainerWidget<Horizontal>;
+using TransparentVerticalContainerWidget = TransparentContainerWidget<Vertical>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // transparent container widget class with a known padding
@@ -29,7 +29,7 @@ using TransparentPaddedContainerWidget = ReferenceContainerWidget<Reference::Pad
 
 // NOTE horizontal containers get fixed height, vertical containers get fixed width
 template<Orientation orientation, uint size>
-using TransparentSizedContainerReference = std::conditional_t<orientation == kHorizontal,
+using TransparentSizedContainerReference = std::conditional_t<orientation == Horizontal,
                                                               Reference::Height<size>,
                                                               Reference::Width<size>>;
 
@@ -89,9 +89,9 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, typename... Args>
-class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, kVertical>
+class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Vertical>
 {
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
 
     const std::array<std::shared_ptr<LabWidget>, 1 + sizeof...(Args)> widgets {
         BaseWidget::addSpacer(),

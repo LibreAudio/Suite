@@ -15,10 +15,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ParameterDumpStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
+class ParameterDumpStageWidget final : public ReferenceContainerWidget<Reference::Stage, Vertical>
 {
     using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
     using KnobGroupWidget10 = KnobGroupWidget<SmallKnobWidget, 10>;
 
     std::shared_ptr<LabWidget> fTopArea = addWidget<PillAreaWidget<>>();

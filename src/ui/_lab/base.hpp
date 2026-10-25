@@ -21,8 +21,8 @@ enum Corner : uint8_t {
 };
 
 enum Orientation : bool {
-    kHorizontal,
-    kVertical,
+    Horizontal,
+    Vertical,
 };
 
 constexpr inline const Corner kCornerAuto = static_cast<Corner>(UINT8_MAX);

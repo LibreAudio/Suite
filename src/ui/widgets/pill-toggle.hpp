@@ -22,10 +22,9 @@ class BackgroundPillToggleCellWidget final : public ReferenceButtonWidget<Refere
 
 public:
     explicit BackgroundPillToggleCellWidget(LabWidget* const parent, const uint id, const char* const label)
-        : BaseWidget(parent)
+        : BaseWidget(parent, id)
     {
         BaseWidget::setCheckable(true);
-        BaseWidget::setId(id);
         BaseWidget::setName(label);
     }
 

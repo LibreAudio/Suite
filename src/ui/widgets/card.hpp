@@ -21,15 +21,15 @@ class LabCardWidget : public ReferenceButtonWidget<Reference::Widgets::Card, kCo
     using BaseWidget = ReferenceButtonWidget<R, kCornerBoth>;
 
 public:
-    explicit LabCardWidget(LabWidget* const parent, const char* const subtitle)
-        : BaseWidget(parent),
+    explicit LabCardWidget(LabWidget* const parent, const uint index, const char* const subtitle)
+        : BaseWidget(parent, kWidgetPresetA + index),
           fSubtitle(subtitle)
     {
         BaseWidget::updateSize(false);
     }
 
-    explicit LabCardWidget(LabWidget* const parent, const char* const title, const char* const subtitle)
-        : BaseWidget(parent),
+    explicit LabCardWidget(LabWidget* const parent, const uint index, const char* const title, const char* const subtitle)
+        : BaseWidget(parent, kWidgetPresetA + index),
           fSubtitle(subtitle)
     {
         setName(title);

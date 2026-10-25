@@ -22,8 +22,8 @@ class ImageButtonWidget : public ReferenceButtonWidget<R, corner>
     static constexpr const int imageScale = 2;
 
 public:
-    explicit ImageButtonWidget(LabWidget* const parent)
-        : BaseWidget(parent)
+    explicit ImageButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id)
     {
         updateSize(false);
     }
@@ -89,8 +89,8 @@ class DualImageButtonWidget : public ReferenceButtonWidget<R, corner>
     static constexpr const int imageScale = 2;
 
 public:
-    explicit DualImageButtonWidget(LabWidget* const parent)
-        : BaseWidget(parent)
+    explicit DualImageButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id)
     {
         BaseWidget::setCheckable(true);
 
@@ -150,14 +150,14 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, class R = Reference::Widgets::Button, Orientation orientation = kHorizontal>
+template<Corner corner, class R = Reference::Widgets::Button, Orientation orientation = Horizontal>
 class TextButtonWidget : public ReferenceButtonWidget<R, corner>
 {
     using BaseWidget = ReferenceButtonWidget<R, corner>;
 
 public:
-    explicit TextButtonWidget(LabWidget* const parent, const char* const text)
-        : BaseWidget(parent),
+    explicit TextButtonWidget(LabWidget* const parent, const uint id, const char* const text)
+        : BaseWidget(parent, id),
           fText(text)
     {
         updateSize(false);
@@ -183,7 +183,7 @@ private:
         BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
         BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
 
-        if constexpr (orientation == kHorizontal)
+        if constexpr (orientation == Horizontal)
             BaseWidget::setWidth(bounds.getWidth() + margin);
         else
             BaseWidget::setHeight(bounds.getHeight() + margin);
@@ -200,8 +200,8 @@ class StaticTextButtonWidget : public TextButtonWidget<corner, R>
     using BaseWidget = TextButtonWidget<corner, R>;
 
 public:
-    explicit StaticTextButtonWidget(LabWidget* const parent)
-        : BaseWidget(parent, _text) {}
+    explicit StaticTextButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id, _text) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -213,8 +213,8 @@ class BypassButtonWidget final : public ImageButtonWidget<corner, IMAGES_POWER_2
     using BaseWidget = ImageButtonWidget<corner, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, R>;
 
 public:
-    explicit BypassButtonWidget(LabWidget* const parent)
-        : BaseWidget(parent)
+    explicit BypassButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id)
     {
         BaseWidget::setCheckable(true);
     }

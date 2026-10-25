@@ -171,10 +171,10 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::TransparentStage, kHorizontal>
+class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::TransparentStage, Horizontal>
 {
     using R = Reference::TransparentStage;
-    using BaseWidget = ReferenceContainerWidget<R, kHorizontal>;
+    using BaseWidget = ReferenceContainerWidget<R, Horizontal>;
 
     struct RowRef : Reference::OpaqueStage {
         static constexpr const uint padding = 0;
@@ -185,9 +185,9 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
         static constexpr const uint height = 100;
     };
 
-    class ControlsColumn : public ReferenceContainerWidget<Reference::TransparentStage, kVertical>
+    class ControlsColumn : public ReferenceContainerWidget<Reference::TransparentStage, Vertical>
     {
-        using BaseWidget = ReferenceContainerWidget<Reference::TransparentStage, kVertical>;
+        using BaseWidget = ReferenceContainerWidget<Reference::TransparentStage, Vertical>;
 
     public:
         explicit ControlsColumn(LabWidget* const parent)
@@ -214,7 +214,7 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
             // fTop->addSpacer();
             fTop->addKnobGroup<SmallestKnobWidget, 2>(kFaustParameterOffset_l);
 
-            fBottom->addText("DYNAMICS");
+            fBottom->addText(kFaustParameterDeess_amount, "DYNAMICS");
             fBottom->addKnobGroup<SmallestKnobWidget, 2>(kFaustParameterDeess_amount);
 
             update(true);
@@ -260,9 +260,9 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
         }
     };
 
-    class DelayP2 : public ReferenceContainerWidget<Reference::Stage, kVertical>
+    class DelayP2 : public ReferenceContainerWidget<Reference::Stage, Vertical>
     {
-        using BaseWidget = ReferenceContainerWidget<Reference::Stage, kVertical>;
+        using BaseWidget = ReferenceContainerWidget<Reference::Stage, Vertical>;
 
     public:
         explicit DelayP2(LabWidget* const parent)
@@ -342,7 +342,7 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
             // fTop->addSpacer();
             fTop->addDualSlider<kFaustParameterHp_freq, kFaustParameterLp_freq>();
 
-            fBottom->addText("OUTPUT");
+            fBottom->addText(kFaustParameterWidth, "OUTPUT");
             fBottom->addKnobGroup<SmallestKnobWidget, 2>(kFaustParameterWidth);
 
             update(true);

@@ -38,10 +38,9 @@ protected:
              typename = std::enable_if_t<std::is_base_of_v<ButtonBaseWidget, B>>>
     std::shared_ptr<B> addButton(const uint id, const char* const name, Args... args)
     {
-        std::shared_ptr<B> widget { new B(this, args...) };
+        std::shared_ptr<B> widget { new B(this, id, args...) };
         widget->setCallback(this);
         widget->setCheckable(true);
-        widget->setId(id);
         widget->setName(name);
         this->widgets.push_back({ widget.get(), sizeHint });
         fWidgets.push_back(widget);

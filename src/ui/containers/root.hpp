@@ -20,9 +20,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class RootBaseWidget : public ReferenceRootWidget<Reference::Window, kVertical>
+class RootBaseWidget : public ReferenceRootWidget<Reference::Window, Vertical>
 {
-    using BaseWidget = ReferenceRootWidget<Reference::Window, kVertical>;
+    using BaseWidget = ReferenceRootWidget<Reference::Window, Vertical>;
 
 public:
     RootBaseWidget(Window& window, LabUIWidgetInterface* const iface)

@@ -47,8 +47,11 @@ class ReferenceButtonWidget : public ButtonBaseWidget
     using BaseWidget = ButtonBaseWidget;
 
 public:
-    explicit ReferenceButtonWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    explicit ReferenceButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent)
+    {
+        setId(id);
+    }
 
 protected:
     [[nodiscard]] const Color& getForegroundColor() const noexcept

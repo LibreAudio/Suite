@@ -18,10 +18,10 @@ START_NAMESPACE_DGL
 
 template<class BaseWidget, Orientation orientation>
 class ContainerBaseWidgetOf : public BaseWidget,
-                              public std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>
+                              public std::conditional_t<orientation == Horizontal, HorizontalLayout, VerticalLayout>
 {
 public:
-    using Layout = std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>;
+    using Layout = std::conditional_t<orientation == Horizontal, HorizontalLayout, VerticalLayout>;
 
     explicit ContainerBaseWidgetOf(LabWidget* const parent)
         : BaseWidget(parent) {}
@@ -90,7 +90,7 @@ protected:
         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
         const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
 
-        if constexpr (orientation == kHorizontal)
+        if constexpr (orientation == Horizontal)
             Layout::setWidth(width, padding, border + margin);
         else
             Layout::setHeight(height, padding, border + margin);
@@ -118,7 +118,7 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 // reference container (sub) widget class
 
-template<class R, Orientation orientation = kHorizontal>
+template<class R, Orientation orientation = Horizontal>
 class ReferenceContainerWidget : public ReferenceContainerBaseWidgetOf<LabReferenceWidget<R>, R, orientation>
 {
 public:

@@ -8,35 +8,31 @@
 
 #include "../reference.hpp"
 
-#include "FaustParameter.hpp"
+#include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ComboBoxWidget final : public ReferenceButtonWidget<Reference::Widgets::Button, kCornerBoth>
+template<const Color& kAccentColor = Reference::Colors::acc1>
+class ComboBoxWidget final : public ReferenceButtonWidget<Reference::Widgets::ComboBox<kAccentColor>, kCornerAuto>
 {
-    using R = Reference::Widgets::Button;
-    using BaseWidget = ReferenceButtonWidget<R, kCornerBoth>;
+    using R = Reference::Widgets::ComboBox<kAccentColor>;
+    using BaseWidget = ReferenceButtonWidget<R, kCornerAuto>;
 
 public:
-    explicit ComboBoxWidget(LabWidget* const parent, const uint id, const char* const name)
-        : BaseWidget(parent)
+    explicit ComboBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
+        : BaseWidget(parent, kParametersMainStart + index),
+          fParameter(kFaustParameters[index])
     {
-        setId(id);
-        setName(name);
-        setSize(90 * fScaleFactor, 30 * fScaleFactor);
-    }
+        BaseWidget::setName(fParameter.name);
 
-    explicit ComboBoxWidget(LabWidget* const parent, const uint id, const FaustParameter& parameter)
-        : BaseWidget(parent)
-    {
-        setId(id);
-        setName(parameter.name);
-        setSize(90 * fScaleFactor, 30 * fScaleFactor);
+        BaseWidget::updateSize(false);
     }
 
 private:
+    const FaustParameter& fParameter;
+
     void onNanoDisplay() final
     {
         BaseWidget::onNanoDisplay();
@@ -45,13 +41,7 @@ private:
         BaseWidget::fontSize(Reference::Common::fontSize * this->fScaleFactor);
         BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
         BaseWidget::textLetterSpacing(Reference::Common::letterSpacing * this->fScaleFactor);
-        BaseWidget::text(getWidth() * 0.5f, getHeight() * 0.5f, "combo-box");
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        BaseWidget::setHeight(30 * fScaleFactor);
-        BaseWidget::updateSize(updateChildren);
+        BaseWidget::text(BaseWidget::getWidth() * 0.5f, BaseWidget::getHeight() * 0.5f, "combo-box");
     }
 };
 

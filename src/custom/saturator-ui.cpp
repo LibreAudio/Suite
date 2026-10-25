@@ -25,8 +25,8 @@ class SaturatorAlwaysOnButton : public TextButtonWidget<kCornerBoth>,
     using BaseWidget = TextButtonWidget<kCornerBoth>;
 
 public:
-    explicit SaturatorAlwaysOnButton(LabWidget* const parent)
-        : BaseWidget(parent, "Always On")
+    explicit SaturatorAlwaysOnButton(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id, "Always On")
     {
         addIdleCallback(this);
         setCheckable(true);
@@ -52,8 +52,8 @@ class SaturatorAutoButton : public TextButtonWidget<kCornerBoth>,
     using BaseWidget = TextButtonWidget<kCornerBoth>;
 
 public:
-    explicit SaturatorAutoButton(LabWidget* const parent)
-        : BaseWidget(parent, "Apply Auto")
+    explicit SaturatorAutoButton(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id, "Apply Auto")
     {
         setCallback(this);
         setName("auto");
@@ -79,8 +79,8 @@ class SaturatorTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
         addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterDecay_time),
         addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterPush),
         addSpacer(),
-        addWidget<SaturatorAutoButton>(),
-        addWidget<SaturatorAlwaysOnButton>(),
+        addWidget<SaturatorAutoButton>(kParametersMainStart + kFaustParameterAuto_makeup_db),
+        addWidget<SaturatorAlwaysOnButton>(kParametersMainStart + kFaustParameterAuto_makeup_db),
         addSpacer(),
         addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterDrywet),
         addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterMakeup),

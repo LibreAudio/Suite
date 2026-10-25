@@ -17,9 +17,9 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R>
-class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, kVertical>
+class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, Vertical>
 {
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
     using Layout = typename BaseWidget::Layout;
 
     std::list<std::shared_ptr<LabWidget>> fWidgets;
@@ -43,16 +43,16 @@ public:
         fWidgets.emplace_back(std::move(widget));
     }
 
-    void addNumberBox(const FaustParameterIndex parameter)
+    void addNumberBox(const FaustParameterIndex index)
     {
-        std::shared_ptr<LabWidget> widget { new NumberBoxWidget(this, parameter) };
+        std::shared_ptr<LabWidget> widget { new NumberBoxWidget(this, index) };
         Layout::widgets.push_back({ widget.get(), Fixed });
         fWidgets.emplace_back(std::move(widget));
     }
 
-    void addPillToggle(const FaustParameterIndex parameter)
+    void addPillToggle(const FaustParameterIndex index)
     {
-        std::shared_ptr<LabWidget> widget { new PillAreaWidget<1>(this, parameter) };
+        std::shared_ptr<LabWidget> widget { new PillAreaWidget<1>(this, index) };
         Layout::widgets.push_back({ widget.get(), Fixed });
         fWidgets.emplace_back(std::move(widget));
     }
@@ -75,9 +75,11 @@ public:
         fWidgets.emplace_back(std::move(spacer));
     }
 
-    void addText(const char* const text)
+    void addText(const FaustParameterIndex index, const char* const text)
     {
-        std::shared_ptr<LabWidget> spacer { new TextButtonWidget<kCornerNone, TextReference, kVertical>(this, text) };
+        std::shared_ptr<LabWidget> spacer {
+            new TextButtonWidget<kCornerNone, TextReference, Vertical>(this, kParametersMainStart + index, text)
+        };
         Layout::widgets.push_back({ spacer.get(), Fixed });
         fWidgets.emplace_back(std::move(spacer));
     }

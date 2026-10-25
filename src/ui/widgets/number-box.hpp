@@ -22,9 +22,9 @@ class NumberBoxWidget final : public LabKnobWidget
     using BaseWidget = LabKnobWidget;
 
 public:
-    explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
-        : BaseWidget(parent, kParametersMainStart + id),
-          fParameter(kFaustParameters[id]),
+    explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
+        : BaseWidget(parent, kParametersMainStart + index),
+          fParameter(kFaustParameters[index]),
           fMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
     {
         setName(fParameter.name);

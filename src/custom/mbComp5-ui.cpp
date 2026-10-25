@@ -107,10 +107,10 @@ inline constexpr const char* kBandLabels[kNumBands] = {
 };
 
 template<uint8_t band>
-class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference<band>, kVertical>
+class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference<band>, Vertical>
 {
     using R = MbComp5BandGroupReference<band>;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
 
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
 
@@ -146,10 +146,10 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
 
-    class HeaderWidget final : public ReferenceContainerWidget<typename R::Header, kHorizontal>
+    class HeaderWidget final : public ReferenceContainerWidget<typename R::Header, Horizontal>
     {
         using HR = typename R::Header;
-        using BaseWidget = ReferenceContainerWidget<HR, kHorizontal>;
+        using BaseWidget = ReferenceContainerWidget<HR, Horizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
@@ -171,8 +171,8 @@ public:
             public:
                 using BaseWidget = ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>;
 
-                explicit SoloMuteButton(LabWidget* const parent)
-                    : BaseWidget(parent) {}
+                explicit SoloMuteButton(LabWidget* const parent, const uint id)
+                    : BaseWidget(parent, id) {}
 
             private:
                 void onNanoDisplay() override
@@ -221,10 +221,10 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // body: number-boxes stack + meter
 
-    class BodyWidget final : public ReferenceContainerWidget<typename R::Body, kHorizontal>
+    class BodyWidget final : public ReferenceContainerWidget<typename R::Body, Horizontal>
     {
         using BR = typename R::Body;
-        using BaseWidget = ReferenceContainerWidget<BR, kHorizontal>;
+        using BaseWidget = ReferenceContainerWidget<BR, Horizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             this->template addWidget<NumberBoxStackWidget, Expanding>(),
@@ -247,7 +247,7 @@ public:
             static_cast<MeterWidget*>(widgets.back().get())->setLinkedParameters(linked);
         }
 
-        class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, kVertical>
+        class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, Vertical>
         {
             const std::array<std::shared_ptr<LabKnobWidget>, 5> widgets {
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
@@ -259,7 +259,7 @@ public:
 
         public:
             using NBR = typename BR::NumberBoxes;
-            using BaseWidget = ReferenceContainerWidget<NBR, kVertical>;
+            using BaseWidget = ReferenceContainerWidget<NBR, Vertical>;
             using NumberBoxWidgetR = NumberBoxWidget<kAccentColor>;
 
             explicit NumberBoxStackWidget(LabWidget* const parent)
@@ -291,7 +291,7 @@ struct MbComp5BandsReference : Reference::Zero {
     static constexpr const uint height = MbComp5BandGroupReference<0>::height + margin * 2;
 };
 
-class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsReference, kHorizontal>
+class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsReference, Horizontal>
 {
     const std::array<std::shared_ptr<LabWidget>, 5> widgets {
         addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
@@ -302,7 +302,7 @@ class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsRef
     };
 
 public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5BandsReference, kHorizontal>;
+    using BaseWidget = ReferenceContainerWidget<MbComp5BandsReference, Horizontal>;
 
     explicit MbComp5BandsWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
@@ -314,7 +314,7 @@ struct MbComp5NonBandParamsGroupReference : MbComp5BandGroupReference<0> {
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + (border + margin) * 2;
 };
 
-class MbComp5NonBandParamsGroupWidget final : public ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, kHorizontal>
+class MbComp5NonBandParamsGroupWidget final : public ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, Horizontal>
 {
     const std::array<std::shared_ptr<LabWidget>, 9> widgets {
         addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterSlope),
@@ -329,7 +329,7 @@ class MbComp5NonBandParamsGroupWidget final : public ReferenceContainerWidget<Mb
     };
 
 public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, kHorizontal>;
+    using BaseWidget = ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, Horizontal>;
     using NumberBoxWidgetR = NumberBoxWidget<>;
 
     explicit MbComp5NonBandParamsGroupWidget(LabWidget* const parent)
@@ -343,7 +343,7 @@ struct MbComp5ExpertPageReference : Reference::Zero {
     static constexpr const uint padding = 8;
 };
 
-class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5ExpertPageReference, kVertical>
+class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5ExpertPageReference, Vertical>
 {
     const std::array<std::shared_ptr<LabWidget>, 3> widgets {
         addSpacer(),
@@ -352,7 +352,7 @@ class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5Exp
     };
 
 public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5ExpertPageReference, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<MbComp5ExpertPageReference, Vertical>;
 
     explicit MbComp5ExpertPageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}

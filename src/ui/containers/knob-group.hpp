@@ -17,8 +17,6 @@
 
 #include "LibreAudioParameters.hpp"
 
-#include LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE
-
 #include "Layout.hpp"
 
 #include "las-resources.h"
@@ -52,11 +50,11 @@ class KnobGroupWidget : public ReferenceContainerWidget<Reference::Widgets::Knob
 
 public:
     explicit KnobGroupWidget(LabWidget* const parent,
-                             const uint32_t idOffset = 0,
+                             const uint32_t indexOffset = 0,
                              const uint32_t parameterStart = 0,
                              const bool withSurroundingSpacers = false)
         : BaseWidget(parent),
-          fParametersOffset(idOffset)
+          fParametersOffset(indexOffset)
     {
         // FIXME alternative UI if no params exported
         // static_assert(!kFaustParameters.empty(), "must have at least 1 parameter");
@@ -75,11 +73,11 @@ public:
             }
 
             if (! fKnobs.empty() || ! fButtons.empty() || ! fToggles.empty())
-                addSpacer(idOffset + i);
+                addSpacer(indexOffset + i);
 
             if (parameter.isEnumerator && parameter.scalePointCount == 2)
             {
-                std::unique_ptr<ToggleSwitchBaseWidget> widget { new ToggleSwitchWidget<4, kMaxNumParameters == 2>(this, idOffset + i, parameter) };
+                std::unique_ptr<ToggleSwitchBaseWidget> widget { new ToggleSwitchWidget<4, kMaxNumParameters == 2>(this, indexOffset + i, parameter) };
                 widgets.push_back({ widget.get(), Fixed });
                 if (widget->getSize().isNull())
                     d_stderr2("Error: addToggle called but widget '%s' does not have a known size", widget->getName());
@@ -87,7 +85,7 @@ public:
             }
             else if (parameter.isEnumerator)
             {
-                std::unique_ptr<ButtonBaseWidget> widget { new ComboBoxWidget(this, idOffset + i, parameter) };
+                std::unique_ptr<ButtonBaseWidget> widget { new ComboBoxWidget(this, static_cast<FaustParameterIndex>(indexOffset + i)) };
                 widgets.push_back({ widget.get(), Fixed });
                 if (widget->getSize().isNull())
                     d_stderr2("Error: addComboBox called but widget '%s' does not have a known size", widget->getName());
@@ -95,7 +93,7 @@ public:
             }
             else
             {
-                std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, idOffset + i) };
+                std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, indexOffset + i) };
                 widgets.push_back({ widget.get(), Fixed });
                 if (widget->getSize().isNull())
                     d_stderr2("Error: addKnob called but widget '%s' does not have a known size", widget->getName());

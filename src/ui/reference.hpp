@@ -223,6 +223,21 @@ struct Reference {
             static constexpr const uint height = 80; // FIXME
         };
 
+        template<const Color& kAccentColor = Colors::acc1>
+        struct CheckBox : Zero {
+            static constexpr const uint margin = 4;
+            static constexpr const uint height = 16;
+        };
+
+        template<const Color& kAccentColor = Colors::acc1>
+        struct ComboBox : Zero {
+            static constexpr const Color backgroundColor = Colors::track;
+            static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            static constexpr const uint border = 1;
+            static constexpr const uint borderRadius = 5;
+            static constexpr const uint height = 16;
+        };
+
         struct DualSlider : Zero {
             static constexpr const Color color = Colors::acc6;
             static constexpr const Color color〡deactivated = Colors::ink3;

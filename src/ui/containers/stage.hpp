@@ -13,10 +13,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
+class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, Vertical>
 {
     using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
 
     const std::vector<std::shared_ptr<LabWidget>> _ = {
         addSpacer(),
@@ -76,10 +76,10 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ExpertStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
+class ExpertStageWidget final : public ReferenceContainerWidget<Reference::Stage, Vertical>
 {
     using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
 
     const std::vector<std::shared_ptr<LabWidget>> _ = {
         addWidget<PillAreaWidget<>>(),

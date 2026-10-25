@@ -6,6 +6,8 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
+#include "ui/widgets/check-box.hpp"
+#include "ui/widgets/combo-box.hpp"
 #include "ui/widgets/number-box.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -17,8 +19,8 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace widgets {
-    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, NumberBoxWidget<Reference::Colors::acc6>>;
-    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, NumberBoxWidget<Reference::Colors::acc4>>;
+    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, CheckBoxWidget<Reference::Colors::acc6>>;
+    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, CheckBoxWidget<Reference::Colors::acc4>>;
 
     using Threshold = ParameterWidgetPair<kFaustParameterThreshold, NumberBoxWidget<Reference::Colors::acc1>>;
     using Ceiling = ParameterWidgetPair<kFaustParameterCeiling, NumberBoxWidget<Reference::Colors::acc6>>;
@@ -29,8 +31,8 @@ namespace widgets {
     using Release = ParameterWidgetPair<kFaustParameterRelease, NumberBoxWidget<Reference::Colors::acc3>>;
     using AutoRelease = ParameterWidgetPair<kFaustParameterAuto_release, NumberBoxWidget<Reference::Colors::acc3>>;
 
-    using Dither = ParameterWidgetPair<kFaustParameterDither, NumberBoxWidget<Reference::Colors::acc2>>;
-    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, NumberBoxWidget<Reference::Colors::acc2>>;
+    using Dither = ParameterWidgetPair<kFaustParameterDither, ComboBoxWidget<Reference::Colors::acc2>>;
+    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, ComboBoxWidget<Reference::Colors::acc2>>;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -69,13 +71,13 @@ struct LimiterGroupsContainerReference : Reference::Zero {
 
 using LimiterGroupsContainerWidget = StaticContainerWidget<
     LimiterGroupsContainerReference,
-    kHorizontal,
+    Horizontal,
     Expanding,
-    LimiterGroupWidget<kHorizontal, widgets::TruePeak, widgets::UnityGain>,
-    LimiterGroupWidget<kHorizontal, widgets::Threshold, widgets::Ceiling>,
-    LimiterGroupWidget<kHorizontal, widgets::Attack, widgets::AttackShape>,
-    LimiterGroupWidget<kHorizontal, widgets::Release, widgets::AutoRelease>,
-    LimiterGroupWidget<kHorizontal, widgets::Dither, widgets::NoiseShaping>
+    LimiterGroupWidget<Vertical, widgets::TruePeak, widgets::UnityGain>,
+    LimiterGroupWidget<Horizontal, widgets::Threshold, widgets::Ceiling>,
+    LimiterGroupWidget<Horizontal, widgets::Attack, widgets::AttackShape>,
+    LimiterGroupWidget<Horizontal, widgets::Release, widgets::AutoRelease>,
+    LimiterGroupWidget<Vertical, widgets::Dither, widgets::NoiseShaping>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
