@@ -1643,6 +1643,10 @@ struct CompressorCurveReference : CompressorFloatingReference {
     }};
     // the area under the curve is filled in columns, each in the curve's colour above it
     static constexpr const uint fillColumns = 32;
+    // the point at the detector's level, unscaled
+    static constexpr const float pointRadius = 3.f;
+    static constexpr const float pointGlowRadius = 7.f;
+    static constexpr const Color pointColor { 1.f, 1.f, 1.f, 1.f };
 };
 
 class CompressorCurveWidget final : public LabWidget,
@@ -1657,7 +1661,14 @@ class CompressorCurveWidget final : public LabWidget,
         kFaustParameterRange,
     };
 
+    // the detector's level meters, the curve's input
+    static constexpr const std::array<FaustParameterIndex, 2> kLevels { kFaustParameterLevel_1, kFaustParameterLevel_2 };
+    static constexpr const float kLevelFloor = kFaustParameters[kFaustParameterLevel_1].min;
+
     std::array<float, kParameters.size()> fValues {};
+
+    // the louder channel's
+    float fLevel = kLevelFloor;
 
 public:
     explicit CompressorCurveWidget(LabWidget* const parent)
@@ -1724,6 +1735,16 @@ private:
                 fValues[i] = value;
                 changed = true;
             }
+        }
+
+        float level = kLevelFloor;
+        for (const FaustParameterIndex id : kLevels)
+            level = std::max(level, fInterface->getParameterValue(kParametersMainStart + id));
+
+        if (d_isNotEqual(fLevel, level))
+        {
+            fLevel = level;
+            changed = true;
         }
 
         if (changed)
@@ -1904,6 +1925,30 @@ private:
 
         line(0.2f, 4.f * s);
         line(1.f, 1.5f * s);
+
+        // the point at the detector's level, on the curve, in the curve's colour there with a white core
+        if (fLevel > std::max(kLevelFloor, R::dbMin))
+        {
+            const float x = dbToX(fLevel);
+            const float y = dbToY(fLevel + gainReduction(fLevel));
+            const Color color = curveColor((fLevel - R::dbMin) / -R::dbMin, 1.f);
+
+            beginPath();
+            circle(x, y, R::pointGlowRadius * s);
+            fillPaint(radialGradient(x, y, R::pointRadius * s, R::pointGlowRadius * s,
+                                     Color(color, 0.5f), Color(color, 0.f)));
+            fill();
+
+            beginPath();
+            circle(x, y, R::pointRadius * s);
+            fillColor(color);
+            fill();
+
+            beginPath();
+            circle(x, y, R::pointRadius * 0.5f * s);
+            fillColor(R::pointColor);
+            fill();
+        }
 
         restore();
 
