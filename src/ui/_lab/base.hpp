@@ -73,6 +73,11 @@ public:
             BaseWidget::addIdleCallback(callback);
     }
 
+    [[nodiscard]] float getScaleFactor() const noexcept
+    {
+        return fScaleFactor;
+    }
+
     [[nodiscard]] double getTime() const
     {
         return BaseWidget::getApp().getTime();

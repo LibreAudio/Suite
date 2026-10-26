@@ -169,9 +169,6 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
         static_assert(d_isZero(R::backgroundColor.alpha), "menu items must not define background color");
 
         static constexpr const Color kAccentColorHovered = Color(kAccentColor, 0.15f);
-        static constexpr const Color kAccentColorNone = Color(kAccentColor, 0.f);
-
-        // friend class MenuWidget;
 
     public:
         explicit MenuItemWidget(MenuWidget* const parent, const uint id, const char* const text)
@@ -189,8 +186,6 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
                 drawReferenceBackground<R, kAccentColor, kCornerAuto>();
             else if (isHovered())
                 drawReferenceBackground<R, kAccentColorHovered, kCornerAuto>();
-            else
-                drawReferenceBackground<R, kAccentColorNone, kCornerAuto>();
 
             if (isChecked())
                 drawReferenceText<R, R::color〡checked>(getName());
@@ -247,8 +242,6 @@ public:
             mpos.setY(area.getY());
 
         static_cast<LabWidget*>(fContainer.get())->setAbsolutePos(mpos);
-        // static_cast<SubWidget*>(fContainer.get())->setAbsolutePos(pos);
-
         fContainer->updateSize(true);
     }
 

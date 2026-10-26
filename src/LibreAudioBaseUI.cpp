@@ -626,7 +626,7 @@ void LibreAudioBaseUI::openTextInput(LabWidget* const widget,
                                                              area,
                                                              textColor,
                                                              highlightColor,
-                                                             borderRadius * fScaleFactor,
+                                                             d_roundToIntPositive(borderRadius * fScaleFactor),
                                                              fontSize * fScaleFactor,
                                                              isNumber);
 }

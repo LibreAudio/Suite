@@ -5,12 +5,34 @@
 #pragma once
 
 #include "../_lab/button.hpp"
+#include "../_lab/metrics.hpp"
 
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R>
+struct CheckBoxMetrics : LabMetrics<R> {
+    explicit CheckBoxMetrics(LabWidget* const widget)
+        : LabMetrics<R>(widget),
+          box(widget, *this) {}
+
+    const struct Box : LabMetrics<typename R::Box> {
+        const float checkmark;
+        const float xy;
+        const float size;
+
+        explicit Box(LabWidget* const widget, const CheckBoxMetrics& m)
+            : LabMetrics<typename R::Box>(widget),
+              checkmark(2 * m.s),
+              xy(m.border + m.margin),
+              size(m.height - xy * 2) {}
+    } box;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -48,31 +70,22 @@ private:
 
     void onNanoDisplay() final
     {
+        const CheckBoxMetrics<R> m { this };
+
         BaseWidget::template drawReferenceBackground<R, R::backgroundColor>();
         BaseWidget::template drawReferenceBorder<R, R::borderColor>();
-
-        const float fScaleFactor = this->fScaleFactor;
-        const float h = BaseWidget::getHeight();
-        const float border = d_roundToIntPositive(R::border * fScaleFactor);
-        const float margin = d_roundToIntPositive(R::margin * fScaleFactor);
-        const float padding = d_roundToIntPositive(R::padding * fScaleFactor);
-
-        const float bxy = border + margin;
-        const float bsize = h - bxy * 2.f;
 
         // ------------------------------------------------------------------------------------------------------------
         // draw box background
 
         if constexpr (d_isNotZero(R::Box::backgroundColor.alpha))
         {
-            const float boxr = d_roundToIntPositive(R::Box::borderRadius * fScaleFactor);
-
             BaseWidget::beginPath();
 
             if constexpr (R::Box::borderRadius != 0)
-                BaseWidget::roundedRect(bxy, bxy, bsize, bsize, boxr);
+                BaseWidget::roundedRect(m.box.xy, m.box.xy, m.box.size, m.box.size, m.box.borderRadius);
             else
-                BaseWidget::rect(bxy, bxy, bsize, bsize);
+                BaseWidget::rect(m.box.xy, m.box.xy, m.box.size, m.box.size);
 
             BaseWidget::fillColor(R::Box::backgroundColor);
             BaseWidget::fill();
@@ -83,15 +96,12 @@ private:
 
         if constexpr (R::Box::border != 0)
         {
-            const float boxborder = d_roundToIntPositive(R::Box::border * fScaleFactor);
-            const float boxr = d_roundToIntPositive(R::Box::borderRadius * fScaleFactor);
-
             BaseWidget::beginPath();
 
             if constexpr (R::Box::borderRadius != 0)
-                BaseWidget::borderRoundedRect(bxy, bxy, bsize, bsize, boxborder, boxr);
+                BaseWidget::borderRoundedRect(m.box.xy, m.box.xy, m.box.size, m.box.size, m.box.border, m.box.borderRadius);
             else
-                BaseWidget::borderRect(bxy, bxy, bsize, bsize, boxborder);
+                BaseWidget::borderRect(m.box.xy, m.box.xy, m.box.size, m.box.size, m.box.border);
 
             BaseWidget::strokeColor(BaseWidget::isHovered() ? R::Box::borderColor〡hovered : R::Box::borderColor);
             BaseWidget::stroke();
@@ -103,13 +113,13 @@ private:
         if (BaseWidget::isChecked())
         {
             BaseWidget::beginPath();
-            BaseWidget::moveTo(bxy + bsize * 0.3f, bxy + bsize * 0.5f);
-            BaseWidget::lineTo(bxy + bsize * 0.44f, bxy + bsize * 0.666f);
-            BaseWidget::lineTo(bxy + bsize * 0.75f, bxy + bsize * 0.35f);
+            BaseWidget::moveTo(m.box.xy + m.box.size * 0.3f, m.box.xy + m.box.size * 0.5f);
+            BaseWidget::lineTo(m.box.xy + m.box.size * 0.44f, m.box.xy + m.box.size * 0.666f);
+            BaseWidget::lineTo(m.box.xy + m.box.size * 0.75f, m.box.xy + m.box.size * 0.35f);
             BaseWidget::lineCap(BaseWidget::ROUND);
             BaseWidget::lineJoin(BaseWidget::ROUND);
             BaseWidget::strokeColor(R::color〡checked);
-            BaseWidget::strokeWidth(2.f * this->fScaleFactor);
+            BaseWidget::strokeWidth(m.box.checkmark);
             BaseWidget::stroke();
         }
 
@@ -118,10 +128,10 @@ private:
 
         BaseWidget::fillColor(R::color〡checked);
         BaseWidget::fontFace("regular");
-        BaseWidget::fontSize(R::fontSize * fScaleFactor);
+        BaseWidget::fontSize(m.fontSize);
         BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::textLetterSpacing(R::letterSpacing * fScaleFactor);
-        BaseWidget::text(bxy + bsize + padding, h * 0.5f, BaseWidget::getName());
+        BaseWidget::textLetterSpacing(m.letterSpacing);
+        BaseWidget::text(m.box.xy + m.box.size + m.padding, m.height * 0.5f, BaseWidget::getName());
     }
 
     void stateChanged(const State state, const State oldState) final

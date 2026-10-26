@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../_lab/knob.hpp"
+#include "../_lab/metrics.hpp"
 
 #include "../reference.hpp"
 
@@ -12,6 +13,18 @@
 #include "LibreAudioUtils.hpp"
 
 namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R>
+struct NumberBoxMetrics : LabMetrics<R> {
+    using LabMetrics<R>::LabMetrics;
+
+    const LabMetricsHeight<R, typename R::Bar> bar { *this };
+    const LabMetricsFontSize<R, typename R::Name> name { *this };
+    const LabMetricsFontSize<R, typename R::Unit> unit { *this };
+    const LabMetricsFontSize<R, typename R::Value> value { *this };
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -58,42 +71,38 @@ private:
 
     void onNanoDisplay() final
     {
+        const NumberBoxMetrics<R> m { this };
+
+        const float border2x = m.border * 2;
+
         drawReferenceBackground<R>();
         // drawReferenceBorder<R>();
-
-        const float border = R::border * fScaleFactor;
-        const float border2x = border * 2;
-        const float borderRadius = R::borderRadius * fScaleFactor;
-        const float margin = R::margin * fScaleFactor;
-        const float bh = R::Bar::height * fScaleFactor;
-        const float w = getWidth();
-        const float h = getHeight();
 
         char valuestr[32];
         renderParameterValue(valuestr, fParameter, getValue());
 
         // inset shading
         beginPath();
-        roundedRect(0, 0, w, h, borderRadius);
-        fillPaint(linearGradient(0, 0, 0, margin, R::insetShadingColor, Reference::Colors::transparent));
+        roundedRect(0, 0, m.width, m.height, m.borderRadius);
+        fillPaint(linearGradient(0, 0, 0, m.margin, R::insetShadingColor, Reference::Colors::transparent));
         fill();
         strokeColor(R::backgroundColor);
-        strokeWidth(border * 0.5f);
+        strokeWidth(m.border * 0.5f);
         stroke();
 
         fillColor(R::Name::color);
         fontFace("regular");
-        fontSize(R::Name::fontSize * fScaleFactor);
-        textLetterSpacing(R::Name::letterSpacing * fScaleFactor);
+        fontSize(m.name.fontSize);
+        textLetterSpacing(m.name.letterSpacing);
         textAlign(ALIGN_LEFT | ALIGN_TOP);
-        text(border2x + margin, border + margin, fParameter.name, nullptr);
+        text(border2x + m.margin, m.border + m.margin, fParameter.name, nullptr);
 
         fillColor(R::Value::color);
         fontFace("mono");
-        fontSize(R::Value::fontSize * fScaleFactor);
+        fontSize(m.value.fontSize);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
-        textLetterSpacing(R::Value::letterSpacing * fScaleFactor);
-        text(border2x + margin, h - bh - margin, valuestr, nullptr);
+        textLetterSpacing(m.value.letterSpacing);
+        text(border2x + m.margin, m.height - m.bar.height - m.margin, valuestr, nullptr);
 
        #ifdef LIBREAUDIO_PLUGIN__mbComp5
         const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
@@ -105,10 +114,10 @@ private:
         {
             fillColor(R::Unit::color);
             fontFace("regular");
-            fontSize(R::Unit::fontSize * fScaleFactor);
+            fontSize(m.unit.fontSize);
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-            textLetterSpacing(R::Unit::letterSpacing * fScaleFactor);
-            text(w - border2x - margin, h - bh - margin, unit, nullptr);
+            textLetterSpacing(m.unit.letterSpacing);
+            text(m.width - border2x - m.margin, m.height - m.bar.height - m.margin, unit, nullptr);
         }
 
         // bottom bar
@@ -117,9 +126,9 @@ private:
 
             save();
 
-            scissor(0, h - bh, w, bh);
+            scissor(0, m.height - m.bar.height, m.width, m.bar.height);
             beginPath();
-            roundedRect(0, 0, w, h, borderRadius);
+            roundedRect(0, 0, m.width, m.height, m.borderRadius);
             fillColor(R::Bar::color〡deactivated);
             fill();
 
@@ -127,21 +136,21 @@ private:
             {
                 if (normvalue < 0.5f)
                 {
-                    const float x = normvalue * w;
-                    scissor(x, h - bh, w * 0.5f - x, bh);
+                    const float x = normvalue * m.width;
+                    scissor(x, m.height - m.bar.height, m.width * 0.5f - x, m.bar.height);
                 }
                 else
                 {
-                    scissor(w * 0.5f, h - bh, (normvalue - 0.5f) * w, bh);
+                    scissor(m.width * 0.5f, m.height - m.bar.height, (normvalue - 0.5f) * m.width, m.bar.height);
                 }
             }
             else
             {
-                scissor(0, h - bh, normvalue * w, bh);
+                scissor(0, m.height - m.bar.height, normvalue * m.width, m.bar.height);
             }
 
             beginPath();
-            roundedRect(0, 0, w, h, borderRadius);
+            roundedRect(0, 0, m.width, m.height, m.borderRadius);
             fillColor(R::Bar::color);
             fill();
 

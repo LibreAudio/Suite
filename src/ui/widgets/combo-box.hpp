@@ -5,9 +5,33 @@
 #pragma once
 
 #include "button.hpp"
+#include "../_lab/metrics.hpp"
 #include "../reference.hpp"
 
 namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R>
+struct ComboBoxMetrics : LabMetrics<R> {
+    explicit ComboBoxMetrics(LabWidget* const widget)
+        : LabMetrics<R>(widget),
+          box(widget, *this) {}
+
+    const struct Box : LabMetrics<typename R::Box> {
+        const float x;
+        const float y;
+        const float width;
+        const float height;
+
+        explicit Box(LabWidget* const widget, const ComboBoxMetrics& m)
+            : LabMetrics<typename R::Box>(widget),
+              x((m.width + m.padding) * 0.5f),
+              y(m.border + m.margin),
+              width(m.width - x - m.margin - m.border),
+              height(m.height - (m.border + m.margin) * 2.f) {}
+    } box;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -36,57 +60,35 @@ private:
         for (uint i = 0; i < this->fParameter.scalePointCount; ++i)
             items.push_back(this->fParameter.scalePoints[i].label);
 
-        const float fScaleFactor = this->fScaleFactor;
-        const float h = BaseWidget::getHeight();
-        const float w = BaseWidget::getWidth();
-        const float border = d_roundToIntPositive(R::border * fScaleFactor);
-        const float margin = d_roundToIntPositive(R::margin * fScaleFactor);
-        const float padding = d_roundToIntPositive(R::padding * fScaleFactor);
-        const float bx = (w + padding) * 0.5f;
-        const float by = border + margin;
-        const float bwidth = w - bx - margin - border;
-        const float bheight = h - (border + margin) * 2.f;
+        const ComboBoxMetrics<R> m { this };
 
         const Rectangle<uint> area {
-            d_roundToUnsignedInt(BaseWidget::getAbsoluteX() + bx),
-            d_roundToUnsignedInt(BaseWidget::getAbsoluteY() + by),
-            d_roundToUnsignedInt(bwidth),
-            d_roundToUnsignedInt(bheight),
+            d_roundToUnsignedInt(BaseWidget::getAbsoluteX() + m.box.x),
+            d_roundToUnsignedInt(BaseWidget::getAbsoluteY() + m.box.y),
+            d_roundToUnsignedInt(m.box.width),
+            d_roundToUnsignedInt(m.box.height),
         };
         this->fInterface->openMenu(area, R::color, BaseWidget::getId(), items);
     }
 
     void onNanoDisplay() final
     {
+        const ComboBoxMetrics<R> m { this };
+
         BaseWidget::template drawReferenceBackground<R, R::backgroundColor>();
         BaseWidget::template drawReferenceBorder<R, R::borderColor>();
-
-        const float fScaleFactor = this->fScaleFactor;
-        const float h = BaseWidget::getHeight();
-        const float w = BaseWidget::getWidth();
-        const float border = d_roundToIntPositive(R::border * fScaleFactor);
-        const float margin = d_roundToIntPositive(R::margin * fScaleFactor);
-        const float padding = d_roundToIntPositive(R::padding * fScaleFactor);
-
-        const float bx = (w + padding) * 0.5f;
-        const float by = border + margin;
-        const float bwidth = w - bx - margin - border;
-        const float bheight = h - (border + margin) * 2.f;
-        const float bmargin = d_roundToIntPositive(R::Box::margin * this->fScaleFactor);
 
         // ------------------------------------------------------------------------------------------------------------
         // draw box background
 
         if constexpr (d_isNotZero(R::Box::backgroundColor.alpha))
         {
-            const float boxr = d_roundToIntPositive(R::Box::borderRadius * fScaleFactor);
-
             BaseWidget::beginPath();
 
             if constexpr (R::Box::borderRadius != 0)
-                BaseWidget::roundedRect(bx, by, bwidth, bheight, boxr);
+                BaseWidget::roundedRect(m.box.x, m.box.y, m.box.width, m.box.height, m.box.borderRadius);
             else
-                BaseWidget::rect(bx, by, bwidth, bheight);
+                BaseWidget::rect(m.box.x, m.box.y, m.box.width, m.box.height);
 
             BaseWidget::fillColor(R::Box::backgroundColor);
             BaseWidget::fill();
@@ -97,15 +99,12 @@ private:
 
         if constexpr (R::Box::border != 0)
         {
-            const float boxborder = d_roundToIntPositive(R::Box::border * fScaleFactor);
-            const float boxr = d_roundToIntPositive(R::Box::borderRadius * fScaleFactor);
-
             BaseWidget::beginPath();
 
             if constexpr (R::Box::borderRadius != 0)
-                BaseWidget::borderRoundedRect(bx, by, bwidth, bheight, boxborder, boxr);
+                BaseWidget::borderRoundedRect(m.box.x, m.box.y, m.box.width, m.box.height, m.box.border, m.box.borderRadius);
             else
-                BaseWidget::borderRect(bx, by, bwidth, bheight, boxborder);
+                BaseWidget::borderRect(m.box.x, m.box.y, m.box.width, m.box.height, m.box.border);
 
             BaseWidget::strokeColor(BaseWidget::isHovered() ? R::Box::borderColor〡hovered : R::Box::borderColor);
             BaseWidget::stroke();
@@ -116,17 +115,17 @@ private:
 
         BaseWidget::fillColor(R::color);
         BaseWidget::fontFace("regular");
-        BaseWidget::fontSize(R::fontSize * fScaleFactor);
-        BaseWidget::textLetterSpacing(R::letterSpacing * fScaleFactor);
+        BaseWidget::fontSize(m.fontSize);
+        BaseWidget::textLetterSpacing(m.letterSpacing);
 
         BaseWidget::textAlign(BaseWidget::ALIGN_RIGHT | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::text((w - padding) * 0.5f, h * 0.5f, BaseWidget::getName());
+        BaseWidget::text((m.width - m.padding) * 0.5f, m.height * 0.5f, BaseWidget::getName());
 
         const uint pos = d_roundToUnsignedInt(this->fInterface->getParameterValue(BaseWidget::getId()));
         DISTRHO_SAFE_ASSERT_INT_RETURN(pos >= 0 && pos < this->fParameter.scalePointCount, pos,);
 
         BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::text((w + padding) * 0.5f + bmargin, h * 0.5f, this->fParameter.scalePoints[pos].label);
+        BaseWidget::text((m.width + m.padding) * 0.5f + m.box.margin, m.height * 0.5f, this->fParameter.scalePoints[pos].label);
     }
 };
 
