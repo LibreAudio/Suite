@@ -311,7 +311,7 @@ struct Reference {
         };
 
         struct Menu : Zero {
-            static constexpr const Color backgroundColor = Colors::track;
+            static constexpr const Color backgroundColor = Color(0x1e, 0x1f, 0x24, 0.96f);
             static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;

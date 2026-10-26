@@ -75,6 +75,11 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
                 fInterface->parameterControlReleased(getId());
         }
 
+        void setWidth(const uint width) noexcept
+        {
+            fWidth = width;
+        }
+
         bool shouldClose() const noexcept
         {
             return fShouldClose;
@@ -84,12 +89,22 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
         {
             BaseWidget::updateSize(updateChildren);
 
+            const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+            const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+            const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
             uint itemwidth = 0;
 
             if (updateChildren)
             {
-                for (std::shared_ptr<MenuItemWidget> item : fItems)
-                    itemwidth = std::max(itemwidth, item->getWidth());
+                if (fWidth != 0)
+                {
+                    itemwidth = fWidth - (border + margin) * 2;
+                }
+                else
+                {
+                    for (std::shared_ptr<MenuItemWidget> item : fItems)
+                        itemwidth = std::max(itemwidth, item->getWidth());
+                }
 
                 for (std::shared_ptr<MenuItemWidget> item : fItems)
                     item->setWidth(itemwidth);
@@ -99,10 +114,7 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
                 itemwidth = fItems.front()->getWidth();
             }
 
-            const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-            const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-            const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
-            const uint width = itemwidth + (border + margin) * 2;
+            const uint width = fWidth ?: itemwidth + (border + margin) * 2;
 
             uint height = (border + margin) * 2;
 
@@ -115,6 +127,7 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
     private:
         const bool fIsParameter;
         bool fShouldClose = false;
+        uint fWidth = 0;
         const std::vector<const char*> fLabels;
 
         uint fSelectedIndex = 0;
@@ -155,7 +168,7 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
         static_assert(R::width == 0, "menu items must have zero width");
         static_assert(d_isZero(R::backgroundColor.alpha), "menu items must not define background color");
 
-        static constexpr const Color kAccentColorHovered = Color(kAccentColor, 0.45f);
+        static constexpr const Color kAccentColorHovered = Color(kAccentColor, 0.15f);
         static constexpr const Color kAccentColorNone = Color(kAccentColor, 0.f);
 
         // friend class MenuWidget;
@@ -219,9 +232,14 @@ public:
         const uint mheight = fContainer->getHeight();
 
         if (mwidth > area.getWidth())
+        {
             mpos.setX(area.getX() - (mwidth - area.getWidth()) / 2);
+        }
         else
-            mpos.setX(area.getX() + (area.getWidth() - mwidth) / 2);
+        {
+            mpos.setX(area.getX());
+            fContainer->setWidth(area.getWidth());
+        }
 
         if (area.getY() > mheight)
             mpos.setY(area.getY() - mheight);
