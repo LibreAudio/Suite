@@ -337,10 +337,16 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[0] != '\0',);
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[1] == '\0',);
 
-        const uint8_t snapshot = snapshotKey[0] -'a';
+        const uint8_t snapshot = snapshotKey[0] - 'a';
         DISTRHO_SAFE_ASSERT_INT_RETURN(snapshot < kNumSnapshots, snapshot,);
 
         // d_stdout("loading snapshot %u | %s", snapshot, value);
+
+        if (value[0] == '\0')
+        {
+            fSnapshots.resetData(fParameterValues);
+            return;
+        }
 
         float* const parameterValues = new float[kParameterCount];
         std::memcpy(parameterValues, fParameterValues, sizeof(float) * kParameterCount);

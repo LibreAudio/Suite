@@ -93,6 +93,19 @@ void LibreAudioSnapshots::load(const uint32_t snapshot)
     fCallback->snapshotParametersChanged(fParameterValues[snapshot]);
 }
 
+void LibreAudioSnapshots::resetData(const float* const parameterValues)
+{
+    fPrevious = fCurrent;
+
+    for (uint32_t i = 0; i < fSnapshotCount; ++i)
+    {
+        std::memcpy(fParameterValues[i], parameterValues, sizeof(float) * fParameterCount);
+        fUndoRedos[i]->clear();
+    }
+
+    std::memset(fUpdated, 0, sizeof(bool) * fParameterCount);
+}
+
 void LibreAudioSnapshots::restoreCurrentAndPrevious(const uint32_t snapshot)
 {
     fCurrent = fPrevious = snapshot;
