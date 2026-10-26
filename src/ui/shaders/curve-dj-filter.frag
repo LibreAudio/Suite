@@ -36,12 +36,12 @@
 /* --- constants mirrored from djFilter.dsp -------------------------------- */
 #define NEUTRAL    0.1     /* knob centre zone that passes clean */
 #define FADE_WIDTH 0.05    /* knob travel over which dry crossfades to filtered */
-#define HP_LO     20.0     /* high-pass corner at the neutral edge, Hz */
-#define HP_HI  20000.0     /* high-pass corner at full right, Hz */
-#define LP_LO     20.0     /* low-pass corner at full left, Hz */
-#define LP_HI  20000.0     /* low-pass corner at the neutral edge, Hz */
-#define QMIN       0.7     /* Q with the resonance knob down */
-#define QMAX       6.0     /* Q with the resonance knob up (at full knob travel) */
+#define HP_LO     40.0     /* high-pass corner at the neutral edge, Hz */
+#define HP_HI  10000.0     /* high-pass corner at full right, Hz */
+#define LP_LO     40.0     /* low-pass corner at full left, Hz */
+#define LP_HI  10000.0     /* low-pass corner at the neutral edge, Hz */
+#define QMIN       1.0     /* Q with the resonance knob down */
+#define QMAX       8.0     /* Q with the resonance knob up (at full knob travel) */
 
 /* standalone defaults (Shadertoy editor has no custom uniforms) */
 #ifndef LIBREAUDIO_HOSTED
