@@ -135,7 +135,7 @@ private:
             |ImGuiWindowFlags_NoScrollWithMouse
             |ImGuiWindowFlags_AlwaysAutoResize;
 
-        ImGui::Begin("Double Click Helper", nullptr, windowFlags);
+        ImGui::Begin("##helper", nullptr, windowFlags);
 
         if (wasFirstOpen)
         {
@@ -143,7 +143,7 @@ private:
             ImGui::SetKeyboardFocusHere();
         }
 
-        closeOnNextIdle |= ImGui::InputText("", textBuf, sizeof(textBuf), textFlags);
+        closeOnNextIdle |= ImGui::InputText("##input", textBuf, sizeof(textBuf), textFlags);
 
         if (!wasFirstOpen && !ImGui::IsItemActive())
             closeOnNextIdle = true;
