@@ -101,9 +101,8 @@ void LibreAudioSnapshots::resetData(const float* const parameterValues)
     {
         std::memcpy(fParameterValues[i], parameterValues, sizeof(float) * fParameterCount);
         fUndoRedos[i]->clear();
+        fUpdated[i] = false;
     }
-
-    std::memset(fUpdated, 0, sizeof(bool) * fParameterCount);
 }
 
 void LibreAudioSnapshots::restoreCurrentAndPrevious(const uint32_t snapshot)
