@@ -115,7 +115,7 @@ with_reverb = si.bus(Nch) <: si.bus(Nch), (par(i, Nch, *(reverb_send)) : reverb 
 
 limiter = par(i, Nch, co.limiter_1176_R4_mono);
 
-reverb = re.vital_rev(prelow, prehigh, lowcutoff, highcutoff, lowgain, highgain, chorus_amt, chorus_freq, predelay, time, size, mix) with {
+reverb_vital = re.vital_rev(prelow, prehigh, lowcutoff, highcutoff, lowgain, highgain, chorus_amt, chorus_freq, predelay, time, size, mix) with {
     prelow = 0.01;
     prehigh = 0.8;
     lowcutoff = 0;
@@ -128,4 +128,18 @@ reverb = re.vital_rev(prelow, prehigh, lowcutoff, highcutoff, lowgain, highgain,
     time = 0.60;
     size = 0.5;
     mix = 1;
+};
+
+//reverb = re.stereo_freeverb(0.9, 0.8, 0.8, 3 0);
+//reverb = dm.dattorro_rev_demo;
+//reverb = dm.reverbTank_demo;
+//reverb = dm.kb_rom_rev1_demo;
+//reverb = dm.zita_rev1;
+reverb = re.zita_rev1_stereo(rdel,f1,f2,t60dc,t60m,fsmax) with {
+    rdel = 60;
+    f1 = 300;
+    f2 = 4000;
+    t60dc = 3.5;
+    t60m = 3;
+    fsmax = 192000;
 };
