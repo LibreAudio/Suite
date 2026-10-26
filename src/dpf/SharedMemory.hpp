@@ -68,6 +68,7 @@ public:
         const std::size_t filename2len = std::strlen(filename2);
 
         std::srand(static_cast<uint>(std::time(nullptr)));
+        std::srand(reinterpret_cast<uintptr_t>(this));
 
         // Step 1. Find a valid shared memory segment (keep trying until one is obtained or an error occurs)
         for (;;)

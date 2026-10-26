@@ -92,7 +92,7 @@ void FFTAnalysis::init(uint32_t window_size, double rate)
     _data_size     = window_size / 2;
     _window        = NULL;
     _freq_per_bin  = rate / _data_size / 2.f;
-    _phasediff_bin = (M_PI / _data_size) * (double)_window_size;
+    _phasediff_bin = (M_PI / _data_size) * (double)window_size;
     _phase_scale   = (_data_size / (double)window_size) / M_PI;
 
     _fft_in  = (kiss_fft_cpx_*)std::malloc(window_size * sizeof(kiss_fft_cpx_));
@@ -151,7 +151,6 @@ static inline float fftx_power_to_dB (float a)
 float FFTAnalysis::powerAtBin(const int b) const
 {
     return fftx_power_to_dB(_power[b]);
-    // return _power[b];
 }
 
 float FFTAnalysis::freqAtBin(const int b) const
@@ -212,12 +211,9 @@ float* FFTAnalysis::_genWindow()
 
 void FFTAnalysis::_reset()
 {
-    for (uint32_t i = 0; i < _data_size; ++i) {
-        _power[i]   = 0;
-        _phase[i]   = 0;
-        _phase_h[i] = 0;
-    }
-    // for (uint32_t i = 0; i < _window_size; ++i) {
-    //     _fft_out[i] = 0;
-    // }
+    std::memset(_fft_in, 0, _window_size * sizeof(kiss_fft_cpx_));
+    std::memset(_fft_out, 0, _window_size * sizeof(kiss_fft_cpx_));
+    std::memset(_power, 0, _data_size * sizeof(float));
+    std::memset(_phase, 0, _data_size * sizeof(float));
+    std::memset(_phase_h, 0, _data_size * sizeof(float));
 }

@@ -290,6 +290,8 @@ public:
     }
 
 private:
+    double last = getApp().getTime();
+
     void idleCallback() final
     {
         if (! fPendingDisplay)
@@ -298,7 +300,6 @@ private:
             repaint();
         }
 
-        static double last = getApp().getTime();
         if (const double t = getApp().getTime(); t - last > 1)
         {
             last = t;
