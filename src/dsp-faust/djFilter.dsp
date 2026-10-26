@@ -5,6 +5,7 @@ declare description "";
 declare license "GPL-3.0-or-later";
 declare name "DJ Filter";
 declare unique_id "LAdj";
+declare graph "analyzer";
 
 Nch = 2;                            // djFilter is stereo
 

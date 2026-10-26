@@ -10,13 +10,17 @@
 
 #include "las-resources.h"
 
+#include <list>
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class RootWidget,
          const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
-         uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
+         uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN,
+         const char curveSrc[] = nullptr,
+         uint curveSrcSize = 0>
 class UI final : public LibreAudioBaseUI
 {
     const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
@@ -41,17 +45,30 @@ class UI final : public LibreAudioBaseUI
         new AnalyzerShaderW(this, this)
     };
 
+    // optional response curve, drawn above the analyser
+    const std::unique_ptr<BotShaderBaseWidget> fShaderCurve { createCurveShader() };
+
 public:
     UI() : LibreAudioBaseUI()
     {
         createRootWidget<RootWidget>();
 
-        static_cast<RootWidget*>(fRootWidget.get())->enableShaders({
-            fShaderBackground.get(), fShaderAnalyser.get()
-        });
+        std::list<ShaderBaseWidget*> shaders { fShaderBackground.get(), fShaderAnalyser.get() };
+        if (fShaderCurve)
+            shaders.push_back(fShaderCurve.get());
+
+        static_cast<RootWidget*>(fRootWidget.get())->enableShaders(shaders);
     }
 
 private:
+    BotShaderBaseWidget* createCurveShader()
+    {
+        if constexpr (curveSrc != nullptr)
+            return new BotShaderWidget<curveSrc, curveSrcSize>(this, this);
+        else
+            return nullptr;
+    }
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
