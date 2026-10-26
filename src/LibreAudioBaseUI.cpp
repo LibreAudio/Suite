@@ -206,7 +206,7 @@ void LibreAudioBaseUI::uiIdle()
 
     fSnapshots.idle();
 
-    if (LibreAudio::MenuWidget* const menu = fMenuWidget.get(); menu != nullptr && menu->shouldClose())
+    if (LibreAudio::MenuOverlayWidgetInterface* const menu = fMenuWidget.get(); menu != nullptr && menu->shouldClose())
         fMenuWidget.reset();
 }
 
@@ -579,9 +579,26 @@ void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const floa
         editParameter(index, false);
 }
 
-void LibreAudioBaseUI::openMenu(const Point<int>& pos, const uint32_t id, const std::vector<const char*>& items)
+void LibreAudioBaseUI::openMenu(const Rectangle<uint>& area,
+                                const Color& color,
+                                const uint32_t id,
+                                const std::vector<const char*>& items)
 {
-    fMenuWidget.reset(new LibreAudio::MenuWidget(fRootWidget.get(), pos, id, items));
+    using namespace LibreAudio;
+
+    if (color.isEqual(Reference::Colors::acc2, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc2>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc3, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc3>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc4, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc4>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc5, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc5>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc6, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc6>(fRootWidget.get(), area, id, items));
+
+    // fallback
+    return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc1>(fRootWidget.get(), area, id, items));
 }
 
 void LibreAudioBaseUI::openTextInput(LabWidget* const widget,

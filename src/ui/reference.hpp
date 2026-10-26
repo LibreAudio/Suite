@@ -318,8 +318,6 @@ struct Reference {
             static constexpr const uint margin = 4;
             static constexpr const uint padding = 4;
             struct Item : Zero {
-                static constexpr const Color backgroundColor〡checked = Colors::acc1;
-                static constexpr const Color backgroundColor〡hover = Color(Colors::acc1, 0.45f);
                 static constexpr const Color color = Colors::ink2;
                 static constexpr const Color color〡checked = Colors::track;
                 static constexpr const float fontSize = 15;

@@ -36,10 +36,24 @@ private:
         for (uint i = 0; i < this->fParameter.scalePointCount; ++i)
             items.push_back(this->fParameter.scalePoints[i].label);
 
-        this->fInterface->openMenu(
-            { int(BaseWidget::getAbsoluteX() + BaseWidget::getWidth() / 2), BaseWidget::getAbsoluteY() },
-            BaseWidget::getId(),
-            items);
+        const float fScaleFactor = this->fScaleFactor;
+        const float h = BaseWidget::getHeight();
+        const float w = BaseWidget::getWidth();
+        const float border = d_roundToIntPositive(R::border * fScaleFactor);
+        const float margin = d_roundToIntPositive(R::margin * fScaleFactor);
+        const float padding = d_roundToIntPositive(R::padding * fScaleFactor);
+        const float bx = (w + padding) * 0.5f;
+        const float by = border + margin;
+        const float bwidth = w - bx - margin - border;
+        const float bheight = h - (border + margin) * 2.f;
+
+        const Rectangle<uint> area {
+            d_roundToUnsignedInt(BaseWidget::getAbsoluteX() + bx),
+            d_roundToUnsignedInt(BaseWidget::getAbsoluteY() + by),
+            d_roundToUnsignedInt(bwidth),
+            d_roundToUnsignedInt(bheight),
+        };
+        this->fInterface->openMenu(area, R::color, BaseWidget::getId(), items);
     }
 
     void onNanoDisplay() final

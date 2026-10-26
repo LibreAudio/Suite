@@ -15,16 +15,26 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class MenuWidget final : public LabWidget
+class MenuOverlayWidgetInterface : public LabWidget
 {
-    class ItemWidget;
-    class ItemContainerWidget;
+public:
+    explicit MenuOverlayWidgetInterface(LabTopLevelWidget* const parent)
+        : LabWidget(parent) {}
 
-    using BaseWidget = LabWidget;
+    virtual bool shouldClose() const noexcept = 0;
+};
 
-    class ItemContainerWidget final : public ReferenceContainerWidget<Reference::Widgets::Menu, Vertical>,
-                                      private ButtonEventHandler::Callback,
-                                      private IdleCallback
+// --------------------------------------------------------------------------------------------------------------------
+
+template<const Color& kAccentColor>
+class MenuOverlayWidget final : public MenuOverlayWidgetInterface
+{
+    using BaseWidget = MenuOverlayWidgetInterface;
+
+    class MenuItemWidget;
+    class MenuWidget final : public ReferenceContainerWidget<Reference::Widgets::Menu, Vertical>,
+                             private ButtonEventHandler::Callback,
+                             private IdleCallback
     {
         using R = Reference::Widgets::Menu;
         using BaseWidget = ReferenceContainerWidget<R, Vertical>;
@@ -34,9 +44,7 @@ class MenuWidget final : public LabWidget
         static_assert(R::width == 0, "menu items must have zero width");
 
     public:
-        explicit ItemContainerWidget(MenuWidget* const parent,
-                                     const uint id,
-                                     const std::vector<const char*>& items)
+        explicit MenuWidget(MenuOverlayWidget* const parent, const uint id, const std::vector<const char*>& items)
             : BaseWidget(parent),
               fIsParameter(id < fInterface->getParameterCount()),
               fLabels(items)
@@ -48,7 +56,7 @@ class MenuWidget final : public LabWidget
 
             for (uint i = 0, count =  items.size(); i < count; ++i)
             {
-                std::shared_ptr<ItemWidget> widget { new ItemWidget(this, i, fLabels[i]) };
+                std::shared_ptr<MenuItemWidget> widget { new MenuItemWidget(this, i, fLabels[i]) };
                 widget->setCallback(this);
                 widget->setChecked(fSelectedIndex == i, false);
                 Layout::widgets.push_back({ widget.get(), Fixed });
@@ -61,7 +69,7 @@ class MenuWidget final : public LabWidget
                 fInterface->parameterControlPressed(id);
         }
 
-        ~ItemContainerWidget() final
+        ~MenuWidget() final
         {
             if (fIsParameter)
                 fInterface->parameterControlReleased(getId());
@@ -80,13 +88,10 @@ class MenuWidget final : public LabWidget
 
             if (updateChildren)
             {
-                for (std::shared_ptr<ItemWidget> item : fItems)
-                {
-                    item->updateSize(true);
+                for (std::shared_ptr<MenuItemWidget> item : fItems)
                     itemwidth = std::max(itemwidth, item->getWidth());
-                }
 
-                for (std::shared_ptr<ItemWidget> item : fItems)
+                for (std::shared_ptr<MenuItemWidget> item : fItems)
                     item->setWidth(itemwidth);
             }
             else if (! fItems.empty())
@@ -113,7 +118,7 @@ class MenuWidget final : public LabWidget
         const std::vector<const char*> fLabels;
 
         uint fSelectedIndex = 0;
-        std::list<std::shared_ptr<ItemWidget>> fItems;
+        std::list<std::shared_ptr<MenuItemWidget>> fItems;
 
         void buttonClicked(SubWidget* const widget, int) final
         {
@@ -134,25 +139,29 @@ class MenuWidget final : public LabWidget
                 {
                     fSelectedIndex = index;
 
-                    for (std::shared_ptr<ItemWidget> item : fItems)
+                    for (std::shared_ptr<MenuItemWidget> item : fItems)
                         item->setChecked(index == item->getId(), false);
                 }
             }
         }
     };
 
-    class ItemWidget final : public ReferenceButtonWidget<Reference::Widgets::Menu::Item, kCornerAuto>
+    class MenuItemWidget final : public ReferenceButtonWidget<Reference::Widgets::Menu::Item, kCornerAuto>
     {
         using R = Reference::Widgets::Menu::Item;
         using BaseWidget = ReferenceButtonWidget<R, kCornerAuto>;
 
         static_assert(R::height != 0, "menu items must have non-zero height");
         static_assert(R::width == 0, "menu items must have zero width");
+        static_assert(d_isZero(R::backgroundColor.alpha), "menu items must not define background color");
 
-        friend class ItemContainerWidget;
+        static constexpr const Color kAccentColorHovered = Color(kAccentColor, 0.45f);
+        static constexpr const Color kAccentColorNone = Color(kAccentColor, 0.f);
+
+        // friend class MenuWidget;
 
     public:
-        explicit ItemWidget(ItemContainerWidget* const parent, const uint id, const char* const text)
+        explicit MenuItemWidget(MenuWidget* const parent, const uint id, const char* const text)
             : BaseWidget(parent, id)
         {
             setCheckable(true);
@@ -164,11 +173,11 @@ class MenuWidget final : public LabWidget
         void onNanoDisplay() final
         {
             if (isChecked())
-                drawReferenceBackground<R, R::backgroundColor〡checked, kCornerAuto>();
+                drawReferenceBackground<R, kAccentColor, kCornerAuto>();
             else if (isHovered())
-                drawReferenceBackground<R, R::backgroundColor〡hover, kCornerAuto>();
+                drawReferenceBackground<R, kAccentColorHovered, kCornerAuto>();
             else
-                drawReferenceBackground<R, R::backgroundColor, kCornerAuto>();
+                drawReferenceBackground<R, kAccentColorNone, kCornerAuto>();
 
             if (isChecked())
                 drawReferenceText<R, R::color〡checked>(getName());
@@ -194,19 +203,33 @@ class MenuWidget final : public LabWidget
     };
 
 public:
-    explicit MenuWidget(LabTopLevelWidget* const parent,
-                        const Point<int>& pos,
-                        const uint id,
-                        const std::vector<const char*>& items)
+    explicit MenuOverlayWidget(LabTopLevelWidget* const parent,
+                               const Rectangle<uint>& area,
+                               const uint id,
+                               const std::vector<const char*>& items)
         : BaseWidget(parent)
     {
         setId(id);
         setSize(parent->getSize());
 
-        fContainer.reset(new ItemContainerWidget(this, id, items));
+        fContainer.reset(new MenuWidget(this, id, items));
 
-        static_cast<SubWidget*>(fContainer.get())->setAbsolutePos(pos.getX(),
-                                                                  pos.getY() - fContainer->getHeight());
+        Point<int> mpos;
+        const uint mwidth = fContainer->getWidth();
+        const uint mheight = fContainer->getHeight();
+
+        if (mwidth > area.getWidth())
+            mpos.setX(area.getX() - (mwidth - area.getWidth()) / 2);
+        else
+            mpos.setX(area.getX() + (area.getWidth() - mwidth) / 2);
+
+        if (area.getY() > mheight)
+            mpos.setY(area.getY() - mheight);
+        else
+            mpos.setY(area.getY());
+
+        static_cast<LabWidget*>(fContainer.get())->setAbsolutePos(mpos);
+        // static_cast<SubWidget*>(fContainer.get())->setAbsolutePos(pos);
 
         fContainer->updateSize(true);
     }
@@ -217,7 +240,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ItemContainerWidget> fContainer;
+    std::shared_ptr<MenuWidget> fContainer;
     bool fShouldClose = false;
 
     void onNanoDisplay() final
