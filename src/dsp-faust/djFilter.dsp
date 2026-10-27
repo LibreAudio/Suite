@@ -19,7 +19,7 @@ uiBottomLeft(x) = uiBottom(hgroup("[1]Stage Bottom Left", x));
 uiBottomRight(x) = uiBottom(hgroup("[1]Stage Bottom Right", x));
 
 // --- Knob ---
-knob = uiBottomLeft(hslider("[01]DJ Filter[style:knob][symbol:knob][label:Filter][accentcolor:01][easy]", 0, -1, 1, 0.0001)) : si.smoo;
+knob = uiBottomLeft(hslider("[01]DJ Filter[style:knob][symbol:knob][label:Filter][accentcolor:01][easy]", 0, -1, 1, 0.001)) : si.smoo;
 
 // filter frequency meters
 highpass_meter = _; //_ <: attach(_, hbargraph("[1]HighPass Frequency[unit:Hz][scale:log][symbol:highpass_frequency]", highpass_frequency_low, highpass_frequency_hi));
@@ -45,7 +45,7 @@ lowpassQ_min = 1;
 lowpassQ_max = 8;
 
 // 0 = no resonance (Q at min), 1 = max resonance
-emphasizeQ = uiBottomLeft(hslider("[02]Resonance[style:knob][symbol:emphasize_q][label:Resonance][accentcolor:05]", 0, 0, 1, 0.001));
+emphasizeQ = uiBottomLeft(hslider("[02]Resonance[style:knob][unit:%][symbol:emphasize_q][label:Reson][accentcolor:05]", 0, 0, 100, 1)) / 100;
 
 // Exponential Q rise with knob travel; emphasizeQ scales the exponent (0 = flat at min, 1 = full rise to max)
 highpassQ = highpassQ_min * pow(highpassQ_max / highpassQ_min, emphasizeQ * t_highpass);
@@ -98,7 +98,7 @@ volume = pow(1 - t_fadeout_hi, 2) * pow(1 - t_fadeout_lo, 2);
 volume_apply = par(i, Nch, *(volume));
 
 // Overdrive: slider sets max amount, scales 0→max as knob moves to either extreme
-overdrive_amount = uiBottomRight(hslider("[03]Overdrive[style:knob][symbol:overdrive][label:Drive][accentcolor:05]", 0, 0, 1, 0.001));
+overdrive_amount = uiBottomRight(hslider("[03]Overdrive[style:knob][unit:%][symbol:overdrive][label:Drive][accentcolor:05]", 0, 0, 100, 1)) / 100;
 
 overdrive_t = overdrive_amount * max(t_highpass, t_lowpass)^0.7;
 overdrive_drive = 1 + overdrive_t * 7;
@@ -107,7 +107,7 @@ overdrive_mono = _ <: *(1 - overdrive_t), (*(overdrive_drive) : ma.tanh : /(over
 with_overdrive = par(i, Nch, overdrive_mono);
 
 // Reverb send: adjustable maximum, scales 0→max as knob moves to either extreme
-reverb_send_max = uiBottomRight(hslider("[04]Reverb Send[style:knob][symbol:reverb_send][label:Reverb][accentcolor:04]", 0, 0, 1, 0.001));
+reverb_send_max = uiBottomRight(hslider("[04]Reverb Send[style:knob][unit:%][symbol:reverb_send][label:Reverb][accentcolor:04]", 0, 0, 100, 1)) / 100;
 reverb_send = reverb_send_max * max(t_highpass, t_lowpass)^0.7;
 
 // Send/return: dry signal + reverb-processed send, summed together

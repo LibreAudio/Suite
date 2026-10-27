@@ -13,6 +13,15 @@
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
+// a knob reference may set `showText = false` to draw only the knob, without name/value text below it
+
+template <class R, class = void>
+struct KnobShowsText : std::true_type {};
+
+template <class R>
+struct KnobShowsText<R, std::void_t<decltype(R::showText)>> : std::bool_constant<R::showText> {};
+
+// --------------------------------------------------------------------------------------------------------------------
 
 template <class R>
 class DrawableKnobWidget final : public LabKnobWidget
@@ -61,13 +70,9 @@ public:
 private:
     const FaustParameter& fParameter;
 
-    void onNanoDisplay() final
+    // name below the knob, or value + unit while interacting or shortly after a host change
+    void drawText(const float w, const float h)
     {
-        const float w = getWidth();
-        const float h = getHeight();
-        const float cx = w * 0.5f;
-        const float cy = R::width * 0.5f * fScaleFactor;
-
         char textBuffer[24];
 
         if (const double timeNow = getTime();
@@ -114,6 +119,17 @@ private:
             textBuffer[sizeof(textBuffer) - 1] = '\0';
             text(w * 0.5f, h, textBuffer);
         }
+    }
+
+    void onNanoDisplay() final
+    {
+        const float w = getWidth();
+        const float h = getHeight();
+        const float cx = w * 0.5f;
+        const float cy = R::width * 0.5f * fScaleFactor;
+
+        if constexpr (KnobShowsText<R>::value)
+            drawText(w, h);
 
         const float size = w;
 
