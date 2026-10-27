@@ -8,6 +8,7 @@
 #include "ui/containers/ui.hpp"
 #include "ui/widgets/card.hpp"
 #include "ui/widgets/knob.hpp"
+#include "ui/widgets/number-box.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -24,7 +25,7 @@ namespace LibreAudio {
 
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
-static constexpr const uint kKnobsGroupWidth = 330;
+static constexpr const uint kNumberBoxHeight = 50;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -303,6 +304,17 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+// number boxes take their accent colors from the dsp file
+namespace widgets {
+    using DjFilterNumberBoxWidget = NumberBoxWidget<Reference::Colors::acc1, kNumberBoxHeight>;
+
+    using ReverbSend = ParameterWidgetPair<kFaustParameterReverb_send, DjFilterNumberBoxWidget>;
+    using EmphasizeQ = ParameterWidgetPair<kFaustParameterEmphasize_q, DjFilterNumberBoxWidget>;
+    using Overdrive = ParameterWidgetPair<kFaustParameterOverdrive, DjFilterNumberBoxWidget>;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
 struct DjFilterGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
     static constexpr const Color borderColor = backgroundColor;
@@ -312,7 +324,7 @@ struct DjFilterGroupReference : Reference::Zero {
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = kCommonMargin;
     static constexpr const uint padding = kCommonPadding;
-    static constexpr const uint height = Reference::Widgets::Knob::height + (border + margin) * 2;
+    static constexpr const uint height = kNumberBoxHeight + (border + margin) * 2;
 
     static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
     static constexpr const Point<int> shadowOffset = { 0, 5 };
@@ -320,32 +332,13 @@ struct DjFilterGroupReference : Reference::Zero {
     static constexpr const uint shadowFeather = 14;
 };
 
-// reverb, resonance and overdrive knobs, evenly spaced inside a group well
-class DjFilterKnobsGroupWidget final : public ReferenceContainerWidget<Reference::Width<kKnobsGroupWidth, DjFilterGroupReference>, Horizontal>
-{
-    using BaseWidget = ReferenceContainerWidget<Reference::Width<kKnobsGroupWidth, DjFilterGroupReference>, Horizontal>;
-
-    const std::array<std::shared_ptr<LabWidget>, 7> widgets {
-        addSpacer(),
-        addKnob(kFaustParameterReverb_send),
-        addSpacer(),
-        addKnob(kFaustParameterEmphasize_q),
-        addSpacer(),
-        addKnob(kFaustParameterOverdrive),
-        addSpacer(),
-    };
-
-public:
-    explicit DjFilterKnobsGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-private:
-    std::shared_ptr<LabWidget> addKnob(const FaustParameterIndex index)
-    {
-        // the knob keeps a reference to its parameter, so pass the static entry and not a copy
-        return addWidget<SmallKnobWidget>(std::cref(kFaustParameters[index]), kParametersMainStart + index);
-    }
-};
+template <typename... Args>
+using DjFilterGroupWidget = StaticParameterContainerWidget<
+    DjFilterGroupReference,
+    Horizontal,
+    Expanding,
+    Args...
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -354,23 +347,39 @@ struct DjFilterGroupsContainerReference : Reference::Zero {
     static constexpr const uint height = DjFilterGroupReference::height + (border + margin) * 2;
 };
 
-using DjFilterGroupsContainerWidget = StaticContainerPairWidget<
-    DjFilterGroupsContainerReference,
-    Horizontal,
-    SizeHintWidgetPair<Expanding, LabEmptyWidget>,
-    SizeHintWidgetPair<Fixed, DjFilterKnobsGroupWidget>,
-    SizeHintWidgetPair<Expanding, LabEmptyWidget>
->;
+// all number boxes in one group well, 80% of the display width and centered
+class DjFilterGroupsContainerWidget final : public ReferenceContainerWidget<DjFilterGroupsContainerReference, Horizontal>
+{
+    using BaseWidget = ReferenceContainerWidget<DjFilterGroupsContainerReference, Horizontal>;
+    using GroupWidget = DjFilterGroupWidget<widgets::ReverbSend, widgets::EmphasizeQ, widgets::Overdrive>;
+
+    static constexpr const float kGroupWidthRatio = 0.8f;
+
+    std::shared_ptr<LabWidget> fLeftSpacer = addSpacer();
+    std::shared_ptr<GroupWidget> fGroup = addWidget<GroupWidget, Fixed>();
+    std::shared_ptr<LabWidget> fRightSpacer = addSpacer();
+
+public:
+    explicit DjFilterGroupsContainerWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+
+private:
+    void updateSize(const bool updateChildren) override
+    {
+        static_cast<LabWidget*>(fGroup.get())->setWidth(d_roundToUnsignedInt(getParentWidget()->getWidth() * kGroupWidthRatio));
+        BaseWidget::updateSize(updateChildren);
+    }
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
 class DjFilterPresetCardsWidget : public CardGroupWidget
 {
     const std::array<std::shared_ptr<LabCardWidget>, 4> cards = {
-        addCard(kWidgetPresetA, "CLEAN SWEEP", "Pure filter, nothing added"),
-        addCard(kWidgetPresetB, "RESONANT", "Squelchy peak at the cutoff"),
-        addCard(kWidgetPresetC, "DUB SPACE", "Reverb tail on the sweep"),
-        addCard(kWidgetPresetD, "DIRTY", "Driven, resonant sweep"),
+        addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
+        addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
+        addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
+        addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack"),
     };
 
 public:
@@ -380,6 +389,15 @@ public:
         done();
     }
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+// bottom area of both pages has the same height, so the big knob sits at the same place
+static constexpr const uint kBottomAreaHeight = std::max(Reference::Widgets::CardGroup::height,
+                                                         DjFilterGroupsContainerReference::height);
+
+template <class W>
+using DjFilterBottomAreaWidget = StaticBottomAlignedContainerWidget<Reference::Height<kBottomAreaHeight>, W>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -401,7 +419,7 @@ using DjFilterEasyPageWidget = StaticContainerPairWidget<
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
     SizeHintWidgetPair<Fixed, DjFilterBigKnobRowWidget>,
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
-    SizeHintWidgetPair<Fixed, DjFilterPresetCardsWidget>
+    SizeHintWidgetPair<Fixed, DjFilterBottomAreaWidget<DjFilterPresetCardsWidget>>
 >;
 
 // big filter knob at seven eighths down the display, knobs group at the bottom
@@ -417,7 +435,7 @@ using DjFilterExpertPageWidget = StaticContainerPairWidget<
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
     SizeHintWidgetPair<Fixed, DjFilterBigKnobRowWidget>,
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
-    SizeHintWidgetPair<Fixed, DjFilterGroupsContainerWidget>
+    SizeHintWidgetPair<Fixed, DjFilterBottomAreaWidget<DjFilterGroupsContainerWidget>>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------

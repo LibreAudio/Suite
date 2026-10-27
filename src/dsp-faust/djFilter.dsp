@@ -98,7 +98,7 @@ volume = pow(1 - t_fadeout_hi, 2) * pow(1 - t_fadeout_lo, 2);
 volume_apply = par(i, Nch, *(volume));
 
 // Overdrive: slider sets max amount, scales 0→max as knob moves to either extreme
-overdrive_amount = uiBottomRight(hslider("[03]Overdrive[style:knob][unit:%][symbol:overdrive][label:Drive][accentcolor:05]", 0, 0, 100, 1)) / 100;
+overdrive_amount = uiBottomRight(hslider("[03]Overdrive[style:knob][unit:%][symbol:overdrive][label:Drive][accentcolor:02]", 0, 0, 100, 1)) / 100;
 
 overdrive_t = overdrive_amount * max(t_highpass, t_lowpass)^0.7;
 overdrive_drive = 1 + overdrive_t * 7;
@@ -107,7 +107,7 @@ overdrive_mono = _ <: *(1 - overdrive_t), (*(overdrive_drive) : ma.tanh : /(over
 with_overdrive = par(i, Nch, overdrive_mono);
 
 // Reverb send: adjustable maximum, scales 0→max as knob moves to either extreme
-reverb_send_max = uiBottomRight(hslider("[04]Reverb Send[style:knob][unit:%][symbol:reverb_send][label:Reverb][accentcolor:04]", 0, 0, 100, 1)) / 100;
+reverb_send_max = uiBottomRight(hslider("[04]Reverb Send[style:knob][unit:%][symbol:reverb_send][label:Reverb][accentcolor:03]", 0, 0, 100, 1)) / 100;
 reverb_send = reverb_send_max * max(t_highpass, t_lowpass)^0.7;
 
 // Send/return: dry signal + reverb-processed send, summed together
