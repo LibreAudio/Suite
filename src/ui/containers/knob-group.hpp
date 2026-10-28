@@ -6,7 +6,6 @@
 
 #include "DistrhoPluginInfo.h"
 
-#include "../_lab/color.hpp"
 #include "../_lab/container.hpp"
 #include "../_lab/image.hpp"
 

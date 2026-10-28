@@ -167,6 +167,11 @@ class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Ve
 public:
     explicit StaticBottomAlignedContainerWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
+
+    uint getLastWidgetHeight() const noexcept
+    {
+        return widgets.back()->getHeight();
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -392,6 +392,11 @@ struct Reference {
             };
         };
 
+        struct FloatingLineSlider : Zero {
+            static constexpr const float fontSize = 14.f;
+            static constexpr const float letterSpacing = 1.f;
+        };
+
         struct KnobGroup : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;

@@ -4,8 +4,6 @@
 
 #include "LibreAudioBaseUI.hpp"
 
-#include "ui/_lab/color.hpp"
-
 #include "ui/reference.hpp"
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/ui.hpp"
@@ -30,7 +28,6 @@ class DualGainTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
 
     static constexpr const float kColor1[] = { 0.3f, 0.1f, 0.05f, 1.f };
     static constexpr const float kColor2[] = { 0.1f, 0.3f, 0.05f, 1.f };
-    std::shared_ptr<LabWidget> w1 = addWidget<LabColorWidget<kColor1>, Expanding>();
     std::shared_ptr<LabWidget> w2 = addWidget<ReferenceTextWidget<Reference::Widgets::Button>, Expanding>("text here");
     std::shared_ptr<LabWidget> w2b = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTriml);
     std::shared_ptr<LabWidget> w2c = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTriml);

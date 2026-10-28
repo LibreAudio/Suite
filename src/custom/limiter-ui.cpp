@@ -8,6 +8,7 @@
 #include "ui/containers/ui.hpp"
 #include "ui/widgets/check-box.hpp"
 #include "ui/widgets/combo-box.hpp"
+#include "ui/widgets/floating-line-slider.hpp"
 #include "ui/widgets/number-box.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -139,21 +140,65 @@ class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterE
 {
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
 
+    const std::unique_ptr<FloatingLineSliderWidget> fLine {
+        new FloatingLineSliderWidget(this, kFaustParameterThreshold)
+    };
+
 public:
     LimterStageWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
+        // updateLineSize();
     }
 
 private:
+    void updateLineSize()
+    {
+        const LabMetrics<R> m { this };
+
+        switch (fLastPage)
+        {
+        case kPageAbout:
+        case kPageSettings:
+            fLine->hide();
+            break;
+        case kPageEasy:
+        case kPageExpert:
+            const float space = m.margin + m.border + m.padding + (
+                fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
+                                       : getExpertWidget()->getLastWidgetHeight()
+            );
+            fLine->setSize(getWidth(), getHeight() - space);
+            fLine->show();
+            break;
+        }
+    }
+
+    void pageChanged() final
+    {
+        updateLineSize();
+    }
+
     void onNanoDisplay() final
     {
         BaseWidget::onNanoDisplay();
     }
 
-    void onResize(const ResizeEvent& ev) override
+    void onPositionChanged(const PositionChangedEvent& ev) final
     {
-        BaseWidget::onResize(ev);
+        BaseWidget::onPositionChanged(ev);
+
+        const LabMetrics<R> m { this };
+        const uint space = m.border;
+
+        fLine->setAbsolutePos(ev.pos.getX() + space, ev.pos.getY() + space);
+    }
+
+    void updateSize(const bool updateChildren) override
+    {
+        BaseWidget::updateSize(updateChildren);
+
+        updateLineSize();
     }
 };
 

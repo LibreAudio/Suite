@@ -133,7 +133,6 @@ template<class EasyPageWidget = EasyStageWidget, class ExpertPageWidget = Expert
 class StageWidget : public LabWidget,
                     protected IdleCallback
 {
-    using R = Reference::Stage;
     using BaseWidget = LabWidget;
 
     std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
@@ -158,17 +157,14 @@ public:
         return fExpert.get();
     }
 
-    [[nodiscard]] ExpertPageWidget* getExpertWidget() noexcept
-    {
-        return fExpert.get();
-    }
-
     [[nodiscard]] float getBorderRadius() const noexcept
     {
         return R::borderRadius * fScaleFactor;
     }
 
 protected:
+    using R = Reference::Stage;
+
     Page fLastPage = kPageEasy;
 
     void idleCallback() override
@@ -194,7 +190,11 @@ protected:
         case kPageSettings:
             break;
         }
+
+        pageChanged();
     }
+
+    virtual void pageChanged() {}
 
     void onNanoDisplay() override
     {
