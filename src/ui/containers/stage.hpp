@@ -138,6 +138,8 @@ class StageWidget : public LabWidget,
     std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
     std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
 
+    std::list<std::shared_ptr<LabWidget>> fGraphWidgets;
+
 public:
     StageWidget(LabWidget* const parent)
         : BaseWidget(parent)
@@ -167,6 +169,16 @@ protected:
 
     Page fLastPage = kPageEasy;
 
+    template<class W,
+             typename... Args,
+             typename = std::enable_if_t<std::is_base_of_v<LabWidget, W>>>
+    std::shared_ptr<W> addGraphWidget(Args... args)
+    {
+        std::shared_ptr<W> widget { new W(this, args...) };
+        fGraphWidgets.emplace_back(widget);
+        return widget;
+    }
+
     void idleCallback() override
     {
         const Page page = getCurrentPage(fInterface);
@@ -174,27 +186,44 @@ protected:
             return;
         fLastPage = page;
 
-        fEasy->hide();
-        fExpert->hide();
-
         switch (page)
         {
         case kPageAbout:
+        case kPageSettings:
+            fEasy->hide();
+            fExpert->hide();
+            for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+                w->hide();
             break;
         case kPageEasy:
             fEasy->show();
+            fExpert->hide();
+            updateGraphSize();
+            for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+                w->show();
             break;
         case kPageExpert:
+            fEasy->hide();
             fExpert->show();
-            break;
-        case kPageSettings:
+            updateGraphSize();
+            for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+                w->show();
             break;
         }
-
-        pageChanged();
     }
 
-    virtual void pageChanged() {}
+    virtual Size<uint> getGraphSize() const noexcept
+    {
+        return getSize();
+    }
+
+    void updateGraphSize()
+    {
+        const Size<uint> graphsize = getGraphSize();
+
+        for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+            w->setSize(graphsize);
+    }
 
     void onNanoDisplay() override
     {
@@ -208,6 +237,13 @@ protected:
 
         static_cast<LabWidget*>(fEasy.get())->setAbsolutePos(ev.pos);
         static_cast<LabWidget*>(fExpert.get())->setAbsolutePos(ev.pos);
+
+        const LabMetrics<R> m { this };
+        const  uint space = m.border;
+        const Point<int> graphpos(ev.pos.getX() + space, ev.pos.getY() + space);
+
+        for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+            w->setAbsolutePos(graphpos);
     }
 
     // void onResize(const ResizeEvent& ev) override
@@ -222,6 +258,7 @@ protected:
     {
         static_cast<LabWidget*>(fEasy.get())->setSize(getSize());
         static_cast<LabWidget*>(fExpert.get())->setSize(getSize());
+        updateGraphSize();
 
         BaseWidget::updateSize(updateChildren);
     }

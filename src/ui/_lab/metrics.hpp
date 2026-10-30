@@ -21,10 +21,22 @@ struct LabMetrics {
     const float margin;
     const float padding;
 
-    explicit LabMetrics(LabWidget* const widget)
+    explicit LabMetrics(const LabWidget* const widget)
         : s(widget->getScaleFactor()),
           width(/*R::width != 0 ? d_roundToIntPositive(R::width * s) :*/ widget->getWidth()),
           height(/*R::height != 0 ? d_roundToIntPositive(R::height * s) :*/ widget->getHeight()),
+          border(d_roundToIntPositive(R::border * s)),
+          borderRadius(d_roundToIntPositive(R::borderRadius * s)),
+          fontSize(R::fontSize * s),
+          letterSpacing(R::letterSpacing * s),
+          margin(d_roundToIntPositive(R::margin * s)),
+          padding(d_roundToIntPositive(R::padding * s)) {}
+
+    template<class R2>
+    explicit LabMetrics(const LabMetrics<R2>& m)
+        : s(m.s),
+          width(d_roundToIntPositive(R::width * s)),
+          height(d_roundToIntPositive(R::height * s)),
           border(d_roundToIntPositive(R::border * s)),
           borderRadius(d_roundToIntPositive(R::borderRadius * s)),
           fontSize(R::fontSize * s),

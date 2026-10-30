@@ -23,6 +23,7 @@ class FloatingLineSliderWidget final : public LabKnobWidget
 
     static_assert(R::width == 0, "floating line slider must have 0 width, size is adjusted by its parent");
     static_assert(R::height == 0, "floating line slider must have 0 height, size is adjusted by its parent");
+    static_assert(R::padding != 0, "floating line padding must not be 0, required for space between line dots");
 
 public:
     explicit FloatingLineSliderWidget(LabWidget* const parent, const FaustParameterIndex index)
@@ -56,20 +57,12 @@ private:
 
         const bool lit = (getState() & kKnobStateDraggingHover) != 0;
         const float normvalue = getNormalizedValue();
-        const float gap = 8.f * m.s;
         const float radius = (lit != 0 ? 2.f : 1.5f) * m.s;
         const float y = m.height * (1.f - normvalue);
 
         char valuestr[48];
-        _renderParameterValue<32>(valuestr, fParameter, getValue());
 
-        if (*fParameter.unit != '\0')
-        {
-            std::strncat(valuestr, " ", 2);
-            std::strncat(valuestr, fParameter.unit, 10);
-        }
-
-        for (float x = m.border + m.margin + gap * 0.5f, limit = m.width - (m.border - m.margin) * 2; x < limit; x += gap)
+        for (float x = m.border + m.margin + m.padding * 0.5f, limit = m.width - (m.border - m.margin) * 2; x < limit; x += m.padding)
         {
             beginPath();
             circle(x, y, radius);
@@ -81,25 +74,41 @@ private:
         textLetterSpacing(m.letterSpacing);
         fillColor(Reference::kAccentColors[5].withAlpha(lit ? 1.f : 0.85f));
 
+        // draw name
+        if (*fParameter.unit != '\0')
+            std::snprintf(valuestr, sizeof(valuestr), "%s (%s)", fParameter.name, fParameter.unit);
+        else
+            std::strncpy(valuestr, fParameter.name, sizeof(valuestr));
+
         float sy;
+        Rectangle<float> bounds;
+        fontFace("regular");
+        textBounds(0, 0, valuestr, nullptr, bounds);
+
         if (y > m.height * 0.5f)
         {
             sy = y - 4.f * m.s;
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
-            fontFace("regular");
-            text(m.width - 8.f * m.s, sy, getName(), nullptr);
-            fontFace("mono");
-            text(m.width - 8.f * m.s, sy - m.fontSize, valuestr, nullptr);
         }
         else
         {
             sy = y + 4.f * m.s;
             textAlign(ALIGN_RIGHT | ALIGN_TOP);
-            fontFace("mono");
-            text(m.width - 8.f * m.s, sy + m.fontSize, valuestr, nullptr);
-            fontFace("regular");
-            text(m.width - 8.f * m.s, sy, getName(), nullptr);
         }
+
+        text(m.width - m.padding, sy, valuestr, nullptr);
+
+        // draw value
+        fontFace("mono");
+
+        _renderParameterValue<32>(valuestr, fParameter, getValue());
+        // if (*fParameter.unit != '\0')
+        // {
+        //     std::strncat(valuestr, " ", 2);
+        //     std::strncat(valuestr, fParameter.unit, 10);
+        // }
+
+        text(m.width - m.padding * 2 - bounds.getWidth(), sy, valuestr, nullptr);
 
         drawReferenceBorder<R>();
     }

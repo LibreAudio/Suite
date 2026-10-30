@@ -191,7 +191,9 @@ float bellDb(float f, float fc, float bwOct, float gain)
 #ifdef LIBREAUDIO_HOSTED
 float binHeight(float bin)
 {
-    return texture2D(_dpf_texture_data, vec2(bin / float(fftBins), 0.5)).r;
+    float x = bin / float(fftBins);
+    x = mod(1. + x - _dpf_texture_start, 1.);
+    return texture2D(_dpf_texture_data, vec2(x, 0.5)).r;
 }
 #else
 float fftBinDb(float bin)

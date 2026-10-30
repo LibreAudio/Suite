@@ -395,6 +395,18 @@ struct Reference {
         struct FloatingLineSlider : Zero {
             static constexpr const float fontSize = 14.f;
             static constexpr const float letterSpacing = 1.f;
+            static constexpr const uint padding = 8;
+        };
+
+        struct Grid : Zero {
+            static constexpr const Color color = Color(Colors::line2, 0.5f);
+            struct Label : Zero {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const float fontSize = 10.f;
+                static constexpr const float letterSpacing = 0.f;
+                static constexpr const uint padding = 4;
+                // font-mono
+            };
         };
 
         struct KnobGroup : Zero {
