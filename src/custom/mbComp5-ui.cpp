@@ -20,6 +20,18 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+inline bool isBypassed(const LabUIWidgetInterface* const iface) noexcept
+{
+    return d_isNotZero(iface->getParameterValue(kCommonParameterBypass));
+}
+
+inline float getParameterValue(const LabUIWidgetInterface* const iface, const FaustParameterIndex index) noexcept
+{
+    return iface->getParameterValue(kParametersMainStart + index);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
 
@@ -291,22 +303,16 @@ struct MbComp5BandsReference : Reference::Zero {
     static constexpr const uint height = MbComp5BandGroupReference<0>::height + margin * 2;
 };
 
-class MbComp5BandsWidget final : public ReferenceContainerWidget<MbComp5BandsReference, Horizontal>
-{
-    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
-        addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
-        addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
-        addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
-        addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
-        addWidget<MbComp5BandGroupWidget<__COUNTER__>, Expanding>(),
-    };
-
-public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5BandsReference, Horizontal>;
-
-    explicit MbComp5BandsWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using MbComp5BandsWidget = StaticContainerWidget<
+    MbComp5BandsReference,
+    Horizontal,
+    Expanding,
+    MbComp5BandGroupWidget<__COUNTER__>,
+    MbComp5BandGroupWidget<__COUNTER__>,
+    MbComp5BandGroupWidget<__COUNTER__>,
+    MbComp5BandGroupWidget<__COUNTER__>,
+    MbComp5BandGroupWidget<__COUNTER__>
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -314,27 +320,20 @@ struct MbComp5NonBandParamsGroupReference : MbComp5BandGroupReference<0> {
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + (border + margin) * 2;
 };
 
-class MbComp5NonBandParamsGroupWidget final : public ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, Horizontal>
-{
-    const std::array<std::shared_ptr<LabWidget>, 9> widgets {
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterSlope),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterKnee),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterRange),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterRms_time),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterShape),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterChan_link),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterBand_link),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterLookahead),
-        addWidget<NumberBoxWidgetR, Expanding>(kFaustParameterDrywet),
-    };
-
-public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5NonBandParamsGroupReference, Horizontal>;
-    using NumberBoxWidgetR = NumberBoxWidget<>;
-
-    explicit MbComp5NonBandParamsGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using MbComp5NonBandParamsGroupWidget = StaticParameterContainerWidget<
+    MbComp5NonBandParamsGroupReference,
+    Horizontal,
+    Expanding,
+    ParameterWidgetPair<kFaustParameterSlope, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterKnee, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterRange, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterRms_time, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterShape, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterChan_link, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterBand_link, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterLookahead, NumberBoxWidget<>>,
+    ParameterWidgetPair<kFaustParameterDrywet, NumberBoxWidget<>>
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -343,20 +342,11 @@ struct MbComp5ExpertPageReference : Reference::Zero {
     static constexpr const uint padding = 8;
 };
 
-class MbComp5ExpertPageWidget final : public ReferenceContainerWidget<MbComp5ExpertPageReference, Vertical>
-{
-    const std::array<std::shared_ptr<LabWidget>, 3> widgets {
-        addSpacer(),
-        addWidget<MbComp5BandsWidget>(),
-        addWidget<MbComp5NonBandParamsGroupWidget>(),
-    };
-
-public:
-    using BaseWidget = ReferenceContainerWidget<MbComp5ExpertPageReference, Vertical>;
-
-    explicit MbComp5ExpertPageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using MbComp5ExpertPageWidget = StaticBottomAlignedContainerWidget<
+    MbComp5ExpertPageReference,
+    MbComp5BandsWidget,
+    MbComp5NonBandParamsGroupWidget
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -409,7 +399,7 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
     static constexpr const int kGridDbMax = 6.f;
     static constexpr const int kGridDbRange = kGridDbMax - kGridDbMin;
 
-    std::shared_ptr<MbComp5GraphWidget> graph { new MbComp5GraphWidget(this) };
+    std::shared_ptr<MbComp5GraphWidget> graph { addGraphWidget<MbComp5GraphWidget>() };
 
 public:
     using R = MbComp5StageReference;
@@ -418,7 +408,6 @@ public:
     explicit MbComp5StageWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
-        graph->toBottom();
     }
 
 private:
@@ -445,28 +434,28 @@ private:
 
         const double dw = getWidth();
 
-        if (const float f1 = fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover1); d_isNotEqual(fFreqs[1], f1))
+        if (const float f1 = getParameterValue(fInterface, kFaustParameterXover1); d_isNotEqual(fFreqs[1], f1))
         {
             fFreqs[1] = f1;
             fFreqPos[1] = freq2norm(f1) * dw;
             repaint();
         }
 
-        if (const float f2 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover2), fFreqs[1]); d_isNotEqual(fFreqs[2], f2))
+        if (const float f2 = nextFreq(getParameterValue(fInterface, kFaustParameterXover2), fFreqs[1]); d_isNotEqual(fFreqs[2], f2))
         {
             fFreqs[2] = f2;
             fFreqPos[2] = freq2norm(f2) * dw;
             repaint();
         }
 
-        if (const float f3 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover3), fFreqs[2]); d_isNotEqual(fFreqs[3], f3))
+        if (const float f3 = nextFreq(getParameterValue(fInterface, kFaustParameterXover3), fFreqs[2]); d_isNotEqual(fFreqs[3], f3))
         {
             fFreqs[3] = f3;
             fFreqPos[3] = freq2norm(f3) * dw;
             repaint();
         }
 
-        if (const float f4 = nextFreq(fInterface->getParameterValue(kParametersMainStart + kFaustParameterXover4), fFreqs[3]); d_isNotEqual(fFreqs[4], f4))
+        if (const float f4 = nextFreq(getParameterValue(fInterface, kFaustParameterXover4), fFreqs[3]); d_isNotEqual(fFreqs[4], f4))
         {
             fFreqs[4] = f4;
             fFreqPos[4] = freq2norm(f4) * dw;
@@ -474,9 +463,9 @@ private:
         }
     }
 
-    bool bypassed() const { return fInterface->getParameterValue(kCommonParameterBypass) > .5f; }
+    bool bypassed() const { return isBypassed(fInterface); }
 
-    float value(int p) const { return fInterface->getParameterValue(kParametersMainStart + p); }
+    float value(FaustParameterIndex p) const { return getParameterValue(fInterface, p); }
 
     bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
 
@@ -514,9 +503,6 @@ private:
 
     void onNanoDisplay() final
     {
-        BaseWidget::onNanoDisplay();
-        // return;
-
         const float w = getWidth();
         const float h = getHeight();
         const float borderRadius = R::borderRadius * fScaleFactor;
@@ -689,6 +675,8 @@ private:
                 text(x, gmargin + gh, s);
             }
         }
+
+        drawReferenceBorder<R>();
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -845,13 +833,6 @@ private:
         return false;
     }
 
-    void onPositionChanged(const PositionChangedEvent& ev) final
-    {
-        BaseWidget::onPositionChanged(ev);
-
-        graph->setAbsolutePos(ev.pos);
-    }
-
     void onResize(const ResizeEvent& ev) final
     {
         BaseWidget::onResize(ev);
@@ -863,13 +844,6 @@ private:
         fFreqPos[3] = d_roundToUnsignedInt(freq2norm(fFreqs[3]) * w);
         fFreqPos[4] = d_roundToUnsignedInt(freq2norm(fFreqs[4]) * w);
         fFreqPos[5] = w;
-    }
-
-    void updateSize(const bool updateChildren) override
-    {
-        graph->setSize(getSize());
-
-        BaseWidget::updateSize(updateChildren);
     }
 };
 

@@ -81,7 +81,7 @@ constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
     return "";
 }
 
-inline Page getCurrentPage(LabUIWidgetInterface* const iface) noexcept
+inline Page getCurrentPage(const LabUIWidgetInterface* const iface) noexcept
 {
     if (iface->isButtonEnabled(kWidgetEasy) && iface->isButtonChecked(kWidgetEasy))
         return kPageEasy;

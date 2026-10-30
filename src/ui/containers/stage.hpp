@@ -175,6 +175,7 @@ protected:
     std::shared_ptr<W> addGraphWidget(Args... args)
     {
         std::shared_ptr<W> widget { new W(this, args...) };
+        widget->toBottom();
         fGraphWidgets.emplace_back(widget);
         return widget;
     }

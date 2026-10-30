@@ -78,7 +78,7 @@ private:
         if (*fParameter.unit != '\0')
             std::snprintf(valuestr, sizeof(valuestr), "%s (%s)", fParameter.name, fParameter.unit);
         else
-            std::strncpy(valuestr, fParameter.name, sizeof(valuestr));
+            std::strncpy(valuestr, fParameter.name, sizeof(valuestr) - 1);
 
         float sy;
         Rectangle<float> bounds;
