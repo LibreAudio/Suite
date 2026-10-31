@@ -95,10 +95,11 @@ private:
         strokeWidth(1.f * m.s);
         textLetterSpacing(m.label.letterSpacing);
 
-        // horizontal line
+        // X lines
        #ifdef LIBREAUDIO_PLUGIN__mbComp5
         {
             const float margin = m.border + m.margin;
+            const float yfade = m.fontSize + m.label.padding;
             float y;
 
             textAlign(ALIGN_CENTER | ALIGN_TOP);
@@ -121,45 +122,74 @@ private:
                         else
                             std::snprintf(label, sizeof(label), "%d", freq);
 
-                        switch (s)
-                        {
-                        case 0:
-                            strokePaint(linearGradient(x,
-                                                       y,
-                                                       x,
-                                                       y + m.fontSize + m.label.padding * m.label.padding,
-                                                       R::color.withAlpha(0.f),
-                                                       R::color.withAlpha(.7f)));
-                            break;
-                        case 4:
-                            strokePaint(linearGradient(x,
-                                                       y,
-                                                       x,
-                                                       y + m.fontSize + m.label.padding * m.label.padding,
-                                                       R::color.withAlpha(0.f),
-                                                       R::color.withAlpha(.45f)));
-                            break;
-                        default:
-                            strokePaint(linearGradient(x,
-                                                       y,
-                                                       x,
-                                                       y + m.fontSize + m.label.padding * m.label.padding,
-                                                       R::color.withAlpha(0.f),
-                                                       R::color.withAlpha(.22f)));
-                            break;
-                        }
-
                         text(x, y, label);
                         y += m.label.fontSize;
                     }
-                    else
+
+                    switch (s)
                     {
-                        strokeColor(R::color.withAlpha(0.22f));
+                    case 0:
+                        strokePaint(linearGradient(x,
+                                                   y,
+                                                   x,
+                                                   y + yfade,
+                                                   R::color.withAlpha(0.f),
+                                                   R::color.withAlpha(.7f)));
+                        break;
+                    case 4:
+                        strokePaint(linearGradient(x,
+                                                   y,
+                                                   x,
+                                                   y + yfade,
+                                                   R::color.withAlpha(0.f),
+                                                   R::color.withAlpha(.45f)));
+                        break;
+                    default:
+                        strokePaint(linearGradient(x,
+                                                   y,
+                                                   x,
+                                                   y + yfade,
+                                                   R::color.withAlpha(0.f),
+                                                   R::color.withAlpha(.22f)));
+                        break;
                     }
 
                     beginPath();
                     moveTo(x, y);
-                    lineTo(x, m.height);
+                    lineTo(x, m.height - yfade * 0.25f);
+                    stroke();
+
+                    switch (s)
+                    {
+                    case 0:
+                        strokePaint(linearGradient(x,
+                                                   m.height - yfade * 0.25f,
+                                                   x,
+                                                   m.height + yfade * 0.75f,
+                                                   R::color.withAlpha(.7f),
+                                                   R::color.withAlpha(0.f)));
+                        break;
+                    case 4:
+                        strokePaint(linearGradient(x,
+                                                   m.height - yfade * 0.25f,
+                                                   x,
+                                                   m.height + yfade * 0.75f,
+                                                   R::color.withAlpha(.45f),
+                                                   R::color.withAlpha(0.f)));
+                        break;
+                    default:
+                        strokePaint(linearGradient(x,
+                                                   m.height - yfade * 0.25f,
+                                                   x,
+                                                   m.height + yfade * 0.75f,
+                                                   R::color.withAlpha(.22f),
+                                                   R::color.withAlpha(0.f)));
+                        break;
+                    }
+
+                    beginPath();
+                    moveTo(x, m.height - yfade * 0.25f);
+                    lineTo(x, m.height + yfade * 0.75f);
                     stroke();
                 }
             }
@@ -176,7 +206,7 @@ private:
         }
        #endif
 
-        // vertical lines, including labels (left-side first)
+        // Y lines, including labels (left-side first)
         bool isFirst = true;
         for (float v = fMin; v < fMax; v += fStep)
         {
