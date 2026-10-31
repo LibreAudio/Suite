@@ -142,8 +142,8 @@ class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterE
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
 
     const std::array<std::shared_ptr<LabWidget>, 2> _ {
-        addGraphWidget<GridWidget>(kFaustParameterThreshold, 6.f),
         addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold),
+        addGraphWidget<GridWidget>(kFaustParameterThreshold, 6.f),
     };
 
 public:
@@ -157,7 +157,7 @@ private:
 
         const float space = m.margin + m.border + m.padding + (
             fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
-            : getExpertWidget()->getLastWidgetHeight()
+                                   : getExpertWidget()->getLastWidgetHeight()
         );
 
         return Size<uint>(getWidth(), getHeight() - space);

@@ -68,7 +68,7 @@ struct Box {
 
 class MbComp5GraphWidget : public LabWidget
 {
-    Box _box;
+    Box _box = {};
     std::array<float, 4> _xo;
 
 public:
@@ -82,14 +82,6 @@ public:
         _xo = xo;
     }
 
-    void setBox(float margin, float width, float height)
-    {
-        _box.x = 0;
-        _box.y = margin / fScaleFactor;
-        _box.w = width / fScaleFactor;
-        _box.h = height / fScaleFactor;
-    }
-
 private:
     bool bypassed() const { return fInterface->getParameterValue(kCommonParameterBypass) > .5f; }
     float value(int p) const { return fInterface->getParameterValue(kParametersMainStart + p); }
@@ -97,7 +89,7 @@ private:
     bool anyListen() const { for (const auto& b : bands) if (value(b[5]) > .5f) return true; return false; }
     bool live(int b) const { return !bypassed() && value(bands[b][6]) < .5f && (!anyListen() || value(bands[b][5]) > .5f); }
 
-    float yDb(float db) const { return _box.y + (6 - db) / 24 * _box.h; }
+    float yDb(float db) const { return _box.h * (1.f - (db - -18.f) / (7.f - -18.f)); }
 
     Color rainbow(float t, float alpha = 1) const
     {
@@ -113,7 +105,8 @@ private:
 
     void onNanoDisplay() final
     {
-        // return;
+        _box.w = getWidth() / fScaleFactor;
+        _box.h = getHeight() / fScaleFactor;
 
         std::array<std::array<double, 5>, 2> gains {};
 

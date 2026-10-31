@@ -399,11 +399,13 @@ struct Reference {
         };
 
         struct Grid : Zero {
-            static constexpr const Color color = Color(Colors::line2, 0.5f);
+            static constexpr const Color color = Color(0x64, 0x64, 0x70);
+            // static constexpr const Color color = Colors::line2;
             struct Label : Zero {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 10.f;
                 static constexpr const float letterSpacing = 0.f;
+                static constexpr const uint margin = 2;
                 static constexpr const uint padding = 4;
                 // font-mono
             };
