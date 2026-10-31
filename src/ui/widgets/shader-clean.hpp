@@ -65,7 +65,7 @@ protected:
 class ShaderBackgroundWidget final : public NanoSubWidget,
                                      public ShaderWidgetInterface
 {
-    static constexpr const Color kBackgroundColor = Color(0x19, 0x1A, 0x7E);
+    static constexpr const Color kBackgroundColor = Color(0x19, 0x1A, 0x1E);
 
 public:
     explicit ShaderBackgroundWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)

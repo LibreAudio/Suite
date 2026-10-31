@@ -347,5 +347,5 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 
     vec3 sky = starColor * (stars * starBrightness);
 
-    fragColor = vec4(sky + clouds, stars);
+    fragColor = vec4(sky + clouds, clamp(stars * 2., 0., 1.));
 }
