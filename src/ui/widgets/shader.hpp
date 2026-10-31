@@ -14,11 +14,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class BotShaderBaseWidget : public ShaderBaseWidget
+struct BotShaderWidgetInterface : ShaderWidgetInterface
 {
-public:
-    explicit BotShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : ShaderBaseWidget(parent, iface) {}
+    using ShaderWidgetInterface::ShaderWidgetInterface;
 
     // A float uniform that is not a parameter -- something only the UI knows, like an animation's progress.
     // getter is asked once per repaint; a shader that does not declare the uniform simply never sees it.
@@ -40,7 +38,8 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const char src[], uint size, uint textureSize = 0>
-class BotShaderWidget final : public BotShaderBaseWidget,
+class BotShaderWidget final : public SubWidget,
+                              public BotShaderWidgetInterface,
                               public IdleCallback
 {
    #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
@@ -51,7 +50,8 @@ class BotShaderWidget final : public BotShaderBaseWidget,
 
 public:
     explicit BotShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : BotShaderBaseWidget(parent, iface),
+        : SubWidget(parent),
+          BotShaderWidgetInterface(iface),
           fParent(parent)
     {
         // 8ms was 125 Hz: on a 60 Hz display more than half of those frames were rendered
@@ -276,6 +276,22 @@ public:
         glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
+    }
+
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        SubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size_) final
+    {
+        SubWidget::setSize(size_);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
     }
 
     // std::enable_if_t<textureSize != 0, void>

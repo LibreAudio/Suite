@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "../_lab/base.hpp"
 #include "../_lab/interface.hpp"
 
 #include "LibreAudioIPC.hpp"
@@ -36,19 +37,22 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ShaderBaseWidget : public SubWidget
+struct ShaderWidgetInterface
 {
 public:
-    explicit ShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : SubWidget(parent),
-          fInterface(iface) {}
+    explicit ShaderWidgetInterface(LabUIWidgetInterface* const iface)
+        : fInterface(iface) {}
 
-    void setBorderRadius(const float borderRadius) noexcept
+    virtual ~ShaderWidgetInterface() = default;
+
+    virtual void setAbsolutePos(const Point<int>& pos) = 0;
+    virtual void setSize(const Size<uint>& size) = 0;
+
+    virtual void setBorderRadius(const float borderRadius)
     {
         if (d_isEqual(fBorderRadius, borderRadius))
             return;
         fBorderRadius = borderRadius;
-        repaint();
     }
 
 protected:
@@ -58,9 +62,53 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class ShaderBackgroundWidget final : public NanoSubWidget,
+                                     public ShaderWidgetInterface
+{
+    static constexpr const Color kBackgroundColor = Color(0x19, 0x1A, 0x7E);
+
+public:
+    explicit ShaderBackgroundWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+        : NanoSubWidget(parent),
+          ShaderWidgetInterface(iface) {}
+
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        NanoSubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size) final
+    {
+        NanoSubWidget::setSize(size);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        beginPath();
+
+        if (d_isNotZero(fBorderRadius))
+            roundedRect(0, 0, getWidth(), getHeight(), fBorderRadius);
+        else
+            rect(0, 0, getWidth(), getHeight());
+
+        fillColor(kBackgroundColor);
+        fill();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<const char src[], uint size, uint textureSize = 0>
-class BackgroundShaderWidget final : public ShaderBaseWidget,
-                                     public IdleCallback
+class CleanShaderWidget final : public SubWidget,
+                                public ShaderWidgetInterface,
+                                public IdleCallback
 {
    #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
     static constexpr const GLenum kSingleChannelFormat = GL_RED;
@@ -69,8 +117,9 @@ class BackgroundShaderWidget final : public ShaderBaseWidget,
    #endif
 
 public:
-    explicit BackgroundShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : ShaderBaseWidget(parent, iface),
+    explicit CleanShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+        : SubWidget(parent),
+          ShaderWidgetInterface(iface),
           fParent(parent)
     {
         parent->addIdleCallback(this, kTargetIdleTimeMs);
@@ -247,7 +296,7 @@ public:
         }
     }
 
-    ~BackgroundShaderWidget() final
+    ~CleanShaderWidget() final
     {
         fParent->removeIdleCallback(this);
 
@@ -260,6 +309,22 @@ public:
         glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
+    }
+
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        SubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size_) final
+    {
+        SubWidget::setSize(size_);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
     }
 
     // std::enable_if_t<textureSize != 0, void>

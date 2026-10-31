@@ -23,12 +23,6 @@
 // Tunables
 // --------------------------------------------------------------------------------
 
-// Flat colour the clouds and stars are composited over. The original shader had
-// no visible background -- the tint was multiplied by its own intensity and
-// written straight out -- so black reproduces the original look exactly. Raise
-// it for a lifted, hazier base.
-const vec3 backgroundColor = vec3(0.0980, 0.1020, 0.1176); // #191A1E
-
 // Gradient endpoints. `colorLow` dominates near the bottom of the frame,
 // `colorHigh` near the top. (These were `color1` / `color2`.)
 const vec3 colorLow  = vec3(0.8549, 0.7569, 0.9529); // soft violet
@@ -351,7 +345,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec2 flight = (fragCoord.xy - 0.5 * iResolution.xy) / iResolution.x;
     float stars = starfield(flight, starPhase()) * (1.0 - starOcclusion * cloudCover);
 
-    vec3 sky = backgroundColor + starColor * (stars * starBrightness);
+    vec3 sky = starColor * (stars * starBrightness);
 
-    fragColor = vec4(sky + clouds, 1.0);
+    fragColor = vec4(sky + clouds, stars);
 }

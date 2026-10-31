@@ -14,16 +14,13 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+#define SHADER_CLOUDSTARFIELD SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN
+
 template<class RootWidget,
          const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
          uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
 class UI final : public LibreAudioBaseUI
 {
-    const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
-        new BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
-                                        SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
-    };
-
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -34,24 +31,32 @@ class UI final : public LibreAudioBaseUI
 
     static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
     using AnalyzerShaderW = std::conditional_t<label == "dualGain",
-                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
+                                               CleanShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
                                                BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
 
-    const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
-        new AnalyzerShaderW(this, this)
-    };
+    std::shared_ptr<AnalyzerShaderW> fShaderAnalyser;
 
 public:
     UI() : LibreAudioBaseUI()
     {
+        const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
+            std::make_shared<ShaderBackgroundWidget>(this, this),
+            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
+            makeAnalyzer()
+        };
+
         createRootWidget<RootWidget>();
 
-        static_cast<RootWidget*>(fRootWidget.get())->enableShaders({
-            fShaderBackground.get(), fShaderAnalyser.get()
-        });
+        static_cast<RootWidget*>(fRootWidget.get())->enableShaders(shaders);
     }
 
 private:
+    std::shared_ptr<AnalyzerShaderW> makeAnalyzer()
+    {
+        fShaderAnalyser.reset(new AnalyzerShaderW(this, this));
+        return fShaderAnalyser;
+    }
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {

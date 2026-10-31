@@ -439,8 +439,10 @@ class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
     using BaseWiwdget = RootWidget<TopBar, DelayMainArea>;
 
     Page fLastPage = kPageEasy;
-    BotShaderBaseWidget* fShaderExpert = nullptr;
     DelayScopeZoom fScopeZoom;
+
+    using ExpertShaderWidget = BotShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA, SHADERS_CURVE_DELAY_FRAG_LEN, kNumSamplePointsForWaveform>;
+    std::shared_ptr<ExpertShaderWidget> fShaderExpert;
 
 public:
     DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)
@@ -449,9 +451,9 @@ public:
         addIdleCallback(this);
     }
 
-    void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
+    void enableShaders(const std::list<std::shared_ptr<ShaderWidgetInterface>>& shaders)
     {
-        fShaderExpert = static_cast<LibreAudio::BotShaderBaseWidget*>(shaders.back());
+        fShaderExpert = reinterpret_cast<const std::shared_ptr<ExpertShaderWidget>&>(shaders.back());
 
         // one zoom, read by the shader and by the labels drawn over it
         fMainArea->setScopeZoom(&fScopeZoom);
@@ -485,7 +487,7 @@ private:
         const Size<uint> size = fMainArea->getMiddleAreaSize(fLastPage);
         const float borderRadius = fMainArea->getMiddleAreaBorderRadius(fLastPage);
 
-        for (ShaderBaseWidget* const sw : fShaders)
+        for (const std::shared_ptr<ShaderWidgetInterface>& sw : fShaders)
         {
             sw->setAbsolutePos(pos);
             sw->setSize(size);

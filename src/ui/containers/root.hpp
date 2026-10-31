@@ -38,17 +38,14 @@ public:
                              false);
     }
 
-    // , ShaderBaseWidget* const analyzer = nullptr
-    void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
+    void enableShaders(const std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>>& shaders)
     {
         fShaders = shaders;
-        // fShaderAnalyzer = analyzer;
         updateSize(false);
     }
 
 protected:
-    std::list<ShaderBaseWidget*> fShaders;
-    // ShaderBaseWidget* fShaderAnalyzer = nullptr;
+    std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>> fShaders;
 
     friend class DISTRHO_NAMESPACE::LibreAudioBaseUI;
 };
@@ -74,7 +71,7 @@ protected:
         const Size<uint> size = fMainArea->getMainAreaSize();
         const float borderRadius = fMainArea->getMainAreaBorderRadius();
 
-        for (ShaderBaseWidget* const sw : fShaders)
+        for (const std::shared_ptr<ShaderWidgetInterface>& sw : fShaders)
         {
             sw->setAbsolutePos(pos);
             sw->setSize(size);

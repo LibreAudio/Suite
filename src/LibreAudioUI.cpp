@@ -15,6 +15,21 @@
 
 START_NAMESPACE_DISTRHO
 
+#define SHADER_ANALYSER_FFT SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN
+#define SHADER_CLOUDSTARFIELD SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN
+
+#if defined(LIBREAUDIO_PLUGIN__chorus)
+#define SHADER_PLUGIN SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__djFilter)
+#define SHADER_PLUGIN SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__springReverb)
+#define SHADER_PLUGIN SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__tiltEQ)
+#define SHADER_PLUGIN SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__vocalDoubler)
+#define SHADER_PLUGIN SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN
+#endif
+
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioUI : public LibreAudioBaseUI
@@ -27,58 +42,37 @@ class LibreAudioUI : public LibreAudioBaseUI
     static constexpr const uint32_t kTextureSize = 0;
    #endif
 
-    using ShaderAnalyzer = LibreAudio::BotShaderWidget<SHADERS_ANALYSER_FFT_FRAG_DATA, SHADERS_ANALYSER_FFT_FRAG_LEN, kTextureSize>;
-
-    std::unique_ptr<LibreAudio::ShaderBaseWidget> fShaderBackground;
-    std::unique_ptr<ShaderAnalyzer> fShaderAnalyser;
-    std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderLine;
+    using ShaderAnalyzer = LibreAudio::BotShaderWidget<SHADER_ANALYSER_FFT, kTextureSize>;
+    std::shared_ptr<ShaderAnalyzer> fShaderAnalyser;
 
 public:
     LibreAudioUI()
         : LibreAudioBaseUI()
     {
-        static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
+        const std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>> shaders {
+            std::make_shared<LibreAudio::ShaderBackgroundWidget>(this, this),
+            std::make_shared<LibreAudio::BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
+           #ifdef SHADER_PLUGIN
+            makeAnalyzer(),
+            std::make_shared<LibreAudio::BotShaderWidget<SHADER_PLUGIN>>(this, this)
+           #endif
+        };
 
-        if constexpr (label == "chorus")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN>(this, this));
-        else if constexpr (label == "djFilter")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN>(this, this));
-        else if constexpr (label == "limiter")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA, SHADERS_CURVE_LIMITER_FRAG_LEN>(this, this));
-        else if constexpr (label == "mbComp5")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_MB_COMP5_FRAG_DATA, SHADERS_CURVE_MB_COMP5_FRAG_LEN>(this, this));
-        else if constexpr (label == "springReverb")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN>(this, this));
-        else if constexpr (label == "tiltEQ")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN>(this, this));
-        else if constexpr (label == "vocalDoubler")
-            fShaderLine.reset(new LibreAudio::BotShaderWidget<SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN>(this, this));
-
-        if (fShaderLine)
-        {
-            fShaderBackground.reset(new LibreAudio::BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this));
-
-            // spectrum overlay: above the background, below the response curves
-            fShaderAnalyser.reset(new ShaderAnalyzer(this, this));
-
-            fShaderLine->toFront();
-
-            createRootWidget<LibreAudio::TopBar, LibreAudio::MainAreaContainerWidget<>>();
-
-            const std::list<LibreAudio::ShaderBaseWidget*> shaders = {
-                fShaderBackground.get(),
-                fShaderAnalyser.get(),
-                fShaderLine.get(),
-            };
-            fRootWidget->enableShaders(shaders);
-        }
-        else
-        {
-            createRootWidget<LibreAudio::TopBar, LibreAudio::ParameterDumpArea>();
-        }
+       #ifdef SHADER_PLUGIN
+        createRootWidget<LibreAudio::TopBar, LibreAudio::MainAreaContainerWidget<>>();
+       #else
+        createRootWidget<LibreAudio::TopBar, LibreAudio::ParameterDumpArea>();
+       #endif
+        fRootWidget->enableShaders(shaders);
     }
 
 private:
+    std::shared_ptr<ShaderAnalyzer> makeAnalyzer()
+    {
+        fShaderAnalyser.reset(new ShaderAnalyzer(this, this));
+        return fShaderAnalyser;
+    }
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
