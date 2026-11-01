@@ -81,6 +81,11 @@
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 1
+    {% elif meta.graph == "waveform-param" %}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
+#define LIBREAUDIO_WANT_GRAPH_PARAM kFaustParameter{{ meta.graphsymbol | title() }}
     {% elif meta.graph == "waveform-stereo" %}
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1

@@ -39,6 +39,11 @@ public:
         return fStage->getBorderRadius();
     }
 
+    const std::shared_ptr<StageWidget>& getStageWidget() const noexcept
+    {
+        return fStage;
+    }
+
 protected:
    #if LIBREAUDIO_WANT_COMMON_IO
     std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();

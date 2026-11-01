@@ -137,7 +137,7 @@ using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>
+class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>
 {
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
 
@@ -147,10 +147,9 @@ class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterE
     };
 
 public:
-    LimterStageWidget(LabWidget* const parent)
+    LimiterStageWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
-private:
     Size<uint> getGraphSize() const noexcept final
     {
         const LabMetrics<R> m { this };
@@ -166,8 +165,119 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using LimiterMainArea = MainAreaContainerWidget<LimterStageWidget>;
+using LimiterMainArea = MainAreaContainerWidget<LimiterStageWidget>;
 using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class LimiterUI : public LibreAudioBaseUI
+{
+    using ShaderGainReductionW = BotShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA, SHADERS_CURVE_LIMITER_FRAG_LEN, kNumSamplePointsForWaveform>;
+    using ShaderWaveformW = BotShaderWidget<SHADERS_WAVEFORM_SCROLL_FRAG_DATA, SHADERS_WAVEFORM_SCROLL_FRAG_LEN, kNumSamplePointsForWaveform>;
+
+    static constexpr const float kDisplayDbMax = 0.f;
+    static constexpr const float kDisplayDbFloor = -24.f;
+    static constexpr const float kDisplayDbStep = 6.f;
+
+public:
+    LimiterUI()
+    {
+        const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
+            std::make_shared<ShaderBackgroundWidget>(this, this),
+            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
+            makeShaderWaveform(),
+            makeShaderGainReduction(),
+        };
+
+        createRootWidget<LimiterRootWidget>();
+
+        static_cast<LimiterRootWidget*>(fRootWidget.get())->enableShaders(shaders);
+
+        fShaderGainReduction->setCustomUniform("uHead", [this] { return waveformHead(); });
+        fShaderGainReduction->setCustomUniform("uDbMin", [this] { return displayDbMin(); });
+        fShaderGainReduction->setCustomUniform("uDbMax", [] { return kDisplayDbMax; });
+
+        fShaderWaveform->setCustomUniform("uHead", [this] { return waveformHead(); });
+        fShaderWaveform->setCustomUniform("uDbMin", [this] { return displayDbMin(); });
+        fShaderWaveform->setCustomUniform("uDbMax", [] { return kDisplayDbMax; });
+    }
+
+protected:
+    std::shared_ptr<ShaderGainReductionW> fShaderGainReduction;
+    std::shared_ptr<ShaderWaveformW> fShaderWaveform;
+
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+        fShaderWaveform->push(value.ptr[0]);
+        fShaderGainReduction->push(-displayDbMin() * (1.f - ((value.ptr[1] + 24.f) / 24.f))); // FIXME ugly stuff
+        fPointsPushed += 1.0;
+    }
+
+private:
+    std::shared_ptr<ShaderGainReductionW> makeShaderGainReduction()
+    {
+        fShaderGainReduction.reset(new ShaderGainReductionW(this, this));
+        return fShaderGainReduction;
+    }
+
+    std::shared_ptr<ShaderWaveformW> makeShaderWaveform()
+    {
+        fShaderWaveform.reset(new ShaderWaveformW(this, this));
+        return fShaderWaveform;
+    }
+
+    // points pushed so far, and the point the waveform is drawn up to (fractional, moving at kWaveformRate)
+    double fPointsPushed = 0;
+    double fPointsShown = 0;
+    double fLastTime = 0;
+    float fHead = 0;
+
+    // dB at the bottom edge of a display this tall
+    float displayDbMin() noexcept
+    {
+        LimiterRootWidget* const root = static_cast<LimiterRootWidget*>(fRootWidget.get());
+        LimiterMainArea* const mainArea = root->getMainAreaWidget().get();
+        LimiterStageWidget* const stage = mainArea->getStageWidget().get();
+
+        const float height = mainArea->getMainAreaSize().getHeight();
+        const float floorY = std::max(1.f, height - stage->getGraphSize().getHeight());
+        return kDisplayDbMax + (kDisplayDbFloor - kDisplayDbMax) * height / floorY;
+    }
+
+    // Peaks arrive in bursts, so the shown point runs at the steady rate and is eased towards kWaveformLag behind
+    // the newest point, never past it. Returns its ring position: push number n lands at (size - 2 + n) mod size.
+    // Both shaders ask for it each frame; the second ask within a millisecond gets the same head.
+    float waveformHead()
+    {
+        static constexpr const double kWaveformSize = kNumSamplePointsForWaveform;
+        static constexpr const double kWaveformRate = kWaveformSize / kNumSecondsForWaveform; // points per second
+        static constexpr const double kWaveformLag = kWaveformRate * 0.05; // points shown behind the newest one
+
+        const double now = getApp().getTime();
+        if (fLastTime != 0 && now - fLastTime < 0.001)
+            return fHead;
+
+        const double dt = fLastTime != 0 ? std::min<double>(now - fLastTime, 0.1) : 0;
+        fLastTime = now;
+
+        fPointsShown += dt * kWaveformRate;
+
+        const double error = fPointsPushed - kWaveformLag - fPointsShown;
+
+        if (std::abs(error) > kWaveformRate * 0.5)
+            fPointsShown += error;
+        else
+            fPointsShown += error * std::min<double>(1.0, dt * 2);
+
+        fPointsShown = std::min(fPointsShown, fPointsPushed);
+
+        double head = std::fmod(fPointsShown - 2, kWaveformSize);
+        if (head < 0)
+            head += kWaveformSize;
+        fHead = static_cast<float>(head);
+        return fHead;
+    }
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -179,7 +289,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::UI<LibreAudio::LimiterRootWidget>();
+    return new LibreAudio::LimiterUI();
 }
 
 END_NAMESPACE_DISTRHO

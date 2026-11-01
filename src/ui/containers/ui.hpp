@@ -19,7 +19,7 @@ namespace LibreAudio {
 template<class RootWidget,
          const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
          uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
-class UI final : public LibreAudioBaseUI
+class UI : public LibreAudioBaseUI
 {
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
@@ -33,8 +33,6 @@ class UI final : public LibreAudioBaseUI
     using AnalyzerShaderW = std::conditional_t<label == "dualGain",
                                                CleanShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
                                                BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
-
-    std::shared_ptr<AnalyzerShaderW> fShaderAnalyser;
 
 public:
     UI() : LibreAudioBaseUI()
@@ -50,20 +48,16 @@ public:
         static_cast<RootWidget*>(fRootWidget.get())->enableShaders(shaders);
     }
 
-private:
-    std::shared_ptr<AnalyzerShaderW> makeAnalyzer()
-    {
-        fShaderAnalyser.reset(new AnalyzerShaderW(this, this));
-        return fShaderAnalyser;
-    }
+protected:
+    std::shared_ptr<AnalyzerShaderW> fShaderAnalyser;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) override
     {
         fShaderAnalyser->replace(values);
     }
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
-    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) override
     {
        #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
         fShaderAnalyser->push(value);
@@ -72,6 +66,13 @@ private:
        #endif
     }
    #endif
+
+private:
+    std::shared_ptr<AnalyzerShaderW> makeAnalyzer()
+    {
+        fShaderAnalyser.reset(new AnalyzerShaderW(this, this));
+        return fShaderAnalyser;
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

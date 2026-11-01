@@ -59,6 +59,11 @@ public:
     RootWidget(Window& window, LabUIWidgetInterface* const iface)
         : RootBaseWidget(window, iface) {}
 
+    const std::shared_ptr<MainArea>& getMainAreaWidget() const noexcept
+    {
+        return fMainArea;
+    }
+
 protected:
     std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
     std::shared_ptr<MainArea> fMainArea = addWidget<MainArea, Expanding>();
