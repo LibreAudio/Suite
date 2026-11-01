@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="31.999968"
+   height="16.576567"
+   viewBox="0 0 31.999968 16.576567"
+   version="1.1"
+   id="svg141"
+   sodipodi:docname="LibreAudioSignet_Final_Rainbow.svg"
+   inkscape:version="1.2.1 (9c6d41e, 2022-07-14)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview143"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="false"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     showborder="false"
+     inkscape:zoom="32.09375"
+     inkscape:cx="12.35443"
+     inkscape:cy="8.5219085"
+     inkscape:window-width="2608"
+     inkscape:window-height="1387"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg141" />
+  <title
+     id="title132">LibreAudioSignet_Final_Black</title>
+  <defs
+     id="defs135">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient951">
+      <stop
+         style="stop-color:#ffbfcb;stop-opacity:1;"
+         offset="0"
+         id="stop947" />
+      <stop
+         style="stop-color:#ffcfbc;stop-opacity:1;"
+         offset="0.17"
+         id="stop3298" />
+      <stop
+         style="stop-color:#e1d4dd;stop-opacity:1;"
+         offset="0.34"
+         id="stop4030" />
+      <stop
+         style="stop-color:#dde8db;stop-opacity:1;"
+         offset="0.5"
+         id="stop4762" />
+      <stop
+         style="stop-color:#dff2de;stop-opacity:1;"
+         offset="0.67109931"
+         id="stop6224" />
+      <stop
+         style="stop-color:#dcd9e8;stop-opacity:1;"
+         offset="0.83999997"
+         id="stop6226" />
+      <stop
+         style="stop-color:#ffdcf5;stop-opacity:1;"
+         offset="1"
+         id="stop949" />
+    </linearGradient>
+    <path
+       d="M 0,0 H 32 V 32 H 0 Z"
+       id="path-1" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient951"
+       id="linearGradient953"
+       x1="0"
+       y1="16.000033"
+       x2="31.999967"
+       y2="16.000033"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(0,-7.7117495)" />
+  </defs>
+  <path
+     d="m 2.9005743,11.102262 c 0,1.507196 1.2175243,2.731286 2.7246981,2.739392 l 4.8662846,0.02617 c 1.011658,0.0054 1.943964,-0.638557 2.424868,-1.52862 l 1.627298,-3.0118245 c 1.396777,-3.027952 2.725269,-5.517235 3.991096,-7.4734603 1.63367,-2.5246952 5.357155,-2.4350741 6.86638,0.1660257 0.259259,0.4468256 0.505864,0.9154186 0.77053,1.4578726 0.156329,0.320407 0.317098,0.66228 0.517282,1.097539 0.110353,0.239942 0.507429,1.110639 0.549436,1.202428 0.506254,1.106203 0.908053,1.955196 1.391823,2.923799 0.916607,1.8352305 2.470995,4.9554615 2.692152,5.3953485 l 0.0092,0.01836 c 0.07018,0.139563 0.259271,0.51264 0.56726,1.11923 0.309533,0.609631 -0.128755,1.333022 -0.81245,1.337704 l -0.617538,0.0043 c -0.69951,0.0047 -1.340776,-0.388175 -1.65555,-1.012879 -0.02455,-0.04873 -0.04884,-0.09698 -0.07307,-0.145169 l -0.0094,-0.01862 c -0.223982,-0.445504 -1.781177,-3.57137 -2.69559,-5.4022075 -0.50062,-1.002341 -0.915587,-1.879158 -1.434392,-3.012787 -0.04372,-0.09553 -0.439137,-0.96259 -0.54717,-1.197487 -0.191726,-0.41687 -0.34375,-0.740146 -0.488896,-1.037634 -0.236098,-0.483899 -0.451094,-0.892431 -0.672532,-1.274073 -0.422409,-0.728007 -1.464744,-0.753095 -1.922322,-0.04595 -1.189498,1.838266 -2.462576,4.225789 -3.813655,7.1578935 l -0.0193,0.04189 -0.02192,0.04058 -1.646823,3.047965 c -0.990097,1.832484 -2.90955,2.85524 -4.992376,2.844038 L 5.6096727,16.535876 C 2.5066677,16.519187 0,14.113881 0,11.010831 V 1.2891441 C 0,0.5771694 0.57716948,0 1.2891441,0 h 0.322286 c 0.7119747,0 1.2891442,0.5771694 1.2891442,1.2891441 z"
+     id="Path-Copy-295"
+     fill="color(display-p3 0.000 0.000 0.000)"
+     fill-rule="nonzero"
+     style="fill:url(#linearGradient953);fill-opacity:1;stroke:none" />
+  <metadata
+     id="metadata262">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>LibreAudioSignet_Final_Black</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>
