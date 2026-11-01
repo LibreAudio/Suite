@@ -90,6 +90,11 @@ struct Reference {
         static constexpr const float letterSpacing = fontSize * 0.05;
     };
 
+    struct Signet : Zero {
+        static constexpr const uint width = 32;
+        static constexpr const uint height = 17;
+    };
+
     struct Line {
         static constexpr const Color colorGradientStart = Colors::acc1;
         static constexpr const Color colorGradientStop = Colors::acc1Glow;

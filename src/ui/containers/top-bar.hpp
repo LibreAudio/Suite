@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "../_lab/image.hpp"
 #include "../_lab/interface.hpp"
 
 #include "../widgets/button.hpp"
 #include "../widgets/button-group.hpp"
 #include "../widgets/plugin-name.hpp"
+#include "../widgets/signet.hpp"
 
 #include <array>
 
@@ -23,10 +23,6 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
                private IdleCallback
 {
     using BaseWidget = ReferenceContainerWidget<Reference::TopBar>;
-
-    // ----------------------------------------------------------------------------------------------------------------
-
-    using LogoWidget = LabImageWidget<IMAGES_LA_68_PNG_DATA, IMAGES_LA_68_PNG_LEN>;
 
     // ----------------------------------------------------------------------------------------------------------------
 
@@ -98,7 +94,7 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
     // ----------------------------------------------------------------------------------------------------------------
 
     const std::array<std::shared_ptr<LabWidget>, 3> fWidgetsLeft = {
-        addWidget<LogoWidget>(),
+        addWidget<SignetWidget>(),
         addWidget<PluginNameWidget>(),
         addSpacer(),
     };
