@@ -10,21 +10,84 @@ START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class RootWidgetInterface
+class LabRootWidgetInterface
 {
 public:
-    virtual ~RootWidgetInterface() = default;
+    virtual ~LabRootWidgetInterface() = default;
     virtual void updateScaleFactorAndSize() = 0;
+
+    void setActiveWidget(LabWidget* const widget) noexcept
+    {
+        fActiveWidget = widget;
+    }
+
+protected:
+    bool shortcutCharacterInput(const Widget::CharacterInputEvent& ev)
+    {
+        return fActiveWidget == nullptr ? false : fActiveWidget->onCharacterInput(ev);
+    }
+
+    bool shortcutKeyboard(const Widget::KeyboardEvent& ev)
+    {
+        return fActiveWidget == nullptr ? false : fActiveWidget->onKeyboard(ev);
+    }
+
+    bool shortcutMouse(const Widget::MouseEvent& ev)
+    {
+        if (fActiveWidget == nullptr)
+            return false;
+
+        Widget::MouseEvent ev2(ev);
+        ev2.pos = {
+            ev.absolutePos.getX() - fActiveWidget->getAbsoluteX(),
+            ev.absolutePos.getY() - fActiveWidget->getAbsoluteY()
+        };
+        return fActiveWidget->onMouse(ev2);
+    }
+
+    bool shortcutMotion(const Widget::MotionEvent& ev)
+    {
+        if (fActiveWidget == nullptr)
+            return false;
+
+        Widget::MotionEvent ev2(ev);
+        ev2.pos = {
+            ev.absolutePos.getX() - fActiveWidget->getAbsoluteX(),
+            ev.absolutePos.getY() - fActiveWidget->getAbsoluteY()
+        };
+        return fActiveWidget->onMotion(ev2);
+    }
+
+    bool shortcutScroll(const Widget::ScrollEvent& ev)
+    {
+        if (fActiveWidget == nullptr)
+            return false;
+
+        Widget::ScrollEvent ev2(ev);
+        ev2.pos = {
+            ev.absolutePos.getX() - fActiveWidget->getAbsoluteX(),
+            ev.absolutePos.getY() - fActiveWidget->getAbsoluteY()
+        };
+        return fActiveWidget->onScroll(ev2);
+    }
+
+private:
+    LabWidget* fActiveWidget = nullptr;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, Orientation orientation>
 class ReferenceRootWidget : public ReferenceContainerTopLevelWidget<R, orientation>,
-                            public RootWidgetInterface
+                            public LabRootWidgetInterface
 {
     using BaseWidget = ReferenceContainerTopLevelWidget<R, orientation>;
+    using CharacterInputEvent = typename BaseWidget::CharacterInputEvent;
+    using KeyboardEvent = typename BaseWidget::KeyboardEvent;
+    using MouseEvent = typename BaseWidget::MouseEvent;
+    using MotionEvent = typename BaseWidget::MotionEvent;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
+    using ScrollEvent = typename BaseWidget::ScrollEvent;
 
 public:
     ReferenceRootWidget(Window& window, LabUIWidgetInterface* const iface)
@@ -34,6 +97,42 @@ public:
     {
         BaseWidget::updateScaleFactor(this->fInterface->getInterfaceScaleFactor());
         this->updateSize(true);
+    }
+
+protected:
+    bool onCharacterInput(const CharacterInputEvent& ev) override
+    {
+        if (shortcutCharacterInput(ev))
+            return true;
+        return BaseWidget::onCharacterInput(ev);
+    }
+
+    bool onKeyboard(const KeyboardEvent& ev) override
+    {
+        if (shortcutKeyboard(ev))
+            return true;
+        return BaseWidget::onKeyboard(ev);
+    }
+
+    bool onMouse(const MouseEvent& ev) override
+    {
+        if (shortcutMouse(ev))
+            return true;
+        return BaseWidget::onMouse(ev);
+    }
+
+    bool onMotion(const MotionEvent& ev) override
+    {
+        if (shortcutMotion(ev))
+            return true;
+        return BaseWidget::onMotion(ev);
+    }
+
+    bool onScroll(const ScrollEvent& ev) override
+    {
+        if (shortcutScroll(ev))
+            return true;
+        return BaseWidget::onScroll(ev);
     }
 
 private:

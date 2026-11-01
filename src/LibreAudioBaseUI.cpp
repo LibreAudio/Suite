@@ -633,7 +633,7 @@ void LibreAudioBaseUI::openTextInput(LabWidget* const widget,
 
 void LibreAudioBaseUI::setActiveWidget(LabWidget* const widget)
 {
-    fActiveWidget = widget;
+    fRootWidget->setActiveWidget(widget);
 }
 
 void LibreAudioBaseUI::buttonClicked(const uint32_t id)

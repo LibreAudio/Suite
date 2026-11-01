@@ -70,6 +70,7 @@ private:
     {
         fDragStarted = true;
         fLastMotionValue = getValue();
+        fInterface->setActiveWidget(this);
         fInterface->parameterControlPressed(widget->getId());
     }
 
@@ -86,6 +87,7 @@ private:
         }
 
         fInterface->parameterControlReleased(widget->getId());
+        fInterface->setActiveWidget(nullptr);
     }
 
     void knobValueChanged(SubWidget* const widget, const float value) final

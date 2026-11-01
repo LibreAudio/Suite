@@ -9,16 +9,9 @@
 
 // --------------------------------------------------------------------------------------------------------------------
 
-START_NAMESPACE_DISTRHO
-
-class UI;
-
-END_NAMESPACE_DISTRHO
-
-// --------------------------------------------------------------------------------------------------------------------
-
 START_NAMESPACE_DGL
 
+class LabRootWidgetInterface;
 class LabUIWidgetInterface;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -391,7 +384,6 @@ private:
 
     friend class BaseWidgetOf<NanoSubWidget>;
     friend class BaseWidgetOf<NanoTopLevelWidget>;
-    friend class DISTRHO_NAMESPACE::UI;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -428,6 +420,35 @@ public:
 
     explicit LabWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
+
+protected:
+    // reexport event functions so the Interface friend class can call them
+    bool onKeyboard(const KeyboardEvent& ev)
+    {
+        return BaseWidget::onKeyboard(ev);
+    }
+
+    bool onCharacterInput(const CharacterInputEvent& ev)
+    {
+        return BaseWidget::onCharacterInput(ev);
+    }
+
+    bool onMouse(const MouseEvent& ev)
+    {
+        return BaseWidget::onMouse(ev);
+    }
+
+    bool onMotion(const MotionEvent& ev)
+    {
+        return BaseWidget::onMotion(ev);
+    }
+
+    bool onScroll(const ScrollEvent& ev)
+    {
+        return BaseWidget::onScroll(ev);
+    }
+
+    friend class LabRootWidgetInterface;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

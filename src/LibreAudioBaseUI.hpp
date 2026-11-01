@@ -77,7 +77,6 @@ private:
 
     std::unique_ptr<DoubleClickHelper> fDoubleClickHelper;
     std::shared_ptr<LibreAudio::MenuOverlayWidgetInterface> fMenuWidget;
-    LabWidget* fActiveWidget = nullptr;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
