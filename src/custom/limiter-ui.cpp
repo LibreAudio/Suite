@@ -28,8 +28,8 @@ static constexpr const uint kGroupsWidth[5] = { 115, 0, 0, 0, 140 };
 template<const Color& kAccentColor>
 using LimiterCheckBoxWidget = CheckBoxWidget<kAccentColor, (kNumberBoxHeight - kCommonPadding) / 2>;
 
-template<const Color& kAccentColor>
-using LimiterComboBoxWidget = ComboBoxWidget<kAccentColor, (kNumberBoxHeight - kCommonPadding) / 2>;
+// template<const Color& kAccentColor>
+using LimiterComboBoxWidget = ComboBoxWidget<Reference::Colors::acc2, (kNumberBoxHeight - kCommonPadding) / 2>;
 
 template<const Color& kAccentColor>
 using LimiterNumberBoxWidget = NumberBoxWidget<kAccentColor, kNumberBoxHeight>;
@@ -49,8 +49,8 @@ namespace widgets {
     using Release = ParameterWidgetPair<kFaustParameterRelease, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
     using AutoRelease = ParameterWidgetPair<kFaustParameterAuto_release, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
 
-    using Dither = ParameterWidgetPair<kFaustParameterDither, LimiterComboBoxWidget<Reference::Colors::acc2>>;
-    using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, LimiterComboBoxWidget<Reference::Colors::acc2>>;
+    // using Dither = ParameterWidgetPair<kFaustParameterDither, LimiterComboBoxWidget<Reference::Colors::acc2>>;
+    // using NoiseShaping = ParameterWidgetPair<kFaustParameterNoise_shaping, LimiterComboBoxWidget<Reference::Colors::acc2>>;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ using LimiterGroupsContainerWidget = StaticContainerPairWidget<
     SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Threshold, widgets::Ceiling>>,
     SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Attack, widgets::AttackShape>>,
     SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Release, widgets::AutoRelease>>,
-    SizeHintWidgetPair<Fixed, LimiterGroupWidget<__COUNTER__, Vertical, widgets::Dither, widgets::NoiseShaping>>
+    SizeHintWidgetPair<Fixed, ComboBoxGroupWidget<LimiterGroupReference, LimiterComboBoxWidget, kFaustParameterDither, kFaustParameterNoise_shaping>>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -142,8 +142,8 @@ class LimterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterE
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
 
     const std::array<std::shared_ptr<LabWidget>, 2> _ {
-        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold),
         addGraphWidget<GridWidget>(kFaustParameterThreshold, 6.f),
+        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold),
     };
 
 public:

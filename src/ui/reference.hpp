@@ -41,8 +41,9 @@ struct Reference {
         static constexpr const Color bg1 { 0x1c, 0x1c, 0x20 };
         static constexpr const Color bg2 { 0x26, 0x26, 0x2b };
         static constexpr const Color track { 0x13, 0x13, 0x16 };
-        static constexpr const Color line { 0x2a, 0x2a, 0x30 };
-        static constexpr const Color line2 { 0x3b, 0x3b, 0x44 };
+        // static constexpr const Color line { 0x2a, 0x2a, 0x30 };
+        // static constexpr const Color line2 { 0x3b, 0x3b, 0x44 };
+        static constexpr const Color line2 { 0x64, 0x64, 0x70 };
         static constexpr const Color bracket { 0xd6, 0xd8, 0xdf, 0.30f };
 
         static constexpr const Color transparent { 0.f, 0.f, 0.f, 0.f };
@@ -331,7 +332,9 @@ struct Reference {
         template<const Color& kAccentColor = Colors::acc1, uint _height = 40>
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
-            static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            // static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
+            static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
+            static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
             static constexpr const Color insetShadingColor = Color(0.f, 0.f, 0.f, 0.55f);
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
@@ -395,12 +398,13 @@ struct Reference {
         struct FloatingLineSlider : Zero {
             static constexpr const float fontSize = 14.f;
             static constexpr const float letterSpacing = 1.f;
-            static constexpr const uint padding = 8;
+            static constexpr const uint margin = 4;
+            static constexpr const uint padding = 7;
         };
 
         struct Grid : Zero {
-            static constexpr const Color color = Color(0x64, 0x64, 0x70);
-            // static constexpr const Color color = Colors::line2;
+            // static constexpr const Color color = Color(0x64, 0x64, 0x70);
+            static constexpr const Color color = Colors::line2;
             struct Label : Zero {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 10.f;

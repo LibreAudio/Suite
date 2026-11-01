@@ -39,6 +39,11 @@ class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>
     static_assert(R::width == 0, "grid must have 0 width, size is adjusted by its parent");
     static_assert(R::height == 0, "grid must have 0 height, size is adjusted by its parent");
 
+    static constexpr const float kAlphaIntensivityMain = 0.7f;
+    static constexpr const float kAlphaIntensivityMid = 0.45f;
+    static constexpr const float kAlphaIntensivityMinor = 0.3f;
+    static constexpr const float kAlphaIntensivityOther = 0.22f;
+
 public:
     explicit GridWidget(LabWidget* const parent,
                         const float min,
@@ -91,7 +96,6 @@ private:
         fillColor(R::Label::color);
         fontSize(m.label.fontSize);
         fontFace("mono");
-        strokeColor(R::color.withAlpha(0.25f));
         strokeWidth(1.f * m.s);
         textLetterSpacing(m.label.letterSpacing);
 
@@ -100,7 +104,7 @@ private:
         {
             const float margin = m.border + m.margin;
             const float yfade = m.fontSize + m.label.padding;
-            float y;
+            float alpha, y;
 
             textAlign(ALIGN_CENTER | ALIGN_TOP);
 
@@ -129,72 +133,43 @@ private:
                     switch (s)
                     {
                     case 0:
-                        strokePaint(linearGradient(x,
-                                                   y,
-                                                   x,
-                                                   y + yfade,
-                                                   R::color.withAlpha(0.f),
-                                                   R::color.withAlpha(.7f)));
+                        alpha = kAlphaIntensivityMain;
                         break;
                     case 4:
-                        strokePaint(linearGradient(x,
-                                                   y,
-                                                   x,
-                                                   y + yfade,
-                                                   R::color.withAlpha(0.f),
-                                                   R::color.withAlpha(.45f)));
+                        alpha = kAlphaIntensivityMid;
                         break;
                     default:
-                        strokePaint(linearGradient(x,
-                                                   y,
-                                                   x,
-                                                   y + yfade,
-                                                   R::color.withAlpha(0.f),
-                                                   R::color.withAlpha(.22f)));
+                        alpha = kAlphaIntensivityOther;
                         break;
                     }
 
                     beginPath();
                     moveTo(x, y);
                     lineTo(x, m.height - yfade * 0.25f);
+                    strokePaint(linearGradient(x,
+                                               y,
+                                               x,
+                                               y + yfade,
+                                               R::color.withAlpha(0.f),
+                                               R::color.withAlpha(alpha)));
                     stroke();
-
-                    switch (s)
-                    {
-                    case 0:
-                        strokePaint(linearGradient(x,
-                                                   m.height - yfade * 0.25f,
-                                                   x,
-                                                   m.height + yfade * 0.75f,
-                                                   R::color.withAlpha(.7f),
-                                                   R::color.withAlpha(0.f)));
-                        break;
-                    case 4:
-                        strokePaint(linearGradient(x,
-                                                   m.height - yfade * 0.25f,
-                                                   x,
-                                                   m.height + yfade * 0.75f,
-                                                   R::color.withAlpha(.45f),
-                                                   R::color.withAlpha(0.f)));
-                        break;
-                    default:
-                        strokePaint(linearGradient(x,
-                                                   m.height - yfade * 0.25f,
-                                                   x,
-                                                   m.height + yfade * 0.75f,
-                                                   R::color.withAlpha(.22f),
-                                                   R::color.withAlpha(0.f)));
-                        break;
-                    }
 
                     beginPath();
                     moveTo(x, m.height - yfade * 0.25f);
                     lineTo(x, m.height + yfade * 0.75f);
+                    strokePaint(linearGradient(x,
+                                               m.height - yfade * 0.25f,
+                                               x,
+                                               m.height + yfade * 0.75f,
+                                               R::color.withAlpha(alpha),
+                                               R::color.withAlpha(0.f)));
                     stroke();
                 }
             }
         }
        #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+        strokeColor(R::color.withAlpha(kAlphaIntensivityMinor));
+
         for (uint32_t t = 1; t < kNumSecondsForWaveform; ++t)
         {
             const float x = m.border + (m.width - m.border * 2) * (1.f - static_cast<float>(t) / kNumSecondsForWaveform);
@@ -240,7 +215,7 @@ private:
                                        sx + m.label.padding * m.label.padding,
                                        y,
                                        R::color.withAlpha(0.f),
-                                       R::color.withAlpha(isZero ? .5f : .22f)));
+                                       R::color.withAlpha(isZero ? kAlphaIntensivityMid : kAlphaIntensivityMinor)));
 
            #ifdef LIBREAUDIO_GRID_NO_DOTTED_LINE
             beginPath();
@@ -262,7 +237,7 @@ private:
                                        y,
                                        m.width - (sx - margin) * 0.5f,
                                        y,
-                                       R::color.withAlpha(isZero ? .5f : .22f),
+                                       R::color.withAlpha(isZero ? kAlphaIntensivityMid : kAlphaIntensivityMinor),
                                        R::color.withAlpha(0.f)));
 
            #ifdef LIBREAUDIO_GRID_NO_DOTTED_LINE

@@ -357,16 +357,9 @@ struct MbComp5StageReference : Reference::Stage {
         static constexpr const float fontSize = 10.f;
         static constexpr const float letterSpacing = 0.f;
     };
-    struct Line {
-        static constexpr const Color color { 0x3b, 0x3b, 0x44 };
-        static constexpr const Color color〡main { color, 0.7f };
-        static constexpr const Color color〡mid { color, 0.45f };
-        static constexpr const Color color〡other { color, 0.22f };
-        static constexpr const uint width = 1;
-    };
     struct FreqLine {
         // font mono
-        static constexpr const Color backgroundColor { Line::color, 0.5f };
+        static constexpr const Color backgroundColor { Reference::Colors::line2, 0.45f };
         static constexpr const float fontSize = 11.f;
         static constexpr const float letterSpacing = 0.f;
         static constexpr const uint borderRadius = 4;

@@ -36,10 +36,17 @@ public:
         setStep(fParameter.step);
         setUsingLogScale(fParameter.isLogarithmic);
         setValue(fParameter.init, false);
+
+        if (*fParameter.unit != '\0')
+        {
+            fUnitWithSpacePrefix = " ";
+            fUnitWithSpacePrefix += fParameter.unit;
+        }
     }
 
 private:
     const FaustParameter& fParameter;
+    String fUnitWithSpacePrefix;
 
     // FIXME not very good
     static Color rainbow(const float t) noexcept
@@ -53,16 +60,18 @@ private:
     {
         const LabMetrics<R> m { this };
 
-        drawReferenceBackground<R>();
-
         const bool lit = (getState() & kKnobStateDraggingHover) != 0;
         const float normvalue = getNormalizedValue();
         const float radius = (lit != 0 ? 2.f : 1.5f) * m.s;
         const float y = m.height * (1.f - normvalue);
+        int align;
+        float sy;
 
-        char valuestr[48];
+        // background
+        drawReferenceBackground<R>();
 
-        for (float x = m.border + m.margin + m.padding * 0.5f, limit = m.width - (m.border - m.margin) * 2; x < limit; x += m.padding)
+        // slider
+        for (float x = m.border + m.margin, limit = m.width - m.border - m.margin; x < limit; x += m.padding)
         {
             beginPath();
             circle(x, y, radius);
@@ -70,46 +79,37 @@ private:
             fill();
         }
 
-        fontSize(m.fontSize);
-        textLetterSpacing(m.letterSpacing);
-        fillColor(Reference::kAccentColors[5].withAlpha(lit ? 1.f : 0.85f));
-
-        // draw name
-        if (*fParameter.unit != '\0')
-            std::snprintf(valuestr, sizeof(valuestr), "%s (%s)", fParameter.name, fParameter.unit);
-        else
-            std::strncpy(valuestr, fParameter.name, sizeof(valuestr) - 1);
-
-        float sy;
-        Rectangle<float> bounds;
-        fontFace("regular");
-        textBounds(0, 0, valuestr, nullptr, bounds);
-
+        // name and value
         if (y > m.height * 0.5f)
         {
+            align = ALIGN_BOTTOM;
             sy = y - 4.f * m.s;
-            textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
         }
         else
         {
+            align = ALIGN_TOP;
             sy = y + 4.f * m.s;
-            textAlign(ALIGN_RIGHT | ALIGN_TOP);
         }
 
-        text(m.width - m.padding, sy, valuestr, nullptr);
-
-        // draw value
-        fontFace("mono");
-
+        char valuestr[48];
         _renderParameterValue<32>(valuestr, fParameter, getValue());
-        // if (*fParameter.unit != '\0')
-        // {
-        //     std::strncat(valuestr, " ", 2);
-        //     std::strncat(valuestr, fParameter.unit, 10);
-        // }
 
-        text(m.width - m.padding * 2 - bounds.getWidth(), sy, valuestr, nullptr);
+        if (! fUnitWithSpacePrefix.isEmpty())
+            std::strncat(valuestr, fUnitWithSpacePrefix.buffer(), 48 - 32);
 
+        fillColor(Reference::kAccentColors[5].withAlpha(lit ? 1.f : 0.85f));
+        fontSize(m.fontSize);
+        textLetterSpacing(m.letterSpacing);
+
+        fontFace("regular");
+        textAlign(ALIGN_LEFT | align);
+        text(m.border + m.margin + m.padding * 2, sy, getName(), nullptr);
+
+        fontFace("mono");
+        textAlign(ALIGN_RIGHT | align);
+        text(m.width - m.border - m.margin - m.padding * 2, sy, valuestr, nullptr);
+
+        // border
         drawReferenceBorder<R>();
     }
 };

@@ -75,13 +75,16 @@ private:
 
         const float border2x = m.border * 2;
 
+        // ------------------------------------------------------------------------------------------------------------
+        // background
+
         drawReferenceBackground<R>();
-        // drawReferenceBorder<R>();
 
-        char valuestr[32];
-        renderParameterValue(valuestr, fParameter, getValue());
-
+        // ------------------------------------------------------------------------------------------------------------
         // inset shading
+
+        // FIXME make more generic
+
         beginPath();
         roundedRect(0, 0, m.width, m.height, m.borderRadius);
         fillPaint(linearGradient(0, 0, 0, m.margin, R::insetShadingColor, Reference::Colors::transparent));
@@ -90,6 +93,21 @@ private:
         strokeWidth(m.border * 0.5f);
         stroke();
 
+        // ------------------------------------------------------------------------------------------------------------
+        // border
+
+        if constexpr (R::border != 0)
+        {
+            if ((getState() & kKnobStateDraggingHover) != 0)
+                drawReferenceBorder<R, R::borderColor〡hovered>();
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // name
+
+        char valuestr[32];
+        renderParameterValue(valuestr, fParameter, getValue());
+
         fillColor(R::Name::color);
         fontFace("regular");
         fontSize(m.name.fontSize);
@@ -97,12 +115,18 @@ private:
         textAlign(ALIGN_LEFT | ALIGN_TOP);
         text(border2x + m.margin, m.border + m.margin, fParameter.name, nullptr);
 
+        // ------------------------------------------------------------------------------------------------------------
+        // value
+
         fillColor(R::Value::color);
         fontFace("mono");
         fontSize(m.value.fontSize);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
         textLetterSpacing(m.value.letterSpacing);
         text(border2x + m.margin, m.height - m.bar.height - m.margin, valuestr, nullptr);
+
+        // ------------------------------------------------------------------------------------------------------------
+        // unit
 
        #ifdef LIBREAUDIO_PLUGIN__mbComp5
         const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
@@ -120,7 +144,9 @@ private:
             text(m.width - border2x - m.margin, m.height - m.bar.height - m.margin, unit, nullptr);
         }
 
+        // ------------------------------------------------------------------------------------------------------------
         // bottom bar
+
         {
             const float normvalue = getNormalizedValue();
 
