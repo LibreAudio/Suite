@@ -7,6 +7,16 @@
 #include "Application.hpp"
 #include "NanoVG.hpp"
 
+// --------------------------------------------------------------------------------------------------------------------
+
+START_NAMESPACE_DISTRHO
+
+class UI;
+
+END_NAMESPACE_DISTRHO
+
+// --------------------------------------------------------------------------------------------------------------------
+
 START_NAMESPACE_DGL
 
 class LabUIWidgetInterface;
@@ -381,6 +391,7 @@ private:
 
     friend class BaseWidgetOf<NanoSubWidget>;
     friend class BaseWidgetOf<NanoTopLevelWidget>;
+    friend class DISTRHO_NAMESPACE::UI;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

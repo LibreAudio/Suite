@@ -41,6 +41,8 @@ public:
                                uint fontSize,
                                bool isNumber) = 0;
 
+    virtual void setActiveWidget(LabWidget* widget) = 0;
+
     virtual void buttonClicked(uint32_t id) = 0;
     [[nodiscard]] virtual bool isButtonEnabled(uint32_t id) const noexcept = 0;
     [[nodiscard]] virtual bool isButtonChecked(uint32_t id) const noexcept = 0;

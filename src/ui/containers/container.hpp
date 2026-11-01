@@ -99,7 +99,7 @@ class StaticContainerWidget : public ReferenceContainerWidget<R, orientation>
     using BaseWidget = ReferenceContainerWidget<R, orientation>;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-        BaseWidget::template addWidget<Args, sizeHint>()...
+        this->template addWidget<Args, sizeHint>()...
     };
 
 public:

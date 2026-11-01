@@ -142,7 +142,9 @@ private:
             else
                 BaseWidget::borderRect(m.box.x, m.box.y, m.box.width, m.box.height, m.box.border);
 
-            BaseWidget::strokeColor(BaseWidget::isHovered() ? R::Box::borderColor〡hovered : R::Box::borderColor);
+            BaseWidget::strokeColor((BaseWidget::getState() & BaseWidget::kButtonStateActiveHover) != 0
+                ? R::Box::borderColor〡hovered
+                : R::Box::borderColor);
             BaseWidget::stroke();
         }
 
