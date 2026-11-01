@@ -36,6 +36,7 @@ public:
     {
         updateReferenceSize<R>();
 
+        setActiveCursor(R::cursor);
         setName(kParameterSlider.label);
         setDefault(kParameterSlider.init);
         setRange(kParameterSlider.min, kParameterSlider.max);

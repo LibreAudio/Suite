@@ -42,6 +42,11 @@ public:
         addIdleCallback(this);
     }
 
+    void setActiveCursor(const MouseCursor cursor)
+    {
+        fActiveCursor = cursor;
+    }
+
     void setLinkedParameters(const std::vector<uint32_t>& linked)
     {
         DISTRHO_SAFE_ASSERT_RETURN(std::find(linked.cbegin(), linked.cend(), getId()) == linked.end(),);
@@ -57,6 +62,24 @@ protected:
             parameterChangedByHost();
     }
 
+    void stateChanged(const State state, const State oldState) override
+    {
+        if (fActiveCursor != kMouseCursorArrow)
+        {
+            if ((state & kKnobStateDraggingHover) != 0 && (oldState & kKnobStateDraggingHover) == 0)
+            {
+                setCursor(fActiveCursor);
+                return;
+            }
+
+            if ((state & kKnobStateDraggingHover) == 0 && (oldState & kKnobStateDraggingHover) != 0)
+            {
+                resetCursor();
+                return;
+            }
+        }
+    }
+
     virtual void parameterChangedByHost() {}
 
 private:
@@ -64,6 +87,7 @@ private:
     bool fDragShiftMod = false;
     bool fDraggingMulti = false;
     float fLastMotionValue = 0.f;
+    MouseCursor fActiveCursor = kMouseCursorArrow;
     std::vector<uint32_t> fLinkedParameters;
 
     void knobDragStarted(SubWidget* const widget) final

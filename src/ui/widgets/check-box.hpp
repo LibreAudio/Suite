@@ -138,16 +138,17 @@ private:
 
     void stateChanged(const State state, const State oldState) final
     {
-        if ((state & BaseWidget::kButtonStateActive) != 0 && (oldState & BaseWidget::kButtonStateActive) == 0)
-        {
-            this->fInterface->parameterControlPressed(BaseWidget::getId());
-            return;
-        }
+        BaseWidget::stateChanged(state, oldState);
 
-        if ((state & BaseWidget::kButtonStateActive) == 0 && (oldState & BaseWidget::kButtonStateActive) != 0)
+        if ((state & BaseWidget::kButtonStateActive) != 0)
         {
-            this->fInterface->parameterControlReleased(BaseWidget::getId());
-            return;
+            if ((oldState & BaseWidget::kButtonStateActive) == 0)
+                this->fInterface->parameterControlPressed(BaseWidget::getId());
+        }
+        else
+        {
+            if ((oldState & BaseWidget::kButtonStateActive) != 0)
+                this->fInterface->parameterControlReleased(BaseWidget::getId());
         }
     }
 };

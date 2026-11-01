@@ -77,6 +77,7 @@ private:
 
     std::unique_ptr<DoubleClickHelper> fDoubleClickHelper;
     std::shared_ptr<LibreAudio::MenuOverlayWidgetInterface> fMenuWidget;
+    LabWidget* fCurrentCursorWidget = nullptr;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
@@ -148,6 +149,7 @@ private:
                        bool isNumber) final;
 
     void setActiveWidget(LabWidget* widget) final;
+    void setCursor(LabWidget* widget, MouseCursor cursor) final;
 
     void buttonClicked(uint32_t id) final;
     [[nodiscard]] bool isButtonEnabled(uint32_t id) const noexcept final;

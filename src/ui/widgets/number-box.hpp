@@ -40,6 +40,7 @@ public:
           fParameter(kFaustParameters[index]),
           fMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
     {
+        setActiveCursor(R::cursor);
         setName(fParameter.name);
         setDefault(fParameter.init);
         setRange(fParameter.min, fParameter.max);

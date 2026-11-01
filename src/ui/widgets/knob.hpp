@@ -27,6 +27,7 @@ public:
         : BaseWidget(parent, id),
           fParameter(parameter)
     {
+        setActiveCursor(R::cursor);
         setName(parameter.label);
         setDefault(parameter.init);
         setRange(parameter.min, parameter.max);

@@ -30,6 +30,7 @@ public:
         : BaseWidget(parent, kParametersMainStart + index),
           fParameter(kFaustParameters[index])
     {
+        setActiveCursor(R::cursor);
         setName(fParameter.name);
         setDefault(fParameter.init);
         setRange(fParameter.min, fParameter.max);

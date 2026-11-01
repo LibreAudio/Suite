@@ -21,6 +21,11 @@ public:
         fActiveWidget = widget;
     }
 
+    const Widget::MotionEvent& getLastMotion() const noexcept
+    {
+        return fLastMotion;
+    }
+
 protected:
     bool shortcutCharacterInput(const Widget::CharacterInputEvent& ev)
     {
@@ -47,6 +52,8 @@ protected:
 
     bool shortcutMotion(const Widget::MotionEvent& ev)
     {
+        fLastMotion = ev;
+
         if (fActiveWidget == nullptr)
             return false;
 
@@ -73,6 +80,7 @@ protected:
 
 private:
     LabWidget* fActiveWidget = nullptr;
+    Widget::MotionEvent fLastMotion;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -92,6 +100,12 @@ class ReferenceRootWidget : public ReferenceContainerTopLevelWidget<R, orientati
 public:
     ReferenceRootWidget(Window& window, LabUIWidgetInterface* const iface)
         : BaseWidget(window, iface) {}
+
+    void resendLastMotion()
+    {
+        const Widget::MotionEvent ev = getLastMotion();
+        onMotion(ev);
+    }
 
     void updateScaleFactorAndSize() final
     {
@@ -117,7 +131,13 @@ protected:
     bool onMouse(const MouseEvent& ev) override
     {
         if (shortcutMouse(ev))
+        {
+            // release event: resend last motion to allow next hover to be handled
+            if (! ev.press)
+                resendLastMotion();
+
             return true;
+        }
         return BaseWidget::onMouse(ev);
     }
 

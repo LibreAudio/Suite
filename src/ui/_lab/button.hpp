@@ -93,6 +93,34 @@ protected:
         drawReferenceBorder<R, R::borderColor>();
     }
 
+    void stateChanged(const State state, const State oldState) override
+    {
+        if constexpr (R::cursor != kMouseCursorArrow)
+        {
+            if ((state & kButtonStateHover) != 0)
+            {
+                if ((oldState & kButtonStateHover) == 0)
+                    setCursor(R::cursor);
+            }
+            else
+            {
+                if ((oldState & kButtonStateHover) != 0)
+                    resetCursor();
+            }
+        }
+
+        if ((state & kButtonStateActive) != 0)
+        {
+            if ((oldState & kButtonStateActive) == 0)
+                fInterface->setActiveWidget(this);
+        }
+        else
+        {
+            if ((oldState & kButtonStateActive) != 0)
+                fInterface->setActiveWidget(nullptr);
+        }
+    }
+
     void updateSize(const bool updateChildren) override
     {
         updateReferenceSize<R>();

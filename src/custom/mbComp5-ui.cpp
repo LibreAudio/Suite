@@ -84,7 +84,7 @@ struct MbComp5BandGroupReference : Reference::Zero {
                 static constexpr const Color color = Reference::Colors::ink2;
                 static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
                 static constexpr const Color color〡hover = Reference::kAccentColors[band + 1];
-                static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+                static constexpr const MouseCursor cursor = kMouseCursorHand;
                 static constexpr const uint borderRadius = 4;
                 static constexpr const uint width = Header::height;
             };
@@ -411,6 +411,7 @@ private:
     int fFreqDraggingIndex = -1;
     int fFreqDraggingHz = 0.f;
     bool fFreqsDragging[4] = {};
+    bool fWasHovered = false;
 
     const std::shared_ptr<MbComp5GraphWidget> fGraph { addGraphWidget<MbComp5GraphWidget>() };
     const std::shared_ptr<LabWidget> fGrid { addGraphWidget<GridWidget>(-18.f, 7.f, 6.f, "dB") };
@@ -610,7 +611,8 @@ private:
 
         if (! ev.press)
         {
-            if (fFreqDraggingIndex != -1)
+            const bool wasPressed = fFreqDraggingIndex != -1;
+            if (wasPressed)
             {
                 const float orig = fFreqDraggingHz;
 
@@ -639,11 +641,13 @@ private:
                     }
                 }
 
+                fInterface->setActiveWidget(nullptr);
                 fFreqDraggingIndex = -1;
             }
-            return false;
+            return wasPressed;
         }
 
+        // FIXME add to metrics
         const int hit = d_roundToIntPositive(6 * fScaleFactor);
         const double x = ev.pos.getX();
         const double y = ev.pos.getY();
@@ -670,6 +674,7 @@ private:
                 fFreqDraggingIndex = i;
                 fFreqDraggingHz = fFreqs[i];
                 fFreqsDragging[i - 1] = true;
+                fInterface->setActiveWidget(this);
                 fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterXover1 + i - 1);
                 return true;
             }
@@ -753,6 +758,48 @@ private:
 
         if (BaseWidget::onMotion(ev))
             return true;
+
+        if (contains(ev.pos))
+        {
+            // FIXME add to metrics
+            const int hit = d_roundToIntPositive(6 * fScaleFactor);
+            const double x = ev.pos.getX();
+            const double y = ev.pos.getY();
+
+            const float gfontsize = R::GridLabel::fontSize * fScaleFactor;
+            const float gmargin = R::margin * fScaleFactor + gfontsize * 0.5f;
+            const float gh = getHeight() - (R::margin * 2 + R::padding + R::GridLabel::fontSize +
+                (fLastPage == kPageExpert
+                    ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::padding
+                    : Reference::Widgets::CardGroup::height
+                )) * fScaleFactor;
+
+            if (y >= gmargin && y <= gmargin + gh)
+            {
+                for (uint i = 1; i < fFreqPos.size() - 1; ++i)
+                {
+                    const double fx = fFreqPos[i];
+
+                    if (std::abs(fx - x) <= hit)
+                    {
+                        if (! fWasHovered)
+                        {
+                            fWasHovered = true;
+                            setCursor(kMouseCursorLeftRight);
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+            }
+        }
+
+        if (fWasHovered)
+        {
+            fWasHovered = false;
+            resetCursor();
+            return true;
+        }
 
         return false;
     }

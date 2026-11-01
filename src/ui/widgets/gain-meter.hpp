@@ -68,6 +68,7 @@ public:
     {
         updateReferenceSize<R>();
 
+        setActiveCursor(R::cursor);
         setName(kParameterGain.label);
         setDefault(kParameterGain.init);
         setRange(kParameterGain.min, kParameterGain.max);

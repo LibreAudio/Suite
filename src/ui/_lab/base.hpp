@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "interface.hpp"
+
 #include "Application.hpp"
 #include "NanoVG.hpp"
 
@@ -422,6 +424,17 @@ public:
         : BaseWidget(parent) {}
 
 protected:
+    // helper cursor methods
+    void resetCursor()
+    {
+        setCursor(kMouseCursorArrow);
+    }
+
+    void setCursor(const MouseCursor cursor)
+    {
+        fInterface->setCursor(this, cursor);
+    }
+
     // reexport event functions so the Interface friend class can call them
     bool onKeyboard(const KeyboardEvent& ev)
     {

@@ -42,6 +42,7 @@ public:
                                bool isNumber) = 0;
 
     virtual void setActiveWidget(LabWidget* widget) = 0;
+    virtual void setCursor(LabWidget* widget, MouseCursor cursor) = 0;
 
     virtual void buttonClicked(uint32_t id) = 0;
     [[nodiscard]] virtual bool isButtonEnabled(uint32_t id) const noexcept = 0;

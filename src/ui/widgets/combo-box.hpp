@@ -105,6 +105,8 @@ private:
             d_roundToUnsignedInt(m.box.height),
         };
         this->fInterface->openMenu(area, R::color, BaseWidget::getId(), items);
+
+        BaseWidget::resetCursor();
     }
 
     void onNanoDisplay() final

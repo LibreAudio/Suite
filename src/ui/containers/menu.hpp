@@ -157,6 +157,13 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
                 }
             }
         }
+
+        // always capture motion events
+        bool onMotion(const MotionEvent& ev) final
+        {
+            BaseWidget::onMotion(ev);
+            return !fShouldClose;
+        }
     };
 
     class MenuItemWidget final : public ReferenceButtonWidget<Reference::Widgets::Menu::Item, kCornerAuto>

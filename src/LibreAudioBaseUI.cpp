@@ -636,6 +636,26 @@ void LibreAudioBaseUI::setActiveWidget(LabWidget* const widget)
     fRootWidget->setActiveWidget(widget);
 }
 
+void LibreAudioBaseUI::setCursor(LabWidget* const widget, const MouseCursor cursor)
+{
+    // reset cursor to default
+    if (cursor == kMouseCursorArrow)
+    {
+        // ignore if the widget to set cursor has changed: don't reset
+        if (fCurrentCursorWidget == widget)
+        {
+            getWindow().setCursor(kMouseCursorArrow);
+            fCurrentCursorWidget = nullptr;
+        }
+        fRootWidget->resendLastMotion();
+        return;
+    }
+
+    // set cursor
+    getWindow().setCursor(cursor);
+    fCurrentCursorWidget = widget;
+}
+
 void LibreAudioBaseUI::buttonClicked(const uint32_t id)
 {
     using namespace LibreAudio;
@@ -715,6 +735,7 @@ bool LibreAudioBaseUI::isButtonEnabled(const uint32_t id) const noexcept
     }
 
     // fallback
+    DISTRHO_SAFE_ASSERT_UINT(false, id);
     return false;
 }
 

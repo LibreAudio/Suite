@@ -14,7 +14,6 @@ namespace LibreAudio {
 
 struct Reference {
     struct Common {
-        static constexpr const MouseCursor cursor = kMouseCursorArrow;
         static constexpr const float fontSize = 17;
         static constexpr const float letterSpacing = fontSize * 0.01;
         static constexpr const uint margin = 12;
@@ -59,6 +58,7 @@ struct Reference {
         static constexpr const Color shadowColor = Colors::transparent;
         static constexpr const Point<int> shadowOffset = { 0, 0 };
         static constexpr const Size<int> shadowSize = { 0, 0 }; // FIXME inset vs outset naming
+        static constexpr const MouseCursor cursor = kMouseCursorArrow;
         static constexpr const float fontSize = Common::fontSize;
         static constexpr const float letterSpacing = Common::letterSpacing;
         static constexpr const uint border = 0;
@@ -104,6 +104,7 @@ struct Reference {
     struct GainMeter : Zero {
         static constexpr const Color backgroundColor = Colors::track;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
+        static constexpr const MouseCursor cursor = kMouseCursorUpDown;
         static constexpr const uint border = 1;
         static constexpr const uint borderRadius = 7;
         static constexpr const uint margin = 3;
@@ -173,7 +174,7 @@ struct Reference {
             static constexpr const Color backgroundColor = { 0x45, 0x45, 0x4f };
             static constexpr const Color color = { 0xa9, 0xc4, 0xf0 };
             static constexpr const Color color〡deactivated = Colors::ink3;
-            static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint borderRadius = 11;
             static constexpr const uint margin = 9;
         };
@@ -200,7 +201,7 @@ struct Reference {
             static constexpr const Color borderColor = Colors::ink3;
             static constexpr const Color borderColor〡selected = Colors::acc5;
             static constexpr const Color glowColor = Colors::acc5Glow;
-            static constexpr const MouseCursor cursor〡hover = kMouseCursorHand;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 11;
             static constexpr const uint margin = Common::margin;
@@ -228,6 +229,7 @@ struct Reference {
         struct CheckBox : Zero {
             static constexpr const Color color = Colors::ink;
             static constexpr const Color color〡checked = kAccentColor;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint padding = Common::margin / 2;
             static constexpr const float fontSize = 13.f;
             static constexpr const float letterSpacing = fontSize * 0.08f;
@@ -249,6 +251,7 @@ struct Reference {
         template<const Color& kAccentColor = Colors::acc1, uint _height = 0>
         struct ComboBox : Zero {
             static constexpr const Color color = kAccentColor;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
             static constexpr const uint padding = Common::margin / 2;
@@ -321,6 +324,7 @@ struct Reference {
             struct Item : Zero {
                 static constexpr const Color color = Colors::ink2;
                 static constexpr const Color color〡checked = Colors::track;
+                static constexpr const MouseCursor cursor = kMouseCursorHand;
                 static constexpr const float fontSize = 15;
                 static constexpr const uint border = 1;
                 static constexpr const uint borderRadius = 5;
@@ -336,6 +340,7 @@ struct Reference {
             static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
             static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
             static constexpr const Color insetShadingColor = Color(0.f, 0.f, 0.f, 0.55f);
+            static constexpr const MouseCursor cursor = kMouseCursorUpDown;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
             static constexpr const uint margin = 4;
@@ -396,6 +401,7 @@ struct Reference {
         };
 
         struct FloatingLineSlider : Zero {
+            static constexpr const MouseCursor cursor = kMouseCursorUpDown;
             static constexpr const float fontSize = 14.f;
             static constexpr const float letterSpacing = 1.f;
             static constexpr const uint margin = 4;
@@ -453,6 +459,7 @@ struct Reference {
                 static constexpr const Color color = Colors::ink2;
                 static constexpr const Color color〡deactivated = Colors::ink3;
                 static constexpr const Color color〡selected = Colors::acc1;
+                static constexpr const MouseCursor cursor = kMouseCursorHand;
                 static constexpr const float fontSize = 17;
                 static constexpr const float letterSpacing = Common::letterSpacing;
                 static constexpr const uint borderRadius = 6;
@@ -463,6 +470,7 @@ struct Reference {
 
         template<const Color& kAccentColor = Colors::acc1>
         struct ThresholdMeter : Zero {
+            static constexpr const MouseCursor cursor = kMouseCursorUpDown;
             static constexpr const uint padding = 1;
             struct Meter {
                 static constexpr const Color backgroundColor = Colors::track;
@@ -491,6 +499,7 @@ struct Reference {
         template <uint8_t accent, bool small = false>
         struct ToggleSwitch : std::conditional_t<small, SmallKnob, Knob> {
             static constexpr const Color color = Colors::acc2;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint margin = small ? 0 : 4;
             static constexpr const float fontSize = 17;
             static constexpr const float letterSpacing = Common::letterSpacing;
