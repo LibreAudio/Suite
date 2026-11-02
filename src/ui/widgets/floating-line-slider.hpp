@@ -30,13 +30,12 @@ public:
                                       const FaustParameterIndex index,
                                       const float extraMinimum = 0.f)
         : BaseWidget(parent, kParametersMainStart + index),
-          fParameter(kFaustParameters[index]),
-          fPaddedMinimum(extraMinimum / (fParameter.max - fParameter.min + extraMinimum))
+          fParameter(kFaustParameters[index])
     {
         setActiveCursor(R::cursor);
         setName(fParameter.name);
         setDefault(fParameter.init);
-        setRange(fParameter.min, fParameter.max);
+        setRange(fParameter.min - extraMinimum, fParameter.min, fParameter.max);
         setStep(fParameter.step);
         setUsingLogScale(fParameter.isLogarithmic);
         setValue(fParameter.init, false);
@@ -48,9 +47,18 @@ public:
         }
     }
 
+    void setRange(const float min, const float start, const float max)
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(min <= start,);
+        DISTRHO_SAFE_ASSERT_RETURN(start < max,);
+
+        fPaddedMinimum = (start - min) / (max - min);
+        LabKnobWidget::setRange(start, max);
+    }
+
 private:
     const FaustParameter& fParameter;
-    const float fPaddedMinimum;
+    float fPaddedMinimum = 0.f;
     String fUnitWithSpacePrefix;
 
     // FIXME not very good
@@ -66,7 +74,7 @@ private:
         const LabMetrics<R> m { this };
 
         const bool lit = (getState() & kKnobStateDraggingHover) != 0;
-        const float normvalue = getNormalizedValue();
+        const float normvalue = std::clamp(getNormalizedValue(), 0.f, 1.f);
         const float radius = (lit != 0 ? 2.f : 1.5f) * m.s;
         const float usableHeight = m.height - fPaddedMinimum * m.height;
         const float y = usableHeight * (1.f - normvalue);

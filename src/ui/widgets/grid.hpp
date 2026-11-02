@@ -46,8 +46,8 @@ class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>
 
 public:
     explicit GridWidget(LabWidget* const parent,
-                        const float start,
                         const float min,
+                        const float start,
                         const float max,
                         const float step,
                         const char* const unit = "")
@@ -72,11 +72,24 @@ public:
         setUnit(kFaustParameters[index].unit);
     }
 
+    void setRange(const float min, const float start, const float max, const float step = 0.f)
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(min <= start,);
+        DISTRHO_SAFE_ASSERT_RETURN(start < max,);
+
+        fMin = min;
+        fStart = start;
+        fMax = max;
+
+        if (d_isNotZero(step))
+            fStep = step;
+    }
+
 private:
-    const float fStart;
-    const float fMin;
-    const float fMax;
-    const float fStep;
+    float fStart;
+    float fMin;
+    float fMax;
+    float fStep;
     String fUnitWithSpacePrefix;
 
     void setUnit(const char* const unit)
@@ -175,7 +188,7 @@ private:
         {
             const float margin = m.border + m.margin;
             const float yfade = m.fontSize + m.label.padding;
-            const float ey = m.height - (fStart - fMin) / (fMax - fStart) * m.height;
+            const float ey = m.height - (fStart - fMin) / (fMax - fMin) * m.height;
 
             for (uint32_t t = 1; t < kNumSecondsForWaveform; ++t)
             {
@@ -192,7 +205,7 @@ private:
                 text(x, margin, label);
 
                 textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-                text(x, m.height, label);
+                text(x, ey, label);
 
                 beginPath();
                 moveTo(x, y);
