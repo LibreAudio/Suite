@@ -540,6 +540,15 @@ struct Reference {
         static constexpr const uint width = _width;
     };
 
+    template<class Base>
+    struct Transparent : Base {
+        static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color borderColor = Colors::transparent;
+        static constexpr const Color borderHighlightColor = Colors::transparent;
+        static constexpr const Color borderShadowColor = Colors::transparent;
+        static constexpr const Color shadowColor = Colors::transparent;
+    };
+
     static constexpr const Color kAccentColors[] = {
         Colors::acc1,
         Colors::acc2,
