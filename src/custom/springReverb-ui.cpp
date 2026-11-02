@@ -213,8 +213,9 @@ using SpringExpertPageWidget = StaticBottomAlignedContainerWidget<
 //  - Dwell: more high modes alive at once, more weight on the slow level envelope
 // The modes are dispersive, mode m sits slightly above m * f1, so the shapes never repeat exactly.
 //
-// A turn of the coil is stroked as pieces, each with a horizontal gradient for its color and front-to-back fade.
-// The wire splits each piece in two to follow the fade closely, the glow only covers the pieces on the front.
+// The coil is sampled on fixed turn fractions and stroked as nested bands, from the whole visible part of a turn down
+// to its front, whose alphas add up to the front-to-back fade. Each band takes one stroke per rainbow segment, as a
+// horizontal gradient, however many turns it covers.
 class SpringCoilsWidget final : public LabReferenceWidget<Reference::Zero>
 {
     using BaseWidget = LabReferenceWidget<Reference::Zero>;
@@ -223,9 +224,9 @@ class SpringCoilsWidget final : public LabReferenceWidget<Reference::Zero>
     static constexpr const float kPi = 3.14159265359f;
 
     static constexpr const uint kNumModes = 4;
-    static constexpr const uint kPiecesPerTurn = 4;
-    static constexpr const uint kPointsPerPiece = 7;
-    static constexpr const uint kMiddlePoint = kPointsPerPiece / 2;
+    static constexpr const uint kSamplesPerTurn = 24;
+    static constexpr const uint kMaxSamples = 30 * kSamplesPerTurn + 2; // at the highest coil count
+    static constexpr const uint kNumRainbowSegments = 6;
 
     static constexpr const float kYCenter = 0.36f;      // group of three, as a fraction of the stage height
     static constexpr const float kYSpace = 0.2f;        // distance between springs, same unit
@@ -233,11 +234,29 @@ class SpringCoilsWidget final : public LabReferenceWidget<Reference::Zero>
     static constexpr const float kSwayIdle = 0.05f;     // part of that left with no input
     static constexpr const float kDimMin = 0.05f;       // brightness of a tank turned fully down
     static constexpr const float kEnds = 0.1f;          // width fraction over which the coil reaches full depth
-    static constexpr const float kThickness = 1.5f;
 
-    // outermost first, together they approximate a gaussian falloff around the wire
-    static constexpr const float kGlowWidths[] = { 5.f, 3.f };
-    static constexpr const float kGlowAlphas[] = { 0.14f, 0.4f };
+    struct Band {
+        float minFront; // part of the turn it covers, by how far towards the viewer
+        float strokeWidth;
+        float alpha;
+    };
+
+    // Glow first, drawn only on the front of the coil. The wire gets thinner on the far side of each turn,
+    // which makes a plain sine read as a coil.
+    static constexpr const uint kNumGlowBands = 4;
+    static constexpr const Band kBands[] = {
+        { 0.35f, 9.f, 0.05f },
+        { 0.5f, 7.f, 0.07f },
+        { 0.65f, 5.f, 0.1f },
+        { 0.8f, 3.5f, 0.15f },
+        { 0.05f, 1.1f, 0.1f },
+        { 0.2f, 1.2f, 0.22f },
+        { 0.4f, 1.3f, 0.29f },
+        { 0.6f, 1.5f, 0.4f },
+        { 0.8f, 1.6f, 0.67f },
+    };
+
+    static constexpr const float kMinGlowDim = 0.2f; // a tank drawn fainter than this has no visible glow
 
     static constexpr const float kLevelSilenceDb = -70.f;
     static constexpr const float kLevelFloorDb = -40.f;
@@ -273,6 +292,12 @@ class SpringCoilsWidget final : public LabReferenceWidget<Reference::Zero>
     float fLevelSlowHeld = 0.f;
     float fLevelSlowTime = 0.f;
 
+    float fTurnSin[kSamplesPerTurn];
+    float fTurnFront[kSamplesPerTurn];
+    float fXs[kMaxSamples];
+    float fYs[kMaxSamples];
+    uint fTurnIndexes[kMaxSamples];
+
 public:
     explicit SpringCoilsWidget(LabWidget* const parent)
         : BaseWidget(parent),
@@ -287,6 +312,13 @@ public:
 
         fLevelSlow.setTimeConstant(kLevelSlowSeconds);
         fLevelFast.setTimeConstant(kLevelFastSeconds);
+
+        for (uint i = 0; i < kSamplesPerTurn; ++i)
+        {
+            const float theta = kTau * i / kSamplesPerTurn;
+            fTurnSin[i] = std::sin(theta);
+            fTurnFront[i] = 0.5f + 0.5f * std::cos(theta);
+        }
     }
 
 private:
@@ -299,22 +331,6 @@ private:
     {
         const float t = std::clamp(x / edge, 0.f, 1.f);
         return t * t * (3.f - 2.f * t);
-    }
-
-    static Color rainbow(const float u, const float alpha) noexcept
-    {
-        const float x = std::clamp(u, 0.f, 1.f) * (std::size(kRainbow) - 1);
-        const uint i = std::min<uint>(x, std::size(kRainbow) - 2);
-        const float f = x - i;
-        const Color& a = kRainbow[i];
-        const Color& b = kRainbow[i + 1];
-
-        return {
-            a.red + (b.red - a.red) * f,
-            a.green + (b.green - a.green) * f,
-            a.blue + (b.blue - a.blue) * f,
-            alpha,
-        };
     }
 
     void onNanoDisplay() final
@@ -348,6 +364,7 @@ private:
         const float sustain = fast + (slow - fast) * (0.25f + 0.6f * dwell);
         const float drive = std::min(sustain + 0.7f * std::max(fast - slow, 0.f), 1.f);
 
+        lineCap(ROUND);
         lineJoin(BEVEL);
 
         // top spring nearest the viewer
@@ -393,80 +410,78 @@ private:
         for (float& mode : modes)
             mode *= amp / std::sqrt(norm);
 
-        const float pieceTurns = 1.f / kPiecesPerTurn;
-        const int firstPiece = std::floor(-travel / pieceTurns);
-        const int lastPiece = std::ceil((coils - travel) / pieceTurns);
+        // samples sit on fixed turn fractions, so the bands stay put on the coil as it travels
+        const int firstTurnSample = std::ceil(-travel * kSamplesPerTurn);
+        const int lastTurnSample = std::floor((coils - travel) * kSamplesPerTurn);
+        const uint numSamples = std::min<int>(lastTurnSample - firstTurnSample + 1, kMaxSamples);
 
-        // pieces end on turn fractions, so the brightest and darkest points of the coil fall on piece boundaries
-        for (int piece = firstPiece; piece < lastPiece; ++piece)
+        const auto sampleU = [&](const uint sample)
         {
-            const float u1 = std::max((piece * pieceTurns + travel) / coils, 0.f);
-            const float u2 = std::min(((piece + 1) * pieceTurns + travel) / coils, 1.f);
+            return ((firstTurnSample + static_cast<int>(sample)) / static_cast<float>(kSamplesPerTurn) + travel) / coils;
+        };
 
-            if (u2 <= u1)
-                continue;
+        for (uint sample = 0; sample < numSamples; ++sample)
+        {
+            const float u = sampleU(sample);
+            const float ends = smoothstep(kEnds, u) * smoothstep(kEnds, 1.f - u);
+            const int turnSample = (firstTurnSample + static_cast<int>(sample)) % static_cast<int>(kSamplesPerTurn);
+            const uint turnIndex = turnSample < 0 ? turnSample + kSamplesPerTurn : turnSample;
 
-            const float uMid = (u1 + u2) * 0.5f;
-            const float front1 = 0.5f + 0.5f * std::cos(kTau * (coils * u1 - travel));
-            const float frontMid = 0.5f + 0.5f * std::cos(kTau * (coils * uMid - travel));
-            const float front2 = 0.5f + 0.5f * std::cos(kTau * (coils * u2 - travel));
+            float y = tank.y * height + depth * ends * fTurnSin[turnIndex];
 
-            float xs[kPointsPerPiece];
-            float ys[kPointsPerPiece];
+            for (uint i = 0; i < kNumModes; ++i)
+                y += modes[i] * std::sin(kPi * (i + 1) * u);
 
-            for (uint p = 0; p < kPointsPerPiece; ++p)
+            fXs[sample] = u * width;
+            fYs[sample] = y;
+            fTurnIndexes[sample] = turnIndex;
+        }
+
+        const uint firstBand = dim < kMinGlowDim ? kNumGlowBands : 0;
+
+        for (uint b = firstBand; b < std::size(kBands); ++b)
+        {
+            const Band& band = kBands[b];
+            uint sample = 0;
+
+            strokeWidth(band.strokeWidth * fScaleFactor);
+
+            for (uint segment = 0; segment < kNumRainbowSegments; ++segment)
             {
-                const float u = u1 + (u2 - u1) * p / (kPointsPerPiece - 1);
-                const float ends = smoothstep(kEnds, u) * smoothstep(kEnds, 1.f - u);
+                const float segmentEnd = static_cast<float>(segment + 1) / kNumRainbowSegments;
+                bool drawing = false;
 
-                float y = tank.y * height + depth * ends * std::sin(kTau * (coils * u - travel));
-
-                for (uint i = 0; i < kNumModes; ++i)
-                    y += modes[i] * std::sin(kPi * (i + 1) * u);
-
-                xs[p] = u * width;
-                ys[p] = y;
-            }
-
-            const auto strokePoints = [&](const uint first,
-                                          const uint last,
-                                          const Color& color1,
-                                          const Color& color2,
-                                          const float strokeW)
-            {
                 beginPath();
-                moveTo(xs[first], ys[first]);
-                for (uint p = first + 1; p <= last; ++p)
-                    lineTo(xs[p], ys[p]);
-                strokePaint(linearGradient(xs[first], 0, xs[last], 0, color1, color2));
-                strokeWidth(strokeW * fScaleFactor);
-                stroke();
-            };
 
-            if (std::max(front1, front2) > 0.5f)
-            {
-                for (uint layer = 0; layer < std::size(kGlowWidths); ++layer)
+                // the last sample of a segment is also the first of the next one
+                for (; sample < numSamples; ++sample)
                 {
-                    const float alpha = kGlowAlphas[layer] * dim;
-                    strokePoints(0,
-                                 kPointsPerPiece - 1,
-                                 rainbow(u1, alpha * front1 * front1),
-                                 rainbow(u2, alpha * front2 * front2),
-                                 kGlowWidths[layer]);
-                }
-            }
+                    if (fTurnFront[fTurnIndexes[sample]] < band.minFront)
+                    {
+                        drawing = false;
+                    }
+                    else if (drawing)
+                    {
+                        lineTo(fXs[sample], fYs[sample]);
+                    }
+                    else
+                    {
+                        moveTo(fXs[sample], fYs[sample]);
+                        drawing = true;
+                    }
 
-            // the wire is slightly thinner on the far side of each turn, which makes a plain sine read as a coil
-            strokePoints(0,
-                         kMiddlePoint,
-                         rainbow(u1, dim * front1),
-                         rainbow(uMid, dim * frontMid),
-                         kThickness * (0.72f + 0.17f * (front1 + frontMid)));
-            strokePoints(kMiddlePoint,
-                         kPointsPerPiece - 1,
-                         rainbow(uMid, dim * frontMid),
-                         rainbow(u2, dim * front2),
-                         kThickness * (0.72f + 0.17f * (frontMid + front2)));
+                    if (sampleU(sample) >= segmentEnd)
+                        break;
+                }
+
+                strokePaint(linearGradient(width * segment / kNumRainbowSegments,
+                                           0,
+                                           width * segmentEnd,
+                                           0,
+                                           Color(kRainbow[segment], band.alpha * dim),
+                                           Color(kRainbow[segment + 1], band.alpha * dim)));
+                stroke();
+            }
         }
     }
 };
