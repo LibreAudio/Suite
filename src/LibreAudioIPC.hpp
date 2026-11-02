@@ -28,7 +28,7 @@ inline constexpr const uint32_t kTargetIdleTimeMs = d_roundToUnsignedInt(1000.0 
 inline constexpr const uint32_t kNumSecondsForWaveform = 8;
 
 // How many samples to use
-inline constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
+inline constexpr const uint32_t kNumSamplePointsForWaveform = 1024;
 
 // --------------------------------------------------------------------------------------------------------------------
 

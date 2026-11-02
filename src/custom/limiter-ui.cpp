@@ -265,12 +265,19 @@ protected:
     // std::shared_ptr<ShaderGainReductionW> fShaderGainReduction;
     std::shared_ptr<ShaderWaveformW> fShaderWaveform;
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) override
+    {
+        fShaderWaveform->replace(values);
+    }
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
         fShaderWaveform->push(value.ptr[0]);
         // fShaderGainReduction->push(-displayDbMin() * (1.f - ((value.ptr[1] + 24.f) / 24.f))); // FIXME ugly stuff
         // fPointsPushed += 1.0;
     }
+   #endif
 
 private:
     // std::shared_ptr<ShaderGainReductionW> makeShaderGainReduction()

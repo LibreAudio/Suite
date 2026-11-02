@@ -16,6 +16,14 @@ class WaveformWidget final : public NanoSubWidget,
                              public ShaderWidgetInterface,
                              private IdleCallback
 {
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
+   #else
+    static constexpr const uint32_t kTextureSize = 0;
+   #endif
+
     // static_assert(R::width == 0, "waveform must have 0 width, size is adjusted by its parent");
     // static_assert(R::height == 0, "waveform must have 0 height, size is adjusted by its parent");
 
@@ -27,7 +35,7 @@ public:
     {
         // setRange(min, max, fade);
 
-        fTextureData.resize(kNumSamplePointsForWaveform);
+        fTextureData.resize(kTextureSize);
     }
 
     void setAbsolutePos(const Point<int>& pos) final
@@ -46,12 +54,24 @@ public:
         repaint();
     }
 
+    void replace(const float values[kTextureSize])
+    {
+        d_stdout("push %f", values[kTextureSize / 2]);
+
+        std::memcpy(fTextureData.data(), values, kTextureSize * sizeof(float));
+
+        if (! fPendingDisplay)
+        {
+            fPendingDisplay = true;
+            repaint();
+        }
+    }
+
     void push(const float value)
     {
-        // d_stdout("push %f", value);
         fTextureData[fTextureDataTail++] = value;
 
-        if (fTextureDataTail == kNumSamplePointsForWaveform)
+        if (fTextureDataTail == kTextureSize)
             fTextureDataTail = 0;
 
         if (! fPendingDisplay)
@@ -98,13 +118,20 @@ private:
         beginPath();
         moveTo(0, h);
 
-        for (uint i = 0; i < kNumSamplePointsForWaveform; ++i)
-            lineTo(float(i) / (kNumSamplePointsForWaveform - 1) * w, h - h * fTextureData[i]);
+        for (uint i = 0; i < kTextureSize; ++i)
+        {
+            const uint j = (i + fTextureDataTail) % kTextureSize;
+            lineTo(float(i) / (kTextureSize - 1) * w, h * 0.8f - h * fTextureData[j] * 0.8f);
+            // lineTo(float(i) / (kTextureSize - 1) * w, h * 0.8f - h * (std::clamp(fTextureData[j], 0.5f, 1.f) - 0.5f) * 2.f * 0.8f);
+        }
 
         lineTo(w, h);
         closePath();
 
-        fillColor(0xff, 0, 0);
+        // Color color(0.5569, 0.6667, 0.8471);
+        Color color(0.3608, 0.4314, 0.5569);
+        fillPaint(linearGradient(0, h * 0.6f, 0, h, color, color.withAlpha(0.f)));
+        // fillColor(color);
         fill();
     }
 };
