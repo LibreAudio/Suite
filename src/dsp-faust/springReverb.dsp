@@ -31,19 +31,19 @@ uiMix(x)    = uiBottom(hgroup("[3]Mix",   x));
 uiTone(x)   = uiBottom(hgroup("[4]Tone",  x));
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
-predelay_time = uiBottomLeft(vslider("[0] Predelay [style:knob][unit:ms][symbol:predelay][label:Predelay][accentcolor:05]",0,0,500,1) * ma.SR /1000);
+predelay_time = uiBottomLeft(vslider("[0] Predelay [style:knob][unit:ms][symbol:predelay][label:Predelay][accentcolor:01][bracket:INPUT]",0,0,500,1) * ma.SR /1000);
 
-dwell   = uiBottomLeft(vslider("[1] Dwell [style:knob][unit:%][symbol:dwell][label:Dwell][accentcolor:01][bracket:SPRING]", 50, 0, 100, 1)) /100;
-tension = uiBottomLeft(vslider("[2] Tension [style:knob][unit:%][symbol:tension][label:Tension][accentcolor:02][bracket:SPRING]", 50, 0, 100, 1)) /100;
-tone    = uiBottomLeft(vslider("[3] Tone [style:knob][unit:%][symbol:tone][label:Tone][accentcolor:03]", 40, 0, 100, 1)) /100;
+dwell   = uiBottomLeft(vslider("[1] Dwell [style:knob][unit:%][symbol:dwell][label:Dwell][accentcolor:02][bracket:SPRINGS]", 50, 0, 100, 1)) /100;
+tension = uiBottomLeft(vslider("[2] Tension [style:knob][unit:%][symbol:tension][label:Tension][accentcolor:02][bracket:SPRINGS]", 50, 0, 100, 1)) /100;
+tone    = uiBottomLeft(vslider("[3] Tone [style:knob][unit:%][symbol:tone][label:Tone][accentcolor:03][bracket:INPUT]", 40, 0, 100, 1)) /100;
 
 // One knob, driving threshold/ratio/range/attack/release together. See the
 // ducker section at the foot of the file for what each endpoint pair does.
-duck_amount = uiBottomRight(vslider("[6] Duck [style:knob][unit:%][symbol:duck_amount][label:Duck][accentcolor:04][bracket:DYNAMICS]", 0, 0, 100, 1)) / 100;
-duck_meter  = uiMeters(hbargraph("[0] Duck GR [unit:dB][symbol:duck_meter][label:Duck GR][accentcolor:04]", 0, 18));
+duck_amount = uiBottomRight(vslider("[6] Duck [style:knob][unit:%][symbol:duck_amount][label:Duck][accentcolor:03][bracket:DYNAMICS]", 0, 0, 100, 1)) / 100;
+duck_meter  = uiMeters(hbargraph("[0] Duck GR [unit:dB][symbol:duck_meter][label:Duck GR][accentcolor:03]", 0, 18));
 
 volL = 1; //uiBottomRight(vslider("[5]Spring L [style:knob][unit:dB][symbol:Left][label:volL][accentcolor:04][bracket:SPRINGS]",0,-60,0,1)) : ba.db2linear;
-volC = uiBottomLeft(vslider("[4]Spring C [style:knob][unit:dB][symbol:Center][label:vol C][accentcolor:04][bracket:SPRING]",-60,-60,0,1)) : ba.db2linear;
+volC = uiBottomLeft(vslider("[4]Spring C [style:knob][unit:dB][symbol:Center][label:vol C][accentcolor:04][bracket:SPRINGS]",-60,-60,0,1)) : ba.db2linear;
 volR = 1; //uiBottomRight(vslider("[7]Spring R [style:knob][unit:dB][symbol:Right][label:volR][accentcolor:04][bracket:SPRINGS]",0,-60,0,1)) : ba.db2linear;
 
 // Mid/side trim on the wet signal only, applied after the springs and the
@@ -53,11 +53,11 @@ width = uiBottomRight(vslider("[8]Width [style:knob][unit:%][symbol:stereo_width
 
 // Ported from vocalDoubler.dsp. Feeds the wet path only — see the de-esser
 // section at the foot of the file.
-hflim_amount = uiBottomRight(vslider("[7] De-Ess [style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:02][bracket:DYNAMICS]", 0, 0, 100, 1)) / 100;
-hflim_meter  = uiMeters(hbargraph("[1] De-Ess GR [unit:dB][symbol:deess_meter][label:De-Ess GR][accentcolor:02]", 0, 18));
+hflim_amount = uiBottomRight(vslider("[7] De-Ess [style:knob][unit:%][symbol:deess_amount][label:De-Ess][accentcolor:03][bracket:DYNAMICS]", 0, 0, 100, 1)) / 100;
+hflim_meter  = uiMeters(hbargraph("[1] De-Ess GR [unit:dB][symbol:deess_meter][label:De-Ess GR][accentcolor:03]", 0, 18));
 
 
-crossfeed = uiBottomRight(vslider("[5]X-feed [style:knob][unit:%][symbol:crossLR][label:X-feed][accentcolor:05][bracket:SPRING]", 0,0,100,1)) / 100;
+crossfeed = uiBottomRight(vslider("[5]X-feed [style:knob][unit:%][symbol:crossLR][label:X-feed][accentcolor:04][bracket:SPRINGS]", 0,0,100,1)) / 100;
 // Dry/wet balance on one knob, ported from vocalDoubler.dsp. At 0 both paths
 // pass at unity; turning toward Wet pulls the dry down, toward Dry pulls the
 // wet down. Only one side ever moves — this is a dry-kill fade, not a

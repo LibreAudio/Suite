@@ -49,11 +49,13 @@ public:
                         const float min,
                         const float max,
                         const float step,
-                        const char* const unit = "")
+                        const char* const unit = "",
+                        const float opacity = 1.f)
         : BaseWidget(parent),
           fMin(min),
           fMax(max),
-          fStep(step)
+          fStep(step),
+          fOpacity(opacity)
     {
         setUnit(unit);
     }
@@ -73,6 +75,7 @@ private:
     const float fMin;
     const float fMax;
     const float fStep;
+    const float fOpacity = 1.f;
     String fUnitWithSpacePrefix;
 
     void setUnit(const char* const unit)
@@ -89,6 +92,8 @@ private:
         const GridMetrics<R> m { this };
 
         drawReferenceBackground<R>();
+
+        globalAlpha(fOpacity);
 
         char label[16];
 
@@ -255,6 +260,8 @@ private:
             }
            #endif
         }
+
+        globalAlpha(1.f);
 
         drawReferenceBorder<R>();
     }
