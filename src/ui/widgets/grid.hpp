@@ -100,7 +100,7 @@ private:
         textLetterSpacing(m.label.letterSpacing);
 
         // X lines
-       #ifdef LIBREAUDIO_PLUGIN__mbComp5
+       #if defined(LIBREAUDIO_PLUGIN__mbComp5) || defined(LIBREAUDIO_PLUGIN__springReverb)
         {
             const float margin = m.border + m.margin;
             const float yfade = m.fontSize + m.label.padding;

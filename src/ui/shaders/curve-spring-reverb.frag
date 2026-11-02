@@ -44,7 +44,7 @@
 #define YSPACE 0.2  /* vertical distance between springs, height fractions */
 #define SWAYMAX 0.075 /* peak centreline travel, height fractions */
 #define SWAYIDLE 0.05 /* how much of that is left with no input at all */
-#define BACKSHADE 0.0 /* brightness of the coil where it passes behind */
+#define BACKSHADE 0.0 /* opacity of the coil where it passes behind */
 #define DIMMIN 0.05  /* how faint a tank turned fully down is drawn (0 .. 1) */
 #define ENDS 0.1    /* how far in, in width fractions, the coils reach full depth */
 
@@ -223,8 +223,8 @@ vec4 spring(float u, float py, float yBase, float db, float detune, float seed){
 
     /* Faded on alpha rather than on colour: a dark line at full alpha would
        still blot the background out instead of letting it through. */
-    float a = (cov + glow * (1.0 - cov)) * mix(DIMMIN, 1.0, gain);
-    return vec4(rainbow(u) * shade * a, a);
+    float a = (cov + glow * (1.0 - cov)) * shade * mix(DIMMIN, 1.0, gain);
+    return vec4(rainbow(u) * a, a);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord){
