@@ -40,7 +40,6 @@
 
 #define MODES 4      /* transverse modes summed per spring */
 #define GLOW 1.0    /* glow strength (0 .. 1) */
-#define YCENTER 0.36  /* where the group of three sits, 0 = top edge, 1 = bottom */
 #define YSPACE 0.2  /* vertical distance between springs, height fractions */
 #define SWAYMAX 0.075 /* peak centreline travel, height fractions */
 #define SWAYIDLE 0.05 /* how much of that is left with no input at all */
@@ -57,6 +56,7 @@
 #define GAINR   0.0   /* Spring R, dB */
 #define GLOWW   2.0   /* glow radius, pixels */
 #define THICK   1.5   /* line thickness, pixels */
+#define YCENTER 0.41  /* where the group of three sits, 0 = top edge, 1 = bottom */
 #else
 /* adjustable plugin parameters (u_ + the Faust [symbol:] of each control) */
 uniform float u_dwell;
@@ -71,6 +71,9 @@ uniform float u_Right;
 #define GAINR   u_Right
 #define GLOWW   (2.0 * _dpf_scale_factor)
 #define THICK   (1.5 * _dpf_scale_factor)
+#define GROUPS  74.0  /* stage bottom to the top of the expert groups, unscaled pixels */
+/* the group of three sits midway between the stage top and the top of the groups */
+#define YCENTER (0.5 * (1.0 - GROUPS * _dpf_scale_factor / iResolution.y))
 #endif
 
 #define TAU 6.28318530718
