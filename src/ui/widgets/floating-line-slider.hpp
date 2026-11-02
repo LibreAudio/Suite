@@ -26,9 +26,12 @@ class FloatingLineSliderWidget final : public LabKnobWidget
     static_assert(R::padding != 0, "floating line padding must not be 0, required for space between line dots");
 
 public:
-    explicit FloatingLineSliderWidget(LabWidget* const parent, const FaustParameterIndex index)
+    explicit FloatingLineSliderWidget(LabWidget* const parent,
+                                      const FaustParameterIndex index,
+                                      const float extraMinimum = 0.f)
         : BaseWidget(parent, kParametersMainStart + index),
-          fParameter(kFaustParameters[index])
+          fParameter(kFaustParameters[index]),
+          fPaddedMinimum(extraMinimum / (fParameter.max - fParameter.min + extraMinimum))
     {
         setActiveCursor(R::cursor);
         setName(fParameter.name);
@@ -47,6 +50,7 @@ public:
 
 private:
     const FaustParameter& fParameter;
+    const float fPaddedMinimum;
     String fUnitWithSpacePrefix;
 
     // FIXME not very good
@@ -64,7 +68,8 @@ private:
         const bool lit = (getState() & kKnobStateDraggingHover) != 0;
         const float normvalue = getNormalizedValue();
         const float radius = (lit != 0 ? 2.f : 1.5f) * m.s;
-        const float y = m.height * (1.f - normvalue);
+        const float usableHeight = m.height - fPaddedMinimum * m.height;
+        const float y = usableHeight * (1.f - normvalue);
         int align;
         float sy;
 

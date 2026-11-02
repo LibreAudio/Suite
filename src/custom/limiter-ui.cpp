@@ -141,9 +141,17 @@ class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, Limter
 {
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
 
+    static constexpr const FaustParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];
+
+    static constexpr const float kPaddedMinimum = 0.5f;
+
     const std::array<std::shared_ptr<LabWidget>, 2> _ {
-        addGraphWidget<GridWidget>(kFaustParameterThreshold, 6.f),
-        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold),
+        addGraphWidget<GridWidget>(kParamThreshold.min,
+                                   kParamThreshold.min - kPaddedMinimum,
+                                   kParamThreshold.max,
+                                   6.f,
+                                   kParamThreshold.unit),
+        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold, kPaddedMinimum),
     };
 
 public:

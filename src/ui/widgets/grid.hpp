@@ -46,11 +46,13 @@ class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>
 
 public:
     explicit GridWidget(LabWidget* const parent,
+                        const float start,
                         const float min,
                         const float max,
                         const float step,
                         const char* const unit = "")
         : BaseWidget(parent),
+          fStart(start),
           fMin(min),
           fMax(max),
           fStep(step)
@@ -60,6 +62,7 @@ public:
 
     explicit GridWidget(LabWidget* const parent, const FaustParameterIndex index, const float step)
         : BaseWidget(parent),
+          fStart(kFaustParameters[index].min),
           fMin(kFaustParameters[index].min),
           fMax(kFaustParameters[index].max),
           fStep(step)
@@ -70,6 +73,7 @@ public:
     }
 
 private:
+    const float fStart;
     const float fMin;
     const float fMax;
     const float fStep;
@@ -168,22 +172,56 @@ private:
             }
         }
        #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
-        strokeColor(R::color.withAlpha(kAlphaIntensivityMinor));
-
-        for (uint32_t t = 1; t < kNumSecondsForWaveform; ++t)
         {
-            const float x = m.border + (m.width - m.border * 2) * (1.f - static_cast<float>(t) / kNumSecondsForWaveform);
+            const float margin = m.border + m.margin;
+            const float yfade = m.fontSize + m.label.padding;
+            const float ey = m.height - (fStart - fMin) / (fMax - fStart) * m.height;
 
-            beginPath();
-            moveTo(x, m.border);
-            lineTo(x, m.height - m.border);
-            stroke();
+            for (uint32_t t = 1; t < kNumSecondsForWaveform; ++t)
+            {
+                const float x = m.border
+                              + (m.width - m.border * 2) * (1.f - static_cast<float>(t) / kNumSecondsForWaveform);
+                const float y = margin + m.label.fontSize;
+
+                if (t == 1)
+                    std::snprintf(label, sizeof(label), "%d s", t);
+                else
+                    std::snprintf(label, sizeof(label), "%d", t);
+
+                textAlign(ALIGN_CENTER | ALIGN_TOP);
+                text(x, margin, label);
+
+                textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+                text(x, m.height, label);
+
+                beginPath();
+                moveTo(x, y);
+                lineTo(x, ey - yfade);
+                strokePaint(linearGradient(x,
+                                           y,
+                                           x,
+                                           y + yfade,
+                                           R::color.withAlpha(0.f),
+                                           R::color.withAlpha(kAlphaIntensivityMinor)));
+                stroke();
+
+                beginPath();
+                moveTo(x, ey - yfade);
+                lineTo(x, ey);
+                strokePaint(linearGradient(x,
+                                           ey - yfade,
+                                           x,
+                                           ey,
+                                           R::color.withAlpha(kAlphaIntensivityMinor),
+                                           R::color.withAlpha(0.f)));
+                stroke();
+            }
         }
        #endif
 
         // Y lines, including labels (left-side first)
         bool isFirst = true;
-        for (float v = fMin; v < fMax; v += fStep)
+        for (float v = fStart; v < fMax; v += fStep)
         {
             const bool isZero = d_isZero(v);
             if (isFirst)
