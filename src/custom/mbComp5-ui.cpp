@@ -414,7 +414,7 @@ private:
     bool fWasHovered = false;
 
     const std::shared_ptr<MbComp5GraphWidget> fGraph { addGraphWidget<MbComp5GraphWidget>() };
-    const std::shared_ptr<LabWidget> fGrid { addGraphWidget<GridWidget>(-18.f, 7.f, 6.f, "dB") };
+    const std::shared_ptr<LabWidget> fGrid { addGraphWidget<GridWidget>(-18.f, -18.f, 7.f, 6.f, "dB") };
 
     void idleCallback() final
     {
