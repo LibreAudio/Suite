@@ -639,6 +639,12 @@ bool LibreAudioPlugin::run()
            #endif
           #endif
         }
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT >= 1
+        value.ptr[0] = coef2db(value.ptr[0]);
+       #endif
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2 && !defined(LIBREAUDIO_WANT_GRAPH_PARAM)
+        value.ptr[1] = coef2db(value.ptr[1]);
+       #endif
 
         if (! fIPC.push(value))
         {

@@ -158,6 +158,12 @@ class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, Limter
         addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold, kParamThreshold.min / kPaddedMinimumScale)
     };
 
+    const std::shared_ptr<WaveformWidget> fWaveform {
+        addGraphWidget<WaveformWidget>(kParamThreshold.min - kParamThreshold.min / kPaddedMinimumScale,
+                                       kParamThreshold.min,
+                                       kParamThreshold.max)
+    };
+
     const std::shared_ptr<ButtonWidget> fRangeButton {
         new ButtonWidget(this, 0, "Range Test Button")
     };
@@ -178,7 +184,12 @@ public:
                                    : getExpertWidget()->getLastWidgetHeight()
         );
 
-        return Size<uint>(getWidth(), getHeight() - space);
+        return Size<uint>(getWidth() - m.border * 2, getHeight() - space);
+    }
+
+    std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return fWaveform;
     }
 
 private:
@@ -207,6 +218,7 @@ private:
         const float min = start - start / kPaddedMinimumScale;
         fGrid->setRange(min, start, kParamThreshold.max);
         fSlider->setRange(min, start, kParamThreshold.max);
+        fWaveform->setRange(min, start, kParamThreshold.max);
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) final
@@ -232,25 +244,31 @@ class LimiterUI : public LibreAudioBaseUI
 {
     // using ShaderGainReductionW = BotShaderWidget<SHADERS_CURVE_LIMITER_FRAG_DATA, SHADERS_CURVE_LIMITER_FRAG_LEN, kNumSamplePointsForWaveform>;
     // using ShaderWaveformW = BotShaderWidget<SHADERS_WAVEFORM_SCROLL_FRAG_DATA, SHADERS_WAVEFORM_SCROLL_FRAG_LEN, kNumSamplePointsForWaveform>;
-    using ShaderWaveformW = WaveformWidget;
 
-    static constexpr const float kDisplayDbMax = 0.f;
-    static constexpr const float kDisplayDbFloor = -24.f;
-    static constexpr const float kDisplayDbStep = 6.f;
+    // static constexpr const float kDisplayDbMax = 0.f;
+    // static constexpr const float kDisplayDbFloor = -24.f;
+    // static constexpr const float kDisplayDbStep = 6.f;
+
+    std::shared_ptr<WaveformWidget> fWaveform;
 
 public:
     LimiterUI()
     {
         const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
             std::make_shared<ShaderBackgroundWidget>(this, this),
-            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
-            makeShaderWaveform(),
+            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this)
+            // makeShaderWaveform(),
             // makeShaderGainReduction(),
         };
 
         createRootWidget<LimiterRootWidget>();
 
-        static_cast<LimiterRootWidget*>(fRootWidget.get())->enableShaders(shaders);
+        LimiterRootWidget* const root = static_cast<LimiterRootWidget*>(fRootWidget.get());
+        const std::shared_ptr<LimiterMainArea> mainArea = root->getMainAreaWidget();
+        const std::shared_ptr<LimiterStageWidget> stage = mainArea->getStageWidget();
+
+        root->enableShaders(shaders);
+        fWaveform = stage->getWaveformWidget();
 
         // fShaderGainReduction->setCustomUniform("uHead", [this] { return waveformHead(); });
         // fShaderGainReduction->setCustomUniform("uDbMin", [this] { return displayDbMin(); });
@@ -263,19 +281,18 @@ public:
 
 protected:
     // std::shared_ptr<ShaderGainReductionW> fShaderGainReduction;
-    std::shared_ptr<ShaderWaveformW> fShaderWaveform;
+    // std::shared_ptr<ShaderWaveformW> fShaderWaveform;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) override
     {
-        fShaderWaveform->replace(values);
+        // fShaderWaveform->replace(values);
     }
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
-        fShaderWaveform->push(value.ptr[0]);
+        fWaveform->push(value.ptr[0]);
         // fShaderGainReduction->push(-displayDbMin() * (1.f - ((value.ptr[1] + 24.f) / 24.f))); // FIXME ugly stuff
-        // fPointsPushed += 1.0;
     }
    #endif
 
@@ -286,17 +303,13 @@ private:
     //     return fShaderGainReduction;
     // }
 
-    std::shared_ptr<ShaderWaveformW> makeShaderWaveform()
-    {
-        fShaderWaveform.reset(new ShaderWaveformW(this, this));
-        return fShaderWaveform;
-    }
+    // std::shared_ptr<ShaderWaveformW> makeShaderWaveform()
+    // {
+    //     fShaderWaveform.reset(new ShaderWaveformW(this, this));
+    //     return fShaderWaveform;
+    // }
 
     // points pushed so far, and the point the waveform is drawn up to (fractional, moving at kWaveformRate)
-    // double fPointsPushed = 0;
-    // double fPointsShown = 0;
-    // double fLastTime = 0;
-    // float fHead = 0;
 
     // dB at the bottom edge of a display this tall
     // float displayDbMin() noexcept

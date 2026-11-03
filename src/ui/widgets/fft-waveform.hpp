@@ -12,8 +12,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class WaveformWidget final : public NanoSubWidget,
-                             public ShaderWidgetInterface,
+class WaveformWidget final : public LabWidget,
                              private IdleCallback
 {
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
@@ -28,36 +27,15 @@ class WaveformWidget final : public NanoSubWidget,
     // static_assert(R::height == 0, "waveform must have 0 height, size is adjusted by its parent");
 
 public:
-    // , const float min, const float max, const float fade
-    explicit WaveformWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : NanoSubWidget(parent),
-          ShaderWidgetInterface(iface)
+    explicit WaveformWidget(LabWidget* const parent, const float bottom, const float start, const float top)
+        : LabWidget(parent)
     {
-        // setRange(min, max, fade);
-
-        fTextureData.resize(kTextureSize);
-    }
-
-    void setAbsolutePos(const Point<int>& pos) final
-    {
-        NanoSubWidget::setAbsolutePos(pos);
-    }
-
-    void setSize(const Size<uint>& size) final
-    {
-        NanoSubWidget::setSize(size);
-    }
-
-    void setBorderRadius(const float borderRadius) final
-    {
-        ShaderWidgetInterface::setBorderRadius(borderRadius);
-        repaint();
+        setRange(bottom, start, top);
+        fTextureData.resize(kTextureSize, bottom);
     }
 
     void replace(const float values[kTextureSize])
     {
-        d_stdout("push %f", values[kTextureSize / 2]);
-
         std::memcpy(fTextureData.data(), values, kTextureSize * sizeof(float));
 
         if (! fPendingDisplay)
@@ -71,6 +49,8 @@ public:
     {
         fTextureData[fTextureDataTail++] = value;
 
+        fPointsPushed += 1.0;
+
         if (fTextureDataTail == kTextureSize)
             fTextureDataTail = 0;
 
@@ -81,23 +61,62 @@ public:
         }
     }
 
-    void setRange(const float min, const float max, const float fade)
+    void setRange(const float bottom, const float start, const float top)
     {
-        DISTRHO_SAFE_ASSERT_RETURN(min < max,);
+        DISTRHO_SAFE_ASSERT_RETURN(bottom < top,);
 
-        fMin = min;
-        fMax = max;
-        fFade = fade;
+        fBottom = bottom;
+        fStart = start;
+        fTop = top;
+        fRange = top - bottom;
     }
 
 private:
-    float fMin = -24.f;
-    float fMax = 0.f;
-    float fFade = 0.f;
+    float fBottom = -24.f;
+    float fStart = fBottom;
+    float fTop = 0.f;
+    float fRange = fTop - fBottom;
 
     std::vector<float> fTextureData;
     uint32_t fTextureDataTail = 0;
     bool fPendingDisplay = true;
+
+    // FIXME rework this
+    double fPointsPushed = 0;
+    double fPointsShown = 0;
+    double fLastTime = 0;
+    double fHead = 0;
+    double waveformHead()
+    {
+        static constexpr const double kWaveformSize = kNumSamplePointsForWaveform;
+        static constexpr const double kWaveformRate = kWaveformSize / kNumSecondsForWaveform;
+        static constexpr const double kWaveformLag = kWaveformRate * 0.05;
+
+        const double now = getApp().getTime();
+        if (d_isNotZero(fLastTime) && now - fLastTime < 0.001)
+            return fHead;
+
+        const double dt = d_isNotZero(fLastTime) ? std::min<double>(now - fLastTime, 0.1) : 0;
+        fLastTime = now;
+
+        fPointsShown += dt * kWaveformRate;
+
+        const double error = fPointsPushed - kWaveformLag - fPointsShown;
+
+        if (std::abs(error) > kWaveformRate * 0.5)
+            fPointsShown += error;
+        else
+            fPointsShown += error * std::min<double>(1.0, dt * 2);
+
+        fPointsShown = std::min(fPointsShown, fPointsPushed);
+
+        double head = std::fmod(fPointsShown - 2, kWaveformSize);
+        if (head < 0)
+            head += kWaveformSize;
+        fHead = head;
+
+        return fHead;
+    }
 
     void idleCallback() final
     {
@@ -115,24 +134,39 @@ private:
         const float w = getWidth();
         const float h = getHeight();
 
+        const uint head = d_roundToUnsignedInt(waveformHead());
+
+        save();
+        scissor(0, 0, w, h);
+
         beginPath();
         moveTo(0, h);
 
-        for (uint i = 0; i < kTextureSize; ++i)
+        float y;
+        for (uint i = 0; i < kTextureSize - 7; ++i)
         {
-            const uint j = (i + fTextureDataTail) % kTextureSize;
-            lineTo(float(i) / (kTextureSize - 1) * w, h * 0.8f - h * fTextureData[j] * 0.8f);
-            // lineTo(float(i) / (kTextureSize - 1) * w, h * 0.8f - h * (std::clamp(fTextureData[j], 0.5f, 1.f) - 0.5f) * 2.f * 0.8f);
+            const uint j = (i + head + 11) % kTextureSize;
+            const float db = fTextureData[j];
+            const float x = float(i) / (kTextureSize - 7) * w;
+
+            if (db <= fBottom)
+                y = h;
+            else if (db >= fTop)
+                y = 0;
+            else
+                y = h - h * ((db - fBottom) / fRange);
+
+            lineTo(x, y);
         }
 
         lineTo(w, h);
         closePath();
 
-        // Color color(0.5569, 0.6667, 0.8471);
-        Color color(0.3608, 0.4314, 0.5569);
-        fillPaint(linearGradient(0, h * 0.6f, 0, h, color, color.withAlpha(0.f)));
-        // fillColor(color);
+        const Color color = Reference::Colors::acc1;
+        fillPaint(linearGradient(0, (h - (fStart - fBottom) / fRange * h) * 0.5f, 0, h, color.withAlpha(0.45f), color.withAlpha(0.f)));
         fill();
+
+        restore();
     }
 };
 
