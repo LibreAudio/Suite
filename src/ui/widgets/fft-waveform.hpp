@@ -18,8 +18,11 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 class WaveformWidget final : public LabWidget,
+                             private LabWidget::FramebufferCallback,
                              private IdleCallback
 {
+    using R = Reference::Stage;
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -33,7 +36,7 @@ class WaveformWidget final : public LabWidget,
 
 public:
     explicit WaveformWidget(LabWidget* const parent, const float bottom, const float start, const float top)
-        : LabWidget(parent)
+        : LabWidget(parent, this)
     {
         setRange(bottom, start, top);
         fTextureData.resize(kTextureSize, bottom);
@@ -99,9 +102,6 @@ private:
     uint32_t fTextureDataTail = 0;
     bool fPendingDisplay = true;
 
-    NVGcontext* fFbContext = nullptr;
-    NVGLUframebuffer* fFramebuffer = nullptr;
-
     // FIXME rework this
     double fPointsPushed = 0;
     double fPointsShown = 0;
@@ -152,14 +152,16 @@ private:
     {
         fPendingDisplay = false;
 
-        const float w = getWidth();
-        const float h = getHeight();
+        const LabMetrics<R> m { this };
 
-        const uint head = d_roundToUnsignedInt(waveformHead());
+        const float w = m.width - m.border * 2;
+        const float h = m.height - m.border * 2;
+
+        const uint head = d_roundToUnsignedInt(fHead);
         float y;
 
         beginPath();
-        moveTo(0, h);
+        moveTo(m.border, m.border + h);
 
         for (uint i = 0; i < kTextureSize - 7; ++i)
         {
@@ -174,68 +176,55 @@ private:
             else
                 y = h - h * ((db - fBottom) / fRange);
 
-            lineTo(x, y);
+            lineTo(m.border + x, m.border + y);
         }
 
-        lineTo(w, h);
+        lineTo(m.border + w, m.border + h);
         closePath();
 
         const Color color = Reference::Colors::acc1;
         fillPaint(linearGradient(0,
-                                 (h - (fStart - fBottom) / fRange * h) * 0.5f,
+                                 m.border + (h - (fStart - fBottom) / fRange * h) * 0.5f,
                                  0,
-                                 h,
+                                 m.border + h,
                                  color.withAlpha(0.45f),
                                  color.withAlpha(0.f)));
         fill();
 
-        if (hasFrameBuffer() && renderExtra(w, h, head))
+        if (const NanoImage fbimg = createImageFromFramebuffer(); fbimg.isValid())
         {
             beginPath();
-            roundedRect(0, 0, w, h, fBorderRadius);
-            fillPaint(imagePattern(0, 0, w, h, 0, *fFramebuffer, 1.0f));
+            roundedRect(m.border, m.border, w, h, fBorderRadius);
+            fillPaint(imagePattern(0, 0, m.width, m.height, 0, fbimg, 1.0f));
             fill();
         }
     }
 
-    bool hasFrameBuffer()
+    void onNanoFramebufferDisplay() final
     {
-        if (fFbContext == nullptr)
-            fFbContext = nvgCreateSharedGL2(getContext(), NVG_ANTIALIAS);
+        const LabMetrics<R> m { this };
 
-        if (fFramebuffer != nullptr)
-        {
-            int w, h;
-            nvgImageSize(fFbContext, fFramebuffer->image, &w, &h);
-            if (w == (int)getWidth() && h == (int)getHeight())
-                return true;
-        }
+        const float w = m.width - m.border * 2;
+        const float h = m.height - m.border * 2;
+        const float a = 0.7f;
 
-        nvgluDeleteFramebuffer(fFramebuffer);
+        const uint head = d_roundToUnsignedInt(waveformHead());
 
-        fFramebuffer = nvgluCreateFramebuffer(fFbContext, getWidth(), getHeight(), 0);
-        return fFramebuffer != nullptr;
-    }
+        translate(m.border, m.border);
 
-    bool renderExtra(const float w, const float h, const uint head)
-    {
-        nvgluBindFramebuffer(fFramebuffer);
+        beginPath();
+        moveTo(0, -1);
 
-        glViewport(0, 0, w, h);
-        glClearColor(0, 0, 0, 0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-        nvgBeginFrame(fFbContext, w, h, 1.f);
-        nvgBeginPath(fFbContext);
-
-        nvgMoveTo(fFbContext, 0, -1);
-
+        float lastpc = 0.f;
+        float lastx = 0.f;
         float y;
+        int acc = 1;
         for (uint i = 0; i < kTextureSize - 7; ++i)
         {
             const uint j = (i + head + 11) % kTextureSize;
             const float db = fTextureDataParam[j];
-            const float x = float(i) / (kTextureSize - 7) * w;
+            const float pc = float(i) / (kTextureSize - 7);
+            const float x = pc * w;
 
             if (db <= fBottom)
                 y = h;
@@ -244,23 +233,40 @@ private:
             else
                 y = h - h * ((db - fBottom) / fRange);
 
-            nvgLineTo(fFbContext, x,  y);
+            lineTo(x, y);
+
+            if (pc - lastpc > 0.25f)
+            {
+                lineTo(x, -1);
+                closePath();
+                fillPaint(linearGradient(lastx,
+                                         0,
+                                         x,
+                                         0,
+                                         Reference::kAccentColors[acc].withAlpha(a),
+                                         Reference::kAccentColors[acc + 1].withAlpha(a)));
+                fill();
+
+                beginPath();
+                moveTo(x - 0.5f, -1);
+                lineTo(x - 0.5f, y);
+
+                ++acc;
+                lastpc = pc;
+                lastx = x;
+            }
         }
 
-        nvgLineTo(fFbContext, w, -1);
-        nvgClosePath(fFbContext);
+        lineTo(w, -1);
+        closePath();
 
-        nvgFillColor(fFbContext, Reference::Colors::acc6);
-        nvgFill(fFbContext);
-
-        nvgEndFrame(fFbContext);
-        nvgluBindFramebuffer(nullptr);
-
-        // restore viewport
-        const Window& window(getWindow());
-        glViewport(0, 0, window.getWidth(), window.getHeight());
-
-        return true;
+        fillPaint(linearGradient(lastx,
+                                 0,
+                                 w,
+                                 0,
+                                 Reference::kAccentColors[acc].withAlpha(a),
+                                 Reference::kAccentColors[acc + 1].withAlpha(a)));
+        fill();
     }
 };
 
