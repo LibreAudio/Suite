@@ -8,6 +8,11 @@
 
 #include "LibreAudioIPC.hpp"
 
+#define NANOVG_GL2 1
+#include "src/nanovg/nanovg.h"
+#include "src/nanovg/nanovg_gl.h"
+#include "src/nanovg/nanovg_gl_utils.h"
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -32,6 +37,7 @@ public:
     {
         setRange(bottom, start, top);
         fTextureData.resize(kTextureSize, bottom);
+        fTextureDataParam.resize(kTextureSize, top);
     }
 
     void replace(const float values[kTextureSize])
@@ -61,6 +67,16 @@ public:
         }
     }
 
+    void pushGainReduction(const float value)
+    {
+        fTextureDataParam[fTextureDataTail] = value;
+    }
+
+    void setBorderRadius(const float radius)
+    {
+        fBorderRadius = radius;
+    }
+
     void setRange(const float bottom, const float start, const float top)
     {
         DISTRHO_SAFE_ASSERT_RETURN(bottom < top,);
@@ -76,10 +92,15 @@ private:
     float fStart = fBottom;
     float fTop = 0.f;
     float fRange = fTop - fBottom;
+    float fBorderRadius = 0.f;
 
     std::vector<float> fTextureData;
+    std::vector<float> fTextureDataParam;
     uint32_t fTextureDataTail = 0;
     bool fPendingDisplay = true;
+
+    NVGcontext* fFbContext = nullptr;
+    NVGLUframebuffer* fFramebuffer = nullptr;
 
     // FIXME rework this
     double fPointsPushed = 0;
@@ -135,14 +156,11 @@ private:
         const float h = getHeight();
 
         const uint head = d_roundToUnsignedInt(waveformHead());
-
-        save();
-        scissor(0, 0, w, h);
+        float y;
 
         beginPath();
         moveTo(0, h);
 
-        float y;
         for (uint i = 0; i < kTextureSize - 7; ++i)
         {
             const uint j = (i + head + 11) % kTextureSize;
@@ -163,10 +181,86 @@ private:
         closePath();
 
         const Color color = Reference::Colors::acc1;
-        fillPaint(linearGradient(0, (h - (fStart - fBottom) / fRange * h) * 0.5f, 0, h, color.withAlpha(0.45f), color.withAlpha(0.f)));
+        fillPaint(linearGradient(0,
+                                 (h - (fStart - fBottom) / fRange * h) * 0.5f,
+                                 0,
+                                 h,
+                                 color.withAlpha(0.45f),
+                                 color.withAlpha(0.f)));
         fill();
 
-        restore();
+        if (hasFrameBuffer() && renderExtra(w, h, head))
+        {
+            beginPath();
+            roundedRect(0, 0, w, h, fBorderRadius);
+            fillPaint(imagePattern(0, 0, w, h, 0, *fFramebuffer, 1.0f));
+            fill();
+        }
+    }
+
+    bool hasFrameBuffer()
+    {
+        if (fFbContext == nullptr)
+            fFbContext = nvgCreateSharedGL2(getContext(), NVG_ANTIALIAS);
+
+        if (fFramebuffer != nullptr)
+        {
+            int w, h;
+            nvgImageSize(fFbContext, fFramebuffer->image, &w, &h);
+            if (w == (int)getWidth() && h == (int)getHeight())
+                return true;
+        }
+
+        nvgluDeleteFramebuffer(fFramebuffer);
+
+        fFramebuffer = nvgluCreateFramebuffer(fFbContext, getWidth(), getHeight(), 0);
+        return fFramebuffer != nullptr;
+    }
+
+    bool renderExtra(const float w, const float h, const uint head)
+    {
+        nvgluBindFramebuffer(fFramebuffer);
+
+        glViewport(0, 0, w, h);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        nvgBeginFrame(fFbContext, w, h, 1.f);
+        nvgBeginPath(fFbContext);
+
+        nvgMoveTo(fFbContext, 0, -1);
+
+        float y;
+        for (uint i = 0; i < kTextureSize - 7; ++i)
+        {
+            const uint j = (i + head + 11) % kTextureSize;
+            const float db = fTextureDataParam[j];
+            const float x = float(i) / (kTextureSize - 7) * w;
+
+            if (db <= fBottom)
+                y = h;
+            else if (db >= fTop)
+                y = 0;
+            else
+                y = h - h * ((db - fBottom) / fRange);
+
+            nvgLineTo(fFbContext, x,  y);
+        }
+
+        nvgLineTo(fFbContext, w, -1);
+        nvgClosePath(fFbContext);
+
+        nvgFillColor(fFbContext, Reference::Colors::acc6);
+        nvgFill(fFbContext);
+
+        nvgEndFrame(fFbContext);
+        nvgluBindFramebuffer(nullptr);
+
+        // restore viewport
+        const Window& window(getWindow());
+        glViewport(0, 0, window.getWidth(), window.getHeight());
+
+        return true;
     }
 };
 
