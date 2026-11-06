@@ -321,9 +321,6 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
         // how far a line takes to fade out toward its label
         static constexpr const float fade = 24.f;
     };
-    // the ends of the Comp / Sat axis, at the bottom corners
-    static constexpr const char* const labelLeft = "COMP";
-    static constexpr const char* const labelRight = "SAT";
     static constexpr const Color crossColor { 1.f, 1.f, 1.f, 0.35f };
     // the level line, in this many sections across, fading out over this share of the width at each end
     static constexpr const uint lineSections = 32;
@@ -549,9 +546,8 @@ private:
         save();
         intersectScissor(px, py, pw, ph);
 
-        // Grid across and down, its value on each line: Comp / Sat centred on its line along the bottom, Drive
-        // centred on its line down the left. Each line stops short of its label and fades out at both ends, toward
-        // its label and toward the panel's edge.
+        // Grid across and down, Drive centred on its line down the left. Each line fades out at both ends, toward
+        // its label or the panel's edge.
         fontFace("regular");
         fontSize(R::GridLabel::fontSize * s);
         strokeWidth(1.f);
@@ -560,7 +556,6 @@ private:
         const float gap = R::GridLabel::gap * s;
         const float fade = R::GridLabel::fade * s;
         const Color clear { R::gridColor, 0.f };
-        const float labelY = py + ph - inset - R::GridLabel::fontSize * 0.5f * s;
 
         // a grid line from start to end, across at y = at or down at x = at, in two halves each fading out at its end
         const auto gridLine = [&](const bool across, const float at, const float start, const float end) {
@@ -608,14 +603,8 @@ private:
         {
             const float gx = std::round(toX(v)) + 0.5f;
 
-            std::snprintf(valuestr, sizeof(valuestr), "%g", std::abs(v) < 0.001f ? 0.f : v);
-
-            // down, to the label at the bottom
-            gridLine(false, gx, py, labelY - R::GridLabel::fontSize * 0.5f * s - gap);
-
-            fillColor(R::GridLabel::color);
-            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-            text(gx, labelY, valuestr, nullptr);
+            // down, the whole height
+            gridLine(false, gx, py, py + ph);
         }
 
         // the meters, each in columns fading from the curve's colour at the value to clear at the pad's bottom
@@ -674,12 +663,16 @@ private:
             textLetterSpacing(0.f);
         }
 
-        // the axis's ends, in the bottom corners
-        fillColor(R::GridLabel::color);
-        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        text(px + inset + r * 0.5f, labelY, R::labelLeft, nullptr);
+        // the meters' gain reduction down the right, every dB between the bottom and the top
+        fontSize(R::GridLabel::fontSize * s);
         textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
-        text(px + pw - inset - r * 0.5f, labelY, R::labelRight, nullptr);
+        fillColor(R::GridLabel::color);
+
+        for (float db = kMeterMin + 1.f; db < kMeterMax - 0.001f; db += 1.f)
+        {
+            std::snprintf(valuestr, sizeof(valuestr), "%.0f", db);
+            text(px + pw - inset, py + ph * (1.f - (db - kMeterMin) / (kMeterMax - kMeterMin)), valuestr, nullptr);
+        }
 
         const float pointX = toX(fValueX);
         const float pointY = toY(fValueY);
