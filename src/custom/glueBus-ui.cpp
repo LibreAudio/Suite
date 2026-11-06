@@ -325,6 +325,9 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
     static constexpr const char* const labelLeft = "COMP";
     static constexpr const char* const labelRight = "SAT";
     static constexpr const Color crossColor { 1.f, 1.f, 1.f, 0.35f };
+    // the level line, in this many sections across, fading out over this share of the width at each end
+    static constexpr const uint lineSections = 32;
+    static constexpr const float lineFade = 0.2f;
     // the cross lines are dotted: a dot this long, every this far, unscaled
     static constexpr const float crossDot = 1.f;
     static constexpr const float crossDotStep = 3.f;
@@ -340,6 +343,14 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
         static constexpr const float channelGap = 4.f;
         // a column of the fill, each in the curve's colour at its middle
         static constexpr const float column = 2.f;
+        // over each pair, centred, at the top of the pad
+        struct Label {
+            static constexpr const float alpha = 0.45f;
+            static constexpr const float fontSize = 10.f;
+            static constexpr const float letterSpacing = fontSize * 0.08f;
+            // from the pad's top edge
+            static constexpr const float inset = 8.f;
+        };
     };
     // the point, unscaled, larger while dragged
     static constexpr const float pointRadius = 4.f;
@@ -615,11 +626,18 @@ private:
             const float column = std::max(1.f, std::round(R::Meter::column * s));
             const float bw = std::max(1.f, (pw - edge * 2 - pairGap - channelGap * 2) / 4);
 
+            const auto barLeft = [&](const size_t i) {
+                return std::round(px + edge + bw * i + channelGap * (i - i / 2) + pairGap * (i / 2));
+            };
+            const auto barTop = [&](const size_t i) {
+                return py + ph * (1.f - (fMeters[i] - kMeterMin) / (kMeterMax - kMeterMin));
+            };
+
             for (size_t i = 0; i < fMeters.size(); ++i)
             {
-                const float left = std::round(px + edge + bw * i + channelGap * (i - i / 2) + pairGap * (i / 2));
+                const float left = barLeft(i);
                 const float right = std::round(left + bw);
-                const float top = py + ph * (1.f - (fMeters[i] - kMeterMin) / (kMeterMax - kMeterMin));
+                const float top = barTop(i);
 
                 if (py + ph - top < 0.5f)
                     continue;
@@ -635,6 +653,25 @@ private:
                     fill();
                 }
             }
+
+            // the pairs' names, at the top of the pad over them, in the curve's colour at their middle
+            fontFace("regular");
+            fontSize(R::Meter::Label::fontSize * s);
+            textLetterSpacing(R::Meter::Label::letterSpacing * s);
+            textAlign(ALIGN_CENTER | ALIGN_TOP);
+
+            const char* const names[2] = { "COMPRESSION", "SATURATION" };
+            const float labelTop = py + R::Meter::Label::inset * s;
+
+            for (size_t pair = 0; pair < 2; ++pair)
+            {
+                const float cx = (barLeft(pair * 2) + barLeft(pair * 2 + 1) + bw) * 0.5f;
+
+                fillColor(curveColor((cx - px) / pw, R::Meter::Label::alpha));
+                text(cx, labelTop, names[pair], nullptr);
+            }
+
+            textLetterSpacing(0.f);
         }
 
         // the axis's ends, in the bottom corners
@@ -643,43 +680,6 @@ private:
         text(px + inset + r * 0.5f, labelY, R::labelLeft, nullptr);
         textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
         text(px + pw - inset - r * 0.5f, labelY, R::labelRight, nullptr);
-
-        // The top and bottom of the panel's rounded outline at an x.
-        const auto outline = [&](const float x) {
-            const float dx = std::min(r, std::max({ 0.f, px + r - x, x - (px + pw - r) }));
-            const float dy = r - std::sqrt(r * r - dx * dx);
-            return std::make_pair(py + dy, py + ph - dy);
-        };
-
-        // A stroke cut exactly to the outline: in one piece between the corners, and across them a column a pixel wide
-        // at a time, scissored to the outline's height there. style sets the stroke's colour or paint, path builds the
-        // path for the piece from x0 to x1.
-        const auto clippedStroke = [&](const auto& style, const float width, const auto& path) {
-            style();
-            strokeWidth(width);
-
-            const float corner = std::ceil(r);
-
-            save();
-            intersectScissor(px + corner, py, pw - corner * 2, ph);
-            path(px + corner, px + pw - corner);
-            stroke();
-            restore();
-
-            for (float i = 0.f; i < corner; i += 1.f)
-            {
-                for (const float cx : { px + i, px + pw - 1.f - i })
-                {
-                    const auto [top, bottom] = outline(cx + 0.5f);
-
-                    save();
-                    intersectScissor(cx, top, 1.f, bottom - top);
-                    path(cx, cx + 1.f);
-                    stroke();
-                    restore();
-                }
-            }
-        };
 
         const float pointX = toX(fValueX);
         const float pointY = toY(fValueY);
@@ -722,29 +722,29 @@ private:
             lineTo(std::min(px + pw, x1), pointY);
         };
 
-        // The level line, cut exactly to the outline, in a section between each two of the curve's colours, blended
-        // across it.
+        // The level line in short sections, each blended across between the curve's colours at its ends, faded out
+        // toward the pad's left and right edges, where it would otherwise meet the rounded corners.
         const auto line = [&](const float alpha, const float width) {
-            lineJoin(ROUND);
+            const auto fadeAt = [&](const float t) {
+                const float e = std::clamp(std::min(t, 1.f - t) / R::lineFade, 0.f, 1.f);
+                return e * e * (3.f - 2.f * e);
+            };
 
-            const size_t sections = R::curveColors.size() - 1;
-            for (size_t i = 0; i < sections; ++i)
+            for (uint i = 0; i < R::lineSections; ++i)
             {
-                const float left = px + pw * i / sections;
-                const float right = px + pw * (i + 1) / sections;
+                const float t0 = static_cast<float>(i) / R::lineSections;
+                const float t1 = static_cast<float>(i + 1) / R::lineSections;
+                const float left = px + pw * t0;
+                const float right = px + pw * t1;
 
                 save();
                 intersectScissor(left, py, right - left, ph);
-                clippedStroke(
-                    [&] {
-                        strokePaint(linearGradient(left, 0, right, 0,
-                                                   Color(R::curveColors[i], alpha),
-                                                   Color(R::curveColors[i + 1], alpha)));
-                    },
-                    width,
-                    [&](const float x0, const float x1) {
-                        level(std::max(x0, left) - width - 1.f, std::min(x1, right) + width + 1.f);
-                    });
+                level(left - width - 1.f, right + width + 1.f);
+                strokePaint(linearGradient(left, 0, right, 0,
+                                           curveColor(t0, alpha * fadeAt(t0)),
+                                           curveColor(t1, alpha * fadeAt(t1))));
+                strokeWidth(width);
+                stroke();
                 restore();
             }
         };
