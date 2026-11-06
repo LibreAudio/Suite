@@ -91,12 +91,156 @@ using GlueBusMainGroupsWidget = StaticContainerPairWidget<
     SizeHintWidgetPair<Expanding, GlueBusGroupWidget<widgets::Makeup, widgets::DryWet>>
 >;
 
+// --------------------------------------------------------------------------------------------------------------------
+// A transient shelf's gain meter, across its group above the number boxes: a well filling from 0 dB in the middle,
+// left for a cut and right for a boost, to range either side, with a tick every dB.
+
+struct GlueBusTransientMeterReference : Reference::Zero {
+    static constexpr const uint height = 12;
+    static constexpr const float range = 3.f;
+    static constexpr const Color backgroundColor = Reference::Colors::track;
+    static constexpr const Color insetShadingColor { 0.f, 0.f, 0.f, 0.55f };
+    static constexpr const uint border = 1;
+    static constexpr const uint borderRadius = 4;
+    static constexpr const Color tickColor { Reference::Colors::ink3, 0.15f };
+    static constexpr const Color centreColor { Reference::Colors::ink3, 0.5f };
+};
+
+template<FaustParameterIndex kMeter, const Color& kColor>
+class GlueBusTransientMeterWidget final : public LabWidget,
+                                          private IdleCallback
+{
+    using R = GlueBusTransientMeterReference;
+
+    float fValue = 0.f;
+
+public:
+    explicit GlueBusTransientMeterWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        addIdleCallback(this);
+        updateSize(false);
+    }
+
+private:
+    void idleCallback() final
+    {
+        if (const float value = std::clamp(fInterface->getParameterValue(kParametersMainStart + kMeter),
+                                           -R::range, R::range); d_isNotEqual(fValue, value))
+        {
+            fValue = value;
+            repaint();
+        }
+    }
+
+    void onNanoDisplay() final
+    {
+        const float s = fScaleFactor;
+        const float w = getWidth();
+        const float h = getHeight();
+        const float b = R::border * s;
+        const float r = R::borderRadius * s;
+        const float tx = b;
+        const float tw = w - b * 2;
+
+        // the track area, inside the well's border, -range at the left
+        const auto dbToX = [&](const float db) {
+            return tx + tw * (db + R::range) / (R::range * 2);
+        };
+
+        // the well
+        beginPath();
+        roundedRect(0, 0, w, h, r);
+        fillColor(R::backgroundColor);
+        fill();
+
+        // the fill, from the middle to the value, cut out of the well's shape so its end follows the corners
+        const float xc = dbToX(0.f);
+        const float xv = dbToX(fValue);
+        const float x0 = std::min(xc, xv);
+        const float x1 = std::max(xc, xv);
+
+        if (x1 - x0 >= 0.5f)
+        {
+            save();
+            scissor(x0, b, x1 - x0, h - b * 2);
+            beginPath();
+            roundedRect(b, b, tw, h - b * 2, r - b);
+            fillPaint(linearGradient(xv, 0, xc, 0, kColor, Color(kColor, 0.45f)));
+            fill();
+            restore();
+        }
+
+        // inset shading
+        beginPath();
+        roundedRect(0, 0, w, h, r);
+        fillPaint(linearGradient(0, 0, 0, 3 * s, R::insetShadingColor, Reference::Colors::transparent));
+        fill();
+
+        // a tick every dB, leaving out the ends, the middle one brighter
+        strokeWidth(1.f);
+        for (float db = 1.f - R::range; db < R::range - 0.001f; db += 1.f)
+        {
+            const float x = std::round(dbToX(db)) + 0.5f;
+
+            beginPath();
+            moveTo(x, b);
+            lineTo(x, h - b);
+            strokeColor(std::abs(db) < 0.001f ? R::centreColor : R::tickColor);
+            stroke();
+        }
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        setHeight(d_roundToUnsignedInt(R::height * fScaleFactor));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// A transient shelf's group: its gain meter, and under it the number boxes.
+
+struct GlueBusTransientRowReference : Reference::Zero {
+    static constexpr const uint padding = kCommonPadding;
+    static constexpr const uint height = kNumberBoxHeight;
+};
+
+struct GlueBusTransientGroupReference : GlueBusGroupReference {
+    static constexpr const uint height = GlueBusTransientMeterReference::height + padding + kNumberBoxHeight
+                                       + (border + margin) * 2;
+};
+
+template<class Meter, typename... Args>
+class GlueBusTransientGroupWidget final : public ReferenceContainerWidget<GlueBusTransientGroupReference, Vertical>
+{
+    using BaseWidget = ReferenceContainerWidget<GlueBusTransientGroupReference, Vertical>;
+    using Row = StaticParameterContainerWidget<GlueBusTransientRowReference, Horizontal, Expanding, Args...>;
+
+    const std::array<std::shared_ptr<LabWidget>, 2> widgets {
+        addWidget<Meter, Fixed>(),
+        addWidget<Row, Fixed>(),
+    };
+
+public:
+    explicit GlueBusTransientGroupWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+};
+
+struct GlueBusTransientGroupsContainerReference : GlueBusGroupsContainerReference {
+    static constexpr const uint height = GlueBusTransientGroupReference::height + (border + margin) * 2;
+};
+
 // Low and high transient shelves, side by side.
 using GlueBusTransientGroupsWidget = StaticContainerPairWidget<
-    GlueBusGroupsContainerReference,
+    GlueBusTransientGroupsContainerReference,
     Horizontal,
-    SizeHintWidgetPair<Expanding, GlueBusGroupWidget<widgets::LowFreq, widgets::LowAttack, widgets::LowSustain>>,
-    SizeHintWidgetPair<Expanding, GlueBusGroupWidget<widgets::HighFreq, widgets::HighAttack, widgets::HighSustain>>
+    SizeHintWidgetPair<Expanding, GlueBusTransientGroupWidget<
+        GlueBusTransientMeterWidget<kFaustParameterLow_transient, Reference::Colors::acc3>,
+        widgets::LowFreq, widgets::LowAttack, widgets::LowSustain>>,
+    SizeHintWidgetPair<Expanding, GlueBusTransientGroupWidget<
+        GlueBusTransientMeterWidget<kFaustParameterHigh_transient, Reference::Colors::acc5>,
+        widgets::HighFreq, widgets::HighAttack, widgets::HighSustain>>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -155,9 +299,10 @@ static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const fl
 
 // --------------------------------------------------------------------------------------------------------------------
 // The XY pad, drawn as the compressor's curve display: Comp / Sat across, Drive up. A panel under a pane of glass,
-// with a grid labelled on its lines, a level line at the Drive in the curve's colours with the area under it filled,
-// dotted lines from the point down and to the left, and the point in the curve's colour with a white core.
-// Clicking or dragging sets both; double-clicking resets both.
+// with a grid labelled on its lines, wide meters rising from the bottom, compression in the left half and
+// saturation in the right, a level line at the Drive in the curve's colours, dotted lines from the point down and to
+// the left, and the point in the curve's colour with a white core. Clicking or dragging sets both; double-clicking
+// resets both.
 
 struct GlueBusXYPadReference : GlueBusFloatingReference {
     // see-through, the starfield showing behind the plot
@@ -187,8 +332,15 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
     static constexpr const std::array<Color, 5> curveColors {{
         { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 }
     }};
-    // the area under the level line is filled in columns, each in the line's colour above it
-    static constexpr const uint fillColumns = 32;
+    // The meters, unscaled: two channels a pair, compression left and saturation right, filled in the curve's colours
+    // across, fading from opaque at the value to clear at the bottom. Their maximum is at the top of the pad.
+    struct Meter {
+        static constexpr const float edge = 12.f;
+        static constexpr const float pairGap = 24.f;
+        static constexpr const float channelGap = 4.f;
+        // a column of the fill, each in the curve's colour at its middle
+        static constexpr const float column = 2.f;
+    };
     // the point, unscaled, larger while dragged
     static constexpr const float pointRadius = 4.f;
     static constexpr const float pointGlowRadius = 9.f;
@@ -207,8 +359,16 @@ class GlueBusXYPadWidget final : public LabWidget,
     static constexpr const FaustParameter& kX = kFaustParameters[kParamX];
     static constexpr const FaustParameter& kY = kFaustParameters[kParamY];
 
+    // compression 1 and 2, then saturation 1 and 2
+    static constexpr const std::array<FaustParameterIndex, 4> kMeters {
+        kFaustParameterReduction_1, kFaustParameterReduction_2, kFaustParameterSaturation_1, kFaustParameterSaturation_2
+    };
+    static constexpr const float kMeterMin = kFaustParameters[kFaustParameterReduction_1].min;
+    static constexpr const float kMeterMax = kFaustParameters[kFaustParameterReduction_1].max;
+
     float fValueX = kX.init;
     float fValueY = kY.init;
+    std::array<float, kMeters.size()> fMeters { kMeterMin, kMeterMin, kMeterMin, kMeterMin };
     bool fDragging = false;
     uint fLastClickTime = 0;
 
@@ -270,6 +430,16 @@ private:
 
     void idleCallback() final
     {
+        for (size_t i = 0; i < kMeters.size(); ++i)
+        {
+            if (const float value = std::clamp(fInterface->getParameterValue(kParametersMainStart + kMeters[i]),
+                                               kMeterMin, kMeterMax); d_isNotEqual(fMeters[i], value))
+            {
+                fMeters[i] = value;
+                repaint();
+            }
+        }
+
         if (fDragging)
             return;
 
@@ -437,6 +607,36 @@ private:
             text(gx, labelY, valuestr, nullptr);
         }
 
+        // the meters, each in columns fading from the curve's colour at the value to clear at the pad's bottom
+        {
+            const float edge = R::Meter::edge * s;
+            const float pairGap = R::Meter::pairGap * s;
+            const float channelGap = R::Meter::channelGap * s;
+            const float column = std::max(1.f, std::round(R::Meter::column * s));
+            const float bw = std::max(1.f, (pw - edge * 2 - pairGap - channelGap * 2) / 4);
+
+            for (size_t i = 0; i < fMeters.size(); ++i)
+            {
+                const float left = std::round(px + edge + bw * i + channelGap * (i - i / 2) + pairGap * (i / 2));
+                const float right = std::round(left + bw);
+                const float top = py + ph * (1.f - (fMeters[i] - kMeterMin) / (kMeterMax - kMeterMin));
+
+                if (py + ph - top < 0.5f)
+                    continue;
+
+                for (float x = left; x < right; x += column)
+                {
+                    const float cw = std::min(column, right - x);
+                    const float t = (x + cw * 0.5f - px) / pw;
+
+                    beginPath();
+                    rect(x, top, cw, py + ph - top);
+                    fillPaint(linearGradient(0, top, 0, py + ph, curveColor(t, 1.f), curveColor(t, 0.f)));
+                    fill();
+                }
+            }
+        }
+
         // the axis's ends, in the bottom corners
         fillColor(R::GridLabel::color);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
@@ -515,27 +715,11 @@ private:
             stroke();
         }
 
-        // The level line from x0 to x1 at the Drive, held to the outline when it is to be filled, which for the area
-        // under it is the same as cutting it there.
-        const auto level = [&](const float x0, const float x1, const bool held) {
+        // the level line from x0 to x1 at the Drive
+        const auto level = [&](const float x0, const float x1) {
             beginPath();
-            const float first = std::max(0.f, std::floor(x0 - px));
-            const float last = std::min(pw, std::ceil(x1 - px));
-            for (float x = first; x <= last; x += 1.f)
-            {
-                float y = pointY;
-
-                if (held)
-                {
-                    const auto [top, bottom] = outline(px + x);
-                    y = std::clamp(y, top, bottom);
-                }
-
-                if (x == first)
-                    moveTo(px + x, y);
-                else
-                    lineTo(px + x, y);
-            }
+            moveTo(std::max(px, x0), pointY);
+            lineTo(std::min(px + pw, x1), pointY);
         };
 
         // The level line, cut exactly to the outline, in a section between each two of the curve's colours, blended
@@ -559,33 +743,13 @@ private:
                     },
                     width,
                     [&](const float x0, const float x1) {
-                        level(std::max(x0, left) - width - 1.f, std::min(x1, right) + width + 1.f, false);
+                        level(std::max(x0, left) - width - 1.f, std::min(x1, right) + width + 1.f);
                     });
                 restore();
             }
         };
 
-        // Filled down to the bottom, round its corners as the panel's, in columns each fading down from the line's
-        // colour above it, then the line with a glow.
-        for (uint i = 0; i < R::fillColumns; ++i)
-        {
-            const float left = std::round(px + pw * i / R::fillColumns);
-            const float right = std::round(px + pw * (i + 1) / R::fillColumns);
-            const float t = (i + 0.5f) / R::fillColumns;
-
-            save();
-            intersectScissor(left, py, right - left, ph);
-            level(px, px + pw, true);
-            lineTo(px + pw, py + ph - r);
-            arcTo(px + pw, py + ph, px + pw - r, py + ph, r);
-            lineTo(px + r, py + ph);
-            arcTo(px, py + ph, px, py + ph - r, r);
-            closePath();
-            fillPaint(linearGradient(0, pointY, 0, py + ph, curveColor(t, 0.12f), curveColor(t, 0.02f)));
-            fill();
-            restore();
-        }
-
+        // the line with a glow
         line(0.2f, 4.f * s);
         line(1.f, 1.5f * s);
 
@@ -662,237 +826,16 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The meters floating over the starfield, as the compressor's: a title on top, a dB scale down both sides, a well with
-// a wide track for each channel, and the channels' names under the tracks, L and R, or M and S with Mid / Side on.
-// The tracks fill from 0 dB at the bottom of the well up to the meter's maximum at the top.
-
-struct GlueBusMeterReference : GlueBusFloatingReference {
-    static constexpr const uint width = 116;
-    // between the panel's edge and its contents
-    static constexpr const uint inset = 10;
-    struct Title {
-        static constexpr const Color color = Reference::Colors::ink3;
-        static constexpr const float fontSize = 10.f;
-        static constexpr const float letterSpacing = fontSize * 0.08f;
-        static constexpr const uint height = 12;
-        static constexpr const uint gap = 8;
-    };
-    struct Channel {
-        static constexpr const Color color = Reference::Colors::ink3;
-        static constexpr const float fontSize = 10.f;
-        static constexpr const uint height = 10;
-        static constexpr const uint gap = 6;
-    };
-    struct Scale {
-        static constexpr const Color color { Reference::Colors::ink3, 0.8f };
-        static constexpr const float fontSize = 9.f;
-        static constexpr const uint width = 14;
-        static constexpr const uint gap = 4;
-    };
-    struct Well {
-        static constexpr const Color backgroundColor = Reference::Colors::track;
-        static constexpr const Color insetShadingColor { 0.f, 0.f, 0.f, 0.55f };
-        static constexpr const uint border = 1;
-        static constexpr const uint borderRadius = 5;
-    };
-    struct Track {
-        static constexpr const uint width = 26;
-        static constexpr const uint gap = 3;
-    };
-    struct Tick {
-        static constexpr const Color color { Reference::Colors::ink3, 0.15f };
-    };
-};
-
-// The left meter shows compression and the right one saturation, each in the colour of the XY pad's end it is on.
-template<FaustParameterIndex kMeter1, FaustParameterIndex kMeter2, bool kRight>
-class GlueBusMeterWidget final : public LabWidget,
-                                 private IdleCallback
-{
-    using R = GlueBusMeterReference;
-
-    static constexpr const std::array<FaustParameterIndex, 2> kMeters { kMeter1, kMeter2 };
-    static constexpr const float kMin = kFaustParameters[kMeter1].min;
-    static constexpr const float kMax = kFaustParameters[kMeter1].max;
-    static constexpr const float kScaleStep = 1.f;
-
-    std::array<float, 2> fValues { kMin, kMin };
-    bool fMidSide = false;
-
-public:
-    explicit GlueBusMeterWidget(LabWidget* const parent)
-        : LabWidget(parent)
-    {
-        addIdleCallback(this);
-    }
-
-    [[nodiscard]] float getBorderRadius() const noexcept
-    {
-        return R::borderRadius * fScaleFactor;
-    }
-
-private:
-    void idleCallback() final
-    {
-        for (size_t i = 0; i < kMeters.size(); ++i)
-        {
-            if (const float value = std::clamp(fInterface->getParameterValue(kParametersMainStart + kMeters[i]),
-                                               kMin, kMax); d_isNotEqual(fValues[i], value))
-            {
-                fValues[i] = value;
-                repaint();
-            }
-        }
-
-        if (const bool midSide = d_isNotZero(fInterface->getParameterValue(kParametersMainStart
-                                                                           + kFaustParameterMid_side));
-            fMidSide != midSide)
-        {
-            fMidSide = midSide;
-            repaint();
-        }
-    }
-
-    void onNanoDisplay() final
-    {
-        const float s = fScaleFactor;
-        const float w = getWidth();
-        const float h = getHeight();
-
-        const char* const title = kRight ? "SATURATION" : "COMPRESSION";
-        const Color& color = kRight ? GlueBusXYPadReference::curveColors.back()
-                                    : GlueBusXYPadReference::curveColors.front();
-
-        drawFloatingPanel(*this, w, h, s, GlueBusFloatingReference::backgroundColor);
-
-        // the well with a scale either side, centred across the panel together
-        const float ww = (R::Well::border * 2 + R::Track::width * 2 + R::Track::gap) * s;
-        const float sw = (R::Scale::width + R::Scale::gap) * s;
-        const float x = std::round((w - ww - sw * 2) * 0.5f);
-        const float wx = x + sw;
-        const float wy = (R::inset + R::Title::height + R::Title::gap) * s;
-        const float wh = h - wy - (R::inset + R::Channel::height + R::Channel::gap) * s;
-
-        if (wh <= 0.f || ww <= 0.f)
-            return;
-
-        const float b = R::Well::border * s;
-        const float wr = R::Well::borderRadius * s;
-        const float tw = R::Track::width * s;
-        const std::array<float, 2> trackX { wx + b, wx + ww - b - tw };
-        const float ty = wy + b;
-        const float tb = wy + wh - b;
-
-        // the track area, inside the well's border, kMin at the bottom
-        const auto dbToY = [&](const float db) {
-            return tb - (tb - ty) * std::clamp((db - kMin) / (kMax - kMin), 0.f, 1.f);
-        };
-
-        // the title, shrunk to fit the panel if need be
-        {
-            const float maxWidth = w - R::inset * 2 * s;
-            Rectangle<float> bounds;
-
-            fontFace("regular");
-            fontSize(R::Title::fontSize * s);
-            textLetterSpacing(R::Title::letterSpacing * s);
-
-            if (const float titleWidth = textBounds(0, 0, title, nullptr, bounds); titleWidth > maxWidth)
-                fontSize(R::Title::fontSize * s * maxWidth / titleWidth);
-
-            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-            fillColor(R::Title::color);
-            text(w * 0.5f, (R::inset + R::Title::height * 0.5f) * s, title, nullptr);
-            textLetterSpacing(0.f);
-        }
-
-        // the well
-        beginPath();
-        roundedRect(wx, wy, ww, wh, wr);
-        fillColor(R::Well::backgroundColor);
-        fill();
-
-        // the tracks, each cut out of the well's shape so the ends follow its corners
-        for (size_t i = 0; i < fValues.size(); ++i)
-        {
-            const float y = dbToY(fValues[i]);
-
-            if (tb - y < 0.5f)
-                continue;
-
-            save();
-            scissor(trackX[i], y, tw, tb - y);
-            beginPath();
-            roundedRect(wx + b, ty, ww - b * 2, tb - ty, wr - b);
-            fillPaint(linearGradient(0, y, 0, tb, color, Color(color, 0.45f)));
-            fill();
-            restore();
-        }
-
-        // inset shading
-        beginPath();
-        roundedRect(wx, wy, ww, wh, wr);
-        fillPaint(linearGradient(0, wy, 0, wy + 4 * s, R::Well::insetShadingColor, Reference::Colors::transparent));
-        fill();
-
-        // the scale: ticks across the well, leaving out its ends, and the dB either side
-        fontSize(R::Scale::fontSize * s);
-        fillColor(R::Scale::color);
-
-        for (float db = kMin; db <= kMax + 0.001f; db += kScaleStep)
-        {
-            const float y = dbToY(db);
-
-            if (d_isNotEqual(db, kMin) && d_isNotEqual(db, kMax))
-            {
-                beginPath();
-                moveTo(wx + b, std::round(y) + 0.5f);
-                lineTo(wx + ww - b, std::round(y) + 0.5f);
-                strokeColor(R::Tick::color);
-                strokeWidth(1.f);
-                stroke();
-            }
-
-            char dbstr[8];
-            std::snprintf(dbstr, sizeof(dbstr), "%.0f", db);
-            textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
-            text(x + R::Scale::width * s, y, dbstr, nullptr);
-            textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-            text(wx + ww + R::Scale::gap * s, y, dbstr, nullptr);
-        }
-
-        // the channels' names, under their tracks
-        {
-            const char* const names[2][2] = { { "L", "R" }, { "M", "S" } };
-
-            fontSize(R::Channel::fontSize * s);
-            textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-            fillColor(R::Channel::color);
-
-            const float y = wy + wh + (R::Channel::gap + R::Channel::height * 0.5f) * s;
-            for (size_t i = 0; i < trackX.size(); ++i)
-                text(trackX[i] + tw * 0.5f, y, names[fMidSide ? 1 : 0][i], nullptr);
-        }
-    }
-};
-
-using GlueBusCompressionMeterWidget = GlueBusMeterWidget<kFaustParameterReduction_1, kFaustParameterReduction_2, false>;
-using GlueBusSaturationMeterWidget = GlueBusMeterWidget<kFaustParameterSaturation_1, kFaustParameterSaturation_2, true>;
-
-// --------------------------------------------------------------------------------------------------------------------
-// The display, above the controls: the compression meter at the left, the saturation meter at the right and the XY
-// pad between them, floating over the starfield, with their shadows.
+// The display, above the controls: the XY pad floating over the starfield, with its shadow.
 
 class GlueBusDisplayWidget final : public LabWidget
 {
-    // between the panels and the display's sides and top, as the controls below are in from the stage's edges
+    // between the pad and the display's sides and top, as the controls below are in from the stage's edges
     static constexpr const uint kPanelMargin = GlueBusPageReference::margin;
-    // between the panels and the controls below, and between the panels side by side
+    // between the pad and the controls below
     static constexpr const uint kPanelGap = GlueBusPageReference::padding;
 
-    const std::unique_ptr<GlueBusCompressionMeterWidget> fCompression { new GlueBusCompressionMeterWidget(this) };
     const std::unique_ptr<GlueBusXYPadWidget> fXYPad { new GlueBusXYPadWidget(this) };
-    const std::unique_ptr<GlueBusSaturationMeterWidget> fSaturation { new GlueBusSaturationMeterWidget(this) };
 
 public:
     explicit GlueBusDisplayWidget(LabWidget* const parent)
@@ -903,7 +846,7 @@ private:
     {
         const float s = fScaleFactor;
 
-        // the floating panels' shadows, as the group panels have theirs, left out where the panel is
+        // the pad's shadow, as the group panels have theirs, left out where the panel is
         const auto shadow = [&](const LabWidget& panel, const float r) {
             const float x = panel.getAbsoluteX() - getAbsoluteX();
             const float y = panel.getAbsoluteY() - getAbsoluteY();
@@ -919,32 +862,18 @@ private:
             fill();
         };
 
-        shadow(*fCompression, fCompression->getBorderRadius());
         shadow(*fXYPad, fXYPad->getBorderRadius());
-        shadow(*fSaturation, fSaturation->getBorderRadius());
     }
 
-    // the panels follow the display
+    // the pad follows the display
     void layout()
     {
         const int margin = d_roundToIntPositive(kPanelMargin * fScaleFactor);
         const int gap = d_roundToIntPositive(kPanelGap * fScaleFactor);
-        const int meterWidth = d_roundToIntPositive(GlueBusMeterReference::width * fScaleFactor);
-        const int x = getAbsoluteX();
-        const int y = getAbsoluteY() + margin;
-        const int w = static_cast<int>(getWidth());
-        const int h = std::max(1, static_cast<int>(getHeight()) - margin - gap);
 
-        fCompression->setSize(meterWidth, h);
-        fCompression->setAbsolutePos(x + margin, y);
-
-        fSaturation->setSize(meterWidth, h);
-        fSaturation->setAbsolutePos(x + w - margin - meterWidth, y);
-
-        // the pad takes what is left between the meters
-        const int padX = x + margin + meterWidth + gap;
-        fXYPad->setSize(std::max(1, w - (margin + meterWidth + gap) * 2), h);
-        fXYPad->setAbsolutePos(padX, y);
+        fXYPad->setSize(std::max(1, static_cast<int>(getWidth()) - margin * 2),
+                        std::max(1, static_cast<int>(getHeight()) - margin - gap));
+        fXYPad->setAbsolutePos(getAbsoluteX() + margin, getAbsoluteY() + margin);
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) final
