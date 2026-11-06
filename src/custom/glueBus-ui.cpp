@@ -300,8 +300,8 @@ static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const fl
 // --------------------------------------------------------------------------------------------------------------------
 // The XY pad, drawn as the compressor's curve display: Comp / Sat across, Drive up. A panel under a pane of glass,
 // with a grid labelled on its lines, wide meters rising from the bottom, compression in the left half and
-// saturation in the right, a level line at the Drive in the curve's colours, dotted lines from the point down and to
-// the left, and the point in the curve's colour with a white core. Clicking or dragging sets both; double-clicking
+// saturation in the right, rainbow lines across and down through the point, fading out from it toward the edges,
+// dotted lines from the point down and to the left, and the point in the curve's colour with a white core. Clicking or dragging sets both; double-clicking
 // resets both.
 
 struct GlueBusXYPadReference : GlueBusFloatingReference {
@@ -322,9 +322,8 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
         static constexpr const float fade = 24.f;
     };
     static constexpr const Color crossColor { 1.f, 1.f, 1.f, 0.35f };
-    // the level line, in this many sections across, fading out over this share of the width at each end
+    // the rainbow lines through the point, in this many sections along, half each side of the point
     static constexpr const uint lineSections = 32;
-    static constexpr const float lineFade = 0.2f;
     // the cross lines are dotted: a dot this long, every this far, unscaled
     static constexpr const float crossDot = 1.f;
     static constexpr const float crossDotStep = 3.f;
@@ -728,43 +727,71 @@ private:
             stroke();
         }
 
-        // the level line from x0 to x1 at the Drive
-        const auto level = [&](const float x0, const float x1) {
-            beginPath();
-            moveTo(std::max(px, x0), pointY);
-            lineTo(std::min(px + pw, x1), pointY);
-        };
+        // Rainbow lines through the point, across at the Drive and down at the Comp / Sat, in short sections each
+        // blended between the curve's colours at its ends, along the line from left to right or bottom to top. They
+        // are most opaque at the point and fade out toward the pad's edges, the sections meeting at the point.
+        const auto line = [&](const bool vertical, const float alpha, const float width) {
+            const float start = vertical ? py : px;
+            const float length = vertical ? ph : pw;
+            const float at = vertical ? pointY : pointX;
 
-        // The level line in short sections, each blended across between the curve's colours at its ends, faded out
-        // toward the pad's left and right edges, where it would otherwise meet the rounded corners.
-        const auto line = [&](const float alpha, const float width) {
-            const auto fadeAt = [&](const float t) {
-                const float e = std::clamp(std::min(t, 1.f - t) / R::lineFade, 0.f, 1.f);
-                return e * e * (3.f - 2.f * e);
+            // 1 at the point, eased to 0 at either edge
+            const auto fadeAt = [&](const float pos) {
+                const float e = pos < at ? (pos - start) / std::max(1e-3f, at - start)
+                                         : (start + length - pos) / std::max(1e-3f, start + length - at);
+                const float c = std::clamp(e, 0.f, 1.f);
+                return c * c * (3.f - 2.f * c);
+            };
+            // the curve's position, 0 at the left or the bottom
+            const auto colorAt = [&](const float pos) {
+                const float t = (pos - start) / length;
+                return vertical ? 1.f - t : t;
             };
 
-            for (uint i = 0; i < R::lineSections; ++i)
-            {
-                const float t0 = static_cast<float>(i) / R::lineSections;
-                const float t1 = static_cast<float>(i + 1) / R::lineSections;
-                const float left = px + pw * t0;
-                const float right = px + pw * t1;
+            strokeWidth(width);
 
-                save();
-                intersectScissor(left, py, right - left, ph);
-                level(left - width - 1.f, right + width + 1.f);
-                strokePaint(linearGradient(left, 0, right, 0,
-                                           curveColor(t0, alpha * fadeAt(t0)),
-                                           curveColor(t1, alpha * fadeAt(t1))));
-                strokeWidth(width);
-                stroke();
-                restore();
+            const uint half = R::lineSections / 2;
+            for (const auto& [from, to] : { std::make_pair(start, at), std::make_pair(at, start + length) })
+            {
+                for (uint i = 0; i < half; ++i)
+                {
+                    const float p0 = from + (to - from) * i / half;
+                    const float p1 = from + (to - from) * (i + 1) / half;
+
+                    if (p1 - p0 < 0.01f)
+                        continue;
+
+                    const Color c0 = curveColor(colorAt(p0), alpha * fadeAt(p0));
+                    const Color c1 = curveColor(colorAt(p1), alpha * fadeAt(p1));
+
+                    save();
+                    beginPath();
+                    if (vertical)
+                    {
+                        intersectScissor(px, p0, pw, p1 - p0);
+                        moveTo(pointX, std::max(py, p0 - width - 1.f));
+                        lineTo(pointX, std::min(py + ph, p1 + width + 1.f));
+                        strokePaint(linearGradient(0, p0, 0, p1, c0, c1));
+                    }
+                    else
+                    {
+                        intersectScissor(p0, py, p1 - p0, ph);
+                        moveTo(std::max(px, p0 - width - 1.f), pointY);
+                        lineTo(std::min(px + pw, p1 + width + 1.f), pointY);
+                        strokePaint(linearGradient(p0, 0, p1, 0, c0, c1));
+                    }
+                    stroke();
+                    restore();
+                }
             }
         };
 
-        // the line with a glow
-        line(0.2f, 4.f * s);
-        line(1.f, 1.5f * s);
+        // the lines with a glow
+        for (const bool vertical : { false, true })
+        {
+            line(vertical, 0.2f, 4.f * s);
+            line(vertical, 1.f, 1.5f * s);
+        }
 
         // the point, in the line's colour there with a white core
         {
