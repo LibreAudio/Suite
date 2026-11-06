@@ -187,11 +187,6 @@ public:
         return Size<uint>(getWidth() - m.border * 2, getHeight() - space);
     }
 
-    std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
-    {
-        return fWaveform;
-    }
-
 private:
     int scale = 0;
 
@@ -247,38 +242,6 @@ using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimiterUI : public LibreAudioBaseUI
-{
-    std::shared_ptr<WaveformWidget> fWaveform;
-
-public:
-    LimiterUI()
-    {
-        const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
-            std::make_shared<ShaderBackgroundWidget>(this, this),
-            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this)
-        };
-
-        createRootWidget<LimiterRootWidget>();
-
-        LimiterRootWidget* const root = static_cast<LimiterRootWidget*>(fRootWidget.get());
-        const std::shared_ptr<LimiterMainArea> mainArea = root->getMainAreaWidget();
-        const std::shared_ptr<LimiterStageWidget> stage = mainArea->getStageWidget();
-
-        root->enableShaders(shaders);
-        fWaveform = stage->getWaveformWidget();
-    }
-
-protected:
-    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
-    {
-        fWaveform->pushGainReduction(value.ptr[1]);
-        fWaveform->push(value.ptr[0]);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 } /* namespace LibreAudio */
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -287,7 +250,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::LimiterUI();
+    return new LibreAudio::UI<LibreAudio::LimiterRootWidget>();
 }
 
 END_NAMESPACE_DISTRHO

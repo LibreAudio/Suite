@@ -56,6 +56,8 @@ template <class TopBar, class MainArea>
 class RootWidget : public RootBaseWidget
 {
 public:
+    using MainAreaWidget = MainArea;
+
     RootWidget(Window& window, LabUIWidgetInterface* const iface)
         : RootBaseWidget(window, iface) {}
 

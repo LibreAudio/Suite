@@ -32,18 +32,6 @@ inline constexpr const uint32_t kNumSamplePointsForWaveform = 1024;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// inline constexpr float db2coef(float db)
-// {
-//     return db2coef(db, FFTAnalysis::kSmallestValue);
-// }
-//
-// inline constexpr float coef2db(float coef)
-// {
-//     return coef2db(coef, FFTAnalysis::kSmallestValue);
-// }
-
-// --------------------------------------------------------------------------------------------------------------------
-
 class LibreAudioAnalyzerIPC {
 public:
     static constexpr const uint32_t kNumBins = 1024;
@@ -61,8 +49,12 @@ public:
             return nullptr;
 
         SharedData* const data = fSharedMem.getDataPointer();
-        std::memset(data, 0, sizeof(SharedData));
-        fTmpData.fill(0.f);
+        // std::memset(data, 0, sizeof(SharedData));
+
+        for (uint32_t i = 0; i < kNumBins; ++i)
+            data->bins[i] = FFTAnalysis::kSmallestValue;
+
+        fTmpData.fill(FFTAnalysis::kSmallestValue);
 
         return fSharedMem.getDataFilename();
     }
@@ -72,7 +64,8 @@ public:
         if (fSharedMem.isCreatedOrConnected())
             fSharedMem.close();
 
-        fTmpData.fill(0.f);
+        fTmpData.fill(FFTAnalysis::kSmallestValue);
+
         return fSharedMem.connect(filename) != nullptr;
     }
 
@@ -104,7 +97,7 @@ public:
         float* const tmp = fTmpData.data();
 
         for (uint32_t b = 0; b < kNumBins; ++b)
-            tmp[b] = data->bins[b] * tc;
+            tmp[b] = std::max(FFTAnalysis::kSmallestValue, data->bins[b] + FFTAnalysis::kSmallestValue * tc);
 
         bool hasBin[kNumBins] = {};
         float norm, pab, pwr;
@@ -123,9 +116,8 @@ public:
                 b = 1;
 
             hasBin[b] = true;
-            if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > tmp[b]) {
-                tmp[b] = pwr;
-            }
+            if (pab > tmp[b])
+                tmp[b] = pab;
         }
 
         // linear interpolation for bins without data

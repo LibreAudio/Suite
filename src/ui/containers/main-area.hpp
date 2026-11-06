@@ -4,8 +4,6 @@
 
 #pragma once
 
-// #include "base.hpp"
-#include "root.hpp"
 #include "stage.hpp"
 #if LIBREAUDIO_WANT_COMMON_IO
 #include "../widgets/gain-meter.hpp"
@@ -21,6 +19,8 @@ class MainAreaContainerWidget : public ReferenceContainerWidget<Reference::MainA
     using BaseWidget = ReferenceContainerWidget<Reference::MainArea>;
 
 public:
+    using StageWidget2 = StageWidget;
+
     MainAreaContainerWidget(LabTopLevelWidget* const parent)
         : BaseWidget(parent) {}
 

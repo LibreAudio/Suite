@@ -412,7 +412,7 @@ public:
     void setScopeZoom(DelayScopeZoom* const zoom) noexcept
     {
         // FIXME
-        const_cast<DelayExpertPageWidget*>(fStage->getExpertWidget())->setScopeZoom(zoom);
+        fStage->getExpertWidget()->setScopeZoom(zoom);
     }
 
     [[nodiscard]] Point<int> getMiddleAreaAbsolutePos(const Page page) const noexcept

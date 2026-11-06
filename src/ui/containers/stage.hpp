@@ -6,6 +6,7 @@
 
 #include "../base.hpp"
 #include "../widgets/card.hpp"
+#include "../widgets/fft-waveform.hpp"
 #include "../widgets/pill-toggle.hpp"
 #include "knob-group.hpp"
 
@@ -135,8 +136,9 @@ class StageWidget : public LabWidget,
 {
     using BaseWidget = LabWidget;
 
-    std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
-    std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
+    const std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
+    const std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
+    std::shared_ptr<WaveformWidget> fWaveform;
 
     std::list<std::shared_ptr<LabWidget>> fGraphWidgets;
 
@@ -146,17 +148,26 @@ public:
     {
         fExpert->hide();
 
+        if constexpr (std::is_same_v<EasyPageWidget, EasyStageWidget> &&
+                      std::is_same_v<ExpertPageWidget, ExpertStageWidget>)
+            fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
+
         addIdleCallback(this);
     }
 
-    [[nodiscard]] const EasyPageWidget* getEasyWidget() const noexcept
+    [[nodiscard]] std::shared_ptr<EasyPageWidget> getEasyWidget() const noexcept
     {
-        return fEasy.get();
+        return fEasy;
     }
 
-    [[nodiscard]] const ExpertPageWidget* getExpertWidget() const noexcept
+    [[nodiscard]] std::shared_ptr<ExpertPageWidget> getExpertWidget() const noexcept
     {
-        return fExpert.get();
+        return fExpert;
+    }
+
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return fWaveform;
     }
 
     [[nodiscard]] float getBorderRadius() const noexcept
@@ -178,6 +189,8 @@ protected:
         fEasy->toFront();
         fExpert->toFront();
         fGraphWidgets.emplace_back(widget);
+        if constexpr (std::is_same_v<W, WaveformWidget>)
+            fWaveform = widget;
         return widget;
     }
 

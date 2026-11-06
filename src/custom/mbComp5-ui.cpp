@@ -7,6 +7,7 @@
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
 #include "ui/widgets/grid.hpp"
+#include "ui/widgets/fft-waveform.hpp"
 #include "ui/widgets/number-box.hpp"
 #include "ui/widgets/threshold-meter.hpp"
 #include "ui/_lab/text.hpp"
@@ -414,7 +415,11 @@ private:
     bool fWasHovered = false;
 
     const std::shared_ptr<MbComp5GraphWidget> fGraph { addGraphWidget<MbComp5GraphWidget>() };
-    const std::shared_ptr<LabWidget> fGrid { addGraphWidget<GridWidget>(-18.f, -18.f, 7.f, 6.f, "dB") };
+    const std::shared_ptr<GridWidget> fGrid { addGraphWidget<GridWidget>(-18.f, -18.f, 7.f, 6.f, "dB") };
+
+    const std::shared_ptr<WaveformWidget> fWaveform {
+        addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f)
+    };
 
     void idleCallback() final
     {

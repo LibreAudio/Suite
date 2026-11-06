@@ -6,6 +6,7 @@
 
 #include "LibreAudioBaseUI.hpp"
 
+#include "ui/widgets/fft-waveform.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "las-resources.h"
@@ -13,6 +14,18 @@
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
+
+#if defined(LIBREAUDIO_PLUGIN__chorus)
+#define SHADER_PLUGIN SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__djFilter)
+#define SHADER_PLUGIN SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__springReverb)
+#define SHADER_PLUGIN SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__tiltEQ)
+#define SHADER_PLUGIN SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__vocalDoubler)
+#define SHADER_PLUGIN SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN
+#endif
 
 #define SHADER_CLOUDSTARFIELD SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN
 
@@ -29,10 +42,8 @@ class UI : public LibreAudioBaseUI
     static constexpr const uint32_t kTextureSize = 0;
    #endif
 
-    static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
-    using AnalyzerShaderW = std::conditional_t<label == "dualGain",
-                                               CleanShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
-                                               BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
+    using MainAreaWidget = typename RootWidget::MainAreaWidget;
+    using StageWidget = typename MainAreaWidget::StageWidget2;
 
 public:
     UI() : LibreAudioBaseUI()
@@ -40,39 +51,43 @@ public:
         const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
             std::make_shared<ShaderBackgroundWidget>(this, this),
             std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
-            makeAnalyzer()
+           #ifdef SHADER_PLUGIN
+            std::make_shared<BotShaderWidget<SHADER_PLUGIN>>(this, this),
+           #endif
         };
 
         createRootWidget<RootWidget>();
 
-        static_cast<RootWidget*>(fRootWidget.get())->enableShaders(shaders);
-    }
+        RootWidget* const root = static_cast<RootWidget*>(fRootWidget.get());
 
-protected:
-    std::shared_ptr<AnalyzerShaderW> fShaderAnalyser;
-
-   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) override
-    {
-        fShaderAnalyser->replace(values);
+        root->enableShaders(shaders);
+        const std::shared_ptr<MainAreaWidget> mainArea = root->getMainAreaWidget();
+        const std::shared_ptr<StageWidget> stage = mainArea->getStageWidget();
+        fWaveform = stage->getWaveformWidget();
     }
-   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
-    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) override
-    {
-       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
-        fShaderAnalyser->push(value);
-       #else
-        fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
-       #endif
-    }
-   #endif
 
 private:
-    std::shared_ptr<AnalyzerShaderW> makeAnalyzer()
+    std::shared_ptr<WaveformWidget> fWaveform;
+
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
-        fShaderAnalyser.reset(new AnalyzerShaderW(this, this));
-        return fShaderAnalyser;
+        if (WaveformWidget* const waveform = fWaveform.get())
+            waveform->replace(values);
     }
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
+    {
+        if (WaveformWidget* const waveform = fWaveform.get())
+        {
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+            waveform->push(value.ptr[0], value.ptr[1]);
+           #else
+            waveform->push(value);
+           #endif
+        }
+    }
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------

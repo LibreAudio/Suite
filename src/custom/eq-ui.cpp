@@ -28,6 +28,11 @@ public:
             fParamValues[i] = fInterface->getParameterValue(kParametersMainStart + i);
     }
 
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return {};
+    }
+
 private:
     float fParamValues[kFaustParameterCount];
 

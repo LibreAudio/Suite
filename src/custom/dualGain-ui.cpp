@@ -50,7 +50,18 @@ struct ReferenceMainArea : Reference::MainArea {
     static constexpr const uint borderRadius = 20;
 };
 
-using DualGainMainAreaWidget = MainAreaContainerWidget<LabReferenceWidget<ReferenceMainArea>>;
+class DualGainStageWidget : public LabReferenceWidget<ReferenceMainArea>
+{
+    using LabReferenceWidget<ReferenceMainArea>::LabReferenceWidget;
+
+public:
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return {};
+    }
+};
+
+using DualGainMainAreaWidget = MainAreaContainerWidget<DualGainStageWidget>;
 using DualGainRootWidget = RootWidget<DualGainTopBarWidget, DualGainMainAreaWidget>;
 
 }

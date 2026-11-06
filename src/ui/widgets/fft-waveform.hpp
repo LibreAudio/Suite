@@ -4,21 +4,20 @@
 
 #pragma once
 
+#include "config.h"
+#include "../_lab/metrics.hpp"
 #include "shader-clean.hpp"
 
 #include "LibreAudioIPC.hpp"
-
-#define NANOVG_GL2 1
-#include "src/nanovg/nanovg.h"
-#include "src/nanovg/nanovg_gl.h"
-#include "src/nanovg/nanovg_gl_utils.h"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
 class WaveformWidget final : public LabWidget,
+                            #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
                              private LabWidget::FramebufferCallback,
+                            #endif
                              private IdleCallback
 {
     using R = Reference::Stage;
@@ -28,7 +27,7 @@ class WaveformWidget final : public LabWidget,
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
    #else
-    static constexpr const uint32_t kTextureSize = 0;
+    static constexpr const uint32_t kTextureSize = 1;
    #endif
 
     // static_assert(R::width == 0, "waveform must have 0 width, size is adjusted by its parent");
@@ -36,13 +35,18 @@ class WaveformWidget final : public LabWidget,
 
 public:
     explicit WaveformWidget(LabWidget* const parent, const float bottom, const float start, const float top)
+       #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
         : LabWidget(parent, this)
+       #else
+        : LabWidget(parent)
+       #endif
     {
         setRange(bottom, start, top);
         fTextureData.resize(kTextureSize, bottom);
         fTextureDataParam.resize(kTextureSize, top);
     }
 
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void replace(const float values[kTextureSize])
     {
         std::memcpy(fTextureData.data(), values, kTextureSize * sizeof(float));
@@ -53,14 +57,21 @@ public:
             repaint();
         }
     }
-
-    void push(const float value)
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    void push(const float value
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+            , const float value2
+           #endif
+             )
     {
-        fTextureData[fTextureDataTail++] = value;
+        fTextureData[fTextureDataTail] = value;
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+        fTextureDataParam[fTextureDataTail] = value2;
+       #endif
 
         fPointsPushed += 1.0;
 
-        if (fTextureDataTail == kTextureSize)
+        if (++fTextureDataTail == kTextureSize)
             fTextureDataTail = 0;
 
         if (! fPendingDisplay)
@@ -69,11 +80,7 @@ public:
             repaint();
         }
     }
-
-    void pushGainReduction(const float value)
-    {
-        fTextureDataParam[fTextureDataTail] = value;
-    }
+   #endif
 
     void setBorderRadius(const float radius)
     {
@@ -191,6 +198,7 @@ private:
                                  color.withAlpha(0.f)));
         fill();
 
+       #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
         if (const NanoImage fbimg = createImageFromFramebuffer(); fbimg.isValid())
         {
             beginPath();
@@ -198,8 +206,10 @@ private:
             fillPaint(imagePattern(0, 0, m.width, m.height, 0, fbimg, 1.0f));
             fill();
         }
+       #endif
     }
 
+   #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
     void onNanoFramebufferDisplay() final
     {
         const LabMetrics<R> m { this };
@@ -268,6 +278,7 @@ private:
                                  Reference::kAccentColors[acc + 1].withAlpha(a)));
         fill();
     }
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
