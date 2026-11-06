@@ -274,39 +274,12 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The panels floating over the starfield: dark and see-through, lit along the top edge.
+// The XY pad, drawn as the compressor's curve display, straight over the starfield: Comp / Sat across, Drive up. A
+// grid labelled on its lines, wide meters rising from the bottom, compression in the left half and saturation in the
+// right, rainbow lines across and down through the point, fading out from it toward the edges, and the point in the
+// curve's colour with a white core. Clicking or dragging sets both; double-clicking resets both.
 
-struct GlueBusFloatingReference : Reference::Zero {
-    static constexpr const uint borderRadius = 10;
-    static constexpr const Color backgroundColor { Reference::Colors::bg2, 0.75f };
-};
-
-static void drawFloatingPanel(NanoVG& vg, const float w, const float h, const float scaleFactor, const Color& color)
-{
-    const float r = GlueBusFloatingReference::borderRadius * scaleFactor;
-
-    vg.beginPath();
-    vg.roundedRect(0, 0, w, h, r);
-    vg.fillColor(color);
-    vg.fill();
-
-    vg.beginPath();
-    vg.roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
-    vg.strokePaint(vg.linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.14f), Color(1.f, 1.f, 1.f, 0.03f)));
-    vg.strokeWidth(1.f);
-    vg.stroke();
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// The XY pad, drawn as the compressor's curve display: Comp / Sat across, Drive up. A panel under a pane of glass,
-// with a grid labelled on its lines, wide meters rising from the bottom, compression in the left half and
-// saturation in the right, rainbow lines across and down through the point, fading out from it toward the edges,
-// dotted lines from the point down and to the left, and the point in the curve's colour with a white core. Clicking or dragging sets both; double-clicking
-// resets both.
-
-struct GlueBusXYPadReference : GlueBusFloatingReference {
-    // see-through, the starfield showing behind the plot
-    static constexpr const Color backgroundColor { Reference::Colors::bg0, 0.f };
+struct GlueBusXYPadReference : Reference::Zero {
     // grid steps, in each parameter's units
     static constexpr const float gridStepX = 0.5f;
     static constexpr const float gridStepY = 6.f;
@@ -321,12 +294,8 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
         // how far a line takes to fade out toward its label
         static constexpr const float fade = 24.f;
     };
-    static constexpr const Color crossColor { 1.f, 1.f, 1.f, 0.35f };
     // the rainbow lines through the point, in this many sections along, half each side of the point
     static constexpr const uint lineSections = 32;
-    // the cross lines are dotted: a dot this long, every this far, unscaled
-    static constexpr const float crossDot = 1.f;
-    static constexpr const float crossDotStep = 3.f;
     // mbComp5's curve colours, from left to right, blended between
     static constexpr const std::array<Color, 5> curveColors {{
         { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 }
@@ -388,11 +357,6 @@ public:
         : LabWidget(parent)
     {
         addIdleCallback(this);
-    }
-
-    [[nodiscard]] float getBorderRadius() const noexcept
-    {
-        return R::borderRadius * fScaleFactor;
     }
 
 private:
@@ -524,16 +488,14 @@ private:
 
     void onNanoDisplay() final
     {
-        drawPad(getWidth(), getHeight(), getBorderRadius());
+        drawPad(getWidth(), getHeight());
     }
 
-    void drawPad(const float w, const float h, const float r)
+    void drawPad(const float w, const float h)
     {
         const float s = fScaleFactor;
 
-        drawFloatingPanel(*this, w, h, s, R::backgroundColor);
-
-        // the plot fills the panel, edge to edge
+        // the plot fills the pad, edge to edge
         const float px = 0.f;
         const float py = 0.f;
         const float pw = w;
@@ -696,37 +658,6 @@ private:
         const float pointX = toX(fValueX);
         const float pointY = toY(fValueY);
 
-        // dotted lines from the point down to the bottom and across to the left, fading out at the edges as the grid
-        // does, the dots on whole pixels from the point
-        {
-            const float tx = std::round(pointX);
-            const float ty = std::round(pointY);
-            const float dot = std::max(1.f, std::round(R::crossDot * s));
-            const float step = std::max(dot + 1.f, std::round(R::crossDotStep * s));
-            const Color crossClear { R::crossColor, 0.f };
-
-            strokeWidth(1.f);
-            lineCap(BUTT);
-
-            beginPath();
-            for (float y = ty; y < py + ph; y += step)
-            {
-                moveTo(tx + 0.5f, y);
-                lineTo(tx + 0.5f, y + dot);
-            }
-            strokePaint(linearGradient(0, py + ph - fade, 0, py + ph, R::crossColor, crossClear));
-            stroke();
-
-            beginPath();
-            for (float x = tx; x > px; x -= step)
-            {
-                moveTo(x, ty + 0.5f);
-                lineTo(x - dot, ty + 0.5f);
-            }
-            strokePaint(linearGradient(px + fade, 0, px, 0, R::crossColor, crossClear));
-            stroke();
-        }
-
         // Rainbow lines through the point, across at the Drive and down at the Comp / Sat, in short sections each
         // blended between the curve's colours at its ends, along the line from left to right or bottom to top. They
         // are most opaque at the point and fade out toward the pad's edges, the sections meeting at the point.
@@ -817,56 +748,11 @@ private:
 
         restore();
 
-        drawGlass(w, h, r);
-    }
-
-    // A pane of glass over the plot: a gloss over the top whose lower edge sweeps up to the right, a faint diagonal
-    // sheen across the middle, kept clear of the corners, a rim lit at the top and fading down, and a bright line just
-    // inside the top edge.
-    void drawGlass(const float w, const float h, const float r)
-    {
-        // gloss
-        beginPath();
-        moveTo(0, h * 0.46f);
-        lineTo(0, r);
-        arcTo(0, 0, r, 0, r);
-        lineTo(w - r, 0);
-        arcTo(w, 0, w, r, r);
-        lineTo(w, h * 0.26f);
-        quadTo(w * 0.45f, h * 0.30f, 0, h * 0.46f);
-        closePath();
-        fillPaint(linearGradient(0, 0, 0, h * 0.46f, Color(1.f, 1.f, 1.f, 0.09f), Color(1.f, 1.f, 1.f, 0.015f)));
-        fill();
-
-        // sheen
-        beginPath();
-        moveTo(w * 0.60f, 0);
-        lineTo(w * 0.70f, 0);
-        lineTo(w * 0.56f, h);
-        lineTo(w * 0.46f, h);
-        closePath();
-        fillPaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.045f), Color(1.f, 1.f, 1.f, 0.005f)));
-        fill();
-
-        // rim
-        beginPath();
-        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
-        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.22f), Color(1.f, 1.f, 1.f, 0.04f)));
-        strokeWidth(1.f);
-        stroke();
-
-        // top edge highlight
-        beginPath();
-        moveTo(r, 1.5f);
-        lineTo(w - r, 1.5f);
-        strokePaint(linearGradient(r, 0, w - r, 0, Color(1.f, 1.f, 1.f, 0.08f), Color(1.f, 1.f, 1.f, 0.32f)));
-        strokeWidth(1.f);
-        stroke();
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The display, above the controls: the XY pad floating over the starfield, with its shadow.
+// The display, above the controls: the XY pad over the starfield.
 
 class GlueBusDisplayWidget final : public LabWidget
 {
@@ -882,28 +768,8 @@ public:
         : LabWidget(parent) {}
 
 private:
-    void onNanoDisplay() final
-    {
-        const float s = fScaleFactor;
-
-        // the pad's shadow, as the group panels have theirs, left out where the panel is
-        const auto shadow = [&](const LabWidget& panel, const float r) {
-            const float x = panel.getAbsoluteX() - getAbsoluteX();
-            const float y = panel.getAbsoluteY() - getAbsoluteY();
-            const float pw = panel.getWidth();
-            const float ph = panel.getHeight();
-
-            beginPath();
-            rect(x - 20.f * s, y, pw + 40.f * s, ph + 24.f * s);
-            roundedRect(x, y, pw, ph, r);
-            pathWinding(CW);
-            fillPaint(boxGradient(x + 6.f * s, y + 10.f * s, pw - 12.f * s, ph - 12.f * s, r, 14.f * s,
-                                  Color(0.f, 0.f, 0.f, 0.6f), Color(0.f, 0.f, 0.f, 0.f)));
-            fill();
-        };
-
-        shadow(*fXYPad, fXYPad->getBorderRadius());
-    }
+    // the pad draws itself
+    void onNanoDisplay() final {}
 
     // the pad follows the display
     void layout()
