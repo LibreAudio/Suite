@@ -440,20 +440,31 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
        #if LIBREAUDIO_WANT_GRAPH
         if (isRunnerActive())
         {
+            // FIXME make mono/stereo automatic, don't assume stereo
+           #if LIBREAUDIO_WANT_GRAPH_INPUT
+            const float* const buffer[DISTRHO_PLUGIN_NUM_INPUTS] = {
+                inputs[0] + i, inputs[1] + i,
+            };
+           #else
+            const float* const buffer[DISTRHO_PLUGIN_NUM_OUTPUTS] = {
+                fCycleBuffer[0], fCycleBuffer[1],
+            };
+           #endif
            #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
             const float paramval = fMainDSP->get(LIBREAUDIO_WANT_GRAPH_PARAM);
            #endif
+
            #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1 || (LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2 && defined(LIBREAUDIO_WANT_GRAPH_PARAM))
             for (uint32_t j = 0; j < cycleFrames; ++j)
             {
-                fRunnerBuffer.writeFloat((fCycleBuffer[0][j] + fCycleBuffer[1][j]) / DISTRHO_PLUGIN_NUM_OUTPUTS);
+                fRunnerBuffer.writeFloat((buffer[0][j] + buffer[1][j]) / DISTRHO_PLUGIN_NUM_OUTPUTS);
                #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
                 fRunnerBuffer.writeFloat(paramval);
                #endif
             }
            #elif LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
             for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                fRunnerBuffer.writeCustomData(fCycleBuffer[c], sizeof(float) * cycleFrames);
+                fRunnerBuffer.writeCustomData(buffer[c], sizeof(float) * cycleFrames);
            #endif
             fRunnerBuffer.commitWrite();
         }
@@ -639,6 +650,12 @@ bool LibreAudioPlugin::run()
            #endif
           #endif
         }
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT >= 1
+        value.ptr[0] = coef2db(value.ptr[0]);
+       #endif
+       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2 && !defined(LIBREAUDIO_WANT_GRAPH_PARAM)
+        value.ptr[1] = coef2db(value.ptr[1]);
+       #endif
 
         if (! fIPC.push(value))
         {

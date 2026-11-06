@@ -28,16 +28,17 @@ inline constexpr const float kLog1000f = 6.907755278982137f;
 // --------------------------------------------------------------------------------------------------------------------
 // dB level related functions
 
+inline constexpr const float kDbMin = -96.f;
 inline constexpr const float kDbScale = 20.f;
 inline constexpr const float kDbScaleHalf = kDbScale * 0.5f;
 inline constexpr const float kDbScaleHalf__log = kLog10f; // std::log(kDbScaleHalf)
 
-[[nodiscard]] inline constexpr float db2coef(const float db, const float min)
+[[nodiscard]] inline constexpr float db2coef(const float db, const float min = kDbMin)
 {
     return db > min ? std::pow(kDbScaleHalf, db / kDbScale) : 0.f;
 }
 
-[[nodiscard]] inline constexpr float coef2db(const float coef, const float min)
+[[nodiscard]] inline constexpr float coef2db(const float coef, const float min = kDbMin)
 {
     return d_isNotZero(coef) ? std::max(min, std::log(coef) / kDbScaleHalf__log * kDbScale) : min;
 }

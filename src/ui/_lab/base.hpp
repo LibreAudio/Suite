@@ -47,6 +47,11 @@ public:
           fInterface(parent->fInterface),
           fScaleFactor(parent->fScaleFactor) {}
 
+    explicit BaseWidgetOf(BaseWidgetOf<NanoSubWidget>* const parent, NanoSubWidget::FramebufferCallback* fbCb)
+        : BaseWidget(parent, fbCb),
+          fInterface(parent->fInterface),
+          fScaleFactor(parent->fScaleFactor) {}
+
     explicit BaseWidgetOf(BaseWidgetOf<NanoTopLevelWidget>* const parent)
         : BaseWidget(parent),
           fInterface(parent->fInterface),
@@ -422,6 +427,9 @@ public:
 
     explicit LabWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
+
+    explicit LabWidget(LabWidget* const parent, NanoSubWidget::FramebufferCallback* fbCb)
+        : BaseWidget(parent, fbCb) {}
 
 protected:
     // helper cursor methods
