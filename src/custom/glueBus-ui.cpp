@@ -274,12 +274,14 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The XY pad, drawn as the compressor's curve display, straight over the starfield: Comp / Sat across, Drive up. A
-// grid labelled on its lines, wide meters rising from the bottom, compression in the left half and saturation in the
-// right, rainbow lines across and down through the point, fading out from it toward the edges, and the point in the
-// curve's colour with a white core. Clicking or dragging sets both; double-clicking resets both.
+// The XY pad, drawn as the compressor's curve display, over the starfield under a pane of glass: Comp / Sat across,
+// Drive up. A grid labelled on its lines, wide meters rising from the bottom, compression in the left half and
+// saturation in the right, rainbow lines across and down through the point, fading out from it toward the edges, and
+// the point in the curve's colour with a white core. Clicking or dragging sets both; double-clicking resets both.
 
 struct GlueBusXYPadReference : Reference::Zero {
+    // of the pane of glass over the pad
+    static constexpr const uint borderRadius = 10;
     // grid steps, in each parameter's units
     static constexpr const float gridStepX = 0.5f;
     static constexpr const float gridStepY = 6.f;
@@ -489,6 +491,7 @@ private:
     void onNanoDisplay() final
     {
         drawPad(getWidth(), getHeight());
+        drawGlass(getWidth(), getHeight(), R::borderRadius * fScaleFactor);
     }
 
     void drawPad(const float w, const float h)
@@ -748,6 +751,50 @@ private:
 
         restore();
 
+    }
+
+    // A pane of glass over the plot: a gloss over the top whose lower edge sweeps up to the right, a faint diagonal
+    // sheen across the middle, kept clear of the corners, a rim lit at the top and fading down, and a bright line just
+    // inside the top edge.
+    void drawGlass(const float w, const float h, const float r)
+    {
+        // gloss
+        beginPath();
+        moveTo(0, h * 0.46f);
+        lineTo(0, r);
+        arcTo(0, 0, r, 0, r);
+        lineTo(w - r, 0);
+        arcTo(w, 0, w, r, r);
+        lineTo(w, h * 0.26f);
+        quadTo(w * 0.45f, h * 0.30f, 0, h * 0.46f);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h * 0.46f, Color(1.f, 1.f, 1.f, 0.09f), Color(1.f, 1.f, 1.f, 0.015f)));
+        fill();
+
+        // sheen
+        beginPath();
+        moveTo(w * 0.60f, 0);
+        lineTo(w * 0.70f, 0);
+        lineTo(w * 0.56f, h);
+        lineTo(w * 0.46f, h);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.045f), Color(1.f, 1.f, 1.f, 0.005f)));
+        fill();
+
+        // rim
+        beginPath();
+        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.22f), Color(1.f, 1.f, 1.f, 0.04f)));
+        strokeWidth(1.f);
+        stroke();
+
+        // top edge highlight
+        beginPath();
+        moveTo(r, 1.5f);
+        lineTo(w - r, 1.5f);
+        strokePaint(linearGradient(r, 0, w - r, 0, Color(1.f, 1.f, 1.f, 0.08f), Color(1.f, 1.f, 1.f, 0.32f)));
+        strokeWidth(1.f);
+        stroke();
     }
 };
 
