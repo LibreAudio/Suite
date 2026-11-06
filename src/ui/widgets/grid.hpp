@@ -232,9 +232,9 @@ private:
         }
        #endif
 
-        // Y lines, including labels (left-side first)
+        // Y lines, including labels
         bool isFirst = true;
-        for (float v = fStart; v < fMax; v += fStep)
+        for (float v = fStart + fStep; v < fMax; v += fStep)
         {
             const bool isZero = d_isZero(v);
             if (isFirst)
