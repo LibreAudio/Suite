@@ -237,10 +237,10 @@ using GlueBusTransientGroupsWidget = StaticContainerPairWidget<
     Horizontal,
     SizeHintWidgetPair<Expanding, GlueBusTransientGroupWidget<
         GlueBusTransientMeterWidget<kFaustParameterLow_transient, Reference::Colors::acc3>,
-        widgets::LowFreq, widgets::LowAttack, widgets::LowSustain>>,
+        widgets::LowAttack, widgets::LowSustain, widgets::LowFreq>>,
     SizeHintWidgetPair<Expanding, GlueBusTransientGroupWidget<
         GlueBusTransientMeterWidget<kFaustParameterHigh_transient, Reference::Colors::acc5>,
-        widgets::HighFreq, widgets::HighAttack, widgets::HighSustain>>
+        widgets::HighAttack, widgets::HighSustain, widgets::HighFreq>>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -333,13 +333,17 @@ struct GlueBusXYPadReference : GlueBusFloatingReference {
         { 255, 191, 203 }, { 255, 223, 173 }, { 210, 253, 211 }, { 190, 241, 255 }, { 218, 193, 243 }
     }};
     // The meters, unscaled: two channels a pair, compression left and saturation right, filled in the curve's colours
-    // across, fading from opaque at the value to clear at the bottom. Their maximum is at the top of the pad.
+    // across, fading from alpha at the value to clear at the bottom. Their maximum is at the top of the pad.
     struct Meter {
         static constexpr const float edge = 12.f;
         static constexpr const float pairGap = 24.f;
         static constexpr const float channelGap = 4.f;
         // a column of the fill, each in the curve's colour at its middle
         static constexpr const float column = 2.f;
+        // of the corners
+        static constexpr const float borderRadius = 4.f;
+        // at the value, fading to 0 at the bottom
+        static constexpr const float alpha = 0.8f;
         // over each pair, centred, at the top of the pad
         struct Label {
             static constexpr const float alpha = 0.45f;
@@ -631,15 +635,31 @@ private:
                 if (py + ph - top < 0.5f)
                     continue;
 
-                for (float x = left; x < right; x += column)
+                // the corners are rounded, drawn there in columns a pixel wide, each cut to the corners' arc
+                const float bh = py + ph - top;
+                const float cr = std::min(R::Meter::borderRadius * s, std::min(bh, right - left) * 0.5f);
+
+                for (float x = left; x < right;)
                 {
-                    const float cw = std::min(column, right - x);
+                    const float fromSide = std::min(x - left, right - x - 1.f);
+                    const bool inCorner = fromSide < cr;
+                    const float cw = std::min(inCorner ? 1.f : column, right - x);
                     const float t = (x + cw * 0.5f - px) / pw;
 
+                    float dy = 0.f;
+                    if (inCorner)
+                    {
+                        const float dx = cr - (fromSide + 0.5f);
+                        dy = cr - std::sqrt(std::max(0.f, cr * cr - dx * dx));
+                    }
+
                     beginPath();
-                    rect(x, top, cw, py + ph - top);
-                    fillPaint(linearGradient(0, top, 0, py + ph, curveColor(t, 1.f), curveColor(t, 0.f)));
+                    rect(x, top + dy, cw, bh - dy * 2);
+                    fillPaint(linearGradient(0, top, 0, py + ph,
+                                             curveColor(t, R::Meter::alpha), curveColor(t, 0.f)));
                     fill();
+
+                    x += cw;
                 }
             }
 

@@ -179,9 +179,19 @@ lowGainMeter  = low_group(hbargraph("[0]Low Transient[unit:dB][symbol:low_transi
 highGainMeter = high_group(hbargraph("[3]High Transient[unit:dB][symbol:high_transient]",
                                       0 - maxTransRange, maxTransRange));
 
+// Meter-only smoothing: fast away from 0 dB, slower back toward it.
+transMeterAttack = 0.005;
+transMeterRelease = 0.08;
+
+transMeterSmooth = step ~ _
+with {
+    step(y, x) = x + (y - x) * select2(abs(x) > abs(y), ba.tau2pole(transMeterRelease),
+                                                        ba.tau2pole(transMeterAttack));
+};
+
 // Separate band detectors; both channels share the shelf gains.
-transStage(l, r) = attach(shelves(l), lowDb : lowGainMeter)
-                 : attach(_, highDb : highGainMeter),
+transStage(l, r) = attach(shelves(l), lowDb : transMeterSmooth : lowGainMeter)
+                 : attach(_, highDb : transMeterSmooth : highGainMeter),
                    shelves(r)
 with {
 
