@@ -17,6 +17,8 @@ namespace LibreAudio {
 
 #if defined(LIBREAUDIO_PLUGIN__chorus)
 #define SHADER_PLUGIN SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__delay)
+#define SHADER_PLUGIN SHADERS_CURVE_DELAY_FRAG_DATA, SHADERS_CURVE_DELAY_FRAG_LEN
 #elif defined(LIBREAUDIO_PLUGIN__djFilter)
 #define SHADER_PLUGIN SHADERS_CURVE_DJ_FILTER_FRAG_DATA, SHADERS_CURVE_DJ_FILTER_FRAG_LEN
 #elif defined(LIBREAUDIO_PLUGIN__springReverb)
@@ -29,9 +31,7 @@ namespace LibreAudio {
 
 #define SHADER_CLOUDSTARFIELD SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN
 
-template<class RootWidget,
-         const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
-         uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
+template<class RootWidget>
 class UI : public LibreAudioBaseUI
 {
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
@@ -46,13 +46,17 @@ class UI : public LibreAudioBaseUI
     using StageWidget = typename MainAreaWidget::StageWidget2;
 
 public:
+   #ifdef SHADER_PLUGIN
+    using BotShaderPluginWidget = BotShaderWidget<SHADER_PLUGIN, kTextureSize>;
+   #endif
+
     UI() : LibreAudioBaseUI()
     {
         const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
             std::make_shared<ShaderBackgroundWidget>(this, this),
             std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
            #ifdef SHADER_PLUGIN
-            std::make_shared<BotShaderWidget<SHADER_PLUGIN>>(this, this),
+            std::make_shared<BotShaderPluginWidget>(this, this),
            #endif
         };
 

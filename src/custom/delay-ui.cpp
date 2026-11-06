@@ -441,7 +441,7 @@ class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
     Page fLastPage = kPageEasy;
     DelayScopeZoom fScopeZoom;
 
-    using ExpertShaderWidget = BotShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA, SHADERS_CURVE_DELAY_FRAG_LEN, kNumSamplePointsForWaveform>;
+    using ExpertShaderWidget = UI<DelayRootWidget>::BotShaderPluginWidget;
     std::shared_ptr<ExpertShaderWidget> fShaderExpert;
 
 public:
@@ -453,15 +453,15 @@ public:
 
     void enableShaders(const std::list<std::shared_ptr<ShaderWidgetInterface>>& shaders)
     {
-        fShaderExpert = reinterpret_cast<const std::shared_ptr<ExpertShaderWidget>&>(shaders.back());
+        // fShaderExpert = reinterpret_cast<const std::shared_ptr<ExpertShaderWidget>&>(shaders.back());
 
         // one zoom, read by the shader and by the labels drawn over it
         fMainArea->setScopeZoom(&fScopeZoom);
 
-        fShaderExpert->setCustomUniform("iSpan", [this] {
-            return fScopeZoom.span(DelayScopeModel(fInterface).level, getApp().getTime());
-        });
-        fShaderExpert->setVisible(getCurrentPage(fInterface) == kPageExpert);
+        // fShaderExpert->setCustomUniform("iSpan", [this] {
+        //     return fScopeZoom.span(DelayScopeModel(fInterface).level, getApp().getTime());
+        // });
+        // fShaderExpert->setVisible(getCurrentPage(fInterface) == kPageExpert);
 
         BaseWiwdget::enableShaders(shaders);
     }
@@ -504,9 +504,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::UI<LibreAudio::DelayRootWidget,
-                              SHADERS_CURVE_DELAY_FRAG_DATA,
-                              SHADERS_CURVE_DELAY_FRAG_LEN>();
+    return new LibreAudio::UI<LibreAudio::DelayRootWidget>();
 }
 
 END_NAMESPACE_DISTRHO
