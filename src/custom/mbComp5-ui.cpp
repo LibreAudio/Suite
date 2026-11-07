@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui/containers/container.hpp"
+#include "ui/containers/box-frame.hpp"
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
@@ -34,27 +34,8 @@ inline float getParameterValue(const LabUIWidgetInterface* const iface, const Fa
 
 // --------------------------------------------------------------------------------------------------------------------
 
-static constexpr const uint kCommonMargin = 8;
-static constexpr const uint kCommonPadding = 6;
-
 template<uint8_t band>
-struct MbComp5BandGroupReference : Reference::Zero {
-    static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
-    static constexpr const Color borderColor = backgroundColor;
-    static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
-    static constexpr const Color borderShadowColor { 0, 0, 0, 0.12f };
-    static constexpr const uint border = 1;
-    static constexpr const uint borderRadius = 8;
-    static constexpr const uint margin = kCommonMargin;
-    static constexpr const uint padding = kCommonPadding;
-
-    // TESTING
-    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
-    static constexpr const Point<int> shadowOffset = { 0, 5 };
-    // static constexpr const Size<int> shadowSize = { -6, -6 };
-    static constexpr const Size<int> shadowSize = { -12, -12 };
-    static constexpr const uint shadowFeather = 14;
-
+struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame {
     struct Header : Reference::Zero {
         static constexpr const uint height = 18;
 
@@ -103,11 +84,11 @@ struct MbComp5BandGroupReference : Reference::Zero {
     };
 
     struct Body : Reference::Zero {
-        static constexpr const uint padding = kCommonPadding;
+        static constexpr const uint padding = BoxFrame::padding;
         static constexpr const uint height = Reference::Widgets::NumberBox<>::height * 5 + padding * 4;
 
         struct NumberBoxes : Reference::Zero {
-            static constexpr const uint padding = kCommonPadding;
+            static constexpr const uint padding = BoxFrame::padding;
         };
     };
 
@@ -116,7 +97,7 @@ struct MbComp5BandGroupReference : Reference::Zero {
 
 inline constexpr const uint8_t kNumBands = 5;
 
-inline constexpr const char* kBandLabels[kNumBands] = {
+inline constexpr const std::string_view kBandLabels[kNumBands] = {
     "LOW",
     "LOW MID",
     "MID",
@@ -125,16 +106,21 @@ inline constexpr const char* kBandLabels[kNumBands] = {
 };
 
 template<uint8_t band>
-class MbComp5BandGroupWidget final : public LabReferenceContainerWidget<MbComp5BandGroupReference<band>, Vertical>
+class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical>
 {
-    using R = MbComp5BandGroupReference<band>;
-    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
+    using R = Reference::Widgets::BoxFrame;
+    using BaseWidget = BoxFrameWidget<Vertical>;
     using BaseWidget::BaseWidget;
+
+    using HR = typename MbComp5BandGroupReference<band>::Header;
+    using BR = typename MbComp5BandGroupReference<band>::Body;
 
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
 
     static constexpr const uint32_t kFirstIdInBand = kParametersMainStart + kFaustParameterBand1_threshold;
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
+
+    static constexpr const std::string_view kBandLabel = kBandLabels[band];
 
     static constexpr FaustParameterIndex getParameterIndexForBand(const FaustParameterIndex index)
     {
@@ -149,8 +135,8 @@ class MbComp5BandGroupWidget final : public LabReferenceContainerWidget<MbComp5B
 
     // ----------------------------------------------------------------------------------------------------------------
 
-    using SoloButtonWidget = ImageButtonWidget<typename R::Header::Buttons::Solo, kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
-    using MuteButtonWidget = ImageButtonWidget<typename R::Header::Buttons::Bypass, kCornerBoth, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
+    using SoloButtonWidget = ImageButtonWidget<typename HR::Buttons::Solo, kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
+    using MuteButtonWidget = ImageButtonWidget<typename HR::Buttons::Bypass, kCornerBoth, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
 
     // ----------------------------------------------------------------------------------------------------------------
 
@@ -167,14 +153,13 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
 
-    class HeaderWidget final : public LabReferenceContainerWidget<typename R::Header, Horizontal>
+    class HeaderWidget final : public LabReferenceContainerWidget<HR, Horizontal>
     {
-        using HR = typename R::Header;
         using BaseWidget = LabReferenceContainerWidget<HR, Horizontal>;
         using BaseWidget::BaseWidget;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            this->template addWidget<LabReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
+            this->template addWidget<LabReferenceStaticTextViewWidget<typename HR::Title, kBandLabel>, Expanding>(),
             this->template addWidget<SoloMuteGroupWidget>(),
         };
 
@@ -188,9 +173,8 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // body: number-boxes stack + meter
 
-    class BodyWidget final : public LabReferenceContainerWidget<typename R::Body, Horizontal>
+    class BodyWidget final : public LabReferenceContainerWidget<BR, Horizontal>
     {
-        using BR = typename R::Body;
         using BaseWidget = LabReferenceContainerWidget<BR, Horizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
@@ -254,7 +238,7 @@ public:
 // --------------------------------------------------------------------------------------------------------------------
 
 struct MbComp5BandsReference : Reference::Zero {
-    static constexpr const uint padding = kCommonPadding;
+    static constexpr const uint padding = MbComp5BandGroupReference<0>::padding;
     static constexpr const uint height = MbComp5BandGroupReference<0>::height + margin * 2;
 };
 

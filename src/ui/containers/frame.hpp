@@ -11,7 +11,7 @@
 #include "ui/widgets/dual-slider.hpp"
 #include "ui/widgets/number-box.hpp"
 
-#include LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE
+#include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
 
@@ -92,7 +92,7 @@ public:
         return {};
     }
 
-    template<class W>
+    template<class W, SizeHint sizeHint = Expanding>
     void addSpacer() = delete;
 
     template<class W, SizeHint sizeHint = Fixed, typename... Args>

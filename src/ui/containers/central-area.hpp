@@ -6,12 +6,7 @@
 
 #include "../pages/easy.hpp"
 #include "../pages/expert.hpp"
-
-// #include "../base.hpp"
-// #include "../widgets/card.hpp"
 #include "../widgets/fft-waveform.hpp"
-// #include "../widgets/pill-toggle.hpp"
-// #include "knob-group.hpp"
 
 namespace LibreAudio {
 
@@ -171,6 +166,11 @@ protected:
         BaseWidget::updateSize(updateChildren);
     }
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<Orientation orientation>
+using CentralAreaSubWidget = LabReferenceContainerWidget<Reference::Margin<0, Reference::CentralArea>, orientation>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

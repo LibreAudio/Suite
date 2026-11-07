@@ -6,6 +6,7 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
+#include "ui/widgets/number-box.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -15,28 +16,102 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct ReverbEasyExpertPageReference : Reference::Zero {
-    static constexpr const uint margin = 12;
-    static constexpr const uint padding = 8;
-};
+using ReverbEarlyGroupReference = Reference::Height<
+    Reference::Widgets::NumberBox<>::height + (Reference::Widgets::BoxFrame::border + Reference::Widgets::BoxFrame::margin) * 2,
+    Reference::Widgets::BoxFrame
+>;
 
-class TestButton : public TextButtonWidget<Reference::Widgets::TopBarButton, kCornerNone, Vertical>
-{
-    using BaseWidget = TextButtonWidget<Reference::Widgets::TopBarButton, kCornerNone, Vertical>;
-
-public:
-    TestButton(LabWidget* const parent)
-        : BaseWidget(parent, 0, "Test button, please ignore") {}
-};
-
-using ReverbExpertPageWidget = StaticBottomAlignedContainerWidget<
-    ReverbEasyExpertPageReference,
-    TestButton
+using ReverbEarlyGroupWidget = StaticParameterContainerWidget<
+    ReverbEarlyGroupReference,
+    Horizontal,
+    Expanding,
+    ParameterWidgetPair<kFaustParameterEr_size, NumberBoxWidget<Reference::Colors::acc3>>,
+    ParameterWidgetPair<kFaustParameterEr_diffusion, NumberBoxWidget<Reference::Colors::acc3>>,
+    ParameterWidgetPair<kFaustParameterEr_damping, NumberBoxWidget<Reference::Colors::acc3>>,
+    ParameterWidgetPair<kFaustParameterEr_spread, NumberBoxWidget<Reference::Colors::acc3>>,
+    ParameterWidgetPair<kFaustParameterTail_feed, NumberBoxWidget<Reference::Colors::acc3>>
+    // kFaustParameterEr_level
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ReverbStageWidget final : public CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>
+using ReverbTailGroupReference = Reference::Height<
+    Reference::Widgets::NumberBox<>::height * 2 + Reference::Widgets::BoxFrame::padding + (Reference::Widgets::BoxFrame::border + Reference::Widgets::BoxFrame::margin) * 2,
+    Reference::Widgets::BoxFrame
+>;
+
+using ReverbTailSubGroupReference = Reference::Padding<
+    ReverbTailGroupReference::padding,
+    Reference::Height<
+        Reference::Widgets::NumberBox<>::height
+    >
+>;
+
+using ReverbTail1GroupWidget = StaticParameterContainerWidget<
+    ReverbTailSubGroupReference,
+    Horizontal,
+    Expanding,
+    ParameterWidgetPair<kFaustParameterDecay, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterTail_size, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterTail_shape, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterTail_spread, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterTail_level, NumberBoxWidget<Reference::Colors::acc4>>
+>;
+
+using ReverbTail2GroupWidget = StaticParameterContainerWidget<
+    ReverbTailSubGroupReference,
+    Horizontal,
+    Expanding,
+    ParameterWidgetPair<kFaustParameterBass_mult, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterBass_freq, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterHf_damp, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterMod_rate, NumberBoxWidget<Reference::Colors::acc4>>,
+    ParameterWidgetPair<kFaustParameterMod_depth, NumberBoxWidget<Reference::Colors::acc4>>
+>;
+
+using ReverbTailGroupWidget = StaticContainerWidget<
+    ReverbTailGroupReference,
+    Vertical,
+    Fixed,
+    ReverbTail1GroupWidget,
+    ReverbTail2GroupWidget
+>;
+
+// kFaustParameterDensity,
+// kFaustParameterDeess_amount,
+// kFaustParameterLowcut,
+// kFaustParameterHighcut,
+// kFaustParameterPredelay,
+// kFaustParameterDim,
+// kFaustParameterDuck_amount,
+// kFaustParameterStereo_width,
+// kFaustParameterDrywet,
+// kFaustParameterEr_meter_l,
+// kFaustParameterEr_meter_r,
+// kFaustParameterTail_meter_l,
+// kFaustParameterTail_meter_r,
+// kFaustParameterDeess_meter,
+// kFaustParameterDuck_meter,
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class ReverbExpertPageWidget final : public ReferencePageWidget<Reference::CentralArea, Vertical>
+{
+    using R = Reference::CentralArea;
+    using BaseWidget = ReferencePageWidget<R, Vertical>;
+    using BaseWidget::BaseWidget;
+
+    const std::vector<std::shared_ptr<LabWidget>> fWidgets = {
+        addWidget<ReverbEarlyGroupWidget>(),
+        addWidget<ReverbTailGroupWidget>(),
+        addSpacer(),
+        addWidget<ReverbEarlyGroupWidget>(),
+    };
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class ReverbCentralAreaWidget final : public CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>
 {
     using BaseWidget = CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>;
     using BaseWidget::BaseWidget;
@@ -57,7 +132,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using ReverbMainArea = MainAreaContainerWidget<ReverbStageWidget>;
+using ReverbMainArea = MainAreaContainerWidget<ReverbCentralAreaWidget>;
 using ReverbRootWidget = RootWidget<TopBar, ReverbMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------

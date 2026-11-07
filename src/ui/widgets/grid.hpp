@@ -40,11 +40,6 @@ class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>,
     static_assert(R::width == 0, "grid must have 0 width, size is adjusted by its parent");
     static_assert(R::height == 0, "grid must have 0 height, size is adjusted by its parent");
 
-    static constexpr const float kAlphaIntensivityMain = 0.7f;
-    static constexpr const float kAlphaIntensivityMid = 0.45f;
-    static constexpr const float kAlphaIntensivityMinor = 0.3f;
-    static constexpr const float kAlphaIntensivityOther = 0.22f;
-
 public:
     explicit GridWidget(LabWidget* const parent,
                         const float min,
@@ -156,13 +151,13 @@ private:
                     switch (s)
                     {
                     case 0:
-                        alpha = kAlphaIntensivityMain;
+                        alpha = Reference::AlphaIntensivity::main;
                         break;
                     case 4:
-                        alpha = kAlphaIntensivityMid;
+                        alpha = Reference::AlphaIntensivity::mid;
                         break;
                     default:
-                        alpha = kAlphaIntensivityOther;
+                        alpha = Reference::AlphaIntensivity::other;
                         break;
                     }
 
@@ -221,7 +216,7 @@ private:
                                            x,
                                            y + yfade,
                                            R::color.withAlpha(0.f),
-                                           R::color.withAlpha(kAlphaIntensivityMinor)));
+                                           R::color.withAlpha(Reference::AlphaIntensivity::minor)));
                 stroke();
 
                 beginPath();
@@ -231,7 +226,7 @@ private:
                                            ey - yfade,
                                            x,
                                            ey,
-                                           R::color.withAlpha(kAlphaIntensivityMinor),
+                                           R::color.withAlpha(Reference::AlphaIntensivity::minor),
                                            R::color.withAlpha(0.f)));
                 stroke();
             }
@@ -272,7 +267,7 @@ private:
                                        sx + m.label.padding * m.label.padding,
                                        y,
                                        R::color.withAlpha(0.f),
-                                       R::color.withAlpha(isZero ? kAlphaIntensivityMid : kAlphaIntensivityMinor)));
+                                       R::color.withAlpha(isZero ? Reference::AlphaIntensivity::mid : Reference::AlphaIntensivity::minor)));
 
            #ifdef LIBREAUDIO_GRID_NO_DOTTED_LINE
             beginPath();
@@ -294,7 +289,7 @@ private:
                                        y,
                                        m.width - (sx - margin) * 0.5f,
                                        y,
-                                       R::color.withAlpha(isZero ? kAlphaIntensivityMid : kAlphaIntensivityMinor),
+                                       R::color.withAlpha(isZero ? Reference::AlphaIntensivity::mid : Reference::AlphaIntensivity::minor),
                                        R::color.withAlpha(0.f)));
 
            #ifdef LIBREAUDIO_GRID_NO_DOTTED_LINE

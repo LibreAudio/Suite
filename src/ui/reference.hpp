@@ -13,10 +13,22 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 struct Reference {
+    struct AlphaIntensivity {
+        static constexpr const float main = 0.7f;
+        static constexpr const float mid = 0.45f;
+        static constexpr const float minor = 0.3f;
+        static constexpr const float other = 0.22f;
+
+        static constexpr const float glow = mid;
+    };
+
     struct Common {
         static constexpr const float fontSize = 17;
         static constexpr const float letterSpacing = fontSize * 0.01;
-        static constexpr const uint margin = 12;
+        // static constexpr const uint margin = 12;
+
+        static constexpr const uint margin = 8;
+        static constexpr const uint padding = 6;
     };
 
     struct Colors {
@@ -29,12 +41,6 @@ struct Reference {
         static constexpr const Color acc4 { 0xd2, 0xfd, 0xd3 }; // green
         static constexpr const Color acc5 { 0xbe, 0xf1, 0xff }; // baby blue
         static constexpr const Color acc6 { 0xda, 0xc1, 0xf3 }; // pink
-        static constexpr const Color acc1Glow { acc1, 0.45f };
-        static constexpr const Color acc2Glow { acc2, 0.45f };
-        static constexpr const Color acc3Glow { acc3, 0.45f };
-        static constexpr const Color acc4Glow { acc4, 0.45f };
-        static constexpr const Color acc5Glow { acc5, 0.45f };
-        static constexpr const Color acc6Glow { acc6, 0.45f };
         // static constexpr const Color orange { 0xff, 0x7e, 0x1c };
         static constexpr const Color bg0 { 0x16, 0x16, 0x18 };
         static constexpr const Color bg1 { 0x1c, 0x1c, 0x20 };
@@ -43,7 +49,11 @@ struct Reference {
         // static constexpr const Color line { 0x2a, 0x2a, 0x30 };
         // static constexpr const Color line2 { 0x3b, 0x3b, 0x44 };
         static constexpr const Color line2 { 0x64, 0x64, 0x70 };
-        static constexpr const Color bracket { 0xd6, 0xd8, 0xdf, 0.30f };
+        static constexpr const Color bracket { 0xd6, 0xd8, 0xdf, AlphaIntensivity::minor };
+
+        static constexpr const Color borderColorDark { 0, 0, 0, AlphaIntensivity::other };
+        static constexpr const Color borderColorLight { 0xff, 0xff, 0xff, 0.06f };
+        static constexpr const Color borderColorLight〡hovered { 0xff, 0xff, 0xff, 0.15f };
 
         static constexpr const Color transparent { 0.f, 0.f, 0.f, 0.f };
     };
@@ -78,10 +88,10 @@ struct Reference {
     struct Window : Zero {
         static constexpr const Color backgroundGradientStart { 0x2c, 0x2c, 0x34 };
         static constexpr const Color backgroundGradientStop { 0x2a, 0x2a, 0x2f };
-        static constexpr const Color borderColor { 0, 0, 0, 0.35f };
+        static constexpr const Color borderColor { 0, 0, 0, AlphaIntensivity::minor };
         static constexpr const uint border = 1;
-        static constexpr const uint padding = Common::margin;
-        static constexpr const uint margin = Common::margin;
+        static constexpr const uint margin = 12;
+        static constexpr const uint padding = margin;
     };
 
     struct TopBar : Zero {
@@ -90,14 +100,12 @@ struct Reference {
     };
 
     struct MainArea : Zero {
-        static constexpr const Color backgroundColor = Colors::transparent;
-        static constexpr const Color borderColor = Colors::transparent;
-        static constexpr const uint padding = Common::margin;
+        static constexpr const uint padding = Window::padding;
     };
 
     struct IOMeter : Zero {
         static constexpr const Color backgroundColor = Colors::track;
-        static constexpr const Color borderColor { 0, 0, 0, 0.22f };
+        static constexpr const Color borderColor { 0, 0, 0, AlphaIntensivity::other };
         static constexpr const MouseCursor cursor = kMouseCursorUpDown;
         static constexpr const uint border = 1;
         static constexpr const uint borderRadius = 7;
@@ -106,8 +114,8 @@ struct Reference {
 
         struct Slider {
             static constexpr const Color color = Colors::acc1;
-            static constexpr const Color colorGradientStart = Colors::acc1Glow;
-            static constexpr const Color colorGradientStop { Colors::acc1Glow, 0.f };
+            static constexpr const Color colorGradientStart = { Colors::acc1, AlphaIntensivity::glow };
+            static constexpr const Color colorGradientStop { colorGradientStart, 0.f };
             static constexpr const uint height = 3;
         };
 
@@ -120,7 +128,7 @@ struct Reference {
 
         struct Track {
             static constexpr const Color colorGradientStart = Colors::acc1;
-            static constexpr const Color colorGradientStop = Colors::acc1Glow;
+            static constexpr const Color colorGradientStop = { colorGradientStart, AlphaIntensivity::glow };
             static constexpr const uint width = 9;
         };
 
@@ -140,9 +148,8 @@ struct Reference {
     };
 
     struct CentralArea : Zero {
-        static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const uint border = 1;
-        static constexpr const Color borderColor { 0, 0, 0, 0.22f };
+        static constexpr const Color borderColor { 0, 0, 0, AlphaIntensivity::other };
         static constexpr const uint borderRadius = 7;
         static constexpr const uint margin = Common::margin;
         static constexpr const uint padding = Common::margin;
@@ -154,12 +161,30 @@ struct Reference {
     };
 
     struct Widgets {
+        struct BoxFrame : Zero {
+            static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
+            static constexpr const Color borderColor = backgroundColor;
+            static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
+            static constexpr const Color borderShadowColor { 0, 0, 0, 0.12f };
+            static constexpr const uint border = 1;
+            static constexpr const uint borderRadius = 8;
+            static constexpr const uint margin = Common::margin;
+            static constexpr const uint padding = Common::padding;
+
+            // TESTING
+            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+            static constexpr const Point<int> shadowOffset = { 0, 5 };
+            // static constexpr const Size<int> shadowSize = { -6, -6 };
+            static constexpr const Size<int> shadowSize = { -12, -12 };
+            static constexpr const uint shadowFeather = 14;
+        };
+
         struct Card : Zero {
-            static constexpr const Color backgroundColor = { Colors::ink3, 0.3f };
-            static constexpr const Color backgroundColor〡selected = { Colors::acc5, 0.3f };
+            static constexpr const Color backgroundColor = { Colors::ink3, AlphaIntensivity::glow };
+            static constexpr const Color backgroundColor〡selected = { Colors::acc5, AlphaIntensivity::glow };
             static constexpr const Color borderColor = Colors::ink3;
             static constexpr const Color borderColor〡selected = Colors::acc5;
-            static constexpr const Color glowColor = Colors::acc5Glow;
+            static constexpr const Color glowColor { borderColor〡selected, AlphaIntensivity::glow };
             static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 11;
@@ -194,8 +219,8 @@ struct Reference {
             static constexpr const float letterSpacing = fontSize * 0.08f;
             struct Box : Zero {
                 static constexpr const Color backgroundColor = Colors::track;
-                static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
-                static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
+                static constexpr const Color borderColor = Colors::borderColorLight;
+                static constexpr const Color borderColor〡hovered = Colors::borderColorLight〡hovered;
                 static constexpr const uint border = 1;
                 static constexpr const uint borderRadius = 4;
                 static constexpr const float fontSize = CheckBox::fontSize;
@@ -218,8 +243,8 @@ struct Reference {
             static constexpr const float letterSpacing = fontSize * 0.08f;
             struct Box : Zero {
                 static constexpr const Color backgroundColor = Colors::track;
-                static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
-                static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
+                static constexpr const Color borderColor = Colors::borderColorLight;
+                static constexpr const Color borderColor〡hovered = Colors::borderColorLight〡hovered;
                 static constexpr const uint border = 1;
                 static constexpr const uint borderRadius = 4;
                 static constexpr const uint margin = ComboBox::padding;
@@ -357,8 +382,8 @@ struct Reference {
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
             // static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
-            static constexpr const Color borderColor = Color(1.f, 1.f, 1.f, 0.06f);
-            static constexpr const Color borderColor〡hovered = Color(1.f, 1.f, 1.f, 0.15f);
+            static constexpr const Color borderColor = Colors::borderColorLight;
+            static constexpr const Color borderColor〡hovered = Colors::borderColorLight〡hovered;
             static constexpr const Color insetShadingColor = Color(0.f, 0.f, 0.f, 0.55f);
             static constexpr const MouseCursor cursor = kMouseCursorUpDown;
             static constexpr const uint border = 1;
@@ -516,9 +541,20 @@ struct Reference {
     };
 
     // helpers
+    // template<Orientation orientation, uint size, class Base = Zero>
+    // struct AutoSize : Base {
+    //     static constexpr const uint width = orientation == Vertical ? size : 0;
+    //     static constexpr const uint height = orientation == Horizontal ? size : 0;
+    // };
+
     template<uint _height, class Base = Zero>
     struct Height : Base {
         static constexpr const uint height = _height;
+    };
+
+    template<uint _margin, class Base = Zero>
+    struct Margin : Base {
+        static constexpr const uint margin = _margin;
     };
 
     template<uint _padding, class Base = Zero>
@@ -534,9 +570,16 @@ struct Reference {
     template<class Base>
     struct Transparent : Base {
         static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color backgroundColor〡checked = Colors::transparent;
+        static constexpr const Color backgroundColor〡disabled = Colors::transparent;
+        static constexpr const Color backgroundColor〡hover = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
         static constexpr const Color borderHighlightColor = Colors::transparent;
         static constexpr const Color borderShadowColor = Colors::transparent;
+        static constexpr const Color color = Colors::transparent;
+        static constexpr const Color color〡checked = Colors::transparent;
+        static constexpr const Color color〡disabled = Colors::transparent;
+        static constexpr const Color color〡hover = Colors::transparent;
         static constexpr const Color shadowColor = Colors::transparent;
     };
 

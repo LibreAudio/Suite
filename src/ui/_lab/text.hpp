@@ -64,4 +64,16 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<class R, const std::string_view& text>
+class LabReferenceStaticTextViewWidget : public LabReferenceTextWidget<R>
+{
+    using BaseWidget = LabReferenceTextWidget<R>;
+
+public:
+    explicit LabReferenceStaticTextViewWidget(LabWidget* const parent)
+        : BaseWidget(parent, text.data()) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 END_NAMESPACE_DGL
