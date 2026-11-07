@@ -7,6 +7,7 @@
 #include "../_lab/button.hpp"
 #include "../_lab/metrics.hpp"
 
+#include "../reference/parameter-button.hpp"
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -37,12 +38,12 @@ struct CheckBoxMetrics : LabMetrics<R> {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::CheckBox<>::height>
-class CheckBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::CheckBox<kAccentColor, height>>,
+class CheckBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor, height>>,
                              private ButtonEventHandler::Callback,
                              private IdleCallback
 {
     using R = Reference::Widgets::CheckBox<kAccentColor, height>;
-    using BaseWidget = ParameterReferenceButtonWidget<R, kCornerAuto>;
+    using BaseWidget = ReferenceParameterButtonWidget<R, kCornerAuto>;
     using State = typename BaseWidget::State;
 
 public:

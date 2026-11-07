@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../_lab/knob.hpp"
+#include "../_lab/parameter.hpp"
 #include "../_lab/metrics.hpp"
 
 #include "../reference.hpp"
@@ -16,11 +16,11 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class FloatingLineSliderWidget final : public LabKnobWidget,
+class FloatingLineSliderWidget final : public LabParameterWidget,
                                        public GraphInterface
 {
     using R = Reference::Widgets::FloatingLineSlider;
-    using BaseWidget = LabKnobWidget;
+    using BaseWidget = LabParameterWidget;
 
     static_assert(R::width == 0, "floating line slider must have 0 width, size is adjusted by its parent");
     static_assert(R::height == 0, "floating line slider must have 0 height, size is adjusted by its parent");
@@ -58,7 +58,7 @@ public:
         DISTRHO_SAFE_ASSERT_RETURN(start < max,);
 
         fPaddedMinimum = (start - min) / (max - min);
-        LabKnobWidget::setRange(start, max);
+        LabParameterWidget::setRange(start, max);
     }
 
 private:

@@ -5,30 +5,27 @@
 #pragma once
 
 #include "../_lab/button.hpp"
-#include "../_lab/button-group.hpp"
 
 #include "../reference.hpp"
-
-#include "las-resources.h"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LabCardWidget : public ReferenceButtonWidget<Reference::Widgets::Card, kCornerBoth>
+class CardWidget : public LabReferenceButtonWidget<Reference::Widgets::Card, kCornerBoth>
 {
     using R = Reference::Widgets::Card;
-    using BaseWidget = ReferenceButtonWidget<R, kCornerBoth>;
+    using BaseWidget = LabReferenceButtonWidget<R, kCornerBoth>;
 
 public:
-    explicit LabCardWidget(LabWidget* const parent, const uint id, const char* const subtitle)
+    explicit CardWidget(LabWidget* const parent, const uint id, const char* const subtitle)
         : BaseWidget(parent, id),
           fSubtitle(subtitle)
     {
         BaseWidget::updateSize(false);
     }
 
-    explicit LabCardWidget(LabWidget* const parent, const uint id, const char* const title, const char* const subtitle)
+    explicit CardWidget(LabWidget* const parent, const uint id, const char* const title, const char* const subtitle)
         : BaseWidget(parent, id),
           fSubtitle(subtitle)
     {
@@ -118,50 +115,6 @@ private:
             drawReferenceBorder<R, R::glowColor>();
         else
             drawReferenceBorder<R, R::borderColor>();
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-class CardGroupWidget : public ReferenceButtonGroupWidget<Reference::Widgets::CardGroup>
-{
-    using R = Reference::Widgets::CardGroup;
-    using BaseWidget = ReferenceButtonGroupWidget<R>;
-
-public:
-    explicit CardGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-    }
-
-    std::shared_ptr<LabCardWidget> addCard(const uint id, const char* const title, const char* const subtitle)
-    {
-        return BaseWidget::addButton<LabCardWidget, Expanding>(id, title, subtitle);
-    }
-
-private:
-    void updateSize(const bool updateChildren) final
-    {
-        DISTRHO_SAFE_ASSERT(updateChildren);
-
-        // update children size first
-        BaseWidget::updateSize(true);
-
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-        uint cardsHeight;
-
-        if constexpr (R::height != 0)
-            cardsHeight = d_roundToUnsignedInt(R::height * fScaleFactor);
-        else if (! fWidgets.empty())
-            cardsHeight = fWidgets.front()->getHeight();
-        else
-            cardsHeight = d_roundToUnsignedInt(fScaleFactor);
-
-        LabWidget::setHeight((border + margin) * 2 + cardsHeight);
-
-        // update everything else
-        LabWidget::updateSize(updateChildren);
     }
 };
 

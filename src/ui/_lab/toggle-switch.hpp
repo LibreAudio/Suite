@@ -12,15 +12,15 @@ START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ToggleSwitchBaseWidget : public LabWidget,
-                               public ButtonEventHandler,
-                               private ButtonEventHandler::Callback,
-                               private IdleCallback
+class LabToggleSwitchBaseWidget : public LabWidget,
+                                  public ButtonEventHandler,
+                                  private ButtonEventHandler::Callback,
+                                  private IdleCallback
 {
     using BaseWidget = LabWidget;
 
 public:
-    explicit ToggleSwitchBaseWidget(LabWidget* const parent, const uint id, const char* const name)
+    explicit LabToggleSwitchBaseWidget(LabWidget* const parent, const uint id, const char* const name)
         : BaseWidget(parent),
           ButtonEventHandler(this)
     {
@@ -76,18 +76,18 @@ private:
 // reference button widget class
 
 template<class R>
-class ReferenceToggleSwitchWidget : public ToggleSwitchBaseWidget
+class LabReferenceToggleSwitchWidget : public LabToggleSwitchBaseWidget
 {
+    using BaseWidget = LabToggleSwitchBaseWidget;
+
     static_assert(R::fontSize != 0, "Font size must not be 0");
     static_assert(R::width != 0, "Switch width must be provided");
     static_assert(R::height != 0, "Switch height must be provided");
     static_assert(R::Switch::width != 0, "Switch inner width must be provided");
     static_assert(R::Switch::height != 0, "Switch inner height must be provided");
 
-    using BaseWidget = ToggleSwitchBaseWidget;
-
 public:
-    explicit ReferenceToggleSwitchWidget(LabWidget* const parent, const uint id, const char* const name)
+    explicit LabReferenceToggleSwitchWidget(LabWidget* const parent, const uint id, const char* const name)
         : BaseWidget(parent, id, name)
     {
         updateReferenceSize<R>();

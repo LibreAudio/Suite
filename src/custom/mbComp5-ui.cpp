@@ -125,10 +125,10 @@ inline constexpr const char* kBandLabels[kNumBands] = {
 };
 
 template<uint8_t band>
-class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5BandGroupReference<band>, Vertical>
+class MbComp5BandGroupWidget final : public LabReferenceContainerWidget<MbComp5BandGroupReference<band>, Vertical>
 {
     using R = MbComp5BandGroupReference<band>;
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
     using BaseWidget::BaseWidget;
 
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
@@ -167,14 +167,14 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
 
-    class HeaderWidget final : public ReferenceContainerWidget<typename R::Header, Horizontal>
+    class HeaderWidget final : public LabReferenceContainerWidget<typename R::Header, Horizontal>
     {
         using HR = typename R::Header;
-        using BaseWidget = ReferenceContainerWidget<HR, Horizontal>;
+        using BaseWidget = LabReferenceContainerWidget<HR, Horizontal>;
         using BaseWidget::BaseWidget;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-            this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
+            this->template addWidget<LabReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
             this->template addWidget<SoloMuteGroupWidget>(),
         };
 
@@ -188,10 +188,10 @@ public:
     // ----------------------------------------------------------------------------------------------------------------
     // body: number-boxes stack + meter
 
-    class BodyWidget final : public ReferenceContainerWidget<typename R::Body, Horizontal>
+    class BodyWidget final : public LabReferenceContainerWidget<typename R::Body, Horizontal>
     {
         using BR = typename R::Body;
-        using BaseWidget = ReferenceContainerWidget<BR, Horizontal>;
+        using BaseWidget = LabReferenceContainerWidget<BR, Horizontal>;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             this->template addWidget<NumberBoxStackWidget, Expanding>(),
@@ -214,9 +214,9 @@ public:
             static_cast<MeterWidget*>(widgets.back().get())->setLinkedParameters(linked);
         }
 
-        class NumberBoxStackWidget final : public ReferenceContainerWidget<typename BR::NumberBoxes, Vertical>
+        class NumberBoxStackWidget final : public LabReferenceContainerWidget<typename BR::NumberBoxes, Vertical>
         {
-            const std::array<std::shared_ptr<LabKnobWidget>, 5> widgets {
+            const std::array<std::shared_ptr<LabParameterWidget>, 5> widgets {
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
                 this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
@@ -226,7 +226,7 @@ public:
 
         public:
             using NBR = typename BR::NumberBoxes;
-            using BaseWidget = ReferenceContainerWidget<NBR, Vertical>;
+            using BaseWidget = LabReferenceContainerWidget<NBR, Vertical>;
             using NumberBoxWidgetR = NumberBoxWidget<kAccentColor>;
 
             explicit NumberBoxStackWidget(LabWidget* const parent)
@@ -235,7 +235,7 @@ public:
                 std::vector<uint32_t> linked;
                 linked.reserve(kNumBands);
 
-                for (std::shared_ptr<LabKnobWidget> knob : widgets)
+                for (std::shared_ptr<LabParameterWidget> knob : widgets)
                 {
                     const uint32_t offset = (knob->getId() - kFirstIdInBand) % kNumParamsPerBand;
                     linked.clear();
@@ -305,7 +305,7 @@ using MbComp5ExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct MbComp5StageReference : Reference::Stage {
+struct MbComp5CentralAreaReference : Reference::CentralArea {
     struct GridLabel {
         static constexpr const Color color { 140, 142, 150 };
         static constexpr const float fontSize = 10.f;
@@ -320,7 +320,7 @@ struct MbComp5StageReference : Reference::Stage {
     };
 };
 
-class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>
+class MbComp5CentralAreaWidget : public CentralAreaWidget<EasyPageWidget, MbComp5ExpertPageWidget>
 {
     static constexpr const float kCrossoverFreqMin = kFaustParameters[kFaustParameterXover1].min;
     static constexpr const float kCrossoverFreqMax = kFaustParameters[kFaustParameterXover4].max;
@@ -344,8 +344,8 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
     };
 
 public:
-    using R = MbComp5StageReference;
-    using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
+    using R = MbComp5CentralAreaReference;
+    using BaseWidget = CentralAreaWidget<EasyPageWidget, MbComp5ExpertPageWidget>;
     using BaseWidget::BaseWidget;
 
 private:
@@ -774,7 +774,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using MbComp5MainArea = MainAreaContainerWidget<MbComp5StageWidget>;
+using MbComp5MainArea = MainAreaContainerWidget<MbComp5CentralAreaWidget>;
 using MbComp5RootWidget = RootWidget<TopBar, MbComp5MainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------

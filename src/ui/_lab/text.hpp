@@ -5,18 +5,19 @@
 #pragma once
 
 #include "base.hpp"
+#include "metrics.hpp"
 
 START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R>
-class ReferenceTextWidget : public LabReferenceWidget<R>
+class LabReferenceTextWidget : public LabReferenceWidget<R>
 {
     using BaseWidget = LabReferenceWidget<R>;
 
 public:
-    explicit ReferenceTextWidget(LabWidget* const parent, const char* const text)
+    explicit LabReferenceTextWidget(LabWidget* const parent, const char* const text)
         : BaseWidget(parent),
           fText(text)
     {
@@ -35,16 +36,15 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        const uint margin2x = d_roundToUnsignedInt(R::margin * this->fScaleFactor) * 2;
+        const LabMetrics<R, uint> m { this };
 
         Rectangle<float> bounds;
-        BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
+        BaseWidget::fontSize(m.fontSize);
         BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
-        BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
+        BaseWidget::textLetterSpacing(m.letterSpacing);
         BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
 
-        BaseWidget::setSize(/*bounds.getX() +*/ bounds.getWidth() + margin2x,
-                            /*bounds.getY() +*/ bounds.getHeight() + margin2x);
+        BaseWidget::setSize(bounds.getWidth() + m.margin * 2, bounds.getHeight() + m.margin * 2);
 
         BaseWidget::updateSize(updateChildren);
     }
@@ -53,12 +53,12 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, const char text[]>
-class ReferenceStaticTextWidget : public ReferenceTextWidget<R>
+class LabReferenceStaticTextWidget : public LabReferenceTextWidget<R>
 {
-    using BaseWidget = ReferenceTextWidget<R>;
+    using BaseWidget = LabReferenceTextWidget<R>;
 
 public:
-    explicit ReferenceStaticTextWidget(LabWidget* const parent)
+    explicit LabReferenceStaticTextWidget(LabWidget* const parent)
         : BaseWidget(parent, text) {}
 };
 

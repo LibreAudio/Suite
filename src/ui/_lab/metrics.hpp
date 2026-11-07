@@ -9,28 +9,39 @@
 // --------------------------------------------------------------------------------------------------------------------
 // metrics class that calculates and stores all reference sizes, adjusted for scale factor
 
-template<class R>
+template<class R, typename RType = float>
 struct LabMetrics {
     const float s;
-    const float width;
-    const float height;
-    const float border;
-    const float borderRadius;
+    const RType width;
+    const RType height;
+    const RType border;
+    const RType borderRadius;
+    const RType margin;
+    const RType padding;
     const float fontSize;
     const float letterSpacing;
-    const float margin;
-    const float padding;
 
     explicit LabMetrics(const LabWidget* const widget)
         : s(widget->getScaleFactor()),
-          width(/*R::width != 0 ? d_roundToIntPositive(R::width * s) :*/ widget->getWidth()),
-          height(/*R::height != 0 ? d_roundToIntPositive(R::height * s) :*/ widget->getHeight()),
+          width(widget->getWidth()),
+          height(widget->getHeight()),
           border(d_roundToIntPositive(R::border * s)),
           borderRadius(d_roundToIntPositive(R::borderRadius * s)),
-          fontSize(R::fontSize * s),
-          letterSpacing(R::letterSpacing * s),
           margin(d_roundToIntPositive(R::margin * s)),
-          padding(d_roundToIntPositive(R::padding * s)) {}
+          padding(d_roundToIntPositive(R::padding * s)),
+          fontSize(R::fontSize * s),
+          letterSpacing(R::letterSpacing * s) {}
+
+    explicit LabMetrics(const LabTopLevelWidget* const widget)
+        : s(widget->getScaleFactor()),
+          width(widget->getWidth()),
+          height(widget->getHeight()),
+          border(d_roundToIntPositive(R::border * s)),
+          borderRadius(d_roundToIntPositive(R::borderRadius * s)),
+          margin(d_roundToIntPositive(R::margin * s)),
+          padding(d_roundToIntPositive(R::padding * s)),
+          fontSize(R::fontSize * s),
+          letterSpacing(R::letterSpacing * s) {}
 
     template<class R2>
     explicit LabMetrics(const LabMetrics<R2>& m)
@@ -39,10 +50,10 @@ struct LabMetrics {
           height(d_roundToIntPositive(R::height * s)),
           border(d_roundToIntPositive(R::border * s)),
           borderRadius(d_roundToIntPositive(R::borderRadius * s)),
-          fontSize(R::fontSize * s),
-          letterSpacing(R::letterSpacing * s),
           margin(d_roundToIntPositive(R::margin * s)),
-          padding(d_roundToIntPositive(R::padding * s)) {}
+          padding(d_roundToIntPositive(R::padding * s)),
+          fontSize(R::fontSize * s),
+          letterSpacing(R::letterSpacing * s) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

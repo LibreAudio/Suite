@@ -40,7 +40,7 @@ struct SizeHintWidgetPair {
 // transparent container widget class
 
 template<Orientation orientation>
-using TransparentContainerWidget = ReferenceContainerWidget<Reference::Zero, orientation>;
+using TransparentContainerWidget = LabReferenceContainerWidget<Reference::Zero, orientation>;
 
 using TransparentHorizontalContainerWidget = TransparentContainerWidget<Horizontal>;
 using TransparentVerticalContainerWidget = TransparentContainerWidget<Vertical>;
@@ -49,7 +49,7 @@ using TransparentVerticalContainerWidget = TransparentContainerWidget<Vertical>;
 // transparent container widget class with a known padding
 
 template<Orientation orientation, uint padding>
-using TransparentPaddedContainerWidget = ReferenceContainerWidget<Reference::Padding<padding>, orientation>;
+using TransparentPaddedContainerWidget = LabReferenceContainerWidget<Reference::Padding<padding>, orientation>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // transparent container widget class with a known size (width or height depending on orientation)
@@ -61,16 +61,16 @@ using TransparentSizedContainerReference = std::conditional_t<orientation == Hor
                                                               Reference::Width<size>>;
 
 template<Orientation orientation, uint size>
-using TransparentSizedContainerWidget = ReferenceContainerWidget<TransparentSizedContainerReference<orientation, size>,
+using TransparentSizedContainerWidget = LabReferenceContainerWidget<TransparentSizedContainerReference<orientation, size>,
                                                                  orientation>;
 
 // --------------------------------------------------------------------------------------------------------------------
 // extend the reference container to provide `addParameterWidgetPair`
 
 template<class R, Orientation orientation>
-class ParameterReferenceContainerWidget : public ReferenceContainerWidget<R, orientation>
+class ParameterReferenceContainerWidget : public LabReferenceContainerWidget<R, orientation>
 {
-    using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using BaseWidget = LabReferenceContainerWidget<R, orientation>;
     using Layout = typename BaseWidget::Layout;
     using BaseWidget::BaseWidget;
 
@@ -98,9 +98,9 @@ protected:
 // utility class to allow inline definitions of container widgets
 
 template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
-class StaticContainerWidget : public ReferenceContainerWidget<R, orientation>
+class StaticContainerWidget : public LabReferenceContainerWidget<R, orientation>
 {
-    using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using BaseWidget = LabReferenceContainerWidget<R, orientation>;
     using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
@@ -109,9 +109,9 @@ class StaticContainerWidget : public ReferenceContainerWidget<R, orientation>
 };
 
 template<class R, Orientation orientation, typename... Args>
-class StaticContainerPairWidget : public ReferenceContainerWidget<R, orientation>
+class StaticContainerPairWidget : public LabReferenceContainerWidget<R, orientation>
 {
-    using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using BaseWidget = LabReferenceContainerWidget<R, orientation>;
     using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
@@ -147,21 +147,15 @@ class StaticParameterContainerPairWidget : public ParameterReferenceContainerWid
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, typename... Args>
-class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Vertical>
+class StaticBottomAlignedContainerWidget : public LabReferenceContainerWidget<R, Vertical>
 {
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
     using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, 1 + sizeof...(Args)> widgets {
         BaseWidget::addSpacer(),
         this->template addWidget<Args, Fixed>()...
     };
-
-public:
-    uint getLastWidgetHeight() const noexcept
-    {
-        return widgets.back()->getHeight();
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

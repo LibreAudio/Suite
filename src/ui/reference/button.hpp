@@ -1,0 +1,206 @@
+// Libre Audio Suite
+// Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#pragma once
+
+#include "../_lab/button.hpp"
+
+namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Corner corner, const uchar* imageData, uint imageDataSize>
+class ImageButtonWidget : public LabReferenceButtonWidget<R, corner>
+{
+    using BaseWidget = LabReferenceButtonWidget<R, corner>;
+
+    static constexpr const int imageScale = 2;
+
+public:
+    explicit ImageButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id)
+    {
+        updateSize(false);
+    }
+
+protected:
+    void onNanoDisplay() override
+    {
+        BaseWidget::onNanoDisplay();
+
+        drawColoredImage(BaseWidget::getForegroundColor());
+    }
+
+    void drawColoredImage(const Color& color)
+    {
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
+
+        BaseWidget::save();
+        BaseWidget::globalTint(color);
+
+        BaseWidget::beginPath();
+        BaseWidget::rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
+        BaseWidget::fillPaint(BaseWidget::imagePattern((w - fImageWidth) * 0.5,
+                                                       (h - fImageHeight) * 0.5,
+                                                       fImageWidth,
+                                                       fImageHeight,
+                                                       0.f,
+                                                       fImage,
+                                                       1.f));
+        BaseWidget::fill();
+
+        BaseWidget::restore();
+    }
+
+private:
+    const NanoImage fImage { NanoVG::createImageFromMemory(imageData, imageDataSize, NanoVG::IMAGE_GENERATE_MIPMAPS) };
+    double fImageWidth;
+    double fImageHeight;
+
+    void updateSize(const bool updateChildren) final
+    {
+        fImageWidth = fImage.getWidth() * this->fScaleFactor / imageScale;
+        fImageHeight = fImage.getHeight() * this->fScaleFactor / imageScale;
+
+        // buttons are always grouped horizontally
+        if constexpr (R::width == 0)
+        {
+            const uint margin = d_roundToUnsignedInt((R::border + R::margin) * this->fScaleFactor);
+            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
+        }
+
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size>
+class DualImageButtonWidget : public LabReferenceButtonWidget<R, corner>
+{
+    using BaseWidget = LabReferenceButtonWidget<R, corner>;
+
+    static constexpr const int imageScale = 2;
+
+public:
+    explicit DualImageButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id)
+    {
+        BaseWidget::setCheckable(true);
+
+        updateSize(false);
+    }
+
+private:
+    const NanoImage fImage1 { NanoVG::createImageFromMemory(image1Data, imageData1Size, NanoVG::IMAGE_GENERATE_MIPMAPS) };
+    const NanoImage fImage2 { NanoVG::createImageFromMemory(image2Data, imageData2Size, NanoVG::IMAGE_GENERATE_MIPMAPS) };
+    double fImageWidth;
+    double fImageHeight;
+
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+
+        drawColoredImage(BaseWidget::getForegroundColor());
+    }
+
+    void drawColoredImage(const Color& color)
+    {
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
+
+        BaseWidget::save();
+        BaseWidget::globalTint(color);
+
+        BaseWidget::beginPath();
+        BaseWidget::rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
+        BaseWidget::fillPaint(BaseWidget::imagePattern((w - fImageWidth) * 0.5,
+                               (h - fImageHeight) * 0.5,
+                               fImageWidth,
+                               fImageHeight,
+                               0.f,
+                               BaseWidget::isChecked() ? fImage1 : fImage2,
+                               1.f));
+        BaseWidget::fill();
+
+        BaseWidget::restore();
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        fImageWidth = fImage1.getWidth() * this->fScaleFactor / imageScale;
+        fImageHeight = fImage1.getHeight() * this->fScaleFactor / imageScale;
+
+        // buttons are always grouped horizontally
+        if constexpr (R::width == 0)
+        {
+            const uint margin = (R::border + R::margin) * this->fScaleFactor;
+            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
+        }
+
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Corner corner, Orientation orientation = Horizontal>
+class TextButtonWidget : public LabReferenceButtonWidget<R, corner>
+{
+    using BaseWidget = LabReferenceButtonWidget<R, corner>;
+
+public:
+    explicit TextButtonWidget(LabWidget* const parent, const uint id, const char* const text)
+        : BaseWidget(parent, id),
+          fText(text)
+    {
+        updateSize(false);
+    }
+
+private:
+    const char* const fText;
+
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+
+        BaseWidget::template drawReferenceText<R>(fText);
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        const uint margin = d_roundToUnsignedInt(R::margin * this->fScaleFactor) * 2;
+
+        Rectangle<float> bounds;
+        BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
+        BaseWidget::textAlign(0);
+        BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
+        BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
+
+        if constexpr (orientation == Horizontal)
+            BaseWidget::setWidth(bounds.getWidth() + margin);
+        else
+            BaseWidget::setHeight(bounds.getHeight() + margin);
+
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<class R, Corner corner, const char _text[]>
+class StaticTextButtonWidget : public TextButtonWidget<R, corner>
+{
+    using BaseWidget = TextButtonWidget<R, corner>;
+
+public:
+    explicit StaticTextButtonWidget(LabWidget* const parent, const uint id)
+        : BaseWidget(parent, id, _text) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+} /* namespace LibreAudio */
+

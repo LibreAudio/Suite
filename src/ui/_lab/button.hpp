@@ -12,13 +12,13 @@ START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ButtonBaseWidget : public LabWidget,
-                         public ButtonEventHandler
+class LabButtonBaseWidget : public LabWidget,
+                            public ButtonEventHandler
 {
     using BaseWidget = LabWidget;
 
 public:
-    explicit ButtonBaseWidget(LabWidget* const parent)
+    explicit LabButtonBaseWidget(LabWidget* const parent)
         : BaseWidget(parent),
           ButtonEventHandler(this) {}
 
@@ -42,12 +42,12 @@ private:
 // reference button widget class
 
 template<class R, Corner corner>
-class ReferenceButtonWidget : public ButtonBaseWidget
+class LabReferenceButtonWidget : public LabButtonBaseWidget
 {
-    using BaseWidget = ButtonBaseWidget;
+    using BaseWidget = LabButtonBaseWidget;
 
 public:
-    explicit ReferenceButtonWidget(LabWidget* const parent, const uint id)
+    explicit LabReferenceButtonWidget(LabWidget* const parent, const uint id)
         : BaseWidget(parent)
     {
         setId(id);

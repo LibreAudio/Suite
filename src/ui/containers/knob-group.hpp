@@ -27,15 +27,15 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class KnobWidget = SmallKnobWidget, uint kMaxNumParameters = 5>
-class KnobGroupWidget : public ReferenceContainerWidget<Reference::Widgets::KnobGroup>,
+class KnobGroupWidget : public LabReferenceContainerWidget<Reference::Widgets::KnobGroup, Horizontal>,
                         private IdleCallback
 {
     using R = Reference::Widgets::KnobGroup;
-    using BaseWidget = ReferenceContainerWidget<R>;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
     std::list<std::shared_ptr<KnobWidget>> fKnobs;
-    std::list<std::shared_ptr<ButtonBaseWidget>> fButtons;
-    std::list<std::shared_ptr<ToggleSwitchBaseWidget>> fToggles;
+    std::list<std::shared_ptr<LabButtonBaseWidget>> fButtons;
+    std::list<std::shared_ptr<LabToggleSwitchBaseWidget>> fToggles;
     std::list<std::shared_ptr<LabWidget>> fSpacers;
 
     struct Bracket {
@@ -76,7 +76,7 @@ public:
 
             if (parameter.isEnumerator && parameter.scalePointCount == 2)
             {
-                std::unique_ptr<ToggleSwitchBaseWidget> widget { new ToggleSwitchWidget<4, kMaxNumParameters == 2>(this, indexOffset + i, parameter) };
+                std::unique_ptr<LabToggleSwitchBaseWidget> widget { new ToggleSwitchWidget<4, kMaxNumParameters == 2>(this, indexOffset + i, parameter) };
                 widgets.push_back({ widget.get(), Fixed });
                 if (widget->getSize().isNull())
                     d_stderr2("Error: addToggle called but widget '%s' does not have a known size", widget->getName());
@@ -84,7 +84,7 @@ public:
             }
             else if (parameter.isEnumerator)
             {
-                std::unique_ptr<ButtonBaseWidget> widget { new ComboBoxWidget(this, static_cast<FaustParameterIndex>(indexOffset + i)) };
+                std::unique_ptr<LabButtonBaseWidget> widget { new ComboBoxWidget(this, static_cast<FaustParameterIndex>(indexOffset + i)) };
                 widgets.push_back({ widget.get(), Fixed });
                 if (widget->getSize().isNull())
                     d_stderr2("Error: addComboBox called but widget '%s' does not have a known size", widget->getName());
@@ -164,18 +164,18 @@ public:
             }
         }
 
-        for (const std::shared_ptr<ButtonBaseWidget>& widget : fButtons)
+        for (const std::shared_ptr<LabButtonBaseWidget>& widget : fButtons)
         {
-            if (ButtonBaseWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
+            if (LabButtonBaseWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
             {
                 widgetPtr->setEnabled(enabled, false);
                 break;
             }
         }
 
-        for (const std::shared_ptr<ToggleSwitchBaseWidget>& widget : fToggles)
+        for (const std::shared_ptr<LabToggleSwitchBaseWidget>& widget : fToggles)
         {
-            if (ToggleSwitchBaseWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
+            if (LabToggleSwitchBaseWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
             {
                 widgetPtr->setEnabled(enabled, false);
                 break;
@@ -194,7 +194,7 @@ public:
             }
         }
 
-        for (const std::shared_ptr<ButtonBaseWidget>& widget : fButtons)
+        for (const std::shared_ptr<LabButtonBaseWidget>& widget : fButtons)
         {
             if (LabWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
             {
@@ -203,7 +203,7 @@ public:
             }
         }
 
-        for (const std::shared_ptr<ToggleSwitchBaseWidget>& widget : fToggles)
+        for (const std::shared_ptr<LabToggleSwitchBaseWidget>& widget : fToggles)
         {
             if (LabWidget* const widgetPtr = widget.get(); widgetPtr->getId() == id)
             {
@@ -330,7 +330,7 @@ private:
                 break;
             }
         }
-        for (const std::shared_ptr<ButtonBaseWidget>& widget : fButtons)
+        for (const std::shared_ptr<LabButtonBaseWidget>& widget : fButtons)
         {
             if (LabWidget* const widgetPtr = widget.get(); widgetPtr->isVisible())
             {
@@ -338,7 +338,7 @@ private:
                 break;
             }
         }
-        for (const std::shared_ptr<ToggleSwitchBaseWidget>& widget : fToggles)
+        for (const std::shared_ptr<LabToggleSwitchBaseWidget>& widget : fToggles)
         {
             if (LabWidget* const widgetPtr = widget.get(); widgetPtr->isVisible())
             {
@@ -467,10 +467,10 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EasyKnobsGroupWidget final : public ReferenceContainerWidget<Reference::Widgets::KnobGroup>
+class EasyKnobsGroupWidget final : public LabReferenceContainerWidget<Reference::Widgets::KnobGroup, Horizontal>
 {
     using R = Reference::Widgets::KnobGroup;
-    using BaseWidget = ReferenceContainerWidget<R>;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
 public:
     explicit EasyKnobsGroupWidget(LabWidget* const parent)
@@ -484,7 +484,7 @@ public:
             if (! parameter.isEasy) {
                 continue;
             }
-            std::shared_ptr<LabKnobWidget> widget { new EasyKnobWidget(this, parameter, kParametersMainStart + i) };
+            std::shared_ptr<LabParameterWidget> widget { new EasyKnobWidget(this, parameter, kParametersMainStart + i) };
             widgets.push_back({ widget.get(), Fixed });
             fKnobs.emplace_back(std::move(widget));
         }
@@ -497,7 +497,7 @@ public:
     void addWidget() = delete;
 
 private:
-    std::list<std::shared_ptr<LabKnobWidget>> fKnobs;
+    std::list<std::shared_ptr<LabParameterWidget>> fKnobs;
     std::list<std::shared_ptr<LabWidget>> fSpacers;
 
     void updateSize(const bool updateChildren) final
@@ -527,10 +527,10 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ExpertKnobsGroupWidget final : public ReferenceContainerWidget<Reference::Widgets::KnobGroup>
+class ExpertKnobsGroupWidget final : public LabReferenceContainerWidget<Reference::Widgets::KnobGroup, Horizontal>
 {
     using R = Reference::Widgets::KnobGroup;
-    using BaseWidget = ReferenceContainerWidget<R>;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
 public:
     explicit ExpertKnobsGroupWidget(LabWidget* const parent)

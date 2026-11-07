@@ -4,49 +4,49 @@
 
 #pragma once
 
-#include "stage.hpp"
+#include "central-area.hpp"
 #if LIBREAUDIO_WANT_COMMON_IO
-#include "../widgets/gain-meter.hpp"
+#include "../widgets/io-meter.hpp"
 #endif
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class ReferenceStageWidget = StageWidget<>>
-class MainAreaContainerWidget : public ReferenceContainerWidget<Reference::MainArea>
+template<class CentralAreaWidget = CentralAreaWidget<>>
+class MainAreaContainerWidget : public LabReferenceContainerWidget<Reference::MainArea, Horizontal>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::MainArea>;
+    using BaseWidget = LabReferenceContainerWidget<Reference::MainArea, Horizontal>;
     using BaseWidget::BaseWidget;
 
 public:
-    using StageWidget = ReferenceStageWidget;
+    using CentralArea = CentralAreaWidget;
 
-    [[nodiscard]] Point<int> getMainAreaAbsolutePos() const noexcept
+    [[nodiscard]] Point<int> getCentralAreaAbsolutePos() const noexcept
     {
-        return fStage->getAbsolutePos();
+        return fCentralArea->getAbsolutePos();
     }
 
-    [[nodiscard]] Size<uint> getMainAreaSize() const noexcept
+    [[nodiscard]] Size<uint> getCentralAreaSize() const noexcept
     {
-        return fStage->getSize();
+        return fCentralArea->getSize();
     }
 
-    [[nodiscard]] float getMainAreaBorderRadius() const noexcept
+    [[nodiscard]] float getCentralAreaBorderRadius() const noexcept
     {
-        return fStage->getBorderRadius();
+        return fCentralArea->getBorderRadius();
     }
 
-    const std::shared_ptr<StageWidget>& getStageWidget() const noexcept
+    const std::shared_ptr<CentralAreaWidget>& getCentralAreaWidget() const noexcept
     {
-        return fStage;
+        return fCentralArea;
     }
 
 private:
    #if LIBREAUDIO_WANT_COMMON_IO
     const std::shared_ptr<LabWidget> fInputMeter = addWidget<GainMeterWidget<Input>>();
    #endif
-    const std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
+    const std::shared_ptr<CentralAreaWidget> fCentralArea = addWidget<CentralAreaWidget, Expanding>();
    #if LIBREAUDIO_WANT_COMMON_IO
     const std::shared_ptr<LabWidget> fOutputMeter = addWidget<GainMeterWidget<Output>>();
    #endif

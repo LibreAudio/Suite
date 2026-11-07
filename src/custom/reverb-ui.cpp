@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui/containers/central-area.hpp"
 #include "ui/containers/main-area.hpp"
-#include "ui/containers/stage.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
 
@@ -36,17 +36,17 @@ using ReverbExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ReverbStageWidget final : public StageWidget<EasyStageWidget, ReverbExpertPageWidget>
+class ReverbStageWidget final : public CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>
 {
-    using BaseWidget = StageWidget<EasyStageWidget, ReverbExpertPageWidget>;
+    using BaseWidget = CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>;
     using BaseWidget::BaseWidget;
 
 public:
     Size<uint> getGraphSize() const noexcept final
     {
-        const LabMetrics<R> m { this };
+        const LabMetrics<R, uint> m { this };
 
-        const float space = m.margin + m.border + m.padding + (
+        const uint space = m.margin + m.border + m.padding + (
             fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
                                    : getExpertWidget()->getLastWidgetHeight()
         );

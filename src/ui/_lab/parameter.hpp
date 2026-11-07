@@ -13,10 +13,10 @@ START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LabKnobWidget : public LabWidget,
-                      public KnobEventHandler,
-                      protected IdleCallback,
-                      protected KnobEventHandler::Callback
+class LabParameterWidget : public LabWidget,
+                           public KnobEventHandler,
+                           protected IdleCallback,
+                           protected KnobEventHandler::Callback
 {
     static constexpr const float kMouseDeceleration = 500.f;
     static constexpr const Modifier kGroupModifier = kModifierAlt; // Option
@@ -28,7 +28,7 @@ class LabKnobWidget : public LabWidget,
     static constexpr const Modifier kSlowModifier = kModifierShift;
 
 public:
-    explicit LabKnobWidget(LabWidget* const parent, const uint32_t id)
+    explicit LabParameterWidget(LabWidget* const parent, const uint32_t id)
         : LabWidget(parent),
           KnobEventHandler(this)
     {

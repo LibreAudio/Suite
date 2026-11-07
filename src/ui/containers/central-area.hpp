@@ -4,135 +4,28 @@
 
 #pragma once
 
-#include "../base.hpp"
-#include "../widgets/card.hpp"
+#include "../pages/easy.hpp"
+#include "../pages/expert.hpp"
+
+// #include "../base.hpp"
+// #include "../widgets/card.hpp"
 #include "../widgets/fft-waveform.hpp"
-#include "../widgets/pill-toggle.hpp"
-#include "knob-group.hpp"
+// #include "../widgets/pill-toggle.hpp"
+// #include "knob-group.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, Vertical>
+template<class EasyPageWidget = EasyPageWidget, class ExpertPageWidget = ExpertPageWidget>
+class CentralAreaWidget : public LabReferenceWidget<Reference::CentralArea>,
+                          protected IdleCallback
 {
-    using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
-    using BaseWidget::BaseWidget;
-
-    const std::vector<std::shared_ptr<LabWidget>> fWidgets = {
-        addSpacer(),
-        addWidget<EasyKnobsGroupWidget>(),
-        addSpacer(),
-        addCards(),
-    };
-
-    std::shared_ptr<LabWidget> addCards()
-    {
-        std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
-
-        widget->addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening");
-        widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
-        widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
-        widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
-
-        Layout::widgets.push_back({ widget.get(), Fixed });
-        return widget;
-    }
-
-#if 0
-    void onNanoDisplay() final
-    {
-        // drawReferenceBackground<R>();
-
-        const float w = getWidth();
-        const float h = getHeight();
-
-        // TODO move to layer 2
-
-        beginPath();
-
-        if constexpr (R::borderRadius != 0)
-            roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
-        else
-            rect(0, 0, w, h);
-
-        fillPaint(linearGradient(0,
-                                 h - h * 0.4f,
-                                 0,
-                                 h - h * 0.2f,
-                                 Reference::Colors::transparent,
-                                 Color(0.f, 0.f, 0.f, 0.2f)));
-        fill();
-
-        drawReferenceBorder<R>();
-    }
-#endif
-
 public:
-    uint getLastWidgetHeight() const noexcept
-    {
-        return fWidgets.back()->getHeight();
-    }
-};
+    using R = Reference::CentralArea;
 
-// --------------------------------------------------------------------------------------------------------------------
-
-class ExpertStageWidget final : public ReferenceContainerWidget<Reference::Stage, Vertical>
-{
-    using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
-    using BaseWidget::BaseWidget;
-
-    const std::vector<std::shared_ptr<LabWidget>> _ = {
-        addWidget<PillAreaWidget<>>(),
-        addSpacer(),
-        addWidget<ExpertKnobsGroupWidget>(),
-    };
-
-#if 0
 private:
-    void onNanoDisplay() final
-    {
-        const float w = getWidth();
-        const float h = getHeight();
-
-        // ------------------------------------------------------------------------------------------------------------
-        // draw background and border
-
-        beginPath();
-
-        if constexpr (R::borderRadius != 0)
-            roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
-        else
-            rect(0, 0, w, h);
-
-        // if constexpr (d_isNotZero(R::backgroundColor.alpha))
-        // {
-        //     fillColor(R::backgroundColor);
-        //     fill();
-        // }
-
-        fillPaint(linearGradient(0,
-                                 h - h * 0.4f,
-                                 0,
-                                 h - h * 0.2f,
-                                 Reference::Colors::transparent,
-                                 Color(0.f, 0.f, 0.f, 0.2f)));
-        fill();
-
-        drawReferenceBorder<R>();
-    }
-#endif
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<class EasyPageWidget = EasyStageWidget, class ExpertPageWidget = ExpertStageWidget>
-class StageWidget : public LabWidget,
-                    protected IdleCallback
-{
-    using BaseWidget = LabWidget;
+    using BaseWidget = LabReferenceWidget<R>;
 
     const std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
     const std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
@@ -141,13 +34,13 @@ class StageWidget : public LabWidget,
     std::list<std::shared_ptr<LabWidget>> fGraphWidgets;
 
 public:
-    StageWidget(LabWidget* const parent)
+    CentralAreaWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         fExpert->hide();
 
-        if constexpr (std::is_same_v<EasyPageWidget, EasyStageWidget> &&
-                      std::is_same_v<ExpertPageWidget, ExpertStageWidget>)
+        if constexpr (std::is_same_v<EasyPageWidget, LibreAudio::EasyPageWidget> &&
+                      std::is_same_v<ExpertPageWidget, LibreAudio::ExpertPageWidget>)
             fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
 
         addIdleCallback(this);
@@ -168,14 +61,7 @@ public:
         return fWaveform;
     }
 
-    [[nodiscard]] float getBorderRadius() const noexcept
-    {
-        return R::borderRadius * fScaleFactor;
-    }
-
 protected:
-    using R = Reference::Stage;
-
     Page fLastPage = kPageEasy;
 
     template<class W,

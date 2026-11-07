@@ -22,14 +22,19 @@ class WaveformWidget final : public LabWidget,
                             #endif
                              private IdleCallback
 {
-    using R = Reference::Stage;
-
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     static constexpr const uint32_t kTextureSize = kNumSamplePointsForWaveform;
    #else
     static constexpr const uint32_t kTextureSize = 1;
+   #endif
+
+    // TODO rework smoothness handling
+   #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    static constexpr const uint kUsableTextureSize = kTextureSize - 7;
+   #else
+    static constexpr const uint kUsableTextureSize = kTextureSize;
    #endif
 
     // static_assert(R::width == 0, "waveform must have 0 width, size is adjusted by its parent");
@@ -161,7 +166,8 @@ private:
     {
         fPendingDisplay = false;
 
-        const LabMetrics<R> m { this };
+        // FIXME
+        const LabMetrics<Reference::CentralArea> m { this };
 
         const float w = m.width - m.border * 2;
         const float h = m.height - m.border * 2;
@@ -172,11 +178,11 @@ private:
         beginPath();
         moveTo(m.border, m.border + h);
 
-        for (uint i = 0; i < kTextureSize - 7; ++i)
+        for (uint i = 0; i < kUsableTextureSize; ++i)
         {
             const uint j = (i + head + 11) % kTextureSize;
             const float db = fTextureData[j];
-            const float x = float(i) / (kTextureSize - 7) * w;
+            const float x = float(i) / kUsableTextureSize * w;
 
             if (db <= fBottom)
                 y = h;
@@ -214,7 +220,8 @@ private:
    #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
     void onNanoFramebufferDisplay() final
     {
-        const LabMetrics<R> m { this };
+        // FIXME
+        const LabMetrics<Reference::CentralArea> m { this };
 
         const float w = m.width - m.border * 2;
         const float h = m.height - m.border * 2;
@@ -231,11 +238,11 @@ private:
         float lastx = 0.f;
         float y;
         int acc = 1;
-        for (uint i = 0; i < kTextureSize - 7; ++i)
+        for (uint i = 0; i < kUsableTextureSize; ++i)
         {
             const uint j = (i + head + 11) % kTextureSize;
             const float db = fTextureDataParam[j];
-            const float pc = float(i) / (kTextureSize - 7);
+            const float pc = float(i) / kUsableTextureSize;
             const float x = pc * w;
 
             if (db <= fBottom)

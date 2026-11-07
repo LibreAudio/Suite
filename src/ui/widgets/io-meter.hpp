@@ -4,17 +4,17 @@
 
 #pragma once
 
-#include "../_lab/knob.hpp"
+#include "../_lab/parameter.hpp"
 
-#include "DistrhoPluginInfo.h"
-
-#if ! LIBREAUDIO_WANT_COMMON_IO
-#error Cannot include this file for plugins without common IO
-#endif
+// #include "DistrhoPluginInfo.h"
 
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
+
+#if ! LIBREAUDIO_WANT_COMMON_IO
+#error Cannot include this file for plugins without common IO
+#endif
 
 namespace LibreAudio {
 
@@ -26,10 +26,10 @@ enum MeterWidgetType : bool {
 };
 
 template<MeterWidgetType type>
-class GainMeterWidget final : public LabKnobWidget
+class GainMeterWidget final : public LabParameterWidget
 {
-    using R = Reference::GainMeter;
-    using BaseWidget = LabKnobWidget;
+    using R = Reference::IOMeter;
+    using BaseWidget = LabParameterWidget;
 
     static constexpr const uint kParameterIdMeterL = type == Input
         ? kParametersInputStart + common_input::kFaustParameterInput_peak_l

@@ -43,7 +43,7 @@ class UI : public LibreAudioBaseUI
    #endif
 
     using MainAreaWidget = typename RootWidget::MainAreaWidget;
-    using StageWidget = typename MainAreaWidget::StageWidget;
+    using CentralAreaWidget = typename MainAreaWidget::CentralArea;
 
 public:
    #ifdef SHADER_PLUGIN
@@ -66,8 +66,8 @@ public:
 
         root->enableShaders(shaders);
         const std::shared_ptr<MainAreaWidget> mainArea = root->getMainAreaWidget();
-        const std::shared_ptr<StageWidget> stage = mainArea->getStageWidget();
-        fWaveform = stage->getWaveformWidget();
+        const std::shared_ptr<CentralAreaWidget> centralArea = mainArea->getCentralAreaWidget();
+        fWaveform = centralArea->getWaveformWidget();
     }
 
 private:

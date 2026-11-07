@@ -75,7 +75,7 @@ struct Reference {
         static constexpr const uint width = 0;
     };
 
-    struct Window {
+    struct Window : Zero {
         static constexpr const Color backgroundGradientStart { 0x2c, 0x2c, 0x34 };
         static constexpr const Color backgroundGradientStop { 0x2a, 0x2a, 0x2f };
         static constexpr const Color borderColor { 0, 0, 0, 0.35f };
@@ -95,7 +95,7 @@ struct Reference {
         static constexpr const uint padding = Common::margin;
     };
 
-    struct GainMeter : Zero {
+    struct IOMeter : Zero {
         static constexpr const Color backgroundColor = Colors::track;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const MouseCursor cursor = kMouseCursorUpDown;
@@ -139,7 +139,7 @@ struct Reference {
         };
     };
 
-    struct Stage : Zero {
+    struct CentralArea : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
@@ -148,18 +148,9 @@ struct Reference {
         static constexpr const uint padding = Common::margin;
     };
 
-    struct TransparentStage : Zero {
-        static constexpr const uint padding = Common::margin;
-    };
-
-    struct OpaqueStage : Stage {
-        static constexpr const Color backgroundColor { 0x1a, 0x1b, 0x1f };
-    };
-
-    struct OpaqueSmallStage : OpaqueStage {
-        static constexpr const Color backgroundColor { 0x1a, 0x1b, 0x1f };
-        static constexpr const uint margin = OpaqueStage::margin / 2;
-        static constexpr const uint padding = 0;
+    struct PillTogglesArea : Zero {
+        static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color borderColor = Colors::transparent;
     };
 
     struct Widgets {
@@ -257,6 +248,52 @@ struct Reference {
             };
         };
 
+        struct EasyKnob : Zero {
+            static constexpr const Color backgroundColor = Colors::transparent;
+            static constexpr const Color borderColor = Colors::transparent;
+            // static constexpr const Color color = { 0xff, 0xff, 0xff };
+            static constexpr const uint height = (68 + 20) * 2;
+            static constexpr const uint width = 68 * 2;
+            struct Name {
+                static constexpr const Color color = Colors::acc1;
+                static constexpr const float fontSize = 23;
+                static constexpr const float letterSpacing = Common::letterSpacing;
+                // text-shadow
+            };
+            struct Value {
+                static constexpr const Color color = Colors::ink2;
+                static constexpr const float fontSize = 20;
+                // font-mono
+            };
+            struct Unit {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const float fontSize = 19;
+                static constexpr const float letterSpacing = fontSize * 0.02f;
+                // font-ui
+            };
+        };
+
+        struct FloatingLineSlider : Zero {
+            static constexpr const MouseCursor cursor = kMouseCursorUpDown;
+            static constexpr const float fontSize = 14.f;
+            static constexpr const float letterSpacing = 1.f;
+            static constexpr const uint margin = 4;
+            static constexpr const uint padding = 7;
+        };
+
+        struct Grid : Zero {
+            // static constexpr const Color color = Color(0x64, 0x64, 0x70);
+            static constexpr const Color color = Colors::line2;
+            struct Label : Zero {
+                static constexpr const Color color = Colors::ink3;
+                static constexpr const float fontSize = 10.f;
+                static constexpr const float letterSpacing = 0.f;
+                static constexpr const uint margin = 2;
+                static constexpr const uint padding = 4;
+                // font-mono
+            };
+        };
+
         struct Knob : Zero {
             static constexpr const Color backgroundColor = Colors::transparent;
             static constexpr const Color borderColor = Colors::transparent;
@@ -279,6 +316,21 @@ struct Reference {
                 static constexpr const Color color = Colors::ink2;
                 static constexpr const float fontSize = 15;
                 // font-mono
+            };
+        };
+
+        struct KnobGroup : Zero {
+            static constexpr const Color backgroundColor = Colors::transparent;
+            static constexpr const Color borderColor = Colors::transparent;
+            static constexpr const uint margin = Common::margin;
+            struct Bracket {
+                static constexpr const Color color = Colors::bracket;
+                static constexpr const float fontSize = 15;
+                static constexpr const float letterSpacing = fontSize * 0.01;
+                static constexpr const uint height = 10;
+                static constexpr const uint margin = 0;
+                static constexpr const uint padding = 6;
+                static constexpr const uint width = 1;
             };
         };
 
@@ -341,80 +393,6 @@ struct Reference {
             static constexpr const float letterSpacing = fontSize * 0.05;
         };
 
-        struct SmallKnob : Zero {
-            static constexpr const uint height = 50 + 18;
-            static constexpr const uint width = 50;
-            struct Name : Knob::Name {};
-            struct Unit : Knob::Unit {};
-            struct Value : Knob::Value {};
-        };
-
-        struct EasyKnob : Zero {
-            static constexpr const Color backgroundColor = Colors::transparent;
-            static constexpr const Color borderColor = Colors::transparent;
-            // static constexpr const Color color = { 0xff, 0xff, 0xff };
-            static constexpr const uint height = (68 + 20) * 2;
-            static constexpr const uint width = 68 * 2;
-            struct Name {
-                static constexpr const Color color = Colors::acc1;
-                static constexpr const float fontSize = 23;
-                static constexpr const float letterSpacing = Common::letterSpacing;
-                // text-shadow
-            };
-            struct Value {
-                static constexpr const Color color = Colors::ink2;
-                static constexpr const float fontSize = 20;
-                // font-mono
-            };
-            struct Unit {
-                static constexpr const Color color = Colors::ink3;
-                static constexpr const float fontSize = 19;
-                static constexpr const float letterSpacing = fontSize * 0.02f;
-                // font-ui
-            };
-        };
-
-        struct FloatingLineSlider : Zero {
-            static constexpr const MouseCursor cursor = kMouseCursorUpDown;
-            static constexpr const float fontSize = 14.f;
-            static constexpr const float letterSpacing = 1.f;
-            static constexpr const uint margin = 4;
-            static constexpr const uint padding = 7;
-        };
-
-        struct Grid : Zero {
-            // static constexpr const Color color = Color(0x64, 0x64, 0x70);
-            static constexpr const Color color = Colors::line2;
-            struct Label : Zero {
-                static constexpr const Color color = Colors::ink3;
-                static constexpr const float fontSize = 10.f;
-                static constexpr const float letterSpacing = 0.f;
-                static constexpr const uint margin = 2;
-                static constexpr const uint padding = 4;
-                // font-mono
-            };
-        };
-
-        struct KnobGroup : Zero {
-            static constexpr const Color backgroundColor = Colors::transparent;
-            static constexpr const Color borderColor = Colors::transparent;
-            static constexpr const uint margin = Common::margin;
-            struct Bracket {
-                static constexpr const Color color = Colors::bracket;
-                static constexpr const float fontSize = 15;
-                static constexpr const float letterSpacing = fontSize * 0.01;
-                static constexpr const uint height = 10;
-                static constexpr const uint margin = 0;
-                static constexpr const uint padding = 6;
-                static constexpr const uint width = 1;
-            };
-        };
-
-        struct PillArea : Zero {
-            static constexpr const Color backgroundColor = Colors::transparent;
-            static constexpr const Color borderColor = Colors::transparent;
-        };
-
         struct PillToggle : Zero {
             static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
             static constexpr const Color borderColor = { backgroundColor, 0.04f };
@@ -440,6 +418,14 @@ struct Reference {
                 static constexpr const uint height = 26;
                 static constexpr const uint margin = 3;
             };
+        };
+
+        struct SmallKnob : Zero {
+            static constexpr const uint height = 50 + 18;
+            static constexpr const uint width = 50;
+            struct Name : Knob::Name {};
+            struct Unit : Knob::Unit {};
+            struct Value : Knob::Value {};
         };
 
         template<const Color& kAccentColor = Colors::acc1>
@@ -564,13 +550,13 @@ struct Reference {
     };
 };
 
-static_assert(Reference::GainMeter::width == (
-    Reference::GainMeter::border +
-    Reference::GainMeter::margin +
-    Reference::GainMeter::Track::width) * 2, "incorrect meter size");
+static_assert(Reference::IOMeter::width == (
+    Reference::IOMeter::border +
+    Reference::IOMeter::margin +
+    Reference::IOMeter::Track::width) * 2, "incorrect meter size");
 
-static_assert(Reference::GainMeter::Tick::width == (
-        Reference::GainMeter::width - (Reference::GainMeter::border + Reference::GainMeter::margin) * 2
+static_assert(Reference::IOMeter::Tick::width == (
+        Reference::IOMeter::width - (Reference::IOMeter::border + Reference::IOMeter::margin) * 2
     ), "incorrect meter tick size");
 
 // --------------------------------------------------------------------------------------------------------------------

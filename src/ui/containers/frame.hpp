@@ -5,10 +5,11 @@
 #pragma once
 
 #include "ui/containers/knob-group.hpp"
-#include "ui/widgets/button.hpp"
+#include "ui/containers/pill-toggles-area.hpp"
+#include "ui/reference/button.hpp"
+// #include "ui/widgets/button.hpp"
 #include "ui/widgets/dual-slider.hpp"
 #include "ui/widgets/number-box.hpp"
-#include "ui/widgets/pill-toggle.hpp"
 
 #include LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE
 
@@ -17,9 +18,9 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R>
-class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, Vertical>
+class FrameContainerReferenceWidget : public LabReferenceContainerWidget<R, Vertical>
 {
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
     using Layout = typename BaseWidget::Layout;
     using BaseWidget::BaseWidget;
 

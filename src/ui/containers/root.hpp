@@ -20,9 +20,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class RootBaseWidget : public ReferenceRootWidget<Reference::Window, Vertical>
+class RootBaseWidget : public LabReferenceRootWidget<Reference::Window, Vertical>
 {
-    using BaseWidget = ReferenceRootWidget<Reference::Window, Vertical>;
+    using BaseWidget = LabReferenceRootWidget<Reference::Window, Vertical>;
 
 public:
     RootBaseWidget(Window& window, LabUIWidgetInterface* const iface)
@@ -74,9 +74,9 @@ protected:
     {
         RootBaseWidget::updateSize(updateChildren);
 
-        const Point<int> pos = fMainArea->getMainAreaAbsolutePos();
-        const Size<uint> size = fMainArea->getMainAreaSize();
-        const float borderRadius = fMainArea->getMainAreaBorderRadius();
+        const Point<int> pos = fMainArea->getCentralAreaAbsolutePos();
+        const Size<uint> size = fMainArea->getCentralAreaSize();
+        const float borderRadius = fMainArea->getCentralAreaBorderRadius();
 
         for (const std::shared_ptr<ShaderWidgetInterface>& sw : fShaders)
         {

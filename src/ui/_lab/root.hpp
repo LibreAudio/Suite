@@ -86,10 +86,10 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R, Orientation orientation>
-class ReferenceRootWidget : public ReferenceContainerTopLevelWidget<R, orientation>,
-                            public LabRootWidgetInterface
+class LabReferenceRootWidget : public LabReferenceContainerTopLevelWidget<R, orientation>,
+                               public LabRootWidgetInterface
 {
-    using BaseWidget = ReferenceContainerTopLevelWidget<R, orientation>;
+    using BaseWidget = LabReferenceContainerTopLevelWidget<R, orientation>;
     using CharacterInputEvent = typename BaseWidget::CharacterInputEvent;
     using KeyboardEvent = typename BaseWidget::KeyboardEvent;
     using MouseEvent = typename BaseWidget::MouseEvent;

@@ -12,14 +12,14 @@ START_NAMESPACE_DGL
 // --------------------------------------------------------------------------------------------------------------------
 
 template <class R>
-class ReferenceButtonGroupWidget : public ReferenceContainerWidget<R>,
-                                   protected IdleCallback,
-                                   private ButtonEventHandler::Callback
+class LabReferenceButtonGroupWidget : public LabReferenceContainerWidget<R, Horizontal>,
+                                      protected IdleCallback,
+                                      private ButtonEventHandler::Callback
 {
-    using BaseWidget = ReferenceContainerWidget<R>;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
 public:
-    explicit ReferenceButtonGroupWidget(LabWidget* const parent)
+    explicit LabReferenceButtonGroupWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         BaseWidget::addIdleCallback(this);
@@ -29,7 +29,7 @@ protected:
     template<class B,
              SizeHint sizeHint = Fixed,
              typename... Args,
-             typename = std::enable_if_t<std::is_base_of_v<ButtonBaseWidget, B>>>
+             typename = std::enable_if_t<std::is_base_of_v<LabButtonBaseWidget, B>>>
     std::shared_ptr<B> addButton(const uint id, const char* const name, Args... args)
     {
         std::shared_ptr<B> widget { new B(this, id, args...) };
@@ -44,18 +44,18 @@ protected:
         return widget;
     }
 
-    template<class W>
+    template<class W, SizeHint sizeHint = Expanding>
     void addSpacer() = delete;
 
     template<class W, SizeHint sizeHint = Fixed, typename... Args>
     void addWidget(Args... args) = delete;
 
 protected:
-    std::list<std::shared_ptr<ButtonBaseWidget>> fWidgets;
+    std::list<std::shared_ptr<LabButtonBaseWidget>> fWidgets;
 
     void idleCallback() override
     {
-        for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
+        for (const std::shared_ptr<LabButtonBaseWidget>& widget : fWidgets)
             checkButtonState(widget);
     }
 
@@ -63,21 +63,19 @@ protected:
     {
         DISTRHO_SAFE_ASSERT(updateChildren);
 
+        const LabMetrics<R, uint> m { this };
+
         // update children size first
         BaseWidget::updateSize(true);
 
         // set width and height
-        const uint border = d_roundToUnsignedInt(R::border * this->fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * this->fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(R::padding * this->fScaleFactor);
-
-        uint width = (border + margin) * 2;
+        uint width = (m.border + m.margin) * 2;
 
         if (const uint numWidgets = fWidgets.size())
         {
-            width += padding * (numWidgets - 1);
+            width += m.padding * (numWidgets - 1);
 
-            for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
+            for (const std::shared_ptr<LabButtonBaseWidget>& widget : fWidgets)
                 width += widget->getWidth();
         }
 
@@ -101,14 +99,14 @@ private:
         }
         else
         {
-            const float value = static_cast<ButtonBaseWidget*>(widget)->isChecked() ? 1.f : 0.f;
+            const float value = static_cast<LabButtonBaseWidget*>(widget)->isChecked() ? 1.f : 0.f;
             this->fInterface->parameterControlPressed(id);
             this->fInterface->parameterControlModified(id, value);
             this->fInterface->parameterControlReleased(id);
         }
     }
 
-    void checkButtonState(const std::shared_ptr<ButtonBaseWidget>& widget)
+    void checkButtonState(const std::shared_ptr<LabButtonBaseWidget>& widget)
     {
         const uint id = widget->getId();
 

@@ -6,6 +6,7 @@
 
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/ui.hpp"
+#include "ui/reference/button.hpp"
 #include "ui/widgets/button.hpp"
 #include "ui/widgets/number-box.hpp"
 
@@ -69,9 +70,9 @@ private:
     }
 };
 
-class SaturatorTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
+class SaturatorTopBarWidget : public LabReferenceContainerWidget<ReferenceTopBar, Horizontal>
 {
-    using BaseWidget = ReferenceContainerWidget<ReferenceTopBar>;
+    using BaseWidget = LabReferenceContainerWidget<ReferenceTopBar, Horizontal>;
     using BaseWidget::BaseWidget;
 
     std::array<std::shared_ptr<LabWidget>, 11> widgets {

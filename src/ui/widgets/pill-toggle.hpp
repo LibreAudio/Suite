@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "../_lab/button.hpp"
 #include "../_lab/container.hpp"
 #include "../_lab/interface.hpp"
 
-#include "../widgets/button.hpp"
+#include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -15,10 +16,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class BackgroundPillToggleCellWidget final : public ReferenceButtonWidget<Reference::Widgets::PillToggle::Cell, kCornerBoth>
+class BackgroundPillToggleCellWidget final : public LabReferenceButtonWidget<Reference::Widgets::PillToggle::Cell, kCornerBoth>
 {
     using R = Reference::Widgets::PillToggle::Cell;
-    using BaseWidget = ReferenceButtonWidget<Reference::Widgets::PillToggle::Cell, kCornerBoth>;
+    using BaseWidget = LabReferenceButtonWidget<Reference::Widgets::PillToggle::Cell, kCornerBoth>;
 
 public:
     explicit BackgroundPillToggleCellWidget(LabWidget* const parent, const uint id, const char* const label)
@@ -63,12 +64,12 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 
 template <SizeHint sizeHint>
-class PillToggleWidget : public ReferenceContainerWidget<Reference::Widgets::PillToggle>,
+class PillToggleWidget : public LabReferenceContainerWidget<Reference::Widgets::PillToggle, Horizontal>,
                          private ButtonEventHandler::Callback,
                          private IdleCallback
 {
     using R = Reference::Widgets::PillToggle;
-    using BaseWidget = ReferenceContainerWidget<R>;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
     std::list<std::unique_ptr<BackgroundPillToggleCellWidget>> fCells;
 
@@ -195,97 +196,6 @@ private:
 
         // update everything else
         BaseWidget::updateSize(false);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<uint kMaxNumToggles = 2>
-class PillAreaWidget : public ReferenceContainerWidget<Reference::Widgets::PillArea>
-{
-    using R = Reference::Widgets::PillArea;
-    using BaseWidget = ReferenceContainerWidget<R>;
-
-    std::list<std::unique_ptr<LabWidget>> fToggles;
-    std::list<std::unique_ptr<LabWidget>> fSpacers;
-
-public:
-    explicit PillAreaWidget(LabWidget* const parent, const uint32_t parameterStart = 0)
-        : BaseWidget(parent)
-    {
-        uint8_t numPills = 0;
-        for (uint32_t i = parameterStart, count = std::size(kFaustParameters); i < count && numPills < kMaxNumToggles; ++i)
-        {
-            const FaustParameter& parameter = kFaustParameters[i];
-            if (! parameter.isEnumerator || parameter.isOutput) {
-                d_stdout("pill area skipped parameter %s", parameter.label);
-                continue;
-            }
-            ++numPills;
-        }
-
-        if constexpr (kMaxNumToggles != 1)
-        {
-            if (numPills == 1)
-                addSpacer();
-        }
-
-        static constexpr const SizeHint sizeHint = kMaxNumToggles == 1 ? Expanding : Fixed;
-
-        for (uint32_t i = parameterStart, count = std::size(kFaustParameters); i < count && fToggles.size() < kMaxNumToggles; ++i)
-        {
-            const FaustParameter& parameter = kFaustParameters[i];
-            if (! parameter.isEnumerator || parameter.isOutput) {
-                d_stdout("pill area skipped parameter %s", parameter.label);
-                continue;
-            }
-            d_stdout("using pill for parameter %s", parameter.label);
-            std::unique_ptr<LabWidget> widget { new PillToggleWidget<sizeHint>(this, parameter, kParametersMainStart + i) };
-            widgets.push_back({ widget.get(), sizeHint });
-            fToggles.emplace_back(std::move(widget));
-
-            if (numPills == 2)
-            {
-                numPills = 0;
-                addSpacer();
-            }
-        }
-
-        if constexpr (kMaxNumToggles != 1)
-        {
-            if (numPills == 1)
-                addSpacer();
-        }
-
-        updateSize(true);
-    }
-
-private:
-    void addSpacer()
-    {
-        std::unique_ptr<LabWidget> spacer { new LabEmptyWidget(this) };
-        widgets.push_back({ spacer.get(), Expanding });
-        fSpacers.emplace_back(std::move(spacer));
-    }
-
-    void addWidget() = delete;
-
-    void updateSize(const bool updateChildren) final
-    {
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-        uint pillHeight;
-
-        if constexpr (R::height != 0)
-            pillHeight = d_roundToUnsignedInt(R::height * fScaleFactor);
-        else if (! fToggles.empty())
-            pillHeight = fToggles.front()->getHeight();
-        else
-            pillHeight = d_roundToUnsignedInt(fScaleFactor);
-
-        LabWidget::setHeight((border + margin) * 2 + pillHeight);
-
-        BaseWidget::updateSize(updateChildren);
     }
 };
 

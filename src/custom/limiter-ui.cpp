@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui/containers/combo-box-group.hpp"
 #include "ui/containers/container.hpp"
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
@@ -104,7 +105,7 @@ class LimiterPresetCardsWidget : public CardGroupWidget
 {
     using CardGroupWidget::CardGroupWidget;
 
-    const std::array<std::shared_ptr<LabCardWidget>, 4> cards = {
+    const std::array<std::shared_ptr<CardWidget>, 4> cards = {
         addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
         addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
         addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
@@ -131,10 +132,10 @@ using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>,
+class LimiterStageWidget final : public CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>,
                                  private ButtonEventHandler::Callback
 {
-    using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
+    using BaseWidget = CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
     using ButtonWidget = TextButtonWidget<Reference::Height<30, Reference::Widgets::TopBarButton>, kCornerNone>;
 
     static constexpr const FaustParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];

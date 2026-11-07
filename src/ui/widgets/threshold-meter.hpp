@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../_lab/knob.hpp"
+#include "../_lab/parameter.hpp"
 
 #include "../reference.hpp"
 
@@ -15,9 +15,9 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template <class R = Reference::Widgets::ThresholdMeter<>>
-class ThresholdMeterWidget final : public LabKnobWidget
+class ThresholdMeterWidget final : public LabParameterWidget
 {
-    using BaseWidget = LabKnobWidget;
+    using BaseWidget = LabParameterWidget;
 
     static constexpr const float ticks[] = { -6, -12, -24, -36, -48 };
 

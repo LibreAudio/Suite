@@ -5,233 +5,64 @@
 #pragma once
 
 #include "../_lab/button.hpp"
-#include "../reference.hpp"
-
-#include "LibreAudioParameters.hpp"
 
 #include "las-resources.h"
 
 namespace LibreAudio {
 
-// --------------------------------------------------------------------------------------------------------------------
+#if 0
 
-template<class R, Corner corner = kCornerAuto>
-class ParameterReferenceButtonWidget : public ReferenceButtonWidget<R, corner>
-{
-    using BaseWidget = ReferenceButtonWidget<R, corner>;
-
-public:
-    explicit ParameterReferenceButtonWidget(LabWidget* const parent, const FaustParameterIndex index)
-        : BaseWidget(parent, kParametersMainStart + index),
-          fParameter(kFaustParameters[index])
-    {
-        BaseWidget::setName(fParameter.name);
-
-        if (fParameter.isBoolean)
-        {
-            DISTRHO_SAFE_ASSERT(d_isZero(fParameter.min));
-            DISTRHO_SAFE_ASSERT(d_isNotZero(fParameter.max));
-
-            BaseWidget::setCheckable(true);
-            BaseWidget::setChecked(d_isNotZero(fParameter.init), false);
-        }
-    }
-
-protected:
-    const FaustParameter& fParameter;
-};
+inline constexpr const char kTextA[] = "A";
+inline constexpr const char kTextB[] = "B";
+inline constexpr const char kTextC[] = "C";
+inline constexpr const char kTextD[] = "D";
+inline constexpr const char kTextEasy[] = "Easy";
+inline constexpr const char kTextExpert[] = "Expert";
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class R, Corner corner, const uchar* imageData, uint imageDataSize>
-class ImageButtonWidget : public ReferenceButtonWidget<R, corner>
-{
-    using BaseWidget = ReferenceButtonWidget<R, corner>;
+template<Corner kCorner, const uchar* kImageData, uint kImageDataSize>
+using TopBarBypassButtonWidget = ImageButtonWidget<Reference::Widgets::TopBarButton〡Bypass, kCorner, kImageData, kImageDataSize>;
 
-    static constexpr const int imageScale = 2;
+template<Corner kCorner, const uchar* kImageData, uint kImageDataSize>
+using TopBarImageButtonWidget = ImageButtonWidget<Reference::Widgets::TopBarButton, kCorner, kImageData, kImageDataSize>;
 
-public:
-    explicit ImageButtonWidget(LabWidget* const parent, const uint id)
-        : BaseWidget(parent, id)
-    {
-        updateSize(false);
-    }
+template<Corner kCorner, const uchar* kImageData, uint kImageDataSize, const uchar* kImageData2, uint kImageDataSize2>
+using TopBarDualImageButtonWidget = DualImageButtonWidget<Reference::Widgets::TopBarButton〡Bypass, kCorner, kImageData, kImageDataSize>;
 
-protected:
-    void onNanoDisplay() override
-    {
-        BaseWidget::onNanoDisplay();
+    // template<Corner corner, const uchar* imageData, uint imageDataSize, const uchar* imageData2, uint imageDataSize2>
+    // using DualButton = DualImageButtonWidget<Reference::Widgets::TopBarButton, corner, imageData, imageDataSize, imageData2, imageDataSize2>;
 
-        drawColoredImage(BaseWidget::getForegroundColor());
-    }
-
-    void drawColoredImage(const Color& color)
-    {
-        const float w = BaseWidget::getWidth();
-        const float h = BaseWidget::getHeight();
-
-        BaseWidget::save();
-        BaseWidget::globalTint(color);
-
-        BaseWidget::beginPath();
-        BaseWidget::rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
-        BaseWidget::fillPaint(BaseWidget::imagePattern((w - fImageWidth) * 0.5,
-                                                       (h - fImageHeight) * 0.5,
-                                                       fImageWidth,
-                                                       fImageHeight,
-                                                       0.f,
-                                                       fImage,
-                                                       1.f));
-        BaseWidget::fill();
-
-        BaseWidget::restore();
-    }
-
-private:
-    const NanoImage fImage { NanoVG::createImageFromMemory(imageData, imageDataSize, NanoVG::IMAGE_GENERATE_MIPMAPS) };
-    double fImageWidth;
-    double fImageHeight;
-
-    void updateSize(const bool updateChildren) final
-    {
-        fImageWidth = fImage.getWidth() * this->fScaleFactor / imageScale;
-        fImageHeight = fImage.getHeight() * this->fScaleFactor / imageScale;
-
-        // buttons are always grouped horizontally
-        if constexpr (R::width == 0)
-        {
-            const uint margin = d_roundToUnsignedInt((R::border + R::margin) * this->fScaleFactor);
-            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
-        }
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
+template<Corner kCorner, const char* kText>
+using TopBarStaticTextButtonWidget = StaticTextButtonWidget<Reference::Widgets::TopBarButton, kCorner, kText>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class R, Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size>
-class DualImageButtonWidget : public ReferenceButtonWidget<R, corner>
-{
-    using BaseWidget = ReferenceButtonWidget<R, corner>;
+template<Corner kCorner>
+using TopBarUndoButtonWidget = TopBarButtonWidget<kCorner, IMAGES_UNDO_28_PNG_DATA, IMAGES_UNDO_28_PNG_LEN>>;
 
-    static constexpr const int imageScale = 2;
+template<Corner kCorner>
+using TopBarRedoButtonWidget = TopBarButtonWidget<kCorner, IMAGES_REDO_28_PNG_DATA, IMAGES_REDO_28_PNG_LEN>>;
 
-public:
-    explicit DualImageButtonWidget(LabWidget* const parent, const uint id)
-        : BaseWidget(parent, id)
-    {
-        BaseWidget::setCheckable(true);
+template<Corner kCorner>
+using TopBarSnapshotSlotAButtonWidget = TopBarStaticTextButtonWidget<kCorner, kTextA>>;
 
-        updateSize(false);
-    }
+template<Corner kCorner>
+using TopBarSnapshotSlotBButtonWidget = TopBarStaticTextButtonWidget<kCorner, kTextB>>;
 
-private:
-    const NanoImage fImage1 { NanoVG::createImageFromMemory(image1Data, imageData1Size, NanoVG::IMAGE_GENERATE_MIPMAPS) };
-    const NanoImage fImage2 { NanoVG::createImageFromMemory(image2Data, imageData2Size, NanoVG::IMAGE_GENERATE_MIPMAPS) };
-    double fImageWidth;
-    double fImageHeight;
+template<Corner kCorner>
+using TopBarSnapshotSlotCButtonWidget = TopBarStaticTextButtonWidget<kCorner, kTextC>>;
 
-    void onNanoDisplay() final
-    {
-        BaseWidget::onNanoDisplay();
+template<Corner kCorner>
+using TopBarSnapshotSlotDButtonWidget = TopBarStaticTextButtonWidget<kCorner, kTextD>>;
 
-        drawColoredImage(BaseWidget::getForegroundColor());
-    }
-    
-    void drawColoredImage(const Color& color)
-    {
-        const float w = BaseWidget::getWidth();
-        const float h = BaseWidget::getHeight();
-    
-        BaseWidget::save();
-        BaseWidget::globalTint(color);
-    
-        BaseWidget::beginPath();
-        BaseWidget::rect((w - fImageWidth) * 0.5,  (h - fImageHeight) * 0.5, fImageWidth, fImageHeight);
-        BaseWidget::fillPaint(BaseWidget::imagePattern((w - fImageWidth) * 0.5,
-                               (h - fImageHeight) * 0.5,
-                               fImageWidth,
-                               fImageHeight,
-                               0.f,
-                               BaseWidget::isChecked() ? fImage1 : fImage2,
-                               1.f));
-        BaseWidget::fill();
+// WidgetPair<kWidgetSnapshotCopy, DualButton<kCornerLeft, IMAGES_X_28_PNG_DATA, IMAGES_X_28_PNG_LEN, IMAGES_COPY_28_PNG_DATA, IMAGES_COPY_28_PNG_LEN>>,
+// WidgetPair<kWidgetSnapshotSlotA, TextButton<kCornerNone, kA>>,
+// WidgetPair<kWidgetSnapshotSlotB, TextButton<kCornerNone, kB>>,
+// WidgetPair<kWidgetSnapshotSlotC, TextButton<kCornerNone, kC>>,
+// WidgetPair<kWidgetSnapshotSlotD, TextButton<kCornerRight, kD>>
 
-        BaseWidget::restore();
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        fImageWidth = fImage1.getWidth() * this->fScaleFactor / imageScale;
-        fImageHeight = fImage1.getHeight() * this->fScaleFactor / imageScale;
-
-        // buttons are always grouped horizontally
-        if constexpr (R::width == 0)
-        {
-            const uint margin = (R::border + R::margin) * this->fScaleFactor;
-            BaseWidget::setWidth(d_roundToUnsignedInt(fImageWidth) + margin * 2);
-        }
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<class R, Corner corner, Orientation orientation = Horizontal>
-class TextButtonWidget : public ReferenceButtonWidget<R, corner>
-{
-    using BaseWidget = ReferenceButtonWidget<R, corner>;
-
-public:
-    explicit TextButtonWidget(LabWidget* const parent, const uint id, const char* const text)
-        : BaseWidget(parent, id),
-          fText(text)
-    {
-        updateSize(false);
-    }
-
-private:
-    const char* const fText;
-
-    void onNanoDisplay() final
-    {
-        BaseWidget::onNanoDisplay();
-
-        BaseWidget::template drawReferenceText<R>(fText);
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        const uint margin = d_roundToUnsignedInt(R::margin * this->fScaleFactor) * 2;
-
-        Rectangle<float> bounds;
-        BaseWidget::fontSize(R::fontSize * this->fScaleFactor);
-        BaseWidget::textAlign(0);
-        BaseWidget::textLetterSpacing(R::letterSpacing * this->fScaleFactor);
-        BaseWidget::textBounds(0, 0, fText, nullptr, bounds);
-
-        if constexpr (orientation == Horizontal)
-            BaseWidget::setWidth(bounds.getWidth() + margin);
-        else
-            BaseWidget::setHeight(bounds.getHeight() + margin);
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<class R, Corner corner, const char _text[]>
-class StaticTextButtonWidget : public TextButtonWidget<R, corner>
-{
-    using BaseWidget = TextButtonWidget<R, corner>;
-
-public:
-    explicit StaticTextButtonWidget(LabWidget* const parent, const uint id)
-        : BaseWidget(parent, id, _text) {}
-};
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 

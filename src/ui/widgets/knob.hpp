@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../_lab/knob.hpp"
+#include "../_lab/parameter.hpp"
 
 #include "../reference.hpp"
 
@@ -15,9 +15,9 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 template <class R>
-class DrawableKnobWidget final : public LabKnobWidget
+class DrawableKnobWidget final : public LabParameterWidget
 {
-    using BaseWidget = LabKnobWidget;
+    using BaseWidget = LabParameterWidget;
 
     static constexpr const double kTimeForShowingHostParameterChanges = 1;
     static constexpr const double kTimeForValueFadeout = 0.1;

@@ -5,7 +5,6 @@
 #include "ui/reference.hpp"
 #include "ui/containers/frame.hpp"
 #include "ui/containers/main-area.hpp"
-#include "ui/containers/stage.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
 
@@ -171,24 +170,40 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::TransparentStage, Horizontal>
+struct TransparentCentralArea : Reference::Zero {
+    static constexpr const uint padding = Reference::Common::margin;
+};
+
+struct OpaqueCentralArea : Reference::CentralArea {
+    static constexpr const Color backgroundColor { 0x1a, 0x1b, 0x1f };
+};
+
+struct OpaqueSmallCentralArea : OpaqueCentralArea {
+    static constexpr const Color backgroundColor { 0x1a, 0x1b, 0x1f };
+    static constexpr const uint margin = OpaqueCentralArea::margin / 2;
+    static constexpr const uint padding = 0;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class DelayExpertPageWidget final : public LabReferenceContainerWidget<TransparentCentralArea, Horizontal>
 {
-    using R = Reference::TransparentStage;
-    using BaseWidget = ReferenceContainerWidget<R, Horizontal>;
+    using R = TransparentCentralArea;
+    using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
     using BaseWidget::BaseWidget;
 
-    struct RowRef : Reference::OpaqueStage {
+    struct RowRef : OpaqueCentralArea {
         static constexpr const uint padding = 0;
     };
 
-    struct SmallRowRef : Reference::OpaqueSmallStage {
+    struct SmallRowRef : OpaqueSmallCentralArea {
         static constexpr const uint padding = 0;
         static constexpr const uint height = 100;
     };
 
-    class ControlsColumn : public ReferenceContainerWidget<Reference::TransparentStage, Vertical>
+    class ControlsColumn : public LabReferenceContainerWidget<TransparentCentralArea, Vertical>
     {
-        using BaseWidget = ReferenceContainerWidget<Reference::TransparentStage, Vertical>;
+        using BaseWidget = LabReferenceContainerWidget<TransparentCentralArea, Vertical>;
         using BaseWidget::BaseWidget;
 
     protected:
@@ -258,9 +273,9 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
         }
     };
 
-    class DelayP2 : public ReferenceContainerWidget<Reference::Stage, Vertical>
+    class DelayP2 : public LabReferenceContainerWidget<Reference::CentralArea, Vertical>
     {
-        using BaseWidget = ReferenceContainerWidget<Reference::Stage, Vertical>;
+        using BaseWidget = LabReferenceContainerWidget<Reference::CentralArea, Vertical>;
         using BaseWidget::BaseWidget;
 
     public:
@@ -396,35 +411,35 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using DelayStageWidget = StageWidget<EasyStageWidget, DelayExpertPageWidget>;
+using DelayCentralAreaWidget = CentralAreaWidget<EasyPageWidget, DelayExpertPageWidget>;
 
-class DelayMainArea final : public MainAreaContainerWidget<DelayStageWidget>
+class DelayMainArea final : public MainAreaContainerWidget<DelayCentralAreaWidget>
 {
-    using BaseWidget = MainAreaContainerWidget<DelayStageWidget>;
+    using BaseWidget = MainAreaContainerWidget<DelayCentralAreaWidget>;
     using BaseWidget::BaseWidget;
 
-    const std::shared_ptr<StageWidget> fStage = getStageWidget();
+    const std::shared_ptr<DelayCentralAreaWidget> fCentralArea = getCentralAreaWidget();
 
 public:
     void setScopeZoom(DelayScopeZoom* const zoom) noexcept
     {
         // FIXME
-        fStage->getExpertWidget()->setScopeZoom(zoom);
+        fCentralArea->getExpertWidget()->setScopeZoom(zoom);
     }
 
     [[nodiscard]] Point<int> getMiddleAreaAbsolutePos(const Page page) const noexcept
     {
-        return page == kPageExpert ? fStage->getExpertWidget()->getMiddleAreaAbsolutePos() : fStage->getAbsolutePos();
+        return page == kPageExpert ? fCentralArea->getExpertWidget()->getMiddleAreaAbsolutePos() : fCentralArea->getAbsolutePos();
     }
 
     [[nodiscard]] Size<uint> getMiddleAreaSize(const Page page) const noexcept
     {
-        return page == kPageExpert ? fStage->getExpertWidget()->getMiddleAreaSize() : fStage->getSize();
+        return page == kPageExpert ? fCentralArea->getExpertWidget()->getMiddleAreaSize() : fCentralArea->getSize();
     }
 
     [[nodiscard]] float getMiddleAreaBorderRadius(Page) const noexcept
     {
-        return fStage->getBorderRadius();
+        return fCentralArea->getBorderRadius();
     }
 };
 

@@ -9,7 +9,7 @@
 
 #include "../containers/button-group.hpp"
 #include "../containers/container.hpp"
-#include "../widgets/button.hpp"
+#include "../reference/button.hpp"
 #include "../widgets/plugin-name.hpp"
 
 #include <array>
@@ -20,10 +20,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
+class TopBar : public LabReferenceContainerWidget<Reference::TopBar, Horizontal>,
                private IdleCallback
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::TopBar>;
+    using BaseWidget = LabReferenceContainerWidget<Reference::TopBar, Horizontal>;
 
     // ----------------------------------------------------------------------------------------------------------------
 

@@ -14,10 +14,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EqWidget final : public LabReferenceWidget<Reference::Stage>,
+class EqWidget final : public LabReferenceWidget<Reference::CentralArea>,
                        private IdleCallback
 {
-    using R = Reference::Stage;
+    using R = Reference::CentralArea;
     using BaseWidget = LabReferenceWidget<R>;
 
 public:

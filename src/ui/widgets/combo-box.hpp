@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include "button.hpp"
+#include "../_lab/button.hpp"
 #include "../_lab/metrics.hpp"
+
+#include "../reference/parameter-button.hpp"
 #include "../reference.hpp"
 
 namespace LibreAudio {
@@ -41,11 +43,11 @@ struct ComboBoxMetrics : LabMetrics<R> {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::ComboBox<>::height>
-class ComboBoxWidget final : public ParameterReferenceButtonWidget<Reference::Widgets::ComboBox<kAccentColor, height>>,
+class ComboBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::ComboBox<kAccentColor, height>>,
                              private ButtonEventHandler::Callback
 {
     using R = Reference::Widgets::ComboBox<kAccentColor, height>;
-    using BaseWidget = ParameterReferenceButtonWidget<R>;
+    using BaseWidget = ReferenceParameterButtonWidget<R>;
 
 public:
     explicit ComboBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
@@ -185,51 +187,6 @@ private:
 
         const uint basewidth = (m.border + m.margin + m.box.border + m.box.margin) * 2 + m.padding;
         BaseWidget::setWidth(basewidth + fBounds.label + fBounds.value);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<class R, class CB, FaustParameterIndex... Indexes>
-class ComboBoxGroupWidget : public ReferenceContainerWidget<R, Vertical>
-{
-    using BaseWidget = ReferenceContainerWidget<R, Vertical>;
-
-    const std::array<std::shared_ptr<CB>, sizeof...(Indexes)> comboBoxes = {
-        this->template addWidget<CB, Expanding>(Indexes)...
-    };
-
-public:
-    ComboBoxGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-        updateSize(true);
-    }
-
-protected:
-    void updateSize(const bool updateChildren) override
-    {
-        DISTRHO_SAFE_ASSERT(updateChildren);
-
-        // update children size first
-        BaseWidget::updateSize(true);
-
-        // find width for label and value fields
-        uint wlabel = 0;
-        uint wvalue = 0;
-        for (const std::shared_ptr<CB>& cb : comboBoxes)
-            cb->maxBounds(wlabel, wvalue);
-
-        // set the same width for all fields
-        for (const std::shared_ptr<CB>& cb : comboBoxes)
-            cb->setBounds(wlabel, wvalue);
-
-        // update children size again
-        BaseWidget::updateSize(true);
-
-        // set parent width the same as the children (plus margins)
-        const LabMetrics<R> m { this };
-        LabWidget::setWidth((m.border + m.margin) * 2 + comboBoxes[0]->getWidth());
     }
 };
 

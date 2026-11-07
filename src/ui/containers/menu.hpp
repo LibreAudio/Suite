@@ -32,12 +32,12 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
     using BaseWidget = MenuOverlayWidgetInterface;
 
     class MenuItemWidget;
-    class MenuWidget final : public ReferenceContainerWidget<Reference::Widgets::Menu, Vertical>,
+    class MenuWidget final : public LabReferenceContainerWidget<Reference::Widgets::Menu, Vertical>,
                              private ButtonEventHandler::Callback,
                              private IdleCallback
     {
         using R = Reference::Widgets::Menu;
-        using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+        using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
         using Layout = typename BaseWidget::Layout;
 
         static_assert(R::height == 0, "menu items must have zero height");
@@ -166,10 +166,10 @@ class MenuOverlayWidget final : public MenuOverlayWidgetInterface
         }
     };
 
-    class MenuItemWidget final : public ReferenceButtonWidget<Reference::Widgets::Menu::Item, kCornerAuto>
+    class MenuItemWidget final : public LabReferenceButtonWidget<Reference::Widgets::Menu::Item, kCornerAuto>
     {
         using R = Reference::Widgets::Menu::Item;
-        using BaseWidget = ReferenceButtonWidget<R, kCornerAuto>;
+        using BaseWidget = LabReferenceButtonWidget<R, kCornerAuto>;
 
         static_assert(R::height != 0, "menu items must have non-zero height");
         static_assert(R::width == 0, "menu items must have zero width");

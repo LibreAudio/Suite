@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../_lab/knob.hpp"
+#include "../_lab/parameter.hpp"
 #include "../_lab/metrics.hpp"
 
 #include "../reference.hpp"
@@ -29,10 +29,10 @@ struct NumberBoxMetrics : LabMetrics<R> {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::NumberBox<>::height>
-class NumberBoxWidget final : public LabKnobWidget
+class NumberBoxWidget final : public LabParameterWidget
 {
     using R = Reference::Widgets::NumberBox<kAccentColor, height>;
-    using BaseWidget = LabKnobWidget;
+    using BaseWidget = LabParameterWidget;
 
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
