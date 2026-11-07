@@ -25,6 +25,7 @@ struct ReferenceTopBar : Reference::TopBar {
 class DualGainTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
 {
     using BaseWidget = ReferenceContainerWidget<ReferenceTopBar>;
+    using BaseWidget::BaseWidget;
 
     static constexpr const float kColor1[] = { 0.3f, 0.1f, 0.05f, 1.f };
     static constexpr const float kColor2[] = { 0.1f, 0.3f, 0.05f, 1.f };
@@ -37,10 +38,6 @@ class DualGainTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
     std::shared_ptr<LabWidget> w3c = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
     std::shared_ptr<LabWidget> w3d = addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterTrimr);
     std::shared_ptr<LabWidget> w4 = addWidget<ToggleSwitchWidget<1, true>, Expanding>(kCommonParameterBypass, "Bypass");
-
-public:
-    explicit DualGainTopBarWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 struct ReferenceMainArea : Reference::MainArea {
@@ -52,7 +49,8 @@ struct ReferenceMainArea : Reference::MainArea {
 
 class DualGainStageWidget : public LabReferenceWidget<ReferenceMainArea>
 {
-    using LabReferenceWidget<ReferenceMainArea>::LabReferenceWidget;
+    using BaseWidget = LabReferenceWidget<ReferenceMainArea>;
+    using BaseWidget::BaseWidget;
 
 public:
     [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept

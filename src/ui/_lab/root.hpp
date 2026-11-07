@@ -96,11 +96,9 @@ class ReferenceRootWidget : public ReferenceContainerTopLevelWidget<R, orientati
     using MotionEvent = typename BaseWidget::MotionEvent;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
     using ScrollEvent = typename BaseWidget::ScrollEvent;
+    using BaseWidget::BaseWidget;
 
 public:
-    ReferenceRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWidget(window, iface) {}
-
     void resendLastMotion()
     {
         const Widget::MotionEvent ev = getLastMotion();

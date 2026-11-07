@@ -65,10 +65,7 @@ class ParameterReferenceContainerWidget : public ReferenceContainerWidget<R, ori
 {
     using BaseWidget = ReferenceContainerWidget<R, orientation>;
     using Layout = typename BaseWidget::Layout;
-
-public:
-    explicit ParameterReferenceContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    using BaseWidget::BaseWidget;
 
 protected:
     template<class PWP,
@@ -97,28 +94,22 @@ template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
 class StaticContainerWidget : public ReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addWidget<Args, sizeHint>()...
     };
-
-public:
-    explicit StaticContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 template<class R, Orientation orientation, typename... Args>
 class StaticContainerPairWidget : public ReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = ReferenceContainerWidget<R, orientation>;
+    using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addWidget<typename Args::Widget, Args::kSizeHint>()...
     };
-
-public:
-    explicit StaticContainerPairWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -128,28 +119,22 @@ template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
 class StaticParameterContainerWidget : public ParameterReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = ParameterReferenceContainerWidget<R, orientation>;
+    using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addParameterWidgetPair<Args, sizeHint>()...
     };
-
-public:
-    explicit StaticParameterContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 template<class R, Orientation orientation, typename... Args>
 class StaticParameterContainerPairWidget : public ParameterReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = ParameterReferenceContainerWidget<R, orientation>;
+    using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addParameterWidgetPair<typename Args::Widget, Args::kSizeHint>()...
     };
-
-public:
-    explicit StaticParameterContainerPairWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -158,6 +143,7 @@ template<class R, typename... Args>
 class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Vertical>
 {
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, 1 + sizeof...(Args)> widgets {
         BaseWidget::addSpacer(),
@@ -165,9 +151,6 @@ class StaticBottomAlignedContainerWidget : public ReferenceContainerWidget<R, Ve
     };
 
 public:
-    explicit StaticBottomAlignedContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
     uint getLastWidgetHeight() const noexcept
     {
         return widgets.back()->getHeight();

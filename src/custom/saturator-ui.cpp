@@ -72,6 +72,7 @@ private:
 class SaturatorTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
 {
     using BaseWidget = ReferenceContainerWidget<ReferenceTopBar>;
+    using BaseWidget::BaseWidget;
 
     std::array<std::shared_ptr<LabWidget>, 11> widgets {
         addSpacer(),
@@ -86,10 +87,6 @@ class SaturatorTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
         addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterMakeup),
         addSpacer(),
     };
-
-public:
-    explicit SaturatorTopBarWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
 };
 
 using SaturatorRootWidget = RootWidget<SaturatorTopBarWidget, MainAreaContainerWidget<>>;

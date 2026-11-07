@@ -43,7 +43,7 @@ class UI : public LibreAudioBaseUI
    #endif
 
     using MainAreaWidget = typename RootWidget::MainAreaWidget;
-    using StageWidget = typename MainAreaWidget::StageWidget2;
+    using StageWidget = typename MainAreaWidget::StageWidget;
 
 public:
    #ifdef SHADER_PLUGIN

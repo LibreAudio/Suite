@@ -399,11 +399,9 @@ private:
 class LabTopLevelWidget : public BaseWidgetOf<NanoTopLevelWidget>
 {
     using BaseWidget = BaseWidgetOf<NanoTopLevelWidget>;
+    using BaseWidget::BaseWidget;
 
 public:
-    explicit LabTopLevelWidget(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
-
     void setWidth() = delete;
     void setHeight() = delete;
     void setSize() = delete;
@@ -420,16 +418,7 @@ protected:
 class LabWidget : public BaseWidgetOf<NanoSubWidget>
 {
     using BaseWidget = BaseWidgetOf<NanoSubWidget>;
-
-public:
-    explicit LabWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit LabWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit LabWidget(LabWidget* const parent, NanoSubWidget::FramebufferCallback* fbCb)
-        : BaseWidget(parent, fbCb) {}
+    using BaseWidget::BaseWidget;
 
 protected:
     // helper cursor methods

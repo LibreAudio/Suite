@@ -175,6 +175,7 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
 {
     using R = Reference::TransparentStage;
     using BaseWidget = ReferenceContainerWidget<R, Horizontal>;
+    using BaseWidget::BaseWidget;
 
     struct RowRef : Reference::OpaqueStage {
         static constexpr const uint padding = 0;
@@ -188,10 +189,7 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
     class ControlsColumn : public ReferenceContainerWidget<Reference::TransparentStage, Vertical>
     {
         using BaseWidget = ReferenceContainerWidget<Reference::TransparentStage, Vertical>;
-
-    public:
-        explicit ControlsColumn(LabWidget* const parent)
-            : BaseWidget(parent) {}
+        using BaseWidget::BaseWidget;
 
     protected:
         std::shared_ptr<FrameContainerReferenceWidget<RowRef>> fTop = addWidget<FrameContainerReferenceWidget<RowRef>, Expanding>();
@@ -263,11 +261,9 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
     class DelayP2 : public ReferenceContainerWidget<Reference::Stage, Vertical>
     {
         using BaseWidget = ReferenceContainerWidget<Reference::Stage, Vertical>;
+        using BaseWidget::BaseWidget;
 
     public:
-        explicit DelayP2(LabWidget* const parent)
-            : BaseWidget(parent) {}
-
         void setScopeZoom(DelayScopeZoom* const zoom) noexcept
         {
             fZoom = zoom;
@@ -375,16 +371,13 @@ class DelayExpertPageWidget final : public ReferenceContainerWidget<Reference::T
         }
     };
 
-    std::array<std::shared_ptr<LabWidget>, 3> fWidgets {
+    const std::array<std::shared_ptr<LabWidget>, 3> fWidgets {
         addWidget<ControlsColumnLeft, Expanding>(),
         addWidget<DelayP2, Expanding>(),
         addWidget<ControlsColumnRight, Expanding>(),
     };
 
 public:
-    explicit DelayExpertPageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
     void setScopeZoom(DelayScopeZoom* const zoom) noexcept
     {
         static_cast<DelayP2*>(fWidgets[1].get())->setScopeZoom(zoom);
@@ -403,12 +396,16 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DelayMainArea final : public MainAreaContainerWidget<StageWidget<EasyStageWidget, DelayExpertPageWidget>>
-{
-public:
-    DelayMainArea(LabTopLevelWidget* const parent)
-        : MainAreaContainerWidget(parent) {}
+using DelayStageWidget = StageWidget<EasyStageWidget, DelayExpertPageWidget>;
 
+class DelayMainArea final : public MainAreaContainerWidget<DelayStageWidget>
+{
+    using BaseWidget = MainAreaContainerWidget<DelayStageWidget>;
+    using BaseWidget::BaseWidget;
+
+    const std::shared_ptr<StageWidget> fStage = getStageWidget();
+
+public:
     void setScopeZoom(DelayScopeZoom* const zoom) noexcept
     {
         // FIXME
@@ -436,7 +433,7 @@ public:
 class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
                               private IdleCallback
 {
-    using BaseWiwdget = RootWidget<TopBar, DelayMainArea>;
+    using BaseWidget = RootWidget<TopBar, DelayMainArea>;
 
     Page fLastPage = kPageEasy;
     DelayScopeZoom fScopeZoom;
@@ -446,7 +443,7 @@ class DelayRootWidget final : public RootWidget<TopBar, DelayMainArea>,
 
 public:
     DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWiwdget(window, iface)
+        : BaseWidget(window, iface)
     {
         addIdleCallback(this);
     }
@@ -463,7 +460,7 @@ public:
         // });
         // fShaderExpert->setVisible(getCurrentPage(fInterface) == kPageExpert);
 
-        BaseWiwdget::enableShaders(shaders);
+        BaseWidget::enableShaders(shaders);
     }
 
 private:
@@ -481,7 +478,7 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        BaseWiwdget::updateSize(updateChildren);
+        BaseWidget::updateSize(updateChildren);
 
         const Point<int> pos = fMainArea->getMiddleAreaAbsolutePos(fLastPage);
         const Size<uint> size = fMainArea->getMiddleAreaSize(fLastPage);

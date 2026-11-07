@@ -18,6 +18,7 @@ class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, 
 {
     using R = Reference::Stage;
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget::BaseWidget;
 
     const std::vector<std::shared_ptr<LabWidget>> _ = {
         addSpacer(),
@@ -26,11 +27,6 @@ class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, 
         addCards(),
     };
 
-public:
-    explicit EasyStageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-private:
     std::shared_ptr<LabWidget> addCards()
     {
         std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
@@ -81,16 +77,13 @@ class ExpertStageWidget final : public ReferenceContainerWidget<Reference::Stage
 {
     using R = Reference::Stage;
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget::BaseWidget;
 
     const std::vector<std::shared_ptr<LabWidget>> _ = {
         addWidget<PillAreaWidget<>>(),
         addSpacer(),
         addWidget<ExpertKnobsGroupWidget>(),
     };
-
-public:
-    explicit ExpertStageWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 
 #if 0
 private:

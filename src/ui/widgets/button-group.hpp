@@ -18,11 +18,9 @@ namespace LibreAudio {
 class ButtonGroupWidget : public ReferenceButtonGroupWidget<Reference::Widgets::ButtonGroup>
 {
     using BaseWidget = ReferenceButtonGroupWidget<Reference::Widgets::ButtonGroup>;
+    using BaseWidget::BaseWidget;
 
 public:
-    explicit ButtonGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
     template<class B,
              typename... Args,
              typename = std::enable_if_t<std::is_base_of_v<ButtonBaseWidget, B>>>

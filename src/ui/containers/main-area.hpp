@@ -13,16 +13,14 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class StageWidget = StageWidget<>>
+template<class ReferenceStageWidget = StageWidget<>>
 class MainAreaContainerWidget : public ReferenceContainerWidget<Reference::MainArea>
 {
     using BaseWidget = ReferenceContainerWidget<Reference::MainArea>;
+    using BaseWidget::BaseWidget;
 
 public:
-    using StageWidget2 = StageWidget;
-
-    MainAreaContainerWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
+    using StageWidget = ReferenceStageWidget;
 
     [[nodiscard]] Point<int> getMainAreaAbsolutePos() const noexcept
     {
@@ -44,14 +42,14 @@ public:
         return fStage;
     }
 
-protected:
+private:
    #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<LabWidget> fMetersIn = addWidget<GainMeterWidget<Input>>();
+    const std::array<std::shared_ptr<LabWidget>, 2> fMeters = {
+        addWidget<GainMeterWidget<Input>>(),
+        addWidget<GainMeterWidget<Output>>(),
+    };
    #endif
-    std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
-   #if LIBREAUDIO_WANT_COMMON_IO
-    std::shared_ptr<LabWidget> fMetersOut = addWidget<GainMeterWidget<Output>>();
-   #endif
+    const std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
 };
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -22,15 +22,7 @@ class ContainerBaseWidgetOf : public BaseWidget,
 {
 public:
     using Layout = std::conditional_t<orientation == Horizontal, HorizontalLayout, VerticalLayout>;
-
-    explicit ContainerBaseWidgetOf(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ContainerBaseWidgetOf(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ContainerBaseWidgetOf(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
+    using BaseWidget::BaseWidget;
 
     template<class W = LabEmptyWidget>
     std::shared_ptr<W> addSpacer()
@@ -69,15 +61,7 @@ public:
     using BaseWidget = ContainerBaseWidgetOf<W, orientation>;
     using Layout = typename BaseWidget::Layout;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
-
-    explicit ReferenceContainerBaseWidgetOf(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ReferenceContainerBaseWidgetOf(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ReferenceContainerBaseWidgetOf(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
+    using BaseWidget::BaseWidget;
 
 protected:
     void updateSize(const bool updateChildren) override
@@ -124,12 +108,7 @@ public:
     using BaseWidget = ReferenceContainerBaseWidgetOf<LabReferenceWidget<R>, R, orientation>;
     using Layout = typename BaseWidget::Layout;
     using PositionChangedEvent = typename BaseWidget::PositionChangedEvent;
-
-    explicit ReferenceContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ReferenceContainerWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
+    using BaseWidget::BaseWidget;
 
 // protected:
 //     void onPositionChanged(const PositionChangedEvent& ev) override
@@ -149,17 +128,7 @@ public:
 // reference container top-level widget class
 
 template<class R, Orientation orientation>
-class ReferenceContainerTopLevelWidget : public ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>
-{
-public:
-    using BaseWidget = ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>;
-
-    explicit ReferenceContainerTopLevelWidget(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
-
-    explicit ReferenceContainerTopLevelWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-};
+using ReferenceContainerTopLevelWidget = ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

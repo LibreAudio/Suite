@@ -164,6 +164,7 @@ public:
     {
         using HR = typename R::Header;
         using BaseWidget = ReferenceContainerWidget<HR, Horizontal>;
+        using BaseWidget::BaseWidget;
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             this->template addWidget<ReferenceTextWidget<typename HR::Title>, Expanding>(kBandLabels[band]),
@@ -171,9 +172,6 @@ public:
         };
 
     public:
-        explicit HeaderWidget(LabWidget* const parent)
-            : BaseWidget(parent) {}
-
         class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<typename HR::Buttons>
         {
             using SMGR = typename HR::Buttons;
@@ -393,11 +391,7 @@ class MbComp5StageWidget : public StageWidget<EasyStageWidget, MbComp5ExpertPage
 public:
     using R = MbComp5StageReference;
     using BaseWidget = StageWidget<EasyStageWidget, MbComp5ExpertPageWidget>;
-
-    explicit MbComp5StageWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-    }
+    using BaseWidget::BaseWidget;
 
 private:
     std::array<float, 6> fFreqs = {

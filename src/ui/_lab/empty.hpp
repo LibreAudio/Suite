@@ -13,12 +13,7 @@ START_NAMESPACE_DGL
 
 class LabEmptyWidget final : public LabWidget
 {
-public:
-    explicit LabEmptyWidget(LabWidget* const parent)
-        : LabWidget(parent) {}
-
-    explicit LabEmptyWidget(LabTopLevelWidget* const parent)
-        : LabWidget(parent) {}
+    using LabWidget::LabWidget;
 
 private:
     void onNanoDisplay() final
