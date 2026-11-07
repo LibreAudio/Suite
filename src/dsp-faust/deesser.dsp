@@ -14,7 +14,7 @@ uiBottom(x) = hgroup("[8]Bottom", x);
 uiHidden(x) = hgroup("[9]Hidden", x);
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
-hflim_split = uiDeEss(hslider("[01]Crossover Frequency[style:knob][unit:Hz][scale:log][symbol:crossover_frequency][label:Crossover][accentcolor:02]", 5000, 3000, 8000, 1));
+hflim_split = uiDeEss(hslider("[01]Crossover[style:knob][unit:Hz][scale:log][symbol:crossover_frequency][label:Crossover][accentcolor:02]", 5000, 3000, 8000, 1));
 
 // Detection reference, blendable: 100% measures the high band against the
 // body band (level-independent spectral tilt), 0% against 0 dBFS (plain
@@ -26,7 +26,7 @@ hflim_threshAbs = uiDeEss(hslider("[03]Threshold Absolute[unit:dB][style:knob][s
 hflim_threshRel = uiDeEss(hslider("[04]Threshold Relative[unit:dB][style:knob][symbol:threshold][label:Thresh Rel][accentcolor:01]", -10, -30, 0, 1));
 hflim_thresh    = lerp(hflim_threshAbs, hflim_threshRel, hflim_mode);
 
-hflim_ratio = uiDeEss(hslider("[05]Ratio[symbol:ratio][style:knob][label:Ratio][accentcolor:03]", 1, 1, 20, 1));
+hflim_ratio = uiDeEss(hslider("[05]Ratio[unit::1][symbol:ratio][style:knob][label:Ratio][accentcolor:03]", 1, 1, 20, 1));
 hflim_range = uiDeEss(hslider("[06]Range[unit:dB][style:knob][symbol:range][label:Range][accentcolor:04]", 6, 0, 20, 1));
 
 // Solos the high band with the reduction applied, for setting Crossover and
@@ -36,8 +36,8 @@ hflim_listen = uiDeEss(checkbox("[07]Listen[symbol:listen][label:Listen]
 
 // -1 = mid only, 0 = both (linked to the higher reduction), +1 = side only.
 // Moving away from the centre fades the link and the other channel out.
-hflim_channel = uiDeEss(hslider("[08]Channel[style:knob][symbol:channel][label:Mid/Side][accentcolor:05]
-      [tooltip: -1 processes mid only (unlinked), 0 processes both (linked to the higher reduction), +1 processes side only (unlinked)]", 0, -1, 1, 0.01)) : si.smoo;
+hflim_channel = uiDeEss(hslider("[08]Mid/Side[style:knob][symbol:channel][label:Mid/Side][accentcolor:05]
+      [tooltip: -1 processes mid only (unlinked), 0 processes both (linked to the higher reduction), +1 processes side only (unlinked)]", 0, -100, 100, 1)) /100 : si.smoo;
 hflim_midWeight  = 1 - max(0, hflim_channel);
 hflim_sideWeight = 1 + min(0, hflim_channel);
 hflim_link       = 1 - abs(hflim_channel);
@@ -45,7 +45,7 @@ hflim_link       = 1 - abs(hflim_channel);
 // Delays the audio (and the Listen band) behind the detector so the gain is
 // already down when the "s" arrives. Reported to the host as latency.
 hflim_lookaheadMs = uiDeEss(hslider("[09]Lookahead[style:knob][unit:ms][symbol:lookahead][label:Lookahead][accentcolor:04]
-      [tooltip: Delays the audio so the reduction is already in place when the sibilant arrives. Reported to the host as latency and compensated. 0 = off]", 0, 0, 100, 0.1));
+      [tooltip: Delays the audio so the reduction is already in place when the sibilant arrives. Reported to the host as latency and compensated. 0 = off]", 0, 0, 100, 1));
 maxLookaheadSamples = 19200; // 100 ms at 192 kHz
 lookaheadSamples    = int(hflim_lookaheadMs * ma.SR / 1000) : min(maxLookaheadSamples);
 lookahead           = de.delay(maxLookaheadSamples, lookaheadSamples);
