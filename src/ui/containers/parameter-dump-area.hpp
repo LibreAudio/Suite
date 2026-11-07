@@ -52,6 +52,11 @@ public:
         return R::borderRadius * fScaleFactor;
     }
 
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return {};
+    }
+
 private:
     void addKnobGroup(const uint offset)
     {

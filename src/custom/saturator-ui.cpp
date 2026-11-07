@@ -102,7 +102,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::UI<LibreAudio::SaturatorRootWidget, SHADERS_FFT_WAVEFORM_FRAG_DATA, SHADERS_FFT_WAVEFORM_FRAG_LEN>();
+    return new LibreAudio::UI<LibreAudio::SaturatorRootWidget>();
 }
 
 END_NAMESPACE_DISTRHO
