@@ -22,8 +22,8 @@ hflim_split = uiDeEss(hslider("[01]Crossover[style:knob][unit:Hz][scale:log][sym
 hflim_mode = uiDeEss(hslider("[02]Mode[style:knob][unit:%][symbol:mode][label:Abs/Rel][accentcolor:05]", 100, 0, 100, 1)) / 100;
 
 // Each mode has its own threshold; Mode blends between them.
-hflim_threshAbs = uiDeEss(hslider("[03]Threshold Absolute[unit:dB][style:knob][symbol:threshold_abs][label:Thresh Abs][accentcolor:01]", -30, -60, 0, 1));
-hflim_threshRel = uiDeEss(hslider("[04]Threshold Relative[unit:dB][style:knob][symbol:threshold][label:Thresh Rel][accentcolor:01]", -10, -30, 0, 1));
+hflim_threshAbs = uiDeEss(hslider("[03]Thresh Abs[unit:dB][style:knob][symbol:threshold_abs][label:Thresh Abs][accentcolor:01]", -30, -60, 0, 1));
+hflim_threshRel = uiDeEss(hslider("[04]Thresh Rel[unit:dB][style:knob][symbol:threshold][label:Thresh Rel][accentcolor:01]", -10, -30, 0, 1));
 hflim_thresh    = lerp(hflim_threshAbs, hflim_threshRel, hflim_mode);
 
 hflim_ratio = uiDeEss(hslider("[05]Ratio[unit::1][symbol:ratio][style:knob][label:Ratio][accentcolor:03]", 1, 1, 20, 1));
