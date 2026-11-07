@@ -5,6 +5,7 @@
 #pragma once
 
 #include "config.h"
+#include "../base.hpp"
 #include "../_lab/metrics.hpp"
 #include "shader-clean.hpp"
 
@@ -15,6 +16,7 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 class WaveformWidget final : public LabWidget,
+                             public GraphInterface,
                             #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
                              private LabWidget::FramebufferCallback,
                             #endif
@@ -82,12 +84,12 @@ public:
     }
    #endif
 
-    void setBorderRadius(const float radius)
+    void setBorderRadius(const float radius) override
     {
         fBorderRadius = radius;
     }
 
-    void setRange(const float bottom, const float start, const float top)
+    void setRange(const float bottom, const float start, const float top) override
     {
         DISTRHO_SAFE_ASSERT_RETURN(bottom < top,);
 

@@ -16,7 +16,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class FloatingLineSliderWidget final : public LabKnobWidget
+class FloatingLineSliderWidget final : public LabKnobWidget,
+                                       public GraphInterface
 {
     using R = Reference::Widgets::FloatingLineSlider;
     using BaseWidget = LabKnobWidget;
@@ -47,7 +48,11 @@ public:
         }
     }
 
-    void setRange(const float min, const float start, const float max)
+    void setBorderRadius(float) override
+    {
+    }
+
+    void setRange(const float min, const float start, const float max) override
     {
         DISTRHO_SAFE_ASSERT_RETURN(min <= start,);
         DISTRHO_SAFE_ASSERT_RETURN(start < max,);

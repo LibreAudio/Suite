@@ -141,22 +141,16 @@ class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, Limter
 
     static constexpr const float kPaddedMinimumScale = -48.f;
 
-    const std::shared_ptr<GridWidget> fGrid {
+    const std::array<std::shared_ptr<LabWidget>, 3> _{
         addGraphWidget<GridWidget>(kParamThreshold.min - kParamThreshold.min / kPaddedMinimumScale,
                                    kParamThreshold.min,
                                    kParamThreshold.max,
                                    6.f,
-                                   kParamThreshold.unit)
-    };
-
-    const std::shared_ptr<FloatingLineSliderWidget> fSlider {
-        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold, kParamThreshold.min / kPaddedMinimumScale)
-    };
-
-    const std::shared_ptr<WaveformWidget> fWaveform {
+                                   kParamThreshold.unit),
         addGraphWidget<WaveformWidget>(kParamThreshold.min - kParamThreshold.min / kPaddedMinimumScale,
                                        kParamThreshold.min,
-                                       kParamThreshold.max)
+                                       kParamThreshold.max),
+        addGraphWidget<FloatingLineSliderWidget>(kFaustParameterThreshold, kParamThreshold.min / kPaddedMinimumScale),
     };
 
     const std::shared_ptr<ButtonWidget> fRangeButton {
@@ -206,9 +200,7 @@ private:
         }
 
         const float min = start - start / kPaddedMinimumScale;
-        fGrid->setRange(min, start, kParamThreshold.max);
-        fSlider->setRange(min, start, kParamThreshold.max);
-        fWaveform->setRange(min, start, kParamThreshold.max);
+        setGraphRange(min, start, kParamThreshold.max);
     }
 
     void onPositionChanged(const PositionChangedEvent& ev) final
@@ -220,13 +212,6 @@ private:
         fRangeButton->setAbsolutePos(
             ev.pos.getX() + (m.margin + m.border),
             ev.pos.getY() + (m.margin + m.border));
-    }
-
-    void updateSize(const bool updateChildren) final
-    {
-        BaseWidget::updateSize(updateChildren);
-
-        fWaveform->setBorderRadius(getBorderRadius());
     }
 };
 
@@ -249,3 +234,5 @@ UI* createUI()
 }
 
 END_NAMESPACE_DISTRHO
+
+// --------------------------------------------------------------------------------------------------------------------

@@ -96,6 +96,14 @@ inline Page getCurrentPage(const LabUIWidgetInterface* const iface) noexcept
     return kPageEasy;
 }
 
+class GraphInterface
+{
+public:
+    virtual ~GraphInterface() = default;
+    virtual void setBorderRadius(float radius) = 0;
+    virtual void setRange(float min, float start, float max) = 0;
+};
+
 // --------------------------------------------------------------------------------------------------------------------
 
 } /* namespace LibreAudio */

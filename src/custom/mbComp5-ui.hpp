@@ -66,7 +66,8 @@ struct Box {
     float x, y, w, h;
 };
 
-class MbComp5GraphWidget : public LabWidget
+class MbComp5GraphWidget : public LabWidget,
+                           public GraphInterface
 {
     Box _box = {};
     std::array<float, 4> _xo;
@@ -74,6 +75,14 @@ class MbComp5GraphWidget : public LabWidget
 public:
     explicit MbComp5GraphWidget(LabWidget* const parent)
         : LabWidget(parent)
+    {
+    }
+
+    void setBorderRadius(float) override
+    {
+    }
+
+    void setRange(float, float, float) override
     {
     }
 

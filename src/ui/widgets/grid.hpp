@@ -31,7 +31,8 @@ struct GridMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>
+class GridWidget final : public LabReferenceWidget<Reference::Widgets::Grid>,
+                         public GraphInterface
 {
     using R = Reference::Widgets::Grid;
     using BaseWidget = LabReferenceWidget<R>;
@@ -72,7 +73,12 @@ public:
         setUnit(kFaustParameters[index].unit);
     }
 
-    void setRange(const float min, const float start, const float max, const float step = 0.f)
+    void setBorderRadius(float) override
+    {
+    }
+
+    // , const float step = 0.f
+    void setRange(const float min, const float start, const float max) override
     {
         DISTRHO_SAFE_ASSERT_RETURN(min <= start,);
         DISTRHO_SAFE_ASSERT_RETURN(start < max,);
@@ -81,8 +87,8 @@ public:
         fStart = start;
         fMax = max;
 
-        if (d_isNotZero(step))
-            fStep = step;
+        // if (d_isNotZero(step))
+        //     fStep = step;
     }
 
 private:

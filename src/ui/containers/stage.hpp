@@ -20,7 +20,7 @@ class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, 
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
     using BaseWidget::BaseWidget;
 
-    const std::vector<std::shared_ptr<LabWidget>> _ = {
+    const std::vector<std::shared_ptr<LabWidget>> fWidgets = {
         addSpacer(),
         addWidget<EasyKnobsGroupWidget>(),
         addSpacer(),
@@ -68,6 +68,12 @@ class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, 
         drawReferenceBorder<R>();
     }
 #endif
+
+public:
+    uint getLastWidgetHeight() const noexcept
+    {
+        return fWidgets.back()->getHeight();
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -174,7 +180,7 @@ protected:
 
     template<class W,
              typename... Args,
-             typename = std::enable_if_t<std::is_base_of_v<LabWidget, W>>>
+             typename = std::enable_if_t<std::is_base_of_v<LabWidget, W> && std::is_base_of_v<GraphInterface, W>>>
     std::shared_ptr<W> addGraphWidget(Args... args)
     {
         std::shared_ptr<W> widget { new W(this, args...) };
@@ -224,6 +230,12 @@ protected:
         return getSize();
     }
 
+    void setGraphRange(const float min, const float start, const float max)
+    {
+        for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+            dynamic_cast<GraphInterface*>(w.get())->setRange(min, start, max);
+    }
+
     void updateGraphSize()
     {
         const Size<uint> graphsize = getGraphSize();
@@ -266,6 +278,9 @@ protected:
         static_cast<LabWidget*>(fEasy.get())->setSize(getSize());
         static_cast<LabWidget*>(fExpert.get())->setSize(getSize());
         updateGraphSize();
+
+        for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
+            reinterpret_cast<GraphInterface*>(w.get())->setBorderRadius(getBorderRadius());
 
         BaseWidget::updateSize(updateChildren);
     }
