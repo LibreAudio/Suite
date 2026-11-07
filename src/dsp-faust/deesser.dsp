@@ -85,6 +85,11 @@ sc_mid_rel  = scMeter(uiHidden(hbargraph("[4]Sidechain Mid Relative[unit:dB][sym
 sc_side_abs = scMeter(uiHidden(hbargraph("[5]Sidechain Side Absolute[unit:dB][symbol:sc_side_abs]", scAbsMin, scAbsMax)), scAbsMin, scAbsMax);
 sc_side_rel = scMeter(uiHidden(hbargraph("[6]Sidechain Side Relative[unit:dB][symbol:sc_side_rel]", scRelMin, scRelMax)), scRelMin, scRelMax);
 
+// The reduction applied to each channel, after the channel weighting and
+// linking, for the display's mid and side curves.
+mid_meter  = meterBallistics : uiHidden(hbargraph("[7]Mid Reduction[unit:dB][symbol:deess_mid]",   0, 30));
+side_meter = meterBallistics : uiHidden(hbargraph("[8]Side Reduction[unit:dB][symbol:deess_side]", 0, 30));
+
 lerp(a, b, t) = a + (b - a) * t;
 
 // --- DSP ---
@@ -104,8 +109,9 @@ with {
         linked        = max(midDetected, sideDetected);
         midReduction  = hflim_midWeight  * lerp(midDetected,  linked, hflim_link);
         sideReduction = hflim_sideWeight * lerp(sideDetected, linked, hflim_link);
-        outMid  = hfApply(hflim_midWeight,  midReduction,  midHigh : lookahead,  m : lookahead);
-        outSide = hfApply(hflim_sideWeight, sideReduction, sideHigh : lookahead, s : lookahead);
+        outMid  = hfApply(hflim_midWeight,  midReduction : attachMeter(mid_meter),   midHigh : lookahead,  m : lookahead);
+        outSide = hfApply(hflim_sideWeight, sideReduction : attachMeter(side_meter), sideHigh : lookahead, s : lookahead);
+        attachMeter(meter, x) = attach(x, x : meter);
     };
 };
 

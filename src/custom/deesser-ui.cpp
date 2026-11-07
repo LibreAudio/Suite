@@ -390,9 +390,10 @@ public:
 };
 
 // The glassy display in the middle column, as glueBus's XY pad: the input spectrum, as vocalDoubler's analyser,
-// mbComp5's frequency grid, dB rows on the shelf's scale and a rainbow EQ line of the high shelf as the de-esser
-// applies it, with a node at the crossover dragged across to set it, under a pane of glass over the starfield.
-// Frequency runs 20 Hz to 20 kHz logarithmically, left to right.
+// mbComp5's frequency grid, dB rows on the shelf's scale, a grey dotted crosshair at the crossover and -Range with a
+// node where it crosses, dragged to set both, the shelf at full Range shown faintly, and rainbow EQ lines of the high
+// shelf as the de-esser applies it, solid for the mid and dashed for the side, under a pane of glass over the
+// starfield. Frequency runs 20 Hz to 20 kHz logarithmically, left to right.
 
 struct DeEsserGlassReference : Reference::Zero {
     // of the pane's corners
@@ -415,9 +416,20 @@ struct DeEsserGlassReference : Reference::Zero {
         static constexpr const float width = 1.5f;
         static constexpr const float glowWidth = 4.f;
         static constexpr const float glowAlpha = 0.2f;
+        // between 0 dB and the curve, in its colours, as the dynamic EQ's curve fill
+        static constexpr const float fillAlpha = 0.15f;
+        // The side, as the dynamic EQ's: while it differs from the mid by more than splitThreshold dB, a dashed line
+        // in the curve's colours, with a fill between it and the mid's curve. The mid's is the solid curve.
+        struct Side {
+            static constexpr const float splitThreshold = 0.05f;
+            static constexpr const float dash = 3.f;
+            static constexpr const float width = 1.3f;
+            static constexpr const float alpha = 0.85f;
+            static constexpr const float fillAlpha = 0.075f;
+        };
     };
     // The frequency grid, as mbComp5's at half its alphas: a line at each of 1 to 9 times every decade, labelled at 1,
-    // 2 and 5 times from 50 Hz, in the grid's colour, fading in below the labels and out at the pane's bottom.
+    // 2 and 5 times from 50 Hz, in the grid's colour, fading in below the labels and out well before the pane's bottom.
     struct Grid {
         static constexpr const Color color = Reference::Widgets::Grid::color;
         static constexpr const float alphaMain = 0.35f;
@@ -429,8 +441,9 @@ struct DeEsserGlassReference : Reference::Zero {
             // from the pane's top edge
             static constexpr const float inset = 4.f;
         };
-        // over which a line fades in and out
-        static constexpr const float fade = 8.f;
+        // over which a line fades in and out, and the clear gap it stops short of the pane's edges and its label by
+        static constexpr const float fade = 32.f;
+        static constexpr const float gap = 8.f;
         // The dB rows, as mbComp5's: dashed, on the shelf curve's scale, from the curve's minimum up to 0 dB every
         // step, labelled at both ends, fading in from the labels. 0 dB is brighter.
         struct Rows {
@@ -439,22 +452,40 @@ struct DeEsserGlassReference : Reference::Zero {
             static constexpr const float alpha = 0.3f;
             // between a label and the pane's side, and between it and its line
             static constexpr const float inset = 6.f;
-            static constexpr const float padding = 4.f;
+            static constexpr const float padding = 8.f;
             // over which a line fades in past its label's padding
-            static constexpr const float fade = 16.f;
+            static constexpr const float fade = 48.f;
             static constexpr const float dash = 3.f;
             static constexpr const float dashPitch = 7.f;
         };
     };
-    // The crossover node, unscaled, as glueBus's XY pad point: on the shelf curve at the crossover, larger while
-    // dragged, grabbed within grabRadius and dragged across.
+    // The crosshair, unscaled, as glueBus's XY pad lines: dotted and grey, across at -Range and down at the
+    // crossover, most opaque where they cross and fading out toward the pane's edges. Grabbed within grabRadius of
+    // where they cross and dragged to set both.
+    struct Crosshair {
+        static constexpr const Color color = Reference::Colors::ink3;
+        static constexpr const float dotRadius = 0.9f;
+        static constexpr const float dotPitch = 4.f;
+        static constexpr const float alpha = 0.9f;
+        static constexpr const float dragAlpha = 1.f;
+        static constexpr const float grabRadius = 12.f;
+        static constexpr const MouseCursor cursor = kMouseCursorHand;
+    };
+    // The node where the crosshair crosses, unscaled, as glueBus's XY pad point: in the curve's colour there with a
+    // white core and a glow, larger while dragged.
     struct Node {
         static constexpr const float radius = 4.f;
         static constexpr const float glowRadius = 9.f;
         static constexpr const float dragScale = 1.3f;
-        static constexpr const float grabRadius = 12.f;
         static constexpr const Color coreColor { 1.f, 1.f, 1.f, 1.f };
-        static constexpr const MouseCursor cursor = kMouseCursorHand;
+    };
+    // The shelf at full Range, the most the de-esser can take, always shown faintly as the dynamic EQ's band lines:
+    // thin, in the curve's colours at alpha, fading to clear within fade of the pane's height of 0 dB, where it
+    // would sit on the curve.
+    struct MaxShelf {
+        static constexpr const float width = 1.3f;
+        static constexpr const float alpha = 0.35f;
+        static constexpr const float fade = 0.085f;
     };
     // glueBus's curve colours, from left to right, blended between
     static constexpr const std::array<Color, 5> curveColors {{
@@ -469,16 +500,19 @@ class DeEsserGlassWidget final : public LabWidget,
 
     static constexpr const uint32_t kNumBins = LibreAudioAnalyzerIPC::kNumBins;
     static constexpr const FaustParameter& kCrossover = kFaustParameters[kFaustParameterCrossover_frequency];
-    static constexpr const FaustParameter& kReduction = kFaustParameters[kFaustParameterDeess_meter];
+    static constexpr const FaustParameter& kRange = kFaustParameters[kFaustParameterRange];
+    static constexpr const FaustParameter& kReduction = kFaustParameters[kFaustParameterDeess_mid];
 
     std::array<float, kNumBins> fSpectrum;
     bool fPendingDisplay = false;
     float fCrossover = kCrossover.init;
-    float fReduction = 0.f;
+    float fRange = kRange.init;
+    float fMidReduction = 0.f;
+    float fSideReduction = 0.f;
     bool fDragging = false;
     bool fHovering = false;
-    // between the pointer and the node across, kept while dragging
-    float fGrabOffset = 0.f;
+    // between the pointer and where the crosshair crosses, kept while dragging
+    Point<float> fGrabOffset;
     uint fLastClickTime = 0;
 
 public:
@@ -501,35 +535,65 @@ public:
     }
 
 private:
-    // the node's position in the widget
-    [[nodiscard]] Point<float> nodePosition() const noexcept
+    // dB on the shelf curve's scale to a height in the widget, and back
+    [[nodiscard]] float dbToY(const float db) const noexcept
     {
-        const float w = getWidth();
         const float h = getHeight();
         const float zeroY = h * R::Curve::zeroY;
-        const float db = std::max(R::Curve::minGain, shelfGainDb(fCrossover));
-        return { freq2norm(fCrossover) * w, zeroY + (h - zeroY) * db / R::Curve::minGain };
+        return zeroY + (h - zeroY) * db / R::Curve::minGain;
     }
 
-    [[nodiscard]] bool nearNode(const Point<double>& pos) const noexcept
+    [[nodiscard]] float yToDb(const float y) const noexcept
     {
-        const Point<float> node = nodePosition();
-        const float dx = pos.getX() - node.getX();
-        const float dy = pos.getY() - node.getY();
-        const float r = R::Node::grabRadius * fScaleFactor;
+        const float h = getHeight();
+        const float zeroY = h * R::Curve::zeroY;
+        return (y - zeroY) / (h - zeroY) * R::Curve::minGain;
+    }
+
+    // where the crosshair crosses: the crossover across, -Range down
+    [[nodiscard]] Point<float> crossPosition() const noexcept
+    {
+        return { freq2norm(fCrossover) * getWidth(), dbToY(-fRange) };
+    }
+
+    [[nodiscard]] bool nearCross(const Point<double>& pos) const noexcept
+    {
+        const Point<float> cross = crossPosition();
+        const float dx = pos.getX() - cross.getX();
+        const float dy = pos.getY() - cross.getY();
+        const float r = R::Crosshair::grabRadius * fScaleFactor;
         return dx * dx + dy * dy <= r * r;
     }
 
-    void setCrossover(const float value)
+    // a parameter's value on its steps and within its range, sent if it changed
+    void setParameter(const FaustParameterIndex index, float& current, const float value)
     {
-        const float crossover = std::clamp(std::round(value / kCrossover.step) * kCrossover.step,
-                                           kCrossover.min, kCrossover.max);
-        if (d_isEqual(fCrossover, crossover))
+        const FaustParameter& param = kFaustParameters[index];
+        const float stepped = std::clamp(std::round(value / param.step) * param.step, param.min, param.max);
+        if (d_isEqual(current, stepped))
             return;
 
-        fCrossover = crossover;
-        fInterface->parameterControlModified(kParametersMainStart + kFaustParameterCrossover_frequency, crossover);
+        current = stepped;
+        fInterface->parameterControlModified(kParametersMainStart + index, stepped);
         repaint();
+    }
+
+    void setFromPosition(const Point<double>& pos)
+    {
+        setParameter(kFaustParameterCrossover_frequency, fCrossover,
+                     norm2freq((pos.getX() + fGrabOffset.getX()) / getWidth()));
+        setParameter(kFaustParameterRange, fRange, -yToDb(pos.getY() + fGrabOffset.getY()));
+    }
+
+    void pressParameters(const bool pressed)
+    {
+        for (const FaustParameterIndex index : { kFaustParameterCrossover_frequency, kFaustParameterRange })
+        {
+            if (pressed)
+                fInterface->parameterControlPressed(kParametersMainStart + index);
+            else
+                fInterface->parameterControlReleased(kParametersMainStart + index);
+        }
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -539,10 +603,10 @@ private:
 
         if (ev.press)
         {
-            if (! contains(ev.pos) || ! nearNode(ev.pos))
+            if (! contains(ev.pos) || ! nearCross(ev.pos))
                 return LabWidget::onMouse(ev);
 
-            fInterface->parameterControlPressed(kParametersMainStart + kFaustParameterCrossover_frequency);
+            pressParameters(true);
 
             // a second click within 300 ms, as knobs take it
             const bool doubleClick = fLastClickTime != 0 && ev.time > fLastClickTime && ev.time - fLastClickTime <= 300;
@@ -550,15 +614,17 @@ private:
 
             if (doubleClick)
             {
-                setCrossover(kCrossover.init);
-                fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterCrossover_frequency);
+                setParameter(kFaustParameterCrossover_frequency, fCrossover, kCrossover.init);
+                setParameter(kFaustParameterRange, fRange, kRange.init);
+                pressParameters(false);
                 return true;
             }
 
+            const Point<float> cross = crossPosition();
             fDragging = true;
-            fGrabOffset = nodePosition().getX() - ev.pos.getX();
+            fGrabOffset = { cross.getX() - float(ev.pos.getX()), cross.getY() - float(ev.pos.getY()) };
             fInterface->setActiveWidget(this);
-            fInterface->setCursor(this, R::Node::cursor);
+            fInterface->setCursor(this, R::Crosshair::cursor);
             repaint();
             return true;
         }
@@ -567,10 +633,10 @@ private:
             return LabWidget::onMouse(ev);
 
         fDragging = false;
-        fInterface->parameterControlReleased(kParametersMainStart + kFaustParameterCrossover_frequency);
+        pressParameters(false);
         fInterface->setActiveWidget(nullptr);
-        fHovering = nearNode(ev.pos);
-        fInterface->setCursor(this, fHovering ? R::Node::cursor : kMouseCursorArrow);
+        fHovering = nearCross(ev.pos);
+        fInterface->setCursor(this, fHovering ? R::Crosshair::cursor : kMouseCursorArrow);
         repaint();
         return true;
     }
@@ -579,14 +645,14 @@ private:
     {
         if (fDragging)
         {
-            setCrossover(norm2freq((ev.pos.getX() + fGrabOffset) / getWidth()));
+            setFromPosition(ev.pos);
             return true;
         }
 
-        if (const bool hovering = contains(ev.pos) && nearNode(ev.pos); hovering != fHovering)
+        if (const bool hovering = contains(ev.pos) && nearCross(ev.pos); hovering != fHovering)
         {
             fHovering = hovering;
-            fInterface->setCursor(this, hovering ? R::Node::cursor : kMouseCursorArrow);
+            fInterface->setCursor(this, hovering ? R::Crosshair::cursor : kMouseCursorArrow);
         }
 
         return LabWidget::onMotion(ev);
@@ -597,14 +663,20 @@ private:
         const float crossover = fDragging
                               ? fCrossover
                               : fInterface->getParameterValue(kParametersMainStart + kFaustParameterCrossover_frequency);
-        const float reduction = std::clamp(fInterface->getParameterValue(kParametersMainStart + kFaustParameterDeess_meter),
-                                           kReduction.min, kReduction.max);
+        const float range = fDragging ? fRange : fInterface->getParameterValue(kParametersMainStart + kFaustParameterRange);
+        const float midReduction = std::clamp(fInterface->getParameterValue(kParametersMainStart + kFaustParameterDeess_mid),
+                                              kReduction.min, kReduction.max);
+        const float sideReduction = std::clamp(fInterface->getParameterValue(kParametersMainStart + kFaustParameterDeess_side),
+                                               kReduction.min, kReduction.max);
 
-        if (d_isEqual(fCrossover, crossover) && d_isEqual(fReduction, reduction))
+        if (d_isEqual(fCrossover, crossover) && d_isEqual(fRange, range) &&
+            d_isEqual(fMidReduction, midReduction) && d_isEqual(fSideReduction, sideReduction))
             return;
 
         fCrossover = crossover;
-        fReduction = reduction;
+        fRange = range;
+        fMidReduction = midReduction;
+        fSideReduction = sideReduction;
 
         if (! fPendingDisplay)
         {
@@ -621,6 +693,8 @@ private:
 
         drawSpectrum(getWidth(), getHeight());
         drawGrid(getWidth(), getHeight());
+        drawCrosshair(getWidth(), getHeight());
+        drawMaxShelf(getWidth(), getHeight());
         drawCurve(getWidth(), getHeight());
         drawNode();
         drawGlass(getWidth(), getHeight(), r);
@@ -636,12 +710,12 @@ private:
 
     // The high shelf's gain in dB at frequency f, as fi.svf.hs: H(s) = (A²s² + kAs + 1) / (s² + ks + 1), with
     // A = 10^(gain/40), k = 1/Q and s normalised to the corner times sqrt(A).
-    [[nodiscard]] float shelfGainDb(const float f) const noexcept
+    [[nodiscard]] float shelfGainDb(const float f, const float reduction) const noexcept
     {
-        if (fReduction <= 0.f)
+        if (reduction <= 0.f)
             return 0.f;
 
-        const float a = std::pow(10.f, -fReduction / 40.f);
+        const float a = std::pow(10.f, -reduction / 40.f);
         const float k = 1.f / R::Curve::q;
         const float w = f / (fCrossover * std::sqrt(a));
         const float w2 = w * w;
@@ -654,57 +728,188 @@ private:
         return 10.f * std::log10((numRe * numRe + numIm * numIm) / (denRe * denRe + denIm * denIm));
     }
 
-    // The shelf curve across the pane, frequency 20 Hz to 20 kHz logarithmically as the spectrum, with a glow.
-    void drawCurve(const float w, const float h)
+    static constexpr const uint kCurvePoints = R::Curve::sections * R::Curve::steps;
+    using CurvePoints = std::array<Point<float>, kCurvePoints + 1>;
+
+    // The shelf for a reduction across the pane, frequency 20 Hz to 20 kHz logarithmically as the spectrum.
+    [[nodiscard]] CurvePoints shelfPoints(const float w, const float h, const float reduction) const noexcept
     {
-        const float s = fScaleFactor;
         const float zeroY = h * R::Curve::zeroY;
-        const float fade = R::Curve::fade * s;
-        static constexpr const uint kPoints = R::Curve::sections * R::Curve::steps;
+        CurvePoints points;
 
-        std::array<Point<float>, kPoints + 1> points;
-
-        for (uint i = 0; i <= kPoints; ++i)
+        for (uint i = 0; i <= kCurvePoints; ++i)
         {
-            const float t = float(i) / kPoints;
-            const float db = std::max(R::Curve::minGain, shelfGainDb(20.f * std::pow(1000.f, t)));
+            const float t = float(i) / kCurvePoints;
+            const float db = std::max(R::Curve::minGain, shelfGainDb(20.f * std::pow(1000.f, t), reduction));
             points[i] = { t * w, zeroY + (h - zeroY) * db / R::Curve::minGain };
         }
 
-        // 1 inside, eased to 0 at either end
-        const auto fadeAt = [&](const float x) {
-            const float c = std::clamp(std::min(x, w - x) / fade, 0.f, 1.f);
-            return c * c * (3.f - 2.f * c);
-        };
+        return points;
+    }
 
+    // Strokes points in the curve's colours, alphaAt giving the alpha at a point. Each section strokes the curve
+    // from a section before it to a section after it, clipped to its own strip, so the strips meet edge to edge and
+    // no pixel is painted twice.
+    template<typename AlphaAt>
+    void strokeRainbow(const CurvePoints& points, const float w, const float h, const float width, AlphaAt alphaAt)
+    {
         lineJoin(ROUND);
+        strokeWidth(width);
 
-        // Each section strokes the curve from a section before it to a section after it, clipped to its own strip,
-        // so the strips meet edge to edge and no pixel is painted twice.
+        for (uint i = 0; i < R::Curve::sections; ++i)
+        {
+            const Point<float>& p0 = points[i * R::Curve::steps];
+            const Point<float>& p1 = points[(i + 1) * R::Curve::steps];
+            const uint first = i > 0 ? (i - 1) * R::Curve::steps : 0;
+            const uint last = std::min(kCurvePoints, (i + 2) * R::Curve::steps);
+
+            save();
+            intersectScissor(p0.getX(), 0, p1.getX() - p0.getX(), h);
+            beginPath();
+            moveTo(points[first].getX(), points[first].getY());
+            for (uint j = first + 1; j <= last; ++j)
+                lineTo(points[j].getX(), points[j].getY());
+            strokePaint(linearGradient(p0.getX(), 0, p1.getX(), 0,
+                                       curveColor(p0.getX() / w, alphaAt(p0)),
+                                       curveColor(p1.getX() / w, alphaAt(p1))));
+            stroke();
+            restore();
+        }
+    }
+
+    // Fills between points and 0 dB, or another curve, in the curve's colours at alpha, as the dynamic EQ's curve
+    // fill: in one piece per pair of neighbouring colours, each a two-stop gradient, which the rainbow is between its
+    // stops. A tiny contour outside the pane makes NanoVG fill each piece with its stencil method, exact for the
+    // shelf's S-shaped stretches.
+    void fillRainbow(const CurvePoints& points, const float w, const float h, const float alpha,
+                     const CurvePoints* const bottom = nullptr)
+    {
+        static constexpr const uint kPieces = R::curveColors.size() - 1;
+        static_assert(kCurvePoints % kPieces == 0, "curve points must divide evenly into the rainbow's pieces");
+
+        const float zeroY = h * R::Curve::zeroY;
+
+        save();
+        intersectScissor(0, 0, w, h);
+
+        for (uint k = 0; k < kPieces; ++k)
+        {
+            const uint first = kCurvePoints * k / kPieces;
+            const uint last = kCurvePoints * (k + 1) / kPieces;
+
+            // along the curve, then back along the other curve or 0 dB
+            beginPath();
+            moveTo(points[first].getX(), points[first].getY());
+            for (uint j = first + 1; j <= last; ++j)
+                lineTo(points[j].getX(), points[j].getY());
+            if (bottom != nullptr)
+            {
+                for (uint j = last + 1; j-- > first;)
+                    lineTo((*bottom)[j].getX(), (*bottom)[j].getY());
+            }
+            else
+            {
+                lineTo(points[last].getX(), zeroY);
+                lineTo(points[first].getX(), zeroY);
+            }
+            closePath();
+            moveTo(-20.f, -20.f);
+            lineTo(-16.f, -20.f);
+            lineTo(-20.f, -16.f);
+            closePath();
+            fillPaint(linearGradient(w * k / kPieces, 0, w * (k + 1) / kPieces, 0,
+                                     Color(R::curveColors[k], alpha), Color(R::curveColors[k + 1], alpha)));
+            fill();
+        }
+
+        restore();
+    }
+
+    // 1 inside, eased to 0 within fade of either end
+    [[nodiscard]] static float edgeFade(const float x, const float w, const float fade) noexcept
+    {
+        const float c = std::clamp(std::min(x, w - x) / fade, 0.f, 1.f);
+        return c * c * (3.f - 2.f * c);
+    }
+
+    void drawMaxShelf(const float w, const float h)
+    {
+        const float zeroY = h * R::Curve::zeroY;
+        const float edge = R::Curve::fade * fScaleFactor;
+        const float fade = R::MaxShelf::fade * h;
+
+        strokeRainbow(shelfPoints(w, h, fRange), w, h, R::MaxShelf::width * fScaleFactor,
+                      [&](const Point<float>& p) {
+                          const float c = std::clamp((p.getY() - zeroY) / fade, 0.f, 1.f);
+                          return R::MaxShelf::alpha * c * edgeFade(p.getX(), w, edge);
+                      });
+    }
+
+    // NanoVG has no dashes: walks the points and strokes every other dash px, each dash in the curve's colour under
+    // it, as the dynamic EQ's dashed curve.
+    void strokeDashedRainbow(const CurvePoints& points, const float w, const float dash, const float width,
+                             const float alpha)
+    {
+        lineCap(BUTT);
+        strokeWidth(width);
+
+        float walked = 0.f;
+        for (uint i = 1; i <= kCurvePoints; ++i)
+        {
+            const Point<float>& a = points[i - 1];
+            const float dx = points[i].getX() - a.getX();
+            const float dy = points[i].getY() - a.getY();
+            const float len = std::sqrt(dx * dx + dy * dy);
+            if (len <= 0.f)
+                continue;
+
+            for (float t = 0.f; t < len;)
+            {
+                const float phase = std::fmod(walked + t, dash * 2.f);
+                const float step = std::min(len - t, (phase < dash ? dash : dash * 2.f) - phase);
+
+                if (phase < dash)
+                {
+                    const float ax = a.getX() + dx * t / len, ay = a.getY() + dy * t / len;
+                    const float bx = a.getX() + dx * (t + step) / len, by = a.getY() + dy * (t + step) / len;
+                    beginPath();
+                    moveTo(ax, ay);
+                    lineTo(bx, by);
+                    strokeColor(curveColor((ax + bx) * 0.5f / w, alpha));
+                    stroke();
+                }
+                t += step;
+            }
+            walked += len;
+        }
+    }
+
+    // The shelf as the de-esser applies it, as the dynamic EQ draws mid/side: the mid's curve filled down from 0 dB
+    // with a glow and, while the side's differs, the side's dashed with a fill between the two.
+    void drawCurve(const float w, const float h)
+    {
+        using S = R::Curve::Side;
+
+        const float s = fScaleFactor;
+        const float edge = R::Curve::fade * s;
+        const CurvePoints mid = shelfPoints(w, h, fMidReduction);
+        const bool split = std::abs(fMidReduction - fSideReduction) > S::splitThreshold;
+
+        fillRainbow(mid, w, h, R::Curve::fillAlpha);
+
+        if (split)
+        {
+            const CurvePoints side = shelfPoints(w, h, fSideReduction);
+            fillRainbow(mid, w, h, S::fillAlpha, &side);
+            strokeDashedRainbow(side, w, S::dash * s, S::width * s, S::alpha);
+        }
+
         for (const auto& [alpha, width] : { std::make_pair(R::Curve::glowAlpha, R::Curve::glowWidth),
                                             std::make_pair(1.f, R::Curve::width) })
         {
-            strokeWidth(width * s);
-
-            for (uint i = 0; i < R::Curve::sections; ++i)
-            {
-                const float x0 = points[i * R::Curve::steps].getX();
-                const float x1 = points[(i + 1) * R::Curve::steps].getX();
-                const uint first = i > 0 ? (i - 1) * R::Curve::steps : 0;
-                const uint last = std::min(kPoints, (i + 2) * R::Curve::steps);
-
-                save();
-                intersectScissor(x0, 0, x1 - x0, h);
-                beginPath();
-                moveTo(points[first].getX(), points[first].getY());
-                for (uint j = first + 1; j <= last; ++j)
-                    lineTo(points[j].getX(), points[j].getY());
-                strokePaint(linearGradient(x0, 0, x1, 0,
-                                           curveColor(x0 / w, alpha * fadeAt(x0)),
-                                           curveColor(x1 / w, alpha * fadeAt(x1))));
-                stroke();
-                restore();
-            }
+            strokeRainbow(mid, w, h, width * s, [&, alpha = alpha](const Point<float>& p) {
+                return alpha * edgeFade(p.getX(), w, edge);
+            });
         }
     }
 
@@ -734,6 +939,7 @@ private:
     {
         const float s = fScaleFactor;
         const float fade = R::Grid::fade * s;
+        const float gap = R::Grid::gap * s;
         const float labelY = R::Grid::Label::inset * s;
         const float labelHeight = R::Grid::Label::fontSize * s;
 
@@ -754,7 +960,7 @@ private:
                     continue;
 
                 const float x = freq2norm(freq) * w;
-                float y = 0.f;
+                float y = gap;
 
                 if ((i == 1 || i == 2 || i == 5) && freq >= 50)
                 {
@@ -764,7 +970,7 @@ private:
                         std::snprintf(label, sizeof(label), "%d", freq);
 
                     text(x, labelY, label, nullptr);
-                    y = labelY + labelHeight;
+                    y = labelY + labelHeight + gap;
                 }
 
                 const float alpha = i == 1 ? R::Grid::alphaMain : i == 5 ? R::Grid::alphaMid : R::Grid::alphaOther;
@@ -779,14 +985,14 @@ private:
 
                 beginPath();
                 moveTo(x, y + fade);
-                lineTo(x, h - fade);
+                lineTo(x, h - gap - fade);
                 strokeColor(on);
                 stroke();
 
                 beginPath();
-                moveTo(x, h - fade);
-                lineTo(x, h);
-                strokePaint(linearGradient(x, h - fade, x, h, on, off));
+                moveTo(x, h - gap - fade);
+                lineTo(x, h - gap);
+                strokePaint(linearGradient(x, h - gap - fade, x, h - gap, on, off));
                 stroke();
             }
         }
@@ -852,13 +1058,55 @@ private:
         }
     }
 
-    // the node, in the curve's colour there with a white core and a glow
+    void drawCrosshair(const float w, const float h)
+    {
+        const float s = fScaleFactor;
+        const float radius = R::Crosshair::dotRadius * s;
+        const float pitch = R::Crosshair::dotPitch * s;
+        const float alpha = fDragging ? R::Crosshair::dragAlpha : R::Crosshair::alpha;
+        const Point<float> cross = crossPosition();
+
+        // 1 at the crossing, eased to 0 at either edge
+        const auto fadeAt = [](const float pos, const float at, const float length) {
+            const float e = pos < at ? pos / std::max(1e-3f, at) : (length - pos) / std::max(1e-3f, length - at);
+            const float c = std::clamp(e, 0.f, 1.f);
+            return c * c * (3.f - 2.f * c);
+        };
+
+        // dots outward from the crossing, so one always sits on it
+        const auto line = [&](const bool vertical) {
+            const float length = vertical ? h : w;
+            const float at = vertical ? cross.getY() : cross.getX();
+
+            for (const float dir : { -1.f, 1.f })
+            {
+                for (float pos = dir < 0.f ? at : at + pitch; pos >= 0.f && pos <= length; pos += dir * pitch)
+                {
+                    const float a = alpha * fadeAt(pos, at, length);
+                    if (a <= 0.f)
+                        continue;
+
+                    beginPath();
+                    if (vertical)
+                        circle(cross.getX(), pos, radius);
+                    else
+                        circle(pos, cross.getY(), radius);
+                    fillColor(Color(R::Crosshair::color, a));
+                    fill();
+                }
+            }
+        };
+
+        line(false);
+        line(true);
+    }
+
     void drawNode()
     {
         const float s = fScaleFactor * (fDragging ? R::Node::dragScale : 1.f);
-        const Point<float> node = nodePosition();
-        const float x = node.getX();
-        const float y = node.getY();
+        const Point<float> cross = crossPosition();
+        const float x = cross.getX();
+        const float y = cross.getY();
         const Color color = curveColor(x / getWidth(), 1.f);
 
         beginPath();
