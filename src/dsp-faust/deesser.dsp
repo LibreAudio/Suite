@@ -4,6 +4,9 @@ declare license "GPL-3.0-or-later";
 declare name "De-Esser";
 declare unique_id "LAes";
 
+declare graph "analyzer";
+declare graphsource "input";
+
 import("stdfaust.lib");
 
 process = hfLimit;
@@ -19,7 +22,7 @@ hflim_split = uiDeEss(hslider("[01]Crossover[style:knob][unit:Hz][scale:log][sym
 // Detection reference, blendable: 100% measures the high band against the
 // body band (level-independent spectral tilt), 0% against 0 dBFS (plain
 // high-band level).
-hflim_mode = uiDeEss(hslider("[02]Mode[style:knob][unit:%][symbol:mode][label:Abs/Rel][accentcolor:05]", 100, 0, 100, 1)) / 100;
+hflim_mode = uiDeEss(hslider("[02]Absolute / Relative[style:knob][unit:%][symbol:mode][label:Absolute/Relative][accentcolor:05]", 0, -100, 100, 1) + 100) /200;
 
 // Each mode has its own threshold; Mode blends between them.
 hflim_threshAbs = uiDeEss(hslider("[03]Thresh Abs[unit:dB][style:knob][symbol:threshold_abs][label:Thresh Abs][accentcolor:01]", -30, -60, 0, 1));
@@ -61,7 +64,13 @@ hflim_drywet = uiDeEss(hslider("[10]Dry/Wet[style:knob][unit:%][symbol:drywet][l
 hflim_delta = uiDeEss(checkbox("[11]Delta[symbol:delta][label:Delta]
       [tooltip: Outputs only the signal the de-esser removes, for checking that only sibilance is affected. Turn off before printing]")) : si.smoo;
 
-hflim_meter = uiHidden(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
+// Meter ballistics, on the meters only (detection and audio are unaffected):
+// a rise within a millisecond and a release of meterRelease seconds (time
+// constant), so short sibilants stay readable.
+meterRelease = 0.2;
+meterBallistics = si.onePoleSwitching(0.001, meterRelease);
+
+hflim_meter = meterBallistics : uiHidden(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 // A passive widget with this exact symbol becomes the plugin's reported latency
 // (see the latency_samples cases in src/templates/dsp.cpp.in).
 latency_meter = uiHidden(hbargraph("[2]latency_samples[symbol:latency_samples]", 0, maxLookaheadSamples));
@@ -70,7 +79,7 @@ latency_meter = uiHidden(hbargraph("[2]latency_samples[symbol:latency_samples]",
 // absolute = high band in dBFS, relative = high band above the body band.
 scAbsMin = -60; scAbsMax = 0;
 scRelMin = -30; scRelMax = 10;
-scMeter(meter, lo, hi) = max(lo) : min(hi) : meter;
+scMeter(meter, lo, hi) = meterBallistics : max(lo) : min(hi) : meter;
 sc_mid_abs  = scMeter(uiHidden(hbargraph("[3]Sidechain Mid Absolute[unit:dB][symbol:sc_mid_abs]",   scAbsMin, scAbsMax)), scAbsMin, scAbsMax);
 sc_mid_rel  = scMeter(uiHidden(hbargraph("[4]Sidechain Mid Relative[unit:dB][symbol:sc_mid_rel]",   scRelMin, scRelMax)), scRelMin, scRelMax);
 sc_side_abs = scMeter(uiHidden(hbargraph("[5]Sidechain Side Absolute[unit:dB][symbol:sc_side_abs]", scAbsMin, scAbsMax)), scAbsMin, scAbsMax);
