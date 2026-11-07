@@ -84,17 +84,6 @@ struct Reference {
         static constexpr const uint padding = Common::margin;
     };
 
-    struct PluginName : Zero {
-        static constexpr const Color color = Colors::acc1;
-        static constexpr const float fontSize = 20;
-        static constexpr const float letterSpacing = fontSize * 0.05;
-    };
-
-    struct Line {
-        static constexpr const Color colorGradientStart = Colors::acc1;
-        static constexpr const Color colorGradientStop = Colors::acc1Glow;
-    };
-
     struct MainArea : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
@@ -147,7 +136,6 @@ struct Reference {
 
     struct Stage : Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
-        // static constexpr const Color backgroundColor = { 0x1b, 0x1c, 0x20 };
         static constexpr const uint border = 1;
         static constexpr const Color borderColor { 0, 0, 0, 0.22f };
         static constexpr const uint borderRadius = 7;
@@ -365,6 +353,12 @@ struct Reference {
                 static constexpr const Color color〡deactivated = Color(0.f, 0.f, 0.f, 0.5f);
                 static constexpr const uint height = 2;
             };
+        };
+
+        struct PluginName : Zero {
+            static constexpr const Color color = Colors::acc1;
+            static constexpr const float fontSize = 20;
+            static constexpr const float letterSpacing = fontSize * 0.05;
         };
 
         struct SmallKnob : Zero {

@@ -44,12 +44,12 @@ public:
 
 private:
    #if LIBREAUDIO_WANT_COMMON_IO
-    const std::array<std::shared_ptr<LabWidget>, 2> fMeters = {
-        addWidget<GainMeterWidget<Input>>(),
-        addWidget<GainMeterWidget<Output>>(),
-    };
+    const std::shared_ptr<LabWidget> fInputMeter = addWidget<GainMeterWidget<Input>>();
    #endif
     const std::shared_ptr<StageWidget> fStage = addWidget<StageWidget, Expanding>();
+   #if LIBREAUDIO_WANT_COMMON_IO
+    const std::shared_ptr<LabWidget> fOutputMeter = addWidget<GainMeterWidget<Output>>();
+   #endif
 };
 
 // --------------------------------------------------------------------------------------------------------------------
