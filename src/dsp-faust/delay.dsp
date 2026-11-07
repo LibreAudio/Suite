@@ -249,9 +249,9 @@ ppAmt = min(1.0, ppL + ppR);
 // what they are: neither changes the character of the delay, they only change
 // how the five time controls beneath them are read. Mode and Ping-Pong stay at
 // the top, where they do change what the engine is.
-sync = uiTime(nentry("[11]sync[style:radio{'Free':0;'Tempo':1}][symbol:sync][accentcolor:01][integer]", 0, 0, 1, 1)) : int;
+sync = uiTime(nentry("[11]Sync[style:radio{'Free':0;'Tempo':1}][symbol:sync][accentcolor:01][integer]", 0, 0, 1, 1)) : int;
 
-link = uiTime(nentry("[12]link[style:radio{'Free':0;'Linked':1}][symbol:link][accentcolor:05][integer]", 1, 0, 1, 1)) : int;
+link = uiTime(nentry("[12]Link[style:radio{'Free':0;'Linked':1}][symbol:link][accentcolor:05][integer]", 1, 0, 1, 1)) : int;
 
 // --- Time ---
 
