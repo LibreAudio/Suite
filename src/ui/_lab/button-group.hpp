@@ -25,12 +25,6 @@ public:
         BaseWidget::addIdleCallback(this);
     }
 
-    void done()
-    {
-        idleCallback();
-        updateSize(true);
-    }
-
 protected:
     template<class B,
              SizeHint sizeHint = Fixed,
@@ -42,6 +36,7 @@ protected:
         widget->setCallback(this);
         widget->setCheckable(true);
         widget->setName(name);
+        checkButtonState(widget);
         this->widgets.push_back({ widget.get(), sizeHint });
         fWidgets.push_back(widget);
         if (widget->getSize().isNull())
@@ -49,8 +44,11 @@ protected:
         return widget;
     }
 
+    template<class W>
     void addSpacer() = delete;
-    void addWidget() = delete;
+
+    template<class W, SizeHint sizeHint = Fixed, typename... Args>
+    void addWidget(Args... args) = delete;
 
 protected:
     std::list<std::shared_ptr<ButtonBaseWidget>> fWidgets;
@@ -58,19 +56,7 @@ protected:
     void idleCallback() override
     {
         for (const std::shared_ptr<ButtonBaseWidget>& widget : fWidgets)
-        {
-            const uint id = widget->getId();
-
-            if (id >= kWidgetIdsStart)
-            {
-                widget->setChecked(this->fInterface->isButtonChecked(id), false);
-                widget->setEnabled(this->fInterface->isButtonEnabled(id));
-            }
-            else
-            {
-                widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
-            }
-        }
+            checkButtonState(widget);
     }
 
     void updateSize(const bool updateChildren) override
@@ -119,6 +105,21 @@ private:
             this->fInterface->parameterControlPressed(id);
             this->fInterface->parameterControlModified(id, value);
             this->fInterface->parameterControlReleased(id);
+        }
+    }
+
+    void checkButtonState(const std::shared_ptr<ButtonBaseWidget>& widget)
+    {
+        const uint id = widget->getId();
+
+        if (id >= kWidgetIdsStart)
+        {
+            widget->setChecked(this->fInterface->isButtonChecked(id), false);
+            widget->setEnabled(this->fInterface->isButtonEnabled(id));
+        }
+        else
+        {
+            widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
         }
     }
 };

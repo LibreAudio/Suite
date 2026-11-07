@@ -35,7 +35,6 @@ class EasyStageWidget final : public ReferenceContainerWidget<Reference::Stage, 
         widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
         widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
         widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
-        widget->done();
 
         Layout::widgets.push_back({ widget.get(), Fixed });
         return widget;

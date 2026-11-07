@@ -102,19 +102,14 @@ using LimiterGroupsContainerWidget = StaticContainerPairWidget<
 
 class LimiterPresetCardsWidget : public CardGroupWidget
 {
+    using CardGroupWidget::CardGroupWidget;
+
     const std::array<std::shared_ptr<LabCardWidget>, 4> cards = {
         addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
         addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
         addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
         addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack"),
     };
-
-public:
-    explicit LimiterPresetCardsWidget(LabWidget* const parent)
-        : CardGroupWidget(parent)
-    {
-        done();
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

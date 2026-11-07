@@ -41,7 +41,6 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
         {
             addButton<UndoButtonWidget>(kWidgetUndo);
             addButton<RedoButtonWidget>(kWidgetRedo);
-            done();
         }
     };
 
@@ -61,7 +60,6 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
             addButton<TextButtonWidget<kCornerNone>>(kWidgetSnapshotSlotB, "B");
             addButton<TextButtonWidget<kCornerNone>>(kWidgetSnapshotSlotC, "C");
             addButton<TextButtonWidget<kCornerRight>>(kWidgetSnapshotSlotD, "D");
-            done();
         }
     };
 
@@ -75,7 +73,6 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
         {
             addButton<TextButtonWidget<kCornerLeft>>(kWidgetEasy, "Easy");
             addButton<TextButtonWidget<kCornerRight>>(kWidgetExpert, "Expert");
-            done();
         }
     };
 
@@ -91,7 +88,6 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
         {
             addButton<MenuButtonWidget>(kWidgetMenu);
             addButton<BypassButtonWidget<kCornerRight>>(kWidgetPower);
-            done();
         }
     };
 

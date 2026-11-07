@@ -214,7 +214,6 @@ public:
             {
                 addButton<SoloButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_listen));
                 addButton<MuteButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_bypass));
-                BaseWidget::done();
             }
 
         private:
