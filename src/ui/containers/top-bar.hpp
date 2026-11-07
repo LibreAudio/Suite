@@ -7,8 +7,9 @@
 #include "../_lab/image.hpp"
 #include "../_lab/interface.hpp"
 
+#include "../containers/button-group.hpp"
+#include "../containers/container.hpp"
 #include "../widgets/button.hpp"
-#include "../widgets/button-group.hpp"
 #include "../widgets/plugin-name.hpp"
 
 #include <array>
@@ -28,68 +29,51 @@ class TopBar : public ReferenceContainerWidget<Reference::TopBar>,
 
     using LogoWidget = LabImageWidget<IMAGES_LA_68_PNG_DATA, IMAGES_LA_68_PNG_LEN>;
 
-    // ----------------------------------------------------------------------------------------------------------------
+    template<Corner corner, const uchar* imageData, uint imageDataSize>
+    using Button = ImageButtonWidget<Reference::Widgets::TopBarButton, corner, imageData, imageDataSize>;
 
-    class UndoRedoGroupWidget : public ButtonGroupWidget
-    {
-        using UndoButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_UNDO_28_PNG_DATA, IMAGES_UNDO_28_PNG_LEN>;
-        using RedoButtonWidget = ImageButtonWidget<kCornerRight, IMAGES_REDO_28_PNG_DATA, IMAGES_REDO_28_PNG_LEN>;
+    template<Corner corner, const uchar* imageData, uint imageDataSize>
+    using BypassButton = ImageButtonWidget<Reference::Widgets::TopBarButton〡Bypass, corner, imageData, imageDataSize>;
 
-    public:
-        explicit UndoRedoGroupWidget(LabWidget* const parent)
-            : ButtonGroupWidget(parent)
-        {
-            addButton<UndoButtonWidget>(kWidgetUndo);
-            addButton<RedoButtonWidget>(kWidgetRedo);
-        }
-    };
+    template<Corner corner, const uchar* imageData, uint imageDataSize, const uchar* imageData2, uint imageDataSize2>
+    using DualButton = DualImageButtonWidget<Reference::Widgets::TopBarButton, corner, imageData, imageDataSize, imageData2, imageDataSize2>;
 
-    // ----------------------------------------------------------------------------------------------------------------
+    template<Corner corner, const char* text>
+    using TextButton = StaticTextButtonWidget<Reference::Widgets::TopBarButton, corner, text>;
 
-    class SnapshotsGroupWidget : public ButtonGroupWidget
-    {
-        using SnapshotCopyButtonWidget = DualImageButtonWidget<
-            kCornerLeft, IMAGES_X_28_PNG_DATA, IMAGES_X_28_PNG_LEN, IMAGES_COPY_28_PNG_DATA, IMAGES_COPY_28_PNG_LEN>;
-
-    public:
-        explicit SnapshotsGroupWidget(LabWidget* const parent)
-            : ButtonGroupWidget(parent)
-        {
-            addButton<SnapshotCopyButtonWidget>(kWidgetSnapshotCopy);
-            addButton<TextButtonWidget<kCornerNone>>(kWidgetSnapshotSlotA, "A");
-            addButton<TextButtonWidget<kCornerNone>>(kWidgetSnapshotSlotB, "B");
-            addButton<TextButtonWidget<kCornerNone>>(kWidgetSnapshotSlotC, "C");
-            addButton<TextButtonWidget<kCornerRight>>(kWidgetSnapshotSlotD, "D");
-        }
-    };
+    template<typename... PB>
+    using ButtonGroup = StaticButtonGroupWidget<Reference::Widgets::TopBarButtonGroup, PB...>;
 
     // ----------------------------------------------------------------------------------------------------------------
 
-    class EasyExpertGroupWidget : public ButtonGroupWidget
-    {
-    public:
-        explicit EasyExpertGroupWidget(LabWidget* const parent)
-            : ButtonGroupWidget(parent)
-        {
-            addButton<TextButtonWidget<kCornerLeft>>(kWidgetEasy, "Easy");
-            addButton<TextButtonWidget<kCornerRight>>(kWidgetExpert, "Expert");
-        }
-    };
+    using UndoRedoGroupWidget = ButtonGroup<
+        WidgetPair<kWidgetUndo, Button<kCornerLeft, IMAGES_UNDO_28_PNG_DATA, IMAGES_UNDO_28_PNG_LEN>>,
+        WidgetPair<kWidgetRedo, Button<kCornerRight, IMAGES_REDO_28_PNG_DATA, IMAGES_REDO_28_PNG_LEN>>
+    >;
 
-    // ----------------------------------------------------------------------------------------------------------------
+    static constexpr const char kA[] = "A";
+    static constexpr const char kB[] = "B";
+    static constexpr const char kC[] = "C";
+    static constexpr const char kD[] = "D";
+    using SnapshotsGroupWidget = ButtonGroup<
+        WidgetPair<kWidgetSnapshotCopy, DualButton<kCornerLeft, IMAGES_X_28_PNG_DATA, IMAGES_X_28_PNG_LEN, IMAGES_COPY_28_PNG_DATA, IMAGES_COPY_28_PNG_LEN>>,
+        WidgetPair<kWidgetSnapshotSlotA, TextButton<kCornerNone, kA>>,
+        WidgetPair<kWidgetSnapshotSlotB, TextButton<kCornerNone, kB>>,
+        WidgetPair<kWidgetSnapshotSlotC, TextButton<kCornerNone, kC>>,
+        WidgetPair<kWidgetSnapshotSlotD, TextButton<kCornerRight, kD>>
+    >;
 
-    class MenuPowerGroupWidget : public ButtonGroupWidget
-    {
-        using MenuButtonWidget = ImageButtonWidget<kCornerLeft, IMAGES_MENU_28_PNG_DATA, IMAGES_MENU_28_PNG_LEN>;
+    static constexpr const char kEasy[] = "Easy";
+    static constexpr const char kExpert[] = "Expert";
+    using EasyExpertGroupWidget = ButtonGroup<
+        WidgetPair<kWidgetEasy, TextButton<kCornerLeft, kEasy>>,
+        WidgetPair<kWidgetExpert, TextButton<kCornerRight, kExpert>>
+    >;
 
-    public:
-        explicit MenuPowerGroupWidget(LabWidget* const parent)
-            : ButtonGroupWidget(parent)
-        {
-            addButton<MenuButtonWidget>(kWidgetMenu);
-            addButton<BypassButtonWidget<kCornerRight>>(kWidgetPower);
-        }
-    };
+    using MenuPowerGroupWidget = ButtonGroup<
+        WidgetPair<kWidgetMenu, Button<kCornerLeft, IMAGES_MENU_28_PNG_DATA, IMAGES_MENU_28_PNG_LEN>>,
+        WidgetPair<kWidgetPower, BypassButton<kCornerRight, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN>>
+    >;
 
     // ----------------------------------------------------------------------------------------------------------------
 

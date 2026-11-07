@@ -50,11 +50,16 @@ struct Reference {
 
     struct Zero {
         static constexpr const Color backgroundColor = Colors::transparent;
+        static constexpr const Color backgroundColor〡checked = Colors::transparent;
+        static constexpr const Color backgroundColor〡disabled = Colors::transparent;
+        static constexpr const Color backgroundColor〡hover = Colors::transparent;
         static constexpr const Color borderColor = Colors::transparent;
         static constexpr const Color borderHighlightColor = Colors::transparent;
         static constexpr const Color borderShadowColor = Colors::transparent;
         static constexpr const Color color = Colors::transparent;
-        static constexpr const Color color〡deactivated = Colors::transparent;
+        static constexpr const Color color〡checked = Colors::transparent;
+        static constexpr const Color color〡disabled = Colors::transparent;
+        static constexpr const Color color〡hover = Colors::transparent;
         static constexpr const Color shadowColor = Colors::transparent;
         static constexpr const Point<int> shadowOffset = { 0, 0 };
         static constexpr const Size<int> shadowSize = { 0, 0 }; // FIXME inset vs outset naming
@@ -158,31 +163,6 @@ struct Reference {
     };
 
     struct Widgets {
-        struct Button : Zero {
-            static constexpr const Color backgroundColor = { 0x45, 0x45, 0x4f };
-            static constexpr const Color color = { 0xa9, 0xc4, 0xf0 };
-            static constexpr const Color color〡deactivated = Colors::ink3;
-            static constexpr const MouseCursor cursor = kMouseCursorHand;
-            static constexpr const uint borderRadius = 11;
-            static constexpr const uint margin = 9;
-        };
-
-        struct Button〡Bypass : Button {
-            static constexpr const Color backgroundColorBypass = { 0x5a, 0x35, 0x3c };
-            static constexpr const Color colorBypass = { 0xff, 0x5d, 0x5d };
-        };
-
-        struct ButtonGroup : Zero {
-            static constexpr const uint borderRadius = 6;
-            static constexpr const uint padding = 1;
-
-            // TESTING
-            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
-            static constexpr const Point<int> shadowOffset = { 0, 4 };
-            static constexpr const Size<int> shadowSize = { -12, -12 };
-            static constexpr const uint shadowFeather = 14;
-        };
-
         struct Card : Zero {
             static constexpr const Color backgroundColor = { Colors::ink3, 0.3f };
             static constexpr const Color backgroundColor〡selected = { Colors::acc5, 0.3f };
@@ -515,6 +495,37 @@ struct Reference {
                     static constexpr const uint dotSize = 2;
                 };
             };
+        };
+
+        struct TopBarButton : Zero {
+            static constexpr const Color backgroundColor = { 0x45, 0x45, 0x4f };
+            static constexpr const Color color = { 0xa9, 0xc4, 0xf0 };
+            static constexpr const Color color〡disabled = Colors::ink3;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
+            static constexpr const uint borderRadius = 11;
+            static constexpr const uint margin = 9;
+            // FIXME move some to common colors?
+            static constexpr const Color backgroundColor〡checked = color;
+            static constexpr const Color color〡checked = backgroundColor;
+            static constexpr const Color color〡hover = color;
+            // Color(backgroundColor, color, 0.5f);
+        };
+
+        struct TopBarButton〡Bypass : TopBarButton {
+            static constexpr const Color backgroundColor〡checked = { 0x5a, 0x35, 0x3c };
+            static constexpr const Color color〡checked = { 0xff, 0x5d, 0x5d };
+            static constexpr const Color color〡hover = color〡checked;
+        };
+
+        struct TopBarButtonGroup : Zero {
+            static constexpr const uint borderRadius = 6;
+            static constexpr const uint padding = 1;
+
+            // TESTING
+            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+            static constexpr const Point<int> shadowOffset = { 0, 4 };
+            static constexpr const Size<int> shadowSize = { -12, -12 };
+            static constexpr const uint shadowFeather = 14;
         };
     };
 

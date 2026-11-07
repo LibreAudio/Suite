@@ -135,7 +135,7 @@ class LimiterStageWidget final : public StageWidget<LimterEasyPageWidget, Limter
                                  private ButtonEventHandler::Callback
 {
     using BaseWidget = StageWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
-    using ButtonWidget = TextButtonWidget<kCornerNone, Reference::Height<30, Reference::Widgets::Button>>;
+    using ButtonWidget = TextButtonWidget<Reference::Height<30, Reference::Widgets::TopBarButton>, kCornerNone>;
 
     static constexpr const FaustParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];
 

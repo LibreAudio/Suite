@@ -19,10 +19,10 @@ struct ReferenceTopBar : Reference::TopBar {
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height;
 };
 
-class SaturatorAlwaysOnButton : public TextButtonWidget<kCornerBoth>,
+class SaturatorAlwaysOnButton : public TextButtonWidget<Reference::Widgets::TopBarButton, kCornerBoth>,
                                 private IdleCallback
 {
-    using BaseWidget = TextButtonWidget<kCornerBoth>;
+    using BaseWidget = TextButtonWidget<Reference::Widgets::TopBarButton, kCornerBoth>;
 
 public:
     explicit SaturatorAlwaysOnButton(LabWidget* const parent, const uint id)
@@ -46,10 +46,10 @@ private:
     }
 };
 
-class SaturatorAutoButton : public TextButtonWidget<kCornerBoth>,
+class SaturatorAutoButton : public TextButtonWidget<Reference::Widgets::TopBarButton, kCornerBoth>,
                             private ButtonEventHandler::Callback
 {
-    using BaseWidget = TextButtonWidget<kCornerBoth>;
+    using BaseWidget = TextButtonWidget<Reference::Widgets::TopBarButton, kCornerBoth>;
 
 public:
     explicit SaturatorAutoButton(LabWidget* const parent, const uint id)

@@ -91,9 +91,13 @@ struct MbComp5BandGroupReference : Reference::Zero {
             };
 
             struct Bypass : Solo {
-                static constexpr const Color backgroundColor〡checked = Reference::Widgets::Button〡Bypass::backgroundColorBypass;
-                static constexpr const Color color〡checked = Reference::Widgets::Button〡Bypass::colorBypass;
-                static constexpr const Color color〡hover = Reference::Widgets::Button〡Bypass::colorBypass;
+                using BB = Reference::Widgets::TopBarButton〡Bypass;
+                static constexpr const Color backgroundColor〡checked = BB::backgroundColor〡checked;
+                // static constexpr const Color backgroundColor〡disabled = BB::backgroundColor〡disabled;
+                // static constexpr const Color backgroundColor〡hover = BB::backgroundColor〡hover;
+                static constexpr const Color color〡checked = BB::color〡checked;
+                // static constexpr const Color color〡disabled = BB::color〡disabled;
+                static constexpr const Color color〡hover = BB::color〡hover;
             };
         };
     };
@@ -125,6 +129,7 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 {
     using R = MbComp5BandGroupReference<band>;
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
+    using BaseWidget::BaseWidget;
 
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
 
@@ -144,6 +149,11 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 
     // ----------------------------------------------------------------------------------------------------------------
 
+    using SoloButtonWidget = ImageButtonWidget<typename R::Header::Buttons::Solo, kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
+    using MuteButtonWidget = ImageButtonWidget<typename R::Header::Buttons::Bypass, kCornerBoth, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
+
+    // ----------------------------------------------------------------------------------------------------------------
+
     const std::array<std::shared_ptr<LabWidget>, 2> widgets {
         this->template addWidget<HeaderWidget>(),
         this->template addWidget<BodyWidget, Expanding>(),
@@ -153,9 +163,6 @@ class MbComp5BandGroupWidget final : public ReferenceContainerWidget<MbComp5Band
 
 public:
     using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kAccentColor>>;
-
-    explicit MbComp5BandGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
 
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
@@ -171,62 +178,11 @@ public:
             this->template addWidget<SoloMuteGroupWidget>(),
         };
 
-    public:
-        class SoloMuteGroupWidget : public ReferenceButtonGroupWidget<typename HR::Buttons>
-        {
-            using SMGR = typename HR::Buttons;
-            using BaseWidget = ReferenceButtonGroupWidget<SMGR>;
-
-            template<class SMBR, const uchar* imageData, uint imageDataSize>
-            class SoloMuteButton : public ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>
-            {
-            public:
-                using BaseWidget = ImageButtonWidget<kCornerBoth, imageData, imageDataSize, SMBR>;
-
-                explicit SoloMuteButton(LabWidget* const parent, const uint id)
-                    : BaseWidget(parent, id) {}
-
-            private:
-                void onNanoDisplay() override
-                {
-                    if (BaseWidget::isChecked())
-                        BaseWidget::template drawReferenceBackground<SMBR, SMBR::backgroundColor〡checked, kCornerBoth>();
-                    else
-                        BaseWidget::template drawReferenceBackground<SMBR, SMBR::backgroundColor, kCornerBoth>();
-
-                    BaseWidget::template drawReferenceBorder<SMBR, SMBR::borderColor>();
-
-                    if (BaseWidget::isChecked())
-                        BaseWidget::drawColoredImage(SMBR::color〡checked);
-                    else if (BaseWidget::isHovered())
-                        BaseWidget::drawColoredImage(SMBR::color〡hover);
-                    else
-                        BaseWidget::drawColoredImage(SMBR::color);
-                }
-            };
-
-        public:
-            using SoloButtonWidget = SoloMuteButton<typename SMGR::Solo, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
-            using MuteButtonWidget = SoloMuteButton<typename SMGR::Bypass, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
-
-            explicit SoloMuteGroupWidget(LabWidget* const parent)
-                : BaseWidget(parent)
-            {
-                addButton<SoloButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_listen));
-                addButton<MuteButtonWidget>(getParameterIndexForBand(kFaustParameterBand1_bypass));
-            }
-
-        private:
-            template<class B>
-            std::shared_ptr<ButtonBaseWidget> addButton(const FaustParameterIndex index)
-            {
-                const FaustParameter& parameter = kFaustParameters[index];
-                DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
-                DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
-
-                return BaseWidget::template addButton<B>(kParametersMainStart + index, getFaustParameterLabel(parameter));
-            }
-        };
+        using SoloMuteGroupWidget = StaticParameterButtonGroupWidget<
+            typename HR::Buttons,
+            ParameterWidgetPair<getParameterIndexForBand(kFaustParameterBand1_listen), SoloButtonWidget>,
+            ParameterWidgetPair<getParameterIndexForBand(kFaustParameterBand1_bypass), MuteButtonWidget>
+        >;
     };
 
     // ----------------------------------------------------------------------------------------------------------------

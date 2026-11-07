@@ -54,13 +54,48 @@ public:
     }
 
 protected:
+    [[nodiscard]] const Color& getBackgroundColor() const noexcept
+    {
+        if (! isEnabled())
+        {
+            if constexpr (d_isNotZero(R::backgroundColor〡disabled.alpha))
+                return R::backgroundColor〡disabled;
+        }
+
+        if (isCheckable() && isChecked())
+        {
+            if constexpr (d_isNotZero(R::backgroundColor〡checked.alpha))
+                return R::backgroundColor〡checked;
+        }
+
+        if (isHovered())
+        {
+            if constexpr (d_isNotZero(R::backgroundColor〡hover.alpha))
+                return R::backgroundColor〡hover;
+        }
+
+        return R::backgroundColor;
+    }
+
     [[nodiscard]] const Color& getForegroundColor() const noexcept
     {
         if (! isEnabled())
-            return R::color〡deactivated;
+        {
+            if constexpr (d_isNotZero(R::color〡disabled.alpha))
+                return R::color〡disabled;
+        }
 
-        if (isCheckable())
-            return isChecked() ? R::backgroundColor : R::color;
+        if (isCheckable() && isChecked())
+        {
+            if constexpr (d_isNotZero(R::color〡checked.alpha))
+                return R::color〡checked;
+        }
+
+        if (isHovered())
+        {
+            if constexpr (d_isNotZero(R::color〡hover.alpha))
+                return R::color〡hover;
+        }
 
         return R::color;
     }
@@ -68,11 +103,24 @@ protected:
     template <class TR>
     void drawReferenceText(const char* const text)
     {
+        // NOTE same logic as getForegroundColor, duplicated for being compatible with template args
         if (! isEnabled())
-            return drawReferenceText<TR, TR::color〡deactivated>(text);
+        {
+            if constexpr (d_isNotZero(R::color〡disabled.alpha))
+                return drawReferenceText<TR, TR::color〡disabled>(text);
+        }
 
         if (isCheckable() && isChecked())
-            return drawReferenceText<TR, TR::backgroundColor>(text);
+        {
+            if constexpr (d_isNotZero(R::color〡checked.alpha))
+                return drawReferenceText<TR, TR::color〡checked>(text);
+        }
+
+        if (isHovered())
+        {
+            if constexpr (d_isNotZero(R::color〡hover.alpha))
+                return drawReferenceText<TR, TR::color〡hover>(text);
+        }
 
         return drawReferenceText<TR, TR::color>(text);
     }
@@ -85,10 +133,39 @@ protected:
 
     void onNanoDisplay() override
     {
-        if (isCheckable() && isChecked())
-            drawReferenceBackground<R, R::color, corner>();
-        else
+        // NOTE same logic as getBackgroundColor, duplicated for being compatible with template args
+        do
+        {
+            if (! isEnabled())
+            {
+                if constexpr (d_isNotZero(R::backgroundColor〡disabled.alpha))
+                {
+                    drawReferenceBackground<R, R::backgroundColor〡disabled, corner>();
+                    break;
+                }
+            }
+
+            if (isCheckable() && isChecked())
+            {
+                if constexpr (d_isNotZero(R::backgroundColor〡checked.alpha))
+                {
+                    drawReferenceBackground<R, R::backgroundColor〡checked, corner>();
+                    break;
+                }
+            }
+
+            if (isHovered())
+            {
+                if constexpr (d_isNotZero(R::backgroundColor〡hover.alpha))
+                {
+                    drawReferenceBackground<R, R::backgroundColor〡hover, corner>();
+                    break;
+                }
+            }
+
             drawReferenceBackground<R, R::backgroundColor, corner>();
+        }
+        while (false);
 
         drawReferenceBorder<R, R::borderColor>();
     }

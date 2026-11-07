@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "../base.hpp"
 #include "../reference.hpp"
 #include "../_lab/container.hpp"
 
@@ -12,11 +13,17 @@
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
-// pair a Widget with a parameter index
+// pair a Widget with a parameter or widget index
 
 template <FaustParameterIndex index, class W>
 struct ParameterWidgetPair {
     static constexpr const FaustParameterIndex kIndex = index;
+    using Widget = W;
+};
+
+template <WidgetIds id, class W>
+struct WidgetPair {
+    static constexpr const WidgetIds kId = id;
     using Widget = W;
 };
 

@@ -43,7 +43,7 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const uchar* imageData, uint imageDataSize, class R = Reference::Widgets::Button>
+template<class R, Corner corner, const uchar* imageData, uint imageDataSize>
 class ImageButtonWidget : public ReferenceButtonWidget<R, corner>
 {
     using BaseWidget = ReferenceButtonWidget<R, corner>;
@@ -110,7 +110,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size, class R = Reference::Widgets::Button>
+template<class R, Corner corner, const uchar* image1Data, uint imageData1Size, const uchar* image2Data, uint imageData2Size>
 class DualImageButtonWidget : public ReferenceButtonWidget<R, corner>
 {
     using BaseWidget = ReferenceButtonWidget<R, corner>;
@@ -179,7 +179,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, class R = Reference::Widgets::Button, Orientation orientation = Horizontal>
+template<class R, Corner corner, Orientation orientation = Horizontal>
 class TextButtonWidget : public ReferenceButtonWidget<R, corner>
 {
     using BaseWidget = ReferenceButtonWidget<R, corner>;
@@ -223,43 +223,14 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Corner corner, const char _text[], class R = Reference::Widgets::Button>
-class StaticTextButtonWidget : public TextButtonWidget<corner, R>
+template<class R, Corner corner, const char _text[]>
+class StaticTextButtonWidget : public TextButtonWidget<R, corner>
 {
-    using BaseWidget = TextButtonWidget<corner, R>;
+    using BaseWidget = TextButtonWidget<R, corner>;
 
 public:
     explicit StaticTextButtonWidget(LabWidget* const parent, const uint id)
         : BaseWidget(parent, id, _text) {}
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<Corner corner>
-class BypassButtonWidget final : public ImageButtonWidget<corner, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, Reference::Widgets::Button〡Bypass>
-{
-    using R = Reference::Widgets::Button〡Bypass;
-    using BaseWidget = ImageButtonWidget<corner, IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, R>;
-
-public:
-    explicit BypassButtonWidget(LabWidget* const parent, const uint id)
-        : BaseWidget(parent, id)
-    {
-        BaseWidget::setCheckable(true);
-    }
-
-private:
-    void onNanoDisplay() final
-    {
-        if (BaseWidget::isChecked())
-            BaseWidget::template drawReferenceBackground<R, R::backgroundColorBypass, corner>();
-        else
-            BaseWidget::template drawReferenceBackground<R, R::backgroundColor, corner>();
-
-        BaseWidget::template drawReferenceBorder<R, R::borderColor>();
-
-        BaseWidget::drawColoredImage(BaseWidget::isChecked() || BaseWidget::isHovered() ? R::colorBypass : R::color);
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

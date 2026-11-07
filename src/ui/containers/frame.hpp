@@ -21,6 +21,7 @@ class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, Vertica
 {
     using BaseWidget = ReferenceContainerWidget<R, Vertical>;
     using Layout = typename BaseWidget::Layout;
+    using BaseWidget::BaseWidget;
 
     std::list<std::shared_ptr<LabWidget>> fWidgets;
 
@@ -32,9 +33,6 @@ class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, Vertica
     };
 
 public:
-    explicit FrameContainerReferenceWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
     template <FaustParameterIndex parameterA, FaustParameterIndex parameterB>
     void addDualSlider()
     {
@@ -78,7 +76,7 @@ public:
     void addText(const FaustParameterIndex index, const char* const text)
     {
         std::shared_ptr<LabWidget> spacer {
-            new TextButtonWidget<kCornerNone, TextReference, Vertical>(this, kParametersMainStart + index, text)
+            new TextButtonWidget<TextReference, kCornerNone, Vertical>(this, kParametersMainStart + index, text)
         };
         Layout::widgets.push_back({ spacer.get(), Fixed });
         fWidgets.emplace_back(std::move(spacer));
@@ -96,7 +94,7 @@ public:
     template<class W>
     void addSpacer() = delete;
 
-    template<class W, typename... Args>
+    template<class W, SizeHint sizeHint = Fixed, typename... Args>
     void addWidget(Args... args) = delete;
 };
 
