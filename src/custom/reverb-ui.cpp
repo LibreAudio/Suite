@@ -16,8 +16,6 @@
 // kFaustParameterEr_meter_r
 // kFaustParameterTail_meter_l
 // kFaustParameterTail_meter_r
-// kFaustParameterDeess_meter
-// kFaustParameterDuck_meter
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -108,8 +106,8 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::pink, kTextDYNAMICS>,
-        StaticNumberBoxWidget<kFaustParameterDeess_amount, Reference::Colors::pink>,
-        StaticNumberBoxWidget<kFaustParameterDuck_amount, Reference::Colors::pink>
+        StaticNumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter, Reference::Colors::pink>,
+        StaticNumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter, Reference::Colors::pink>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,

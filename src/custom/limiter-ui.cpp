@@ -42,9 +42,6 @@ namespace widgets {
     using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, LimiterCheckBoxWidget<Reference::Colors::acc6>>;
     using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, LimiterCheckBoxWidget<Reference::Colors::acc4>>;
 
-    using Threshold = ParameterWidgetPair<kFaustParameterThreshold, LimiterNumberBoxWidget<Reference::Colors::acc1>>;
-    using Ceiling = ParameterWidgetPair<kFaustParameterCeiling, LimiterNumberBoxWidget<Reference::Colors::acc6>>;
-
     using Attack = ParameterWidgetPair<kFaustParameterAttack, LimiterNumberBoxWidget<Reference::Colors::acc5>>;
     using AttackShape = ParameterWidgetPair<kFaustParameterAttack_shape, LimiterNumberBoxWidget<Reference::Colors::acc5>>;
 
@@ -54,28 +51,17 @@ namespace widgets {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct LimiterGroupReference : Reference::Zero {
-    static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
-    static constexpr const Color borderColor = backgroundColor;
-    static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
-    static constexpr const Color borderShadowColor { 0, 0, 0, 0.12f };
-    static constexpr const uint border = 1;
-    static constexpr const uint borderRadius = 8;
-    static constexpr const uint margin = kCommonMargin;
-    static constexpr const uint padding = kCommonPadding;
-    static constexpr const uint height = kNumberBoxHeight + (border + margin) * 2;
-
-    // TESTING
-    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
-    static constexpr const Point<int> shadowOffset = { 0, 5 };
-    // static constexpr const Size<int> shadowSize = { -6, -6 };
-    static constexpr const Size<int> shadowSize = { -12, -12 };
-    static constexpr const uint shadowFeather = 14;
-};
-
 template <Orientation orientation, SizeHint sizeHint, typename... Args>
 using LimiterGroupWidget = StaticParameterContainerWidget<
-    LimiterGroupReference,
+    Reference::Widgets::BoxFrame<1>,
+    orientation,
+    sizeHint,
+    Args...
+>;
+
+template <Orientation orientation, SizeHint sizeHint, typename... Args>
+using LimiterGroupWidget2 = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1>,
     orientation,
     sizeHint,
     Args...
@@ -85,17 +71,26 @@ using LimiterGroupWidget = StaticParameterContainerWidget<
 
 struct LimiterGroupsContainerReference : Reference::Zero {
     static constexpr const uint padding = kCommonPadding;
-    static constexpr const uint height = LimiterGroupReference::height + (border + margin) * 2;
+    static constexpr const uint height = Reference::Widgets::BoxFrame<1>::height + (border + margin) * 2;
 };
 
 using LimiterGroupsContainerWidget = StaticContainerPairWidget<
     LimiterGroupsContainerReference,
     Horizontal,
     SizeHintWidgetPair<Fixed, LimiterGroupWidget<Vertical, Expanding, widgets::TruePeak, widgets::UnityGain>>,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Threshold, widgets::Ceiling>>,
+    SizeHintWidgetPair<
+        Expanding,
+        LimiterGroupWidget2<
+            Horizontal,
+            Expanding,
+            // StaticNumberBoxWithMeterWidget<kFaustParameterThreshold, kFaustParameterGr, Reference::Colors::acc1>,
+            StaticNumberBoxWidget<kFaustParameterThreshold, Reference::Colors::acc1>,
+            StaticNumberBoxWidget<kFaustParameterCeiling, Reference::Colors::acc6>
+        >
+    >,
     SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Attack, widgets::AttackShape>>,
     SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Release, widgets::AutoRelease>>,
-    SizeHintWidgetPair<Fixed, ComboBoxGroupWidget<LimiterGroupReference, LimiterComboBoxWidget, kFaustParameterDither, kFaustParameterNoise_shaping>>
+    SizeHintWidgetPair<Fixed, ComboBoxGroupWidget<Reference::Widgets::BoxFrame<1>, LimiterComboBoxWidget, kFaustParameterDither, kFaustParameterNoise_shaping>>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------

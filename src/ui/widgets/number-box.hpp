@@ -28,12 +28,9 @@ struct NumberBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// , uint height = Reference::Widgets::NumberBox<>::height
 template<const Color& kAccentColor = Reference::Colors::acc1>
 class NumberBoxWidget : public LabParameterWidget
 {
-    // , height
-    using R = Reference::Widgets::NumberBox<kAccentColor>;
     using BaseWidget = LabParameterWidget;
 
 public:
@@ -53,31 +50,10 @@ public:
         updateSize(false);
     }
 
-    explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index, const FaustParameterIndex meter)
-        : NumberBoxWidget(parent, index)
-    {
-    }
+protected:
+    using R = Reference::Widgets::NumberBox<kAccentColor>;
 
-private:
-    const FaustParameter& fParameter;
-    const bool fUsingMiddleSplitBar;
-
-    void knobDoubleClicked(SubWidget*) final
-    {
-        char valuestr[64];
-        renderParameterValue(valuestr, fParameter, getValue());
-
-        fInterface->openTextInput(this,
-                                  valuestr,
-                                  getAbsoluteArea(),
-                                  R::Name::color,
-                                  R::Value::color,
-                                  R::borderRadius,
-                                  R::Value::fontSize,
-                                  true);
-    }
-
-    void onNanoDisplay() final
+    void onNanoDisplay() override
     {
         const NumberBoxMetrics<R> m { this };
 
@@ -192,6 +168,25 @@ private:
         }
     }
 
+private:
+    const FaustParameter& fParameter;
+    const bool fUsingMiddleSplitBar;
+
+    void knobDoubleClicked(SubWidget*) final
+    {
+        char valuestr[64];
+        renderParameterValue(valuestr, fParameter, getValue());
+
+        fInterface->openTextInput(this,
+                                  valuestr,
+                                  getAbsoluteArea(),
+                                  R::Name::color,
+                                  R::Value::color,
+                                  R::borderRadius,
+                                  R::Value::fontSize,
+                                  true);
+    }
+
     void updateSize(const bool updateChildren) final
     {
         updateReferenceSize<R>();
@@ -201,16 +196,77 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<const Color& kAccentColor = Reference::Colors::acc1>
+class NumberBoxWithMeterWidget : public NumberBoxWidget<kAccentColor>
+{
+    using BaseWidget = NumberBoxWidget<kAccentColor>;
+    using R = typename BaseWidget::R;
+
+public:
+    explicit NumberBoxWithMeterWidget(LabWidget* const parent,
+                                      const FaustParameterIndex index,
+                                      const FaustParameterIndex meter)
+        : BaseWidget(parent, index),
+          fMeter(kFaustParameters[meter]),
+          fMeterIndex(meter),
+          fMeterRange(fMeter.max - fMeter.min)
+    {
+    }
+
+protected:
+    void onNanoDisplay() override
+    {
+        BaseWidget::onNanoDisplay();
+
+        const NumberBoxMetrics<R> m { this };
+
+        const float normvalue = 1.f - (
+            (this->fInterface->getParameterValue(kParametersMainStart + fMeterIndex) - fMeter.min) / fMeterRange
+        );
+        const float x = normvalue * m.width;
+
+        BaseWidget::save();
+
+        BaseWidget::scissor(0, 0, m.width, m.bar.height);
+        BaseWidget::beginPath();
+        BaseWidget::roundedRect(0, 0, m.width, m.height, m.borderRadius);
+        BaseWidget::fillColor(R::Bar::color〡deactivated);
+        BaseWidget::fill();
+
+        BaseWidget::scissor(x, 0, m.width - x, m.bar.height);
+
+        BaseWidget::beginPath();
+        BaseWidget::roundedRect(0, 0, m.width, m.height, m.borderRadius);
+        BaseWidget::fillColor(Reference::Colors::orange);
+        BaseWidget::fill();
+
+        BaseWidget::restore();
+    }
+
+private:
+    const FaustParameter& fMeter;
+    const FaustParameterIndex fMeterIndex;
+    const float fMeterRange;
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<FaustParameterIndex kParameterIndex, const Color& kAccentColor>
 class StaticNumberBoxWidget final : public NumberBoxWidget<kAccentColor>
 {
-    using BaseWidget = NumberBoxWidget<kAccentColor>;
-
 public:
     explicit StaticNumberBoxWidget(LabWidget* const parent)
-        : BaseWidget(parent, kParameterIndex)
-    {
-    }
+        : NumberBoxWidget<kAccentColor>(parent, kParameterIndex) {}
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex, FaustParameterIndex kMeterIndex, const Color& kAccentColor>
+class StaticNumberBoxWithMeterWidget final : public NumberBoxWithMeterWidget<kAccentColor>
+{
+public:
+    explicit StaticNumberBoxWithMeterWidget(LabWidget* const parent)
+        : NumberBoxWithMeterWidget<kAccentColor>(parent, kParameterIndex, kMeterIndex) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

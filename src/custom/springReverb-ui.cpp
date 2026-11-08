@@ -11,10 +11,6 @@
 
 #include "LibreAudioParameters.hpp"
 
-// TODO meters for these
-// kFaustParameterDuck_meter,
-// kFaustParameterDeess_meter,
-
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace LibreAudio {
@@ -67,8 +63,8 @@ using ReverbDynamicsGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterDuck_amount, Reference::Colors::yellow>,
-        StaticNumberBoxWidget<kFaustParameterDeess_amount, Reference::Colors::yellow>
+        StaticNumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter, Reference::Colors::yellow>,
+        StaticNumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter, Reference::Colors::yellow>
     >
 >;
 
