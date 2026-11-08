@@ -71,10 +71,11 @@ template<class R, Orientation orientation>
 class ParameterReferenceContainerWidget : public LabReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = LabReferenceContainerWidget<R, orientation>;
-    using Layout = typename BaseWidget::Layout;
     using BaseWidget::BaseWidget;
 
 protected:
+    using Layout = typename BaseWidget::Layout;
+
     template<class PWP,
              SizeHint sizeHint,
              typename = std::enable_if_t<std::is_base_of_v<LabWidget, typename PWP::Widget>>>
@@ -87,7 +88,7 @@ protected:
         {
             if (widget->getSize().isNull())
                 d_stderr2("Error: addParameterWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
-                          PWP::Index,
+                          PWP::kIndex,
                           widget->getName());
         }
         return widget;
@@ -132,10 +133,19 @@ class StaticParameterContainerWidget : public ParameterReferenceContainerWidget<
 {
     using BaseWidget = ParameterReferenceContainerWidget<R, orientation>;
     using BaseWidget::BaseWidget;
+    using Layout = typename BaseWidget::Layout;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addParameterWidgetPair<Args, sizeHint>()...
     };
+
+    void updateSize(const bool updateChildren) override
+    {
+        if (updateChildren)
+            BaseWidget::autoSize();
+        else
+            BaseWidget::updateSize(false);
+    }
 };
 
 template<class R, Orientation orientation, typename... Args>

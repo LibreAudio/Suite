@@ -16,16 +16,16 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class R>
-struct CheckBoxMetrics : LabMetrics<R> {
+template<class R, typename RType = float>
+struct CheckBoxMetrics : LabMetrics<R, RType> {
     explicit CheckBoxMetrics(LabWidget* const widget)
-        : LabMetrics<R>(widget),
+        : LabMetrics<R, RType>(widget),
           box(widget, *this) {}
 
     const struct Box : LabMetrics<typename R::Box> {
-        const float checkmark;
-        const float xy;
-        const float size;
+        const RType checkmark;
+        const RType xy;
+        const RType size;
 
         explicit Box(LabWidget* const widget, const CheckBoxMetrics& m)
             : LabMetrics<typename R::Box>(widget),
@@ -37,12 +37,12 @@ struct CheckBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::CheckBox<>::height>
-class CheckBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor, height>>,
+template<const Color& kAccentColor = Reference::Colors::acc1>
+class CheckBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor>>,
                              private ButtonEventHandler::Callback,
                              private IdleCallback
 {
-    using R = Reference::Widgets::CheckBox<kAccentColor, height>;
+    using R = Reference::Widgets::CheckBox<kAccentColor>;
     using BaseWidget = ReferenceParameterButtonWidget<R, kCornerAuto>;
     using State = typename BaseWidget::State;
 
@@ -151,6 +151,28 @@ private:
             if ((oldState & BaseWidget::kButtonStateActive) != 0)
                 this->fInterface->parameterControlReleased(BaseWidget::getId());
         }
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        const CheckBoxMetrics<R, uint> m { this };
+
+        // NOTE inner box depends on height, so we can't always rely on it here
+        uint boxsize;
+        if constexpr (R::height != 0)
+            boxsize = m.box.size;
+        else
+            boxsize = d_roundToUnsignedInt(m.fontSize);
+
+        Rectangle<float> bounds;
+        BaseWidget::fontFace("regular");
+        BaseWidget::fontSize(m.fontSize);
+        BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_TOP);
+        BaseWidget::textLetterSpacing(m.letterSpacing);
+        BaseWidget::textBounds(0, 0, BaseWidget::getName(), nullptr, bounds);
+
+        const uint basewidth = (m.border + m.margin + m.box.border + m.box.margin) * 2 + m.padding;
+        BaseWidget::setWidth(basewidth + boxsize + d_roundToUnsignedInt(bounds.getWidth()));
     }
 };
 

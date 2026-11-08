@@ -83,11 +83,29 @@ class ReferenceContainerBaseWidgetOf : public ContainerBaseWidgetOf<W, orientati
 {
 public:
     using BaseWidget = ContainerBaseWidgetOf<W, orientation>;
-    using Layout = typename BaseWidget::Layout;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
     using BaseWidget::BaseWidget;
 
 protected:
+    using Layout = typename BaseWidget::Layout;
+
+    // set width or height based on first child
+    void autoSize()
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(),);
+
+        const LabMetrics<R, uint> m { this };
+        const uint space = (m.border + m.margin) * 2;
+
+        if constexpr (orientation == Horizontal)
+            LabWidget::setHeight(space + Layout::widgets.front().widget->getHeight());
+        else
+            LabWidget::setWidth(space + Layout::widgets.front().widget->getWidth());
+
+        // update children
+        ReferenceContainerBaseWidgetOf::updateSize(true);
+    }
+
     void updateSize(const bool updateChildren) override
     {
         const LabMetrics<R, uint> m { this };

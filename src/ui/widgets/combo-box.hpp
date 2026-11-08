@@ -14,22 +14,22 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class R>
-struct ComboBoxMetrics : LabMetrics<R> {
+template<class R, typename RType = float>
+struct ComboBoxMetrics : LabMetrics<R, RType> {
     const uint labelWidth;
     const uint valueWidth;
 
     explicit ComboBoxMetrics(LabWidget* const widget, const uint wlabel, const uint wvalue)
-        : LabMetrics<R>(widget),
+        : LabMetrics<R, RType>(widget),
           labelWidth(wlabel),
           valueWidth(wvalue),
           box(widget, *this) {}
 
     const struct Box : LabMetrics<typename R::Box> {
-        const float x;
-        const float y;
-        const float width;
-        const float height;
+        const RType x;
+        const RType y;
+        const RType width;
+        const RType height;
 
         explicit Box(LabWidget* const widget, const ComboBoxMetrics& m)
             : LabMetrics<typename R::Box>(widget),
@@ -42,11 +42,11 @@ struct ComboBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::ComboBox<>::height>
-class ComboBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::ComboBox<kAccentColor, height>>,
+template<const Color& kAccentColor = Reference::Colors::acc1>
+class ComboBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::ComboBox<kAccentColor>>,
                              private ButtonEventHandler::Callback
 {
-    using R = Reference::Widgets::ComboBox<kAccentColor, height>;
+    using R = Reference::Widgets::ComboBox<kAccentColor>;
     using BaseWidget = ReferenceParameterButtonWidget<R>;
 
 public:
@@ -183,7 +183,7 @@ private:
         if (fBounds.label == 0)
             return;
 
-        const ComboBoxMetrics<R> m { this, fBounds.label, fBounds.value };
+        const ComboBoxMetrics<R, uint> m { this, fBounds.label, fBounds.value };
 
         const uint basewidth = (m.border + m.margin + m.box.border + m.box.margin) * 2 + m.padding;
         BaseWidget::setWidth(basewidth + fBounds.label + fBounds.value);

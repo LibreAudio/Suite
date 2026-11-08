@@ -49,6 +49,19 @@ protected:
         // update children size again
         BaseWidget::updateSize(true);
 
+        // force height if needed
+        if constexpr (R::height != 0)
+        {
+            const LabMetrics<R, uint> m { this };
+
+            const uint itemheight = (
+                m.height - (m.border + m.margin) * 2 - m.padding * (comboBoxes.size() - 1)
+            ) / comboBoxes.size();
+
+            for (const std::shared_ptr<CB>& cb : comboBoxes)
+                cb->setHeight(itemheight);
+        }
+
         // set parent width the same as the children (plus margins)
         const LabMetrics<R> m { this };
         LabWidget::setWidth((m.border + m.margin) * 2 + comboBoxes[0]->getWidth());

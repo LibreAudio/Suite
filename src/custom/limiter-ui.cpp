@@ -25,17 +25,16 @@ namespace LibreAudio {
 
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
-static constexpr const uint kNumberBoxHeight = 50;
-static constexpr const uint kGroupsWidth[5] = { 115, 0, 0, 0, 140 };
+static constexpr const uint kNumberBoxHeight = 40;
 
 template<const Color& kAccentColor>
-using LimiterCheckBoxWidget = CheckBoxWidget<kAccentColor, (kNumberBoxHeight - kCommonPadding) / 2>;
+using LimiterCheckBoxWidget = CheckBoxWidget<kAccentColor>;
 
 // template<const Color& kAccentColor>
-using LimiterComboBoxWidget = ComboBoxWidget<Reference::Colors::acc2, (kNumberBoxHeight - kCommonPadding) / 2>;
+using LimiterComboBoxWidget = ComboBoxWidget<Reference::Colors::acc2>;
 
 template<const Color& kAccentColor>
-using LimiterNumberBoxWidget = NumberBoxWidget<kAccentColor, kNumberBoxHeight>;
+using LimiterNumberBoxWidget = NumberBoxWidget<kAccentColor>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -74,11 +73,11 @@ struct LimiterGroupReference : Reference::Zero {
     static constexpr const uint shadowFeather = 14;
 };
 
-template <uint8_t pos, Orientation orientation, typename... Args>
+template <Orientation orientation, SizeHint sizeHint, typename... Args>
 using LimiterGroupWidget = StaticParameterContainerWidget<
-    Reference::Width<kGroupsWidth[pos], LimiterGroupReference>,
+    LimiterGroupReference,
     orientation,
-    Expanding,
+    sizeHint,
     Args...
 >;
 
@@ -92,10 +91,10 @@ struct LimiterGroupsContainerReference : Reference::Zero {
 using LimiterGroupsContainerWidget = StaticContainerPairWidget<
     LimiterGroupsContainerReference,
     Horizontal,
-    SizeHintWidgetPair<Fixed, LimiterGroupWidget<__COUNTER__, Vertical, widgets::TruePeak, widgets::UnityGain>>,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Threshold, widgets::Ceiling>>,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Attack, widgets::AttackShape>>,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<__COUNTER__, Horizontal, widgets::Release, widgets::AutoRelease>>,
+    SizeHintWidgetPair<Fixed, LimiterGroupWidget<Vertical, Expanding, widgets::TruePeak, widgets::UnityGain>>,
+    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Threshold, widgets::Ceiling>>,
+    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Attack, widgets::AttackShape>>,
+    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Release, widgets::AutoRelease>>,
     SizeHintWidgetPair<Fixed, ComboBoxGroupWidget<LimiterGroupReference, LimiterComboBoxWidget, kFaustParameterDither, kFaustParameterNoise_shaping>>
 >;
 

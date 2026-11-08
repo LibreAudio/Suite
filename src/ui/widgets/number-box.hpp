@@ -28,17 +28,19 @@ struct NumberBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::NumberBox<>::height>
+// , uint height = Reference::Widgets::NumberBox<>::height
+template<const Color& kAccentColor = Reference::Colors::acc1>
 class NumberBoxWidget : public LabParameterWidget
 {
-    using R = Reference::Widgets::NumberBox<kAccentColor, height>;
+    // , height
+    using R = Reference::Widgets::NumberBox<kAccentColor>;
     using BaseWidget = LabParameterWidget;
 
 public:
     explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
         : BaseWidget(parent, kParametersMainStart + index),
           fParameter(kFaustParameters[index]),
-          fMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
+          fUsingMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
     {
         setActiveCursor(R::cursor);
         setName(fParameter.name);
@@ -51,9 +53,14 @@ public:
         updateSize(false);
     }
 
+    explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index, const FaustParameterIndex meter)
+        : NumberBoxWidget(parent, index)
+    {
+    }
+
 private:
     const FaustParameter& fParameter;
-    const bool fMiddleSplitBar;
+    const bool fUsingMiddleSplitBar;
 
     void knobDoubleClicked(SubWidget*) final
     {
@@ -159,7 +166,7 @@ private:
             fillColor(R::Bar::color〡deactivated);
             fill();
 
-            if (fMiddleSplitBar)
+            if (fUsingMiddleSplitBar)
             {
                 if (normvalue < 0.5f)
                 {

@@ -29,6 +29,8 @@ struct Reference {
 
         static constexpr const uint margin = 8;
         static constexpr const uint padding = 6;
+
+        static constexpr const uint rowHeight = 40;
     };
 
     struct Colors {
@@ -205,7 +207,7 @@ struct Reference {
             struct Row : Zero {
                 static constexpr const uint margin = 0;
                 static constexpr const uint padding = BoxFrame::padding;
-                static constexpr const uint height = 40;
+                static constexpr const uint height = Common::rowHeight;
             };
 
             static constexpr const uint height = (border + margin) * 2
@@ -244,7 +246,7 @@ struct Reference {
             static constexpr const uint height = 80; // FIXME
         };
 
-        template<const Color& kAccentColor = Colors::acc1, uint _height = 0>
+        template<const Color& kAccentColor = Colors::acc1>
         struct CheckBox : Zero {
             static constexpr const Color color = Colors::ink;
             static constexpr const Color color〡checked = kAccentColor;
@@ -261,13 +263,13 @@ struct Reference {
                 static constexpr const float fontSize = CheckBox::fontSize;
                 static constexpr const float letterSpacing = CheckBox::letterSpacing;
             };
-            static constexpr const uint height = _height != 0 ? _height : std::max<uint>(
+            static constexpr const uint height = std::max<uint>(
                 (margin + border) * 2 + fontSize,
                 (margin + border + Box::border + Box::margin) * 2 + Box::fontSize
             );
         };
 
-        template<const Color& kAccentColor = Colors::acc1, uint _height = 0>
+        template<const Color& kAccentColor = Colors::acc1>
         struct ComboBox : Zero {
             static constexpr const Color color = kAccentColor;
             static constexpr const MouseCursor cursor = kMouseCursorHand;
@@ -286,7 +288,7 @@ struct Reference {
                 static constexpr const float fontSize = ComboBox::fontSize;
                 static constexpr const float letterSpacing = ComboBox::letterSpacing;
             };
-            static constexpr const uint height = _height != 0 ? _height : std::max<uint>(
+            static constexpr const uint height = std::max<uint>(
                 (margin + border) * 2 + fontSize,
                 (margin + border + Box::border + Box::margin) * 2 + Box::fontSize
             );
@@ -413,7 +415,7 @@ struct Reference {
             };
         };
 
-        template<const Color& kAccentColor = Colors::acc1, uint _height = 40>
+        template<const Color& kAccentColor = Colors::acc1>
         struct NumberBox : Zero {
             static constexpr const Color backgroundColor = Colors::track;
             // static constexpr const Color borderColor = Color(0.f, 0.f, 0.f, 0.45f);
@@ -424,7 +426,7 @@ struct Reference {
             static constexpr const uint border = 1;
             static constexpr const uint borderRadius = 5;
             static constexpr const uint margin = 4;
-            static constexpr const uint height = _height;
+            static constexpr const uint height = Common::rowHeight;
             struct Name {
                 static constexpr const Color color = Colors::ink3;
                 static constexpr const float fontSize = 11.f;
