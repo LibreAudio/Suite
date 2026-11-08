@@ -38,9 +38,9 @@ struct CheckBoxMetrics : LabMetrics<R, RType> {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const Color& kAccentColor = Reference::Colors::acc1>
-class CheckBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor>>,
-                             private ButtonEventHandler::Callback,
-                             private IdleCallback
+class CheckBoxWidget : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor>>,
+                       private ButtonEventHandler::Callback,
+                       private IdleCallback
 {
     using R = Reference::Widgets::CheckBox<kAccentColor>;
     using BaseWidget = ReferenceParameterButtonWidget<R, kCornerAuto>;
@@ -174,6 +174,16 @@ private:
         const uint basewidth = (m.border + m.margin + m.box.border + m.box.margin) * 2 + m.padding;
         BaseWidget::setWidth(basewidth + boxsize + d_roundToUnsignedInt(bounds.getWidth()));
     }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex, const Color& kAccentColor>
+class StaticCheckBoxWidget final : public CheckBoxWidget<kAccentColor>
+{
+public:
+    explicit StaticCheckBoxWidget(LabWidget* const parent)
+        : CheckBoxWidget<kAccentColor>(parent, kParameterIndex) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -23,64 +23,28 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-static constexpr const uint kCommonMargin = 8;
-static constexpr const uint kCommonPadding = 6;
-static constexpr const uint kNumberBoxHeight = 40;
-
-template<const Color& kAccentColor>
-using LimiterCheckBoxWidget = CheckBoxWidget<kAccentColor>;
-
-// template<const Color& kAccentColor>
-using LimiterComboBoxWidget = ComboBoxWidget<Reference::Colors::acc2>;
-
-template<const Color& kAccentColor>
-using LimiterNumberBoxWidget = NumberBoxWidget<kAccentColor>;
-
-// --------------------------------------------------------------------------------------------------------------------
-
-namespace widgets {
-    using TruePeak = ParameterWidgetPair<kFaustParameterTrue_peak, LimiterCheckBoxWidget<Reference::Colors::acc6>>;
-    using UnityGain = ParameterWidgetPair<kFaustParameterUnity_gain, LimiterCheckBoxWidget<Reference::Colors::acc4>>;
-
-    using Attack = ParameterWidgetPair<kFaustParameterAttack, LimiterNumberBoxWidget<Reference::Colors::acc5>>;
-    using AttackShape = ParameterWidgetPair<kFaustParameterAttack_shape, LimiterNumberBoxWidget<Reference::Colors::acc5>>;
-
-    using Release = ParameterWidgetPair<kFaustParameterRelease, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
-    using AutoRelease = ParameterWidgetPair<kFaustParameterAuto_release, LimiterNumberBoxWidget<Reference::Colors::acc3>>;
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template <Orientation orientation, SizeHint sizeHint, typename... Args>
-using LimiterGroupWidget = StaticParameterContainerWidget<
-    Reference::Widgets::BoxFrame<1>,
-    orientation,
-    sizeHint,
-    Args...
->;
-
-template <Orientation orientation, SizeHint sizeHint, typename... Args>
-using LimiterGroupWidget2 = StaticContainerWidget<
-    Reference::Widgets::BoxFrame<1>,
-    orientation,
-    sizeHint,
-    Args...
->;
-
-// --------------------------------------------------------------------------------------------------------------------
-
 struct LimiterGroupsContainerReference : Reference::Zero {
-    static constexpr const uint padding = kCommonPadding;
+    static constexpr const uint padding = Reference::Common::padding;
     static constexpr const uint height = Reference::Widgets::BoxFrame<1>::height + (border + margin) * 2;
 };
 
-using LimiterGroupsContainerWidget = StaticContainerPairWidget<
+using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
     LimiterGroupsContainerReference,
     Horizontal,
-    SizeHintWidgetPair<Fixed, LimiterGroupWidget<Vertical, Expanding, widgets::TruePeak, widgets::UnityGain>>,
+    SizeHintWidgetPair<
+        Fixed,
+        StaticAutoSizedContainerWidget<
+            Reference::Widgets::BoxFrame<1>,
+            Vertical,
+            Expanding,
+            StaticCheckBoxWidget<kFaustParameterTrue_peak, Reference::Colors::acc6>,
+            StaticCheckBoxWidget<kFaustParameterUnity_gain, Reference::Colors::acc4>
+        >
+    >,
     SizeHintWidgetPair<
         Expanding,
-        LimiterGroupWidget2<
+        StaticContainerWidget<
+            Reference::Widgets::BoxFrame<1>,
             Horizontal,
             Expanding,
             // StaticNumberBoxWithMeterWidget<kFaustParameterThreshold, kFaustParameterGr, Reference::Colors::acc1>,
@@ -88,9 +52,35 @@ using LimiterGroupsContainerWidget = StaticContainerPairWidget<
             StaticNumberBoxWidget<kFaustParameterCeiling, Reference::Colors::acc6>
         >
     >,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Attack, widgets::AttackShape>>,
-    SizeHintWidgetPair<Expanding, LimiterGroupWidget<Horizontal, Expanding, widgets::Release, widgets::AutoRelease>>,
-    SizeHintWidgetPair<Fixed, ComboBoxGroupWidget<Reference::Widgets::BoxFrame<1>, LimiterComboBoxWidget, kFaustParameterDither, kFaustParameterNoise_shaping>>
+    SizeHintWidgetPair<
+        Expanding,
+        StaticContainerWidget<
+            Reference::Widgets::BoxFrame<1>,
+            Horizontal,
+            Expanding,
+            StaticNumberBoxWidget<kFaustParameterAttack, Reference::Colors::acc5>,
+            StaticNumberBoxWidget<kFaustParameterAttack_shape, Reference::Colors::acc5>
+        >
+    >,
+    SizeHintWidgetPair<
+        Expanding,
+        StaticContainerWidget<
+            Reference::Widgets::BoxFrame<1>,
+            Horizontal,
+            Expanding,
+            StaticNumberBoxWidget<kFaustParameterRelease, Reference::Colors::acc3>,
+            StaticNumberBoxWidget<kFaustParameterAuto_release, Reference::Colors::acc3>
+        >
+    >,
+    SizeHintWidgetPair<
+        Fixed,
+        ComboBoxGroupWidget<
+            Reference::Widgets::BoxFrame<1>,
+            ComboBoxWidget<Reference::Colors::acc2>,
+            kFaustParameterDither,
+            kFaustParameterNoise_shaping
+        >
+    >
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -110,8 +100,8 @@ class LimiterPresetCardsWidget : public CardGroupWidget
 // --------------------------------------------------------------------------------------------------------------------
 
 struct LimiterEasyExpertPageReference : Reference::Zero {
-    static constexpr const uint margin = 12;
-    static constexpr const uint padding = 8;
+    static constexpr const uint margin = Reference::Common::margin;
+    static constexpr const uint padding = Reference::Common::padding;
 };
 
 using LimterEasyPageWidget = StaticBottomAlignedContainerWidget<

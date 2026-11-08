@@ -39,36 +39,9 @@ struct SizeHintWidgetPair {
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// transparent container widget class
-
-template<Orientation orientation>
-using TransparentContainerWidget = LabReferenceContainerWidget<Reference::Zero, orientation>;
-
-using TransparentHorizontalContainerWidget = TransparentContainerWidget<Horizontal>;
-using TransparentVerticalContainerWidget = TransparentContainerWidget<Vertical>;
-
-// --------------------------------------------------------------------------------------------------------------------
-// transparent container widget class with a known padding
-
-template<Orientation orientation, uint padding>
-using TransparentPaddedContainerWidget = LabReferenceContainerWidget<Reference::Padding<padding>, orientation>;
-
-// --------------------------------------------------------------------------------------------------------------------
-// transparent container widget class with a known size (width or height depending on orientation)
-
-// NOTE horizontal containers get fixed height, vertical containers get fixed width
-template<Orientation orientation, uint size>
-using TransparentSizedContainerReference = std::conditional_t<orientation == Horizontal,
-                                                              Reference::Height<size>,
-                                                              Reference::Width<size>>;
-
-template<Orientation orientation, uint size>
-using TransparentSizedContainerWidget = LabReferenceContainerWidget<TransparentSizedContainerReference<orientation, size>,
-                                                                 orientation>;
-
-// --------------------------------------------------------------------------------------------------------------------
 // extend the reference container to provide `addParameterWidgetPair`
 
+// TODO remove this
 template<class R, Orientation orientation>
 class ParameterReferenceContainerWidget : public LabReferenceContainerWidget<R, orientation>
 {
@@ -116,8 +89,23 @@ protected:
     static constexpr const uint kNumWidgets = sizeof...(Args);
 };
 
+template<class R, Orientation orientation, SizeHint sizeHint, typename... Args>
+class StaticAutoSizedContainerWidget : public StaticContainerWidget<R, orientation, sizeHint, Args...>
+{
+    using BaseWidget = StaticContainerWidget<R, orientation, sizeHint, Args...>;
+    using BaseWidget::BaseWidget;
+
+    void updateSize(const bool updateChildren) override
+    {
+        if (updateChildren)
+            BaseWidget::autoSize();
+        else
+            BaseWidget::updateSize(false);
+    }
+};
+
 template<class R, Orientation orientation, typename... Args>
-class StaticContainerPairWidget : public LabReferenceContainerWidget<R, orientation>
+class StaticContainerSizeHintPairWidget : public LabReferenceContainerWidget<R, orientation>
 {
     using BaseWidget = LabReferenceContainerWidget<R, orientation>;
     using BaseWidget::BaseWidget;
@@ -141,6 +129,7 @@ class StaticParameterContainerWidget : public ParameterReferenceContainerWidget<
         this->template addParameterWidgetPair<Args, sizeHint>()...
     };
 
+protected:
     void updateSize(const bool updateChildren) override
     {
         if (updateChildren)
