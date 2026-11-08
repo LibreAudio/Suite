@@ -106,6 +106,11 @@ class StaticContainerWidget : public LabReferenceContainerWidget<R, orientation>
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
         this->template addWidget<Args, sizeHint>()...
     };
+
+protected:
+    using R2 = R;
+
+    static constexpr const uint kNumWidgets = sizeof...(Args);
 };
 
 template<class R, Orientation orientation, typename... Args>

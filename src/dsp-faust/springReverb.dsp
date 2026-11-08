@@ -6,6 +6,8 @@ declare license "GPL-3.0-or-later";
 declare name "Spring Reverb";
 declare unique_id "LAsr";
 
+declare graph "analyzer";
+
 import("stdfaust.lib");
 
 

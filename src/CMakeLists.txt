@@ -217,6 +217,8 @@ endif()
 function(las_add_plugin LABEL)
   set(TARGET "la-${LABEL}")
 
+  file(READ dsp-faust/${LABEL}.dsp DSP_FILE_CONTENTS)
+
   set(EXTRA_ARGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   else()
@@ -224,22 +226,23 @@ function(las_add_plugin LABEL)
   endif()
 
   set(EXTRA_DSP_LIBS)
-  if("${LABEL}" STREQUAL "chorus" OR "${LABEL}" STREQUAL "dualGain" OR "${LABEL}" STREQUAL "mbComp5" OR "${LABEL}" STREQUAL "vocalDoubler")
+  if("${DSP_FILE_CONTENTS}" MATCHES "\ndeclare graph \"analyzer\";\n")
     list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
-  elseif("${LABEL}" STREQUAL "leveler")
+  endif()
+  if("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 
   set(EXTRA_UI_LIBS)
 
-  set(DSP_FILE custom/${LABEL}-dsp.cpp)
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${DSP_FILE}")
-    set(DSP_FILE LibreAudioPlugin.cpp)
+  set(DSP_CPP_FILE custom/${LABEL}-dsp.cpp)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${DSP_CPP_FILE}")
+    set(DSP_CPP_FILE LibreAudioPlugin.cpp)
   endif()
 
-  set(UI_FILE custom/${LABEL}-ui.cpp)
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_FILE}")
-    set(UI_FILE LibreAudioUI.cpp)
+  set(UI_CPP_FILE custom/${LABEL}-ui.cpp)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_CPP_FILE}")
+    set(UI_CPP_FILE LibreAudioUI.cpp)
   endif()
 
   if (${LIBREAUDIO_CUSTOM_UI})
@@ -253,11 +256,11 @@ function(las_add_plugin LABEL)
         ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-parameters.hpp
         ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h
       FILES_DSP
-        ${DSP_FILE}
+        ${DSP_CPP_FILE}
         ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.cpp
         ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}-dsp.hpp
       FILES_UI
-        ${UI_FILE}
+        ${UI_CPP_FILE}
         LibreAudioBaseUI.cpp
         ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
       ${EXTRA_ARGS}

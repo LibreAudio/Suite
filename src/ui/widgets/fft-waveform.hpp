@@ -116,6 +116,7 @@ private:
     uint32_t fTextureDataTail = 0;
     bool fPendingDisplay = true;
 
+   #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
     // FIXME rework this
     double fPointsPushed = 0;
     double fPointsShown = 0;
@@ -152,6 +153,7 @@ private:
 
         return fHead;
     }
+   #endif
 
     void idleCallback() final
     {
@@ -172,7 +174,14 @@ private:
         const float w = m.width - m.border * 2;
         const float h = m.height - m.border * 2;
 
+      #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
+       #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
         const uint head = d_roundToUnsignedInt(fHead);
+       #else
+        const uint head = d_roundToUnsignedInt(waveformHead());
+       #endif
+      #endif
+
         float y;
 
         beginPath();
@@ -180,8 +189,12 @@ private:
 
         for (uint i = 0; i < kUsableTextureSize; ++i)
         {
+           #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
             const uint j = (i + head + 11) % kTextureSize;
             const float db = fTextureData[j];
+           #else
+            const float db = fTextureData[i];
+           #endif
             const float x = float(i) / kUsableTextureSize * w;
 
             if (db <= fBottom)
@@ -227,7 +240,9 @@ private:
         const float h = m.height - m.border * 2;
         const float a = 0.7f;
 
+       #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
         const uint head = d_roundToUnsignedInt(waveformHead());
+       #endif
 
         translate(m.border, m.border);
 
@@ -240,8 +255,12 @@ private:
         int acc = 1;
         for (uint i = 0; i < kUsableTextureSize; ++i)
         {
+           #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
             const uint j = (i + head + 11) % kTextureSize;
             const float db = fTextureDataParam[j];
+           #else
+            const float db = fTextureDataParam[i];
+           #endif
             const float pc = float(i) / kUsableTextureSize;
             const float x = pc * w;
 

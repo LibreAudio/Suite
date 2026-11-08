@@ -34,9 +34,9 @@ public:
     {
         fExpert->hide();
 
-        if constexpr (std::is_same_v<EasyPageWidget, LibreAudio::EasyPageWidget> &&
-                      std::is_same_v<ExpertPageWidget, LibreAudio::ExpertPageWidget>)
-            fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
+       #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+        fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
+       #endif
 
         addIdleCallback(this);
     }

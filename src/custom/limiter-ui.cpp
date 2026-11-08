@@ -132,8 +132,8 @@ using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimiterStageWidget final : public CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>,
-                                 private ButtonEventHandler::Callback
+class LimiterCentralAreaWidget final : public CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>,
+                                       private ButtonEventHandler::Callback
 {
     using BaseWidget = CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
     using ButtonWidget = TextButtonWidget<Reference::Height<30, Reference::Widgets::TopBarButton>, kCornerNone>;
@@ -159,7 +159,7 @@ class LimiterStageWidget final : public CentralAreaWidget<LimterEasyPageWidget, 
     };
 
 public:
-    LimiterStageWidget(LabWidget* const parent)
+    LimiterCentralAreaWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         fRangeButton->setCallback(this);
@@ -218,7 +218,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using LimiterMainArea = MainAreaContainerWidget<LimiterStageWidget>;
+using LimiterMainArea = MainAreaContainerWidget<LimiterCentralAreaWidget>;
 using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
