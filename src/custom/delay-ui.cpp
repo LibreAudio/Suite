@@ -15,6 +15,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -23,16 +26,14 @@ namespace LibreAudio {
 // height of the number boxes, taller than the reference one, as in voiceIsolation
 static constexpr const uint kBoxHeight = 45;
 
-// two checkboxes stack in the height of a number box, this far apart
-static constexpr const uint kRowGap = 5;
-static constexpr const uint kRowHeight = (kBoxHeight - kRowGap) / 2;
+// height of the checkboxes, as in the limiter
+static constexpr const uint kRowHeight = 20;
 
-// width of the number boxes in the groups that do not share the stage's width, see setFloatingGroupWidth
-static constexpr const uint kTopBoxWidth = 110;
+// width of the number boxes, the same in every panel
+static constexpr const uint kBoxWidth = 120;
 
 // --------------------------------------------------------------------------------------------------------------------
-// Control groups float in rows over the stage. Each group is a panel styled like the mbComp5 band groups, as in the
-// limiter.
+// The controls sit in panels floating over the stage, styled like the mbComp5 band groups, as in the limiter.
 
 struct DelayGroupReference : Reference::Zero {
     static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
@@ -43,7 +44,6 @@ struct DelayGroupReference : Reference::Zero {
     static constexpr const uint borderRadius = 8;
     static constexpr const uint margin = 8;
     static constexpr const uint padding = 6;
-    static constexpr const uint height = kBoxHeight + margin * 2;
 
     static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
     static constexpr const Point<int> shadowOffset = { 0, 5 };
@@ -180,7 +180,7 @@ private:
         return LabWidget::onMotion(ev);
     }
 
-    // as wide as its box and name need, or wider when the stack makes it so
+    // as wide as its box and name need, or wider when its cell makes it so
     void updateSize(const bool updateChildren) final
     {
         Rectangle<float> bounds;
@@ -197,20 +197,53 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// Two checkboxes stacked in the height of a number box, kRowGap apart, the stack as wide as the wider one.
+// A row of a panel: one control per parameter, the panel's padding apart, sharing its width.
 
-template<FaustParameterIndex kTop, FaustParameterIndex kBottom>
-class DelayCheckboxStackWidget final : public ReferenceContainerWidget<Reference::Padding<kRowGap>, kVertical>
+template<uint kHeight, template<FaustParameterIndex> class Control, FaustParameterIndex... kIds>
+class DelayPanelRowWidget final
+    : public ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kRowGap>, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>;
 
-    const std::array<std::shared_ptr<LabWidget>, 2> widgets {
-        addWidget<DelayCheckboxWidget>(kTop),
-        addWidget<DelayCheckboxWidget>(kBottom),
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(kIds)> widgets {
+        this->template addWidget<Control<kIds>, Expanding>(kIds)...
     };
 
 public:
-    explicit DelayCheckboxStackWidget(LabWidget* const parent)
+    static constexpr const uint height = kHeight;
+
+    explicit DelayPanelRowWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+};
+
+template<FaustParameterIndex>
+using DelayCheckboxCellWidget = DelayCheckboxWidget;
+
+template<FaustParameterIndex... kIds>
+using DelayBoxRowWidget = DelayPanelRowWidget<kBoxHeight, DelayNumberBoxWidget, kIds...>;
+
+template<FaustParameterIndex... kIds>
+using DelayCheckboxRowWidget = DelayPanelRowWidget<kRowHeight, DelayCheckboxCellWidget, kIds...>;
+
+// --------------------------------------------------------------------------------------------------------------------
+// A floating panel: rows of controls, kColumns number boxes wide, sized to fit them.
+
+template<uint kColumns, class... Rows>
+class DelayPanelWidget final : public ReferenceContainerWidget<DelayGroupReference, kVertical>
+{
+    using R = DelayGroupReference;
+    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+
+    static constexpr const uint kWidth = (R::border + R::margin) * 2 + kBoxWidth * kColumns + R::padding * (kColumns - 1);
+    static constexpr const uint kHeight = (R::border + R::margin) * 2 + (Rows::height + ...)
+                                        + R::padding * static_cast<uint>(sizeof...(Rows) - 1);
+
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(Rows)> rows {
+        addWidget<Rows>()...
+    };
+
+public:
+    explicit DelayPanelWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         updateSize(false);
@@ -219,56 +252,10 @@ public:
 private:
     void updateSize(const bool updateChildren) final
     {
-        uint width = 0;
-        for (const std::shared_ptr<LabWidget>& widget : widgets)
-            width = std::max(width, widget->getWidth());
-
-        LabWidget::setSize(width, d_roundToUnsignedInt(kBoxHeight * fScaleFactor));
-
+        LabWidget::setSize(d_roundToUnsignedInt(kWidth * fScaleFactor), d_roundToUnsignedInt(kHeight * fScaleFactor));
         BaseWidget::updateSize(updateChildren);
     }
-};
 
-// --------------------------------------------------------------------------------------------------------------------
-// A floating panel holding one group of controls: number boxes, which share whatever width the row gives the
-// group, and controls of their own width.
-
-class DelayGroupWidget : public ReferenceContainerWidget<DelayGroupReference>
-{
-    using R = DelayGroupReference;
-    using BaseWidget = ReferenceContainerWidget<R>;
-
-    const uint fBoxCount;
-
-public:
-    DelayGroupWidget(LabWidget* const parent, const uint boxCount)
-        : BaseWidget(parent),
-          fBoxCount(boxCount) {}
-
-    [[nodiscard]] uint getBoxCount() const noexcept
-    {
-        return fBoxCount;
-    }
-
-    // width without the number boxes: panel margins, the space between controls and any control of its own width
-    [[nodiscard]] uint getFixedWidth() const noexcept
-    {
-        const uint margin = d_roundToUnsignedInt((R::border + R::margin) * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
-
-        uint width = margin * 2 + padding * (static_cast<uint>(Layout::widgets.size()) - 1);
-        for (const SubWidgetWithSizeHint& s : Layout::widgets)
-            if (s.sizeHint == Fixed)
-                width += s.widget->getWidth();
-        return width;
-    }
-
-    void setGroupWidth(const uint width)
-    {
-        LabWidget::setWidth(width);
-    }
-
-private:
     // faint rim all around, lit along the top edge
     void onNanoDisplay() final
     {
@@ -295,151 +282,429 @@ private:
     }
 };
 
-template<FaustParameterIndex... kIds>
-class DelayBoxGroupWidget final : public DelayGroupWidget
+using DelayRepeatPanelWidget = DelayPanelWidget<1,
+    DelayBoxRowWidget<kFaustParameterFeedback>,
+    DelayBoxRowWidget<kFaustParameterCross>,
+    DelayBoxRowWidget<kFaustParameterDrive>>;
+
+using DelayDynamicsPanelWidget = DelayPanelWidget<1,
+    DelayBoxRowWidget<kFaustParameterDeess_amount>,
+    DelayBoxRowWidget<kFaustParameterDuck>>;
+
+using DelayModulationPanelWidget = DelayPanelWidget<1,
+    DelayBoxRowWidget<kFaustParameterMod_rate>,
+    DelayBoxRowWidget<kFaustParameterMod_depth>,
+    DelayBoxRowWidget<kFaustParameterMod_stereo_phase>>;
+
+using DelayOutputPanelWidget = DelayPanelWidget<1,
+    DelayBoxRowWidget<kFaustParameterWidth>,
+    DelayBoxRowWidget<kFaustParameterDrywet>>;
+
+using DelayTimePanelWidget = DelayPanelWidget<2,
+    DelayBoxRowWidget<kFaustParameterTime_l, kFaustParameterTime_r>,
+    DelayBoxRowWidget<kFaustParameterOffset_l, kFaustParameterOffset_r>,
+    DelayCheckboxRowWidget<kFaustParameterSync, kFaustParameterLink>>;
+
+using DelayFilterPanelWidget = DelayPanelWidget<2,
+    DelayBoxRowWidget<kFaustParameterHp_freq, kFaustParameterLp_freq>>;
+
+// gap between panels, and between the columns of the stage
+static constexpr const uint kPanelGap = 8;
+
+// --------------------------------------------------------------------------------------------------------------------
+// A side column of the stage: panels from the top down, kPanelGap apart, the column as wide as they are.
+
+template<class... Panels>
+class DelayColumnWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>
 {
-    const std::array<std::shared_ptr<LabWidget>, sizeof...(kIds)> widgets {
-        addWidget<DelayNumberBoxWidget<kIds>, Expanding>(kIds)...
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>;
+
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(Panels)> fPanels {
+        addWidget<Panels>()...
     };
+    const std::shared_ptr<LabWidget> fSpacer = addSpacer();
 
 public:
-    explicit DelayBoxGroupWidget(LabWidget* const parent)
-        : DelayGroupWidget(parent, sizeof...(kIds)) {}
+    explicit DelayColumnWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void updateSize(const bool updateChildren) final
+    {
+        uint width = 0;
+        for (const std::shared_ptr<LabWidget>& panel : fPanels)
+            width = std::max(width, panel->getWidth());
+
+        LabWidget::setWidth(width);
+        BaseWidget::updateSize(updateChildren);
+    }
 };
 
-// The Time group: the Time and Offset number boxes, with Sync and Link stacked on the right.
+// A panel centred in the width it is given, as tall as the panel.
 
-class DelayTimeGroupWidget final : public DelayGroupWidget
+template<class Panel>
+class DelayCenteredWidget final : public ReferenceContainerWidget<Reference::Zero>
 {
-    const std::array<std::shared_ptr<LabWidget>, 5> widgets {
-        addWidget<DelayNumberBoxWidget<kFaustParameterTime_l>, Expanding>(kFaustParameterTime_l),
-        addWidget<DelayNumberBoxWidget<kFaustParameterTime_r>, Expanding>(kFaustParameterTime_r),
-        addWidget<DelayNumberBoxWidget<kFaustParameterOffset_l>, Expanding>(kFaustParameterOffset_l),
-        addWidget<DelayNumberBoxWidget<kFaustParameterOffset_r>, Expanding>(kFaustParameterOffset_r),
-        addWidget<DelayCheckboxStackWidget<kFaustParameterSync, kFaustParameterLink>>(),
-    };
+    using BaseWidget = ReferenceContainerWidget<Reference::Zero>;
+
+    const std::shared_ptr<LabWidget> fLeft = addSpacer();
+    const std::shared_ptr<LabWidget> fPanel = addWidget<Panel>();
+    const std::shared_ptr<LabWidget> fRight = addSpacer();
 
 public:
-    explicit DelayTimeGroupWidget(LabWidget* const parent)
-        : DelayGroupWidget(parent, 4) {}
+    explicit DelayCenteredWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::setHeight(fPanel->getHeight());
+        BaseWidget::updateSize(updateChildren);
+    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The row of groups along the bottom of the stage, a fixed gap apart. Every number box gets the same width, from
-// what the row has left once the groups' fixed parts and the gaps are taken out.
+// The tap model behind the scope. curve-delay.frag draws the scope from the same formulas; this copy exists only to
+// place the text a shader cannot draw. Change one, change both.
 
-struct DelayGroupRowReference : Reference::Zero {
-    static constexpr const uint padding = 8;
-    static constexpr const uint height = DelayGroupReference::height;
-};
+// prototype CSS px to plugin px at scale 1, REFPX in the shader
+static constexpr const float kScopeRefPx = 1.5f;
 
-class DelayGroupRowWidget final : public ReferenceContainerWidget<DelayGroupRowReference>
-{
-    using R = DelayGroupRowReference;
-    using BaseWidget = ReferenceContainerWidget<R>;
+// scope inset inside the display, prototype px, INSET_* in the shader
+static constexpr const float kScopeInsetTop = 20.f;
+static constexpr const float kScopeInsetX = 14.f;
+static constexpr const float kScopeInsetBottom = 16.f;
 
-    const std::array<std::shared_ptr<DelayGroupWidget>, 3> fGroups {
-        addWidget<DelayBoxGroupWidget<kFaustParameterDeess_amount, kFaustParameterDuck>>(),
-        addWidget<DelayBoxGroupWidget<kFaustParameterHp_freq, kFaustParameterLp_freq>>(),
-        addWidget<DelayBoxGroupWidget<kFaustParameterWidth, kFaustParameterDrywet>>(),
-    };
+struct DelayScopeModel {
+    static constexpr const float kMaxDelayMs = 4000.f;
+    static constexpr const float kAmpMin = 0.006f;
+    static constexpr const float kMaxTaps = 32.f;
 
-public:
-    explicit DelayGroupRowWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    float msL, msR;
+    float g;
+    int pingpong;
+    int numTaps;    // repeats down to kAmpMin -- sets the zoom level only, every repeat on screen is drawn
+    float level;    // the zoom level these settings call for, ms
+    float span;     // the span actually shown, ms -- level, or a step of the flip toward it
+    float gridStep;
 
-private:
-    void sizeGroups()
+    explicit DelayScopeModel(LabUIWidgetInterface* const iface)
     {
-        const int gap = d_roundToIntPositive(R::padding * fScaleFactor);
-        int available = static_cast<int>(getWidth()) - gap * static_cast<int>(fGroups.size() - 1);
-        uint boxes = 0;
+        const auto param = [iface](const FaustParameterIndex index) {
+            return iface->getParameterValue(kParametersMainStart + index);
+        };
 
-        for (const std::shared_ptr<DelayGroupWidget>& group : fGroups)
+        static constexpr const float kDivTable[] = {
+            4.f, 2.f, 1.5f, 1.f, 2.f / 3.f, 0.75f, 0.5f, 1.f / 3.f, 0.375f, 0.25f, 1.f / 6.f
+        };
+        const auto divMult = [](const float index) {
+            return kDivTable[std::clamp(d_roundToIntPositive(index), 0, static_cast<int>(ARRAY_SIZE(kDivTable)) - 1)];
+        };
+
+        // as delay.dsp resolves them
+        const bool sync = param(kFaustParameterSync) > 0.5f;
+        const bool linked = param(kFaustParameterLink) > 0.5f;
+        const float beat = 60000.f / std::max(param(kFaustParameterBpm), 1.f);
+        const float rawL = sync ? divMult(param(kFaustParameterDiv_l)) * beat : param(kFaustParameterTime_l);
+        const float rawR = linked ? rawL : sync ? divMult(param(kFaustParameterDiv_r)) * beat
+                                                : param(kFaustParameterTime_r);
+        msL = std::clamp(rawL * (1.f + param(kFaustParameterOffset_l) / 100.f), 1.f, kMaxDelayMs);
+        msR = std::clamp(rawR * (1.f + param(kFaustParameterOffset_r) / 100.f), 1.f, kMaxDelayMs);
+
+        g = std::clamp(param(kFaustParameterFeedback) / 100.f, 0.f, 0.985f);
+        pingpong = d_roundToIntPositive(param(kFaustParameterPingpong));
+
+        numTaps = g > kAmpMin ? static_cast<int>(std::min(kMaxTaps, std::floor(std::log(kAmpMin) / std::log(g)))) : 0;
+
+        float last = pingpong == 0 ? std::max(msL, msR) : 0.5f * (msL + msR);
+        last = numTaps > 0 ? numTaps * last : std::max(msL, msR);
+        // fixed zoom levels, doubling from 0.6 s to 153.6 s -- see setupModel in the shader
+        level = 600.f;
+        for (int i = 0; i < 8 && level < last * 1.06f; ++i)
+            level *= 2.f;
+
+        setSpan(level);
+    }
+
+    // Show `newSpan` ms top to bottom, and pick the grid for it.
+    void setSpan(const float newSpan) noexcept
+    {
+        span = newSpan;
+        gridStep = 32000.f;
+        for (const float s : { 50.f, 100.f, 125.f, 250.f, 500.f, 1000.f, 2000.f, 4000.f, 8000.f, 16000.f })
         {
-            available -= static_cast<int>(group->getFixedWidth());
-            boxes += group->getBoxCount();
+            if (span / s <= 7.f)
+            {
+                gridStep = s;
+                break;
+            }
+        }
+    }
+
+    // "250 ms", "1 s", "1.5 s", "1.25 s" -- labelChars in the shader counts these.
+    static void format(char* const buffer, const size_t size, const float ms)
+    {
+        if (ms < 1000.f)
+        {
+            std::snprintf(buffer, size, "%d ms", d_roundToInt(ms));
+            return;
         }
 
-        const uint boxWidth = boxes != 0 ? static_cast<uint>(std::max(0, available) / static_cast<int>(boxes)) : 0;
+        std::snprintf(buffer, size, "%.2f", ms / 1000.f);
 
-        for (const std::shared_ptr<DelayGroupWidget>& group : fGroups)
-            group->setGroupWidth(group->getFixedWidth() + group->getBoxCount() * boxWidth);
-    }
+        // trim trailing zeros, then a trailing point
+        if (char* const dot = std::strchr(buffer, '.'))
+        {
+            char* end = dot + std::strlen(dot) - 1;
+            while (end > dot && *end == '0')
+                *end-- = '\0';
+            if (end == dot)
+                *end = '\0';
+        }
 
-    // the controls of fixed width know their size only once updated, so the groups are sized again after that
-    void updateSize(const bool updateChildren) final
-    {
-        sizeGroups();
-        BaseWidget::updateSize(updateChildren);
-        sizeGroups();
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-// Groups that float at the top of the stage or just above the bottom row, rather than sharing the stage's width:
-// their number boxes are kTopBoxWidth wide.
-
-static void setFloatingGroupWidth(DelayGroupWidget& group, const float scaleFactor)
-{
-    group.setGroupWidth(group.getFixedWidth() + group.getBoxCount() * d_roundToUnsignedInt(kTopBoxWidth * scaleFactor));
-}
-
-// The Time group, at the top left of the stage.
-
-class DelayTopRowWidget final : public ReferenceContainerWidget<DelayGroupRowReference>
-{
-    using BaseWidget = ReferenceContainerWidget<DelayGroupRowReference>;
-
-    const std::shared_ptr<DelayGroupWidget> fTime = addWidget<DelayTimeGroupWidget>();
-    const std::shared_ptr<LabWidget> fSpacer = addSpacer();
-
-public:
-    explicit DelayTopRowWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-private:
-    // the checkboxes know their size only once updated, so the group is sized again after that
-    void updateSize(const bool updateChildren) final
-    {
-        setFloatingGroupWidth(*fTime, fScaleFactor);
-        BaseWidget::updateSize(updateChildren);
-        setFloatingGroupWidth(*fTime, fScaleFactor);
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
-// The groups just above the bottom row, Feedback at the left and Modulation at the right.
-
-class DelayMiddleRowWidget final : public ReferenceContainerWidget<DelayGroupRowReference>
-{
-    using BaseWidget = ReferenceContainerWidget<DelayGroupRowReference>;
-
-    const std::shared_ptr<DelayGroupWidget> fFeedback =
-        addWidget<DelayBoxGroupWidget<kFaustParameterFeedback, kFaustParameterCross, kFaustParameterDrive>>();
-    const std::shared_ptr<LabWidget> fSpacer = addSpacer();
-    const std::shared_ptr<DelayGroupWidget> fModulation =
-        addWidget<DelayBoxGroupWidget<kFaustParameterMod_rate, kFaustParameterMod_depth,
-                                      kFaustParameterMod_stereo_phase>>();
-
-public:
-    explicit DelayMiddleRowWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-private:
-    void updateSize(const bool updateChildren) final
-    {
-        setFloatingGroupWidth(*fFeedback, fScaleFactor);
-        setFloatingGroupWidth(*fModulation, fScaleFactor);
-        BaseWidget::updateSize(updateChildren);
+        std::strncat(buffer, " s", size - std::strlen(buffer) - 1);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The stage is the display, with the starfield behind it. In Expert mode it shows the Time group at its top left, and
-// two rows of control groups along its bottom; in Easy mode it shows four preset cards along its bottom. The
-// cards are the suite's Easy page cards and do not load anything yet.
+// Animates the flips between zoom levels. The shader receives the current span as iSpan and the display draws its
+// labels from the same value, so a flip is one tween both follow. It is a function of time rather than of repaints, so
+// the two agree within a frame whichever of them asks first.
+
+class DelayScopeZoom
+{
+public:
+    // The span to show now, given the level the settings call for.
+    float span(const float level, const double now) noexcept
+    {
+        if (fTo <= 0.f)
+        {
+            // first call: no flip on opening the UI
+            fFrom = fTo = level;
+            fStart = now;
+        }
+        else if (d_isNotEqual(level, fTo))
+        {
+            // retarget from wherever the flip has got to, so reversing mid-flip does not jump
+            fFrom = spanAt(now);
+            fTo = level;
+            fStart = now;
+        }
+
+        return spanAt(now);
+    }
+
+private:
+    static constexpr const double kFlipSeconds = 0.35;
+
+    float fFrom = 0.f;
+    float fTo = 0.f;
+    double fStart = 0.0;
+
+    // Eased in and out, and in log span: each doubling is the same zoom step, so the move reads as one zoom
+    // rather than a scroll that speeds up toward the long end.
+    [[nodiscard]] float spanAt(const double now) const noexcept
+    {
+        const double x = std::clamp<double>((now - fStart) / kFlipSeconds, 0.0, 1.0);
+        const double e = x < 0.5 ? 4.0 * x * x * x : 1.0 - std::pow(2.0 - 2.0 * x, 3.0) / 2.0;
+        return static_cast<float>(std::exp(std::log(fFrom) + (std::log(fTo) - std::log(fFrom)) * e));
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// The display: the scope, curve-delay.frag, floating over the starfield under a pane of glass, as the compressor's
+// curve does. The shader draws underneath this widget, which keeps it on its own bounds and draws over it the text the
+// shader cannot draw, the grid times down the left edge and L / R, and then the glass.
+
+class DelayScopeWidget final : public LabWidget
+{
+    static constexpr const float kBorderRadius = 10.f;
+
+    BotShaderBaseWidget* fShader = nullptr;
+    DelayScopeZoom fZoom;
+
+public:
+    explicit DelayScopeWidget(LabWidget* const parent)
+        : LabWidget(parent) {}
+
+    void setShader(BotShaderBaseWidget* const shader)
+    {
+        fShader = shader;
+
+        // one zoom, read by the shader and by the labels drawn over it
+        fShader->setCustomUniform("iSpan", [this] {
+            return fZoom.span(DelayScopeModel(fInterface).level, getApp().getTime());
+        });
+
+        syncShader();
+    }
+
+private:
+    void syncShader()
+    {
+        if (fShader == nullptr)
+            return;
+
+        fShader->setAbsolutePos(getAbsolutePos());
+        fShader->setSize(getSize());
+        fShader->setBorderRadius(kBorderRadius * fScaleFactor);
+        fShader->setVisible(isVisible());
+    }
+
+    // the stage sizes and places this before updating it, and on every page change
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::updateSize(updateChildren);
+        syncShader();
+    }
+
+    void onNanoDisplay() final
+    {
+        drawLabels();
+        drawGlass(getWidth(), getHeight(), kBorderRadius * fScaleFactor);
+    }
+
+    void drawLabels()
+    {
+        DelayScopeModel model(fInterface);
+        model.setSpan(fZoom.span(model.level, getApp().getTime()));
+
+        const float px = kScopeRefPx * fScaleFactor;
+        const float x0 = kScopeInsetX * px;
+        const float y0 = kScopeInsetTop * px;
+        const float w = getWidth() - 2.f * kScopeInsetX * px;
+        const float h = getHeight() - (kScopeInsetTop + kScopeInsetBottom) * px;
+        const float fontPx = 8.f * px;
+
+        if (w <= 0.f || h <= 0.f)
+            return;
+
+        // dimmed with the scope while bypassed
+        const float alpha = fInterface->getParameterValue(kParametersCommonStart + kCommonParameterBypass) > 0.5f
+                          ? 0.35f : 1.f;
+
+        char buffer[24];
+
+        fontFace("mono");
+        fontSize(fontPx);
+
+        // grid times, on their lines
+        fillColor(Color(0x4a, 0x4b, 0x53, alpha));
+        textLetterSpacing(0.1f * fontPx);
+        textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+
+        for (float s = model.gridStep; s < model.span; s += model.gridStep)
+        {
+            DelayScopeModel::format(buffer, sizeof(buffer), s);
+            text(x0, y0 + s / model.span * h, buffer, nullptr);
+        }
+
+        // channel labels, above the scope
+        fillColor(Color(0x6a, 0x6b, 0x74, alpha));
+        textLetterSpacing(0.18f * fontPx);
+        textAlign(ALIGN_LEFT | ALIGN_TOP);
+        text(x0, y0 - 16.f * px, "L", nullptr);
+        textAlign(ALIGN_RIGHT | ALIGN_TOP);
+        text(x0 + w, y0 - 16.f * px, "R", nullptr);
+        textLetterSpacing(0.f);
+    }
+
+    // A pane of glass over the scope, as over the compressor's curve: a gloss over the top whose lower edge sweeps up
+    // to the right, a faint diagonal sheen across the middle, kept clear of the corners, a rim lit at the top and
+    // fading down, and a bright line just inside the top edge.
+    void drawGlass(const float w, const float h, const float r)
+    {
+        // gloss
+        beginPath();
+        moveTo(0, h * 0.46f);
+        lineTo(0, r);
+        arcTo(0, 0, r, 0, r);
+        lineTo(w - r, 0);
+        arcTo(w, 0, w, r, r);
+        lineTo(w, h * 0.26f);
+        quadTo(w * 0.45f, h * 0.30f, 0, h * 0.46f);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h * 0.46f, Color(1.f, 1.f, 1.f, 0.09f), Color(1.f, 1.f, 1.f, 0.015f)));
+        fill();
+
+        // sheen
+        beginPath();
+        moveTo(w * 0.60f, 0);
+        lineTo(w * 0.70f, 0);
+        lineTo(w * 0.56f, h);
+        lineTo(w * 0.46f, h);
+        closePath();
+        fillPaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.045f), Color(1.f, 1.f, 1.f, 0.005f)));
+        fill();
+
+        // rim
+        beginPath();
+        roundedRect(0.5f, 0.5f, w - 1.f, h - 1.f, r - 0.5f);
+        strokePaint(linearGradient(0, 0, 0, h, Color(1.f, 1.f, 1.f, 0.22f), Color(1.f, 1.f, 1.f, 0.04f)));
+        strokeWidth(1.f);
+        stroke();
+
+        // top edge highlight
+        beginPath();
+        moveTo(r, 1.5f);
+        lineTo(w - r, 1.5f);
+        strokePaint(linearGradient(r, 0, w - r, 0, Color(1.f, 1.f, 1.f, 0.08f), Color(1.f, 1.f, 1.f, 0.32f)));
+        strokeWidth(1.f);
+        stroke();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// The Expert page: the scope in the centre, with the Time and Filter panels below it, between the Repeat and Dynamics
+// panels on the left and the Modulation and Output panels on the right.
+
+class DelayCentreWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>
+{
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>;
+
+    const std::shared_ptr<DelayScopeWidget> fScope = addWidget<DelayScopeWidget, Expanding>();
+    const std::shared_ptr<LabWidget> fTime = addWidget<DelayCenteredWidget<DelayTimePanelWidget>>();
+    const std::shared_ptr<LabWidget> fFilter = addWidget<DelayCenteredWidget<DelayFilterPanelWidget>>();
+
+public:
+    explicit DelayCentreWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+
+    [[nodiscard]] DelayScopeWidget* getScope() const noexcept
+    {
+        return fScope.get();
+    }
+};
+
+class DelayExpertWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>>
+{
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>>;
+
+    const std::shared_ptr<LabWidget> fLeft =
+        addWidget<DelayColumnWidget<DelayRepeatPanelWidget, DelayDynamicsPanelWidget>>();
+    const std::shared_ptr<DelayCentreWidget> fCentre = addWidget<DelayCentreWidget, Expanding>();
+    const std::shared_ptr<LabWidget> fRight =
+        addWidget<DelayColumnWidget<DelayModulationPanelWidget, DelayOutputPanelWidget>>();
+
+public:
+    explicit DelayExpertWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
+
+    [[nodiscard]] DelayScopeWidget* getScope() const noexcept
+    {
+        return fCentre->getScope();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+// The stage is the display area, with the starfield behind it: the Expert page in Expert mode, and in Easy mode four
+// preset cards along its bottom. The cards are the suite's Easy page cards and do not load anything yet.
 
 class DelayStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>,
                                private IdleCallback
@@ -447,10 +712,8 @@ class DelayStageWidget final : public ReferenceContainerWidget<Reference::Stage,
     using R = Reference::Stage;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
 
-    const std::shared_ptr<DelayTopRowWidget> fTopGroups = addWidget<DelayTopRowWidget>();
+    const std::shared_ptr<DelayExpertWidget> fExpert = addWidget<DelayExpertWidget, Expanding>();
     const std::shared_ptr<LabWidget> fSpacer = addSpacer();
-    const std::shared_ptr<DelayMiddleRowWidget> fMiddleGroups = addWidget<DelayMiddleRowWidget>();
-    const std::shared_ptr<DelayGroupRowWidget> fGroups = addWidget<DelayGroupRowWidget>();
     const std::shared_ptr<CardGroupWidget> fCards = addCards();
 
     Page fPage = kPageEasy;
@@ -461,6 +724,11 @@ public:
     {
         showPage(getCurrentPage(fInterface));
         addIdleCallback(this);
+    }
+
+    void setScopeShader(BotShaderBaseWidget* const shader)
+    {
+        fExpert->getScope()->setShader(shader);
     }
 
 private:
@@ -478,13 +746,16 @@ private:
         return widget;
     }
 
-    // the groups in Expert mode, the cards in Easy mode, neither on the other pages
+    // the Expert page in Expert mode, the cards below a spacer in Easy mode, neither on the other pages.
+    // The scope is hidden along with the page, so it hides its shader too.
     void showPage(const Page page)
     {
+        const bool expert = page == kPageExpert;
+
         fPage = page;
-        fTopGroups->setVisible(page == kPageExpert);
-        fMiddleGroups->setVisible(page == kPageExpert);
-        fGroups->setVisible(page == kPageExpert);
+        fExpert->setVisible(expert);
+        fExpert->getScope()->setVisible(expert);
+        fSpacer->setVisible(! expert);
         fCards->setVisible(page == kPageEasy);
     }
 
@@ -499,7 +770,31 @@ private:
     }
 };
 
-using DelayRootWidget = RootWidget<TopBar, MainAreaContainerWidget<DelayStageWidget>>;
+// --------------------------------------------------------------------------------------------------------------------
+
+class DelayMainAreaWidget final : public MainAreaContainerWidget<DelayStageWidget>
+{
+public:
+    explicit DelayMainAreaWidget(LabTopLevelWidget* const parent)
+        : MainAreaContainerWidget(parent) {}
+
+    void setScopeShader(BotShaderBaseWidget* const shader)
+    {
+        fStage->setScopeShader(shader);
+    }
+};
+
+class DelayRootWidget final : public RootWidget<TopBar, DelayMainAreaWidget>
+{
+public:
+    DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)
+        : RootWidget(window, iface) {}
+
+    void setScopeShader(BotShaderBaseWidget* const shader)
+    {
+        fMainArea->setScopeShader(shader);
+    }
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -516,6 +811,11 @@ class DelayUI final : public LibreAudioBaseUI
                                         SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
     };
 
+    // the scope, above the starfield; the display places it
+    const std::unique_ptr<LibreAudio::BotShaderBaseWidget> fShaderScope {
+        new LibreAudio::BotShaderWidget<SHADERS_CURVE_DELAY_FRAG_DATA, SHADERS_CURVE_DELAY_FRAG_LEN>(this, this)
+    };
+
 public:
     DelayUI()
         : LibreAudioBaseUI()
@@ -523,6 +823,7 @@ public:
         createRootWidget<LibreAudio::DelayRootWidget>();
 
         fRootWidget->enableShaders({ fShaderBackground.get() });
+        static_cast<LibreAudio::DelayRootWidget*>(fRootWidget.get())->setScopeShader(fShaderScope.get());
     }
 
 private:
