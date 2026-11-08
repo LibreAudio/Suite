@@ -6,6 +6,7 @@
 
 #include "container.hpp"
 #include "ui/widgets/number-box.hpp"
+#include "ui/_lab/text.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -13,49 +14,13 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<Orientation kOrientation>
-class BoxFrameWidget : public LabReferenceContainerWidget<Reference::Widgets::BoxFrame, kOrientation>
-{
-    using R = Reference::Widgets::BoxFrame;
-    using BaseWidget = LabReferenceContainerWidget<R, kOrientation>;
-    using BaseWidget::BaseWidget;
-};
+template<const Color& color, const char text[]>
+using BoxFrameTitle = LabReferenceStaticTextWidget<Reference::Widgets::BoxFrame<>::Header::Title<color>, text>;
 
-template<Orientation kOrientation>
-class TransparentFrameWidget : public LabReferenceContainerWidget<Reference::Transparent<Reference::Widgets::BoxFrame>,
-                                                                  kOrientation>
-{
-    using R = Reference::Widgets::BoxFrame;
-    using BaseWidget = LabReferenceContainerWidget<R, kOrientation>;
-    using BaseWidget::BaseWidget;
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-// utility class to allow inline definitions of parameter container widgets
-
-// template<uint kSize, Orientation kOrientation, SizeHint kSizeHint, typename... Args>
-// class StaticParameterBoxFrameWidget : public ParameterReferenceContainerWidget<
-//     Reference::AutoSize<kOrientation,
-//                         kSize + (Reference::Widgets::BoxFrame::border + Reference::Widgets::BoxFrame::margin) * 2,
-//                         Reference::Widgets::BoxFrame>,
-//     kOrientation
-// >
-// {
-// public:
-//     using R = Reference::AutoSize<
-//         kOrientation,
-//         kSize + (Reference::Widgets::BoxFrame::border + Reference::Widgets::BoxFrame::margin) * 2,
-//         Reference::Widgets::BoxFrame
-//     >;
-//
-// private:
-//     using BaseWidget = ParameterReferenceContainerWidget<R, kOrientation>;
-//     using BaseWidget::BaseWidget;
-//
-//     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-//         this->template addParameterWidgetPair<Args, kSizeHint>()...
-//     };
-// };
+template<Orientation kOrientation, uint kNumRows = 1, bool kIncludeHeader = false>
+using BoxFrameWidget = LabReferenceContainerWidget<
+    Reference::Widgets::BoxFrame<kNumRows, kIncludeHeader>, kOrientation
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

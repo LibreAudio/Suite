@@ -32,15 +32,23 @@ struct Reference {
     };
 
     struct Colors {
+        static constexpr const Color blue { 0xc3, 0xd9, 0xff }; // blue
+        static constexpr const Color red { 0xff, 0xbf, 0xcb }; // red
+        static constexpr const Color yellow { 0xff, 0xdf, 0xad }; // yellow
+        static constexpr const Color green { 0xd2, 0xfd, 0xd3 }; // green
+        static constexpr const Color babyblue { 0xbe, 0xf1, 0xff }; // baby blue
+        static constexpr const Color pink { 0xda, 0xc1, 0xf3 }; // pink
+        static constexpr const Color orange { 0xff, 0x7e, 0x1c };
+
         static constexpr const Color ink { 0xf6, 0xf6, 0xf8 };
         static constexpr const Color ink2 { 0xc8, 0xca, 0xd0 };
         static constexpr const Color ink3 { 0x8c, 0x8e, 0x96 };
-        static constexpr const Color acc1 { 0xc3, 0xd9, 0xff }; // blue
-        static constexpr const Color acc2 { 0xff, 0xbf, 0xcb }; // red
-        static constexpr const Color acc3 { 0xff, 0xdf, 0xad }; // yellow
-        static constexpr const Color acc4 { 0xd2, 0xfd, 0xd3 }; // green
-        static constexpr const Color acc5 { 0xbe, 0xf1, 0xff }; // baby blue
-        static constexpr const Color acc6 { 0xda, 0xc1, 0xf3 }; // pink
+        static constexpr const Color acc1 = blue;
+        static constexpr const Color acc2 = red;
+        static constexpr const Color acc3 = yellow;
+        static constexpr const Color acc4 = green;
+        static constexpr const Color acc5 = babyblue;
+        static constexpr const Color acc6 = pink;
         // static constexpr const Color orange { 0xff, 0x7e, 0x1c };
         static constexpr const Color bg0 { 0x16, 0x16, 0x18 };
         static constexpr const Color bg1 { 0x1c, 0x1c, 0x20 };
@@ -161,7 +169,10 @@ struct Reference {
     };
 
     struct Widgets {
+        template<uint kNumRows = 1, bool kIncludeHeader = false>
         struct BoxFrame : Zero {
+            static_assert(kNumRows != 0, "box frame must have at least 1 row");
+
             static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
             static constexpr const Color borderColor = backgroundColor;
             static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
@@ -177,6 +188,30 @@ struct Reference {
             // static constexpr const Size<int> shadowSize = { -6, -6 };
             static constexpr const Size<int> shadowSize = { -12, -12 };
             static constexpr const uint shadowFeather = 14;
+
+            struct Header : Zero {
+                static constexpr const uint margin = 0;
+                static constexpr const uint padding = BoxFrame::padding;
+                static constexpr const uint height = 18;
+
+                template<const Color& kColor>
+                struct Title : Reference::Zero {
+                    static constexpr const Color color = kColor;
+                    static constexpr const float fontSize = Header::height * 0.75f;
+                    static constexpr const float height = Header::height;
+                };
+            };
+
+            struct Row : Zero {
+                static constexpr const uint margin = 0;
+                static constexpr const uint padding = BoxFrame::padding;
+                static constexpr const uint height = 40;
+            };
+
+            static constexpr const uint height = (border + margin) * 2
+                                               + padding * (kNumRows - 1)
+                                               + Row::height * kNumRows
+                                               + (kIncludeHeader ? Header::height + padding : 0);
         };
 
         struct Card : Zero {

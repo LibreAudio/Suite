@@ -34,11 +34,19 @@ inline float getParameterValue(const LabUIWidgetInterface* const iface, const Fa
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<uint8_t band>
-struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame {
-    struct Header : Reference::Zero {
-        static constexpr const uint height = 18;
+inline constexpr const uint8_t kNumBands = 5;
 
+inline constexpr const std::string_view kBandLabels[kNumBands] = {
+    "LOW",
+    "LOW MID",
+    "MID",
+    "HIGH MID",
+    "HIGH"
+};
+
+template<uint8_t band>
+struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame<kNumBands, true> {
+    struct Header : Reference::Widgets::BoxFrame<kNumBands, true>::Header {
         struct Title : Reference::Zero {
             static constexpr const Color color = Reference::kAccentColors[band + 1];
             static constexpr const float fontSize = Header::height * 0.75f;
@@ -91,25 +99,13 @@ struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame {
             static constexpr const uint padding = BoxFrame::padding;
         };
     };
-
-    static constexpr const uint height = margin * 2 + Header::height + padding + Body::height;
-};
-
-inline constexpr const uint8_t kNumBands = 5;
-
-inline constexpr const std::string_view kBandLabels[kNumBands] = {
-    "LOW",
-    "LOW MID",
-    "MID",
-    "HIGH MID",
-    "HIGH"
 };
 
 template<uint8_t band>
-class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical>
+class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical, kNumBands, true>
 {
-    using R = Reference::Widgets::BoxFrame;
-    using BaseWidget = BoxFrameWidget<Vertical>;
+    using R = Reference::Widgets::BoxFrame<kNumBands, true>;
+    using BaseWidget = BoxFrameWidget<Vertical, kNumBands, true>;
     using BaseWidget::BaseWidget;
 
     using HR = typename MbComp5BandGroupReference<band>::Header;

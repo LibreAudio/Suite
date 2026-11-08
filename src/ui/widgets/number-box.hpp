@@ -29,7 +29,7 @@ struct NumberBoxMetrics : LabMetrics<R> {
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const Color& kAccentColor = Reference::Colors::acc1, uint height = Reference::Widgets::NumberBox<>::height>
-class NumberBoxWidget final : public LabParameterWidget
+class NumberBoxWidget : public LabParameterWidget
 {
     using R = Reference::Widgets::NumberBox<kAccentColor, height>;
     using BaseWidget = LabParameterWidget;
@@ -189,6 +189,20 @@ private:
     {
         updateReferenceSize<R>();
         BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex, const Color& kAccentColor>
+class StaticNumberBoxWidget final : public NumberBoxWidget<kAccentColor>
+{
+    using BaseWidget = NumberBoxWidget<kAccentColor>;
+
+public:
+    explicit StaticNumberBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParameterIndex)
+    {
     }
 };
 
