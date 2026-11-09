@@ -34,9 +34,11 @@ inline constexpr const std::string_view kBandLabels[kNumBands] = {
 
 template<uint8_t band>
 struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame<kNumBands, true> {
+    static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
+
     struct Header : Reference::Widgets::BoxFrame<kNumBands, true>::Header {
         struct Title : Reference::Zero {
-            static constexpr const Color color = Reference::kAccentColors[band + 1];
+            static constexpr const Color color = kAccentColor;
             static constexpr const float fontSize = Header::height * 0.75f;
             static constexpr const float height = Header::height;
         };
@@ -58,10 +60,10 @@ struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame<kNumBands, true>
             static constexpr const uint shadowFeather = 12;
 
             struct Solo : Reference::Zero {
-                static constexpr const Color backgroundColor〡checked = Reference::kAccentColors[band + 1];
+                static constexpr const Color backgroundColor〡checked = kAccentColor;
                 static constexpr const Color color = Reference::Colors::ink2;
                 static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
-                static constexpr const Color color〡hover = Reference::kAccentColors[band + 1];
+                static constexpr const Color color〡hover = kAccentColor;
                 static constexpr const MouseCursor cursor = kMouseCursorHand;
                 static constexpr const uint borderRadius = 4;
                 static constexpr const uint width = Header::height;
@@ -99,7 +101,8 @@ class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical, kNumBands, 
     using HR = typename MbComp5BandGroupReference<band>::Header;
     using BR = typename MbComp5BandGroupReference<band>::Body;
 
-    static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
+    static constexpr const uint8_t kAccentIndex = band + 1;
+    static constexpr const Color kAccentColor = Reference::kAccentColors[kAccentIndex];
 
     static constexpr const uint32_t kFirstIdInBand = kParametersMainStart + kFaustParameterBand1_threshold;
     static constexpr const uint32_t kNumParamsPerBand = kFaustParameterBand2_threshold - kFaustParameterBand1_threshold;
@@ -121,6 +124,9 @@ class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical, kNumBands, 
 
     using SoloButtonWidget = ImageButtonWidget<typename HR::Buttons::Solo, kCornerBoth, IMAGES_SOLO_28_PNG_DATA, IMAGES_SOLO_28_PNG_LEN>;
     using MuteButtonWidget = ImageButtonWidget<typename HR::Buttons::Bypass, kCornerBoth, IMAGES_POWER_24_PNG_DATA, IMAGES_POWER_24_PNG_LEN>;
+
+    template<FaustParameterIndex kParameterIndex>
+    using NumberBoxWidgetR = NumberBoxWidget<kParameterIndex, kAccentIndex>;
 
     // ----------------------------------------------------------------------------------------------------------------
 
@@ -185,11 +191,11 @@ public:
         class NumberBoxStackWidget final : public LabReferenceContainerWidget<typename BR::NumberBoxes, Vertical>
         {
             const std::array<std::shared_ptr<LabParameterWidget>, 5> widgets {
-                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_threshold)>>(),
-                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_ratio)>>(),
-                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_attack)>>(),
-                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_release)>>(),
-                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_makeup)>>()
+                this->template addWidget<NumberBoxWidgetR<getParameterIndexForBand(kFaustParameterBand1_threshold)>>(),
+                this->template addWidget<NumberBoxWidgetR<getParameterIndexForBand(kFaustParameterBand1_ratio)>>(),
+                this->template addWidget<NumberBoxWidgetR<getParameterIndexForBand(kFaustParameterBand1_attack)>>(),
+                this->template addWidget<NumberBoxWidgetR<getParameterIndexForBand(kFaustParameterBand1_release)>>(),
+                this->template addWidget<NumberBoxWidgetR<getParameterIndexForBand(kFaustParameterBand1_makeup)>>()
             };
 
         public:

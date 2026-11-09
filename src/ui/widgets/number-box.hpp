@@ -28,13 +28,16 @@ struct NumberBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<FaustParameterIndex kParameterIndex>
+template<FaustParameterIndex kParameterIndex, uint8_t _accentColorIndex = UINT8_MAX>
 class NumberBoxWidget : public LabParameterWidget
 {
     using BaseWidget = LabParameterWidget;
 
     static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
-    static constexpr const Color kAccentColor = Reference::kAccentColors[kParameter.accentcolor];
+    static constexpr const uint8_t kAccentColorIndex = _accentColorIndex != UINT8_MAX
+                                                     ? _accentColorIndex
+                                                     : kParameter.accentcolor;
+    static constexpr const Color kAccentColor = Reference::kAccentColors[kAccentColorIndex];
     static constexpr const bool kUsingMiddleSplitBar = d_isEqual(kParameter.min, -kParameter.max);
 
 public:
