@@ -22,18 +22,6 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-inline bool isBypassed(const LabUIWidgetInterface* const iface) noexcept
-{
-    return d_isNotZero(iface->getParameterValue(kCommonParameterBypass));
-}
-
-inline float getParameterValue(const LabUIWidgetInterface* const iface, const FaustParameterIndex index) noexcept
-{
-    return iface->getParameterValue(kParametersMainStart + index);
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-
 inline constexpr const uint8_t kNumBands = 5;
 
 inline constexpr const std::string_view kBandLabels[kNumBands] = {
