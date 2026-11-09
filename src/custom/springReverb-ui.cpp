@@ -18,9 +18,20 @@ namespace LibreAudio {
 // --------------------------------------------------------------------------------------------------------------------
 
 static constexpr const char kTextINPUT[] = "INPUT";
-static constexpr const char kTextSPRINGS[] = "SPRINGS";
 static constexpr const char kTextDYNAMICS[] = "DYNAMICS";
 static constexpr const char kTextMIXER[] = "MIXER";
+
+// --------------------------------------------------------------------------------------------------------------------
+
+using ReverbSpringsGroupWidget = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1>,
+    Horizontal,
+    Expanding,
+    StaticNumberBoxWidget<kFaustParameterDwell, Reference::Colors::red>,
+    StaticNumberBoxWidget<kFaustParameterTension, Reference::Colors::red>,
+    StaticNumberBoxWidget<kFaustParameterCenter, Reference::Colors::red>,
+    StaticNumberBoxWidget<kFaustParameterCrosslr, Reference::Colors::red>
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -35,22 +46,6 @@ using ReverbInputGroupWidget = StaticContainerWidget<
         Expanding,
         StaticNumberBoxWidget<kFaustParameterPredelay, Reference::Colors::blue>,
         StaticNumberBoxWidget<kFaustParameterTone, Reference::Colors::yellow>
-    >
->;
-
-using ReverbSpringsGroupWidget = StaticContainerWidget<
-    Reference::Widgets::BoxFrame<1, true>,
-    Vertical,
-    Fixed,
-    BoxFrameTitle<Reference::Colors::red, kTextSPRINGS>,
-    StaticContainerWidget<
-        Reference::Widgets::BoxFrame<1, true>::Row,
-        Horizontal,
-        Expanding,
-        StaticNumberBoxWidget<kFaustParameterDwell, Reference::Colors::red>,
-        StaticNumberBoxWidget<kFaustParameterTension, Reference::Colors::red>,
-        StaticNumberBoxWidget<kFaustParameterCenter, Reference::Colors::red>,
-        StaticNumberBoxWidget<kFaustParameterCrosslr, Reference::Colors::red>
     >
 >;
 
@@ -83,48 +78,29 @@ using ReverbMixerGroupWidget = StaticContainerWidget<
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
-// one of the groups is 2x width of others, so we need special handling here
 
-using ReverbBottomGroupWidgetBase = StaticContainerWidget<
+using ReverbBottomGroupWidget = StaticContainerWidget<
     Reference::Transparent<Reference::Margin<0, Reference::Widgets::BoxFrame<1, true>>>,
     Horizontal,
-    Fixed,
+    Expanding,
     ReverbInputGroupWidget,
-    ReverbSpringsGroupWidget,
     ReverbDynamicsGroupWidget,
     ReverbMixerGroupWidget
 >;
 
-class ReverbBottomGroupWidget final : public ReverbBottomGroupWidgetBase
-{
-    using R = ReverbBottomGroupWidgetBase::R2;
-    using BaseWidget = ReverbBottomGroupWidgetBase;
-    using BaseWidget::BaseWidget;
-
-    using Layout = typename ReverbBottomGroupWidgetBase::Layout;
-
-    static_assert(kNumWidgets == 4, "wrong number of widgets");
-
-    void updateSize(const bool updateChildren)
-    {
-        static constexpr const uint kWidthMultipliers[4] = { 1, 2, 1, 1 };
-
-        const LabMetrics<R, uint> m { this };
-
-        const uint usableWidth = m.width - (m.border + m.margin) * 2 - m.padding * 3;
-        const uint equalItemWidth = usableWidth / 5;
-
-        uint i = 0;
-        for (const SubWidgetWithSizeHint& ssh : Layout::widgets)
-            ssh.widget->setWidth(equalItemWidth * kWidthMultipliers[i++]);
-
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
 // --------------------------------------------------------------------------------------------------------------------
 
-using ReverbExpertPageWidget  = StaticBottomAlignedContainerWidget<Reference::CentralArea, ReverbBottomGroupWidget>;
+class ReverbExpertPageWidget : public LabReferenceContainerWidget<Reference::CentralArea, Vertical>
+{
+    using BaseWidget = LabReferenceContainerWidget<Reference::CentralArea, Vertical>;
+    using BaseWidget::BaseWidget;
+
+    const std::array<std::shared_ptr<LabWidget>, 3> widgets {
+        this->template addWidget<ReverbSpringsGroupWidget, Fixed>(),
+        BaseWidget::addSpacer(),
+        this->template addWidget<ReverbBottomGroupWidget, Fixed>()
+    };
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 
