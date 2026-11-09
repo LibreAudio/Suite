@@ -7,6 +7,7 @@
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/widgets/number-box.hpp"
+#include "ui/widgets/pill-toggle.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "LibreAudioParameters.hpp"
@@ -30,7 +31,7 @@ static constexpr const uint kBoxHeight = 45;
 static constexpr const uint kRowHeight = 20;
 
 // width of the number boxes, the same in every panel
-static constexpr const uint kBoxWidth = 120;
+static constexpr const uint kBoxWidth = 110;
 
 // --------------------------------------------------------------------------------------------------------------------
 // The controls sit in panels floating over the stage, styled like the mbComp5 band groups, as in the limiter.
@@ -80,27 +81,48 @@ static void setParameterGesture(LabUIWidgetInterface* const iface, const uint32_
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// A slim checkbox for an on / off parameter, as in the limiter: a square box at the left edge, with a check mark in
-// the accent colour when on, then its name in the accent colour. A click anywhere on it toggles the parameter.
+// A slim checkbox, as in the limiter: a square box at the left edge, with a check mark in the accent colour when on,
+// then its name in the accent colour. It is on while the parameter equals its on value; a click anywhere on it sets
+// the parameter to that value, or back to 0 when already on. Checkboxes sharing a parameter with different on values
+// are therefore exclusive.
 
-class DelayCheckboxWidget final : public LabWidget
+class DelayCheckboxWidget : public LabWidget
 {
     static constexpr const float kGap = 6.f;
     static constexpr const float kFontSize = Reference::Widgets::NumberBox<>::Name::fontSize;
 
     const FaustParameterIndex fId;
     const FaustParameter& fParameter;
+    const int fOnValue;
+    const char* const fLabel;
     const Color fAccent;
     bool fHover = false;
 
 public:
+    // labelled with the parameter's name, on at 1
     explicit DelayCheckboxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : DelayCheckboxWidget(parent, id, 1, kFaustParameters[id].name) {}
+
+protected:
+    DelayCheckboxWidget(LabWidget* const parent, const FaustParameterIndex id, const int onValue, const char* const label)
         : LabWidget(parent),
           fId(id),
           fParameter(kFaustParameters[id]),
+          fOnValue(onValue),
+          fLabel(label),
           fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
     {
         updateSize(false);
+    }
+
+    // the label of a parameter's choice, or its name when it has no label for that value
+    static const char* choiceLabel(const FaustParameterIndex id, const int value) noexcept
+    {
+        const FaustParameter& parameter = kFaustParameters[id];
+        for (uint i = 0; i < parameter.scalePointCount; ++i)
+            if (parameter.scalePoints[i].value == value)
+                return parameter.scalePoints[i].label;
+        return parameter.name;
     }
 
 private:
@@ -111,7 +133,7 @@ private:
 
     [[nodiscard]] bool isChecked() const noexcept
     {
-        return d_isNotZero(fInterface->getParameterValue(kParametersMainStart + fId));
+        return std::lround(fInterface->getParameterValue(kParametersMainStart + fId)) == fOnValue;
     }
 
     void setupFont()
@@ -132,7 +154,7 @@ private:
         setupFont();
         fillColor(fAccent);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
-        text(size + kGap * s, h * 0.5f, fParameter.name, nullptr);
+        text(size + kGap * s, h * 0.5f, fLabel, nullptr);
         textLetterSpacing(0.f);
 
         beginPath();
@@ -163,7 +185,7 @@ private:
     {
         if (ev.press && ev.button == 1 && contains(ev.pos))
         {
-            setParameterGesture(fInterface, kParametersMainStart + fId, isChecked() ? 0.f : 1.f);
+            setParameterGesture(fInterface, kParametersMainStart + fId, isChecked() ? 0.f : static_cast<float>(fOnValue));
             repaint();
             return true;
         }
@@ -180,33 +202,68 @@ private:
         return LabWidget::onMotion(ev);
     }
 
-    // as wide as its box and name need, or wider when its cell makes it so
+    // as wide and tall as its box and name need, or larger when its cell makes it so; drawn centred vertically
     void updateSize(const bool updateChildren) final
     {
         Rectangle<float> bounds;
         setupFont();
         textAlign(0);
-        textBounds(0, 0, fParameter.name, nullptr, bounds);
+        textBounds(0, 0, fLabel, nullptr, bounds);
         textLetterSpacing(0.f);
 
         const uint width = d_roundToUnsignedInt(bounds.getWidth() + kGap * fScaleFactor + boxSize());
-        setSize(std::max(width, getWidth()), d_roundToUnsignedInt(kRowHeight * fScaleFactor));
+        setSize(std::max(width, getWidth()), std::max(d_roundToUnsignedInt(kRowHeight * fScaleFactor), getHeight()));
 
         LabWidget::updateSize(updateChildren);
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// A row of a panel: one control per parameter, the panel's padding apart, sharing its width.
+// A checkbox for one choice of a parameter, on while the parameter is kValue and labelled with that choice.
 
-template<uint kHeight, template<FaustParameterIndex> class Control, FaustParameterIndex... kIds>
+template<int kValue>
+class DelayChoiceCheckboxWidget final : public DelayCheckboxWidget
+{
+public:
+    explicit DelayChoiceCheckboxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : DelayCheckboxWidget(parent, id, kValue, choiceLabel(id, kValue)) {}
+};
+
+// A cell of a panel row: the control widget for one parameter.
+
+template<template<FaustParameterIndex> class Control, FaustParameterIndex kId>
+struct DelayCell
+{
+    using Widget = Control<kId>;
+    static constexpr const FaustParameterIndex id = kId;
+};
+
+template<FaustParameterIndex>
+using DelayCheckboxCellWidget = DelayCheckboxWidget;
+
+template<FaustParameterIndex kId>
+using DelayBox = DelayCell<DelayNumberBoxWidget, kId>;
+
+template<FaustParameterIndex kId>
+using DelayCheckbox = DelayCell<DelayCheckboxCellWidget, kId>;
+
+template<FaustParameterIndex kId, int kValue>
+struct DelayChoiceCheckbox
+{
+    using Widget = DelayChoiceCheckboxWidget<kValue>;
+    static constexpr const FaustParameterIndex id = kId;
+};
+
+// A row of a panel: one control per cell, the panel's padding apart, sharing its width.
+
+template<uint kHeight, class... Cells>
 class DelayPanelRowWidget final
     : public ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>
 {
     using BaseWidget = ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>;
 
-    const std::array<std::shared_ptr<LabWidget>, sizeof...(kIds)> widgets {
-        this->template addWidget<Control<kIds>, Expanding>(kIds)...
+    const std::array<std::shared_ptr<LabWidget>, sizeof...(Cells)> widgets {
+        this->template addWidget<typename Cells::Widget, Expanding>(Cells::id)...
     };
 
 public:
@@ -216,25 +273,26 @@ public:
         : BaseWidget(parent) {}
 };
 
-template<FaustParameterIndex>
-using DelayCheckboxCellWidget = DelayCheckboxWidget;
-
 template<FaustParameterIndex... kIds>
-using DelayBoxRowWidget = DelayPanelRowWidget<kBoxHeight, DelayNumberBoxWidget, kIds...>;
-
-template<FaustParameterIndex... kIds>
-using DelayCheckboxRowWidget = DelayPanelRowWidget<kRowHeight, DelayCheckboxCellWidget, kIds...>;
+using DelayBoxRowWidget = DelayPanelRowWidget<kBoxHeight, DelayBox<kIds>...>;
 
 // --------------------------------------------------------------------------------------------------------------------
-// A floating panel: rows of controls, kColumns number boxes wide, sized to fit them.
+// width of n number boxes side by side in a panel row
+static constexpr uint boxColumns(const uint n) noexcept
+{
+    return kBoxWidth * n + DelayGroupReference::padding * (n - 1);
+}
 
-template<uint kColumns, class... Rows>
+// A floating panel: rows of controls, kContentWidth wide inside its rim and as tall as the rows need. With a
+// kContentWidth of 0 it takes the width its parent gives it.
+
+template<uint kContentWidth, class... Rows>
 class DelayPanelWidget final : public ReferenceContainerWidget<DelayGroupReference, kVertical>
 {
     using R = DelayGroupReference;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
 
-    static constexpr const uint kWidth = (R::border + R::margin) * 2 + kBoxWidth * kColumns + R::padding * (kColumns - 1);
+    static constexpr const uint kWidth = (R::border + R::margin) * 2 + kContentWidth;
     static constexpr const uint kHeight = (R::border + R::margin) * 2 + (Rows::height + ...)
                                         + R::padding * static_cast<uint>(sizeof...(Rows) - 1);
 
@@ -243,6 +301,8 @@ class DelayPanelWidget final : public ReferenceContainerWidget<DelayGroupReferen
     };
 
 public:
+    static constexpr const uint width = kWidth;
+
     explicit DelayPanelWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
@@ -252,7 +312,10 @@ public:
 private:
     void updateSize(const bool updateChildren) final
     {
-        LabWidget::setSize(d_roundToUnsignedInt(kWidth * fScaleFactor), d_roundToUnsignedInt(kHeight * fScaleFactor));
+        if constexpr (kContentWidth != 0)
+            LabWidget::setSize(d_roundToUnsignedInt(kWidth * fScaleFactor), d_roundToUnsignedInt(kHeight * fScaleFactor));
+        else
+            LabWidget::setHeight(d_roundToUnsignedInt(kHeight * fScaleFactor));
         BaseWidget::updateSize(updateChildren);
     }
 
@@ -282,30 +345,38 @@ private:
     }
 };
 
-using DelayRepeatPanelWidget = DelayPanelWidget<1,
+using DelayRepeatPanelWidget = DelayPanelWidget<boxColumns(1),
     DelayBoxRowWidget<kFaustParameterFeedback>,
     DelayBoxRowWidget<kFaustParameterCross>,
     DelayBoxRowWidget<kFaustParameterDrive>>;
 
-using DelayDynamicsPanelWidget = DelayPanelWidget<1,
-    DelayBoxRowWidget<kFaustParameterDeess_amount>,
-    DelayBoxRowWidget<kFaustParameterDuck>>;
+using DelayPingPongPanelWidget = DelayPanelWidget<boxColumns(1),
+    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 1>>,
+    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 2>>>;
 
-using DelayModulationPanelWidget = DelayPanelWidget<1,
+using DelayDynamicsPanelWidget = DelayPanelWidget<boxColumns(2),
+    DelayBoxRowWidget<kFaustParameterDeess_amount, kFaustParameterDuck>>;
+
+using DelayModulationPanelWidget = DelayPanelWidget<boxColumns(1),
     DelayBoxRowWidget<kFaustParameterMod_rate>,
     DelayBoxRowWidget<kFaustParameterMod_depth>,
     DelayBoxRowWidget<kFaustParameterMod_stereo_phase>>;
 
-using DelayOutputPanelWidget = DelayPanelWidget<1,
-    DelayBoxRowWidget<kFaustParameterWidth>,
-    DelayBoxRowWidget<kFaustParameterDrywet>>;
+using DelayOutputPanelWidget = DelayPanelWidget<boxColumns(2),
+    DelayBoxRowWidget<kFaustParameterWidth, kFaustParameterDrywet>>;
 
-using DelayTimePanelWidget = DelayPanelWidget<2,
-    DelayBoxRowWidget<kFaustParameterTime_l, kFaustParameterTime_r>,
-    DelayBoxRowWidget<kFaustParameterOffset_l, kFaustParameterOffset_r>,
-    DelayCheckboxRowWidget<kFaustParameterSync, kFaustParameterLink>>;
+using DelaySyncLinkPanelWidget = DelayPanelWidget<boxColumns(1),
+    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterSync>>,
+    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterLink>>>;
 
-using DelayFilterPanelWidget = DelayPanelWidget<2,
+using DelayTimeLeftPanelWidget = DelayPanelWidget<0,
+    DelayBoxRowWidget<kFaustParameterOffset_l, kFaustParameterTime_l>>;
+
+using DelayTimeRightPanelWidget = DelayPanelWidget<0,
+    DelayBoxRowWidget<kFaustParameterTime_r, kFaustParameterOffset_r>>;
+
+
+using DelayFilterPanelWidget = DelayPanelWidget<boxColumns(2),
     DelayBoxRowWidget<kFaustParameterHp_freq, kFaustParameterLp_freq>>;
 
 // gap between panels, and between the columns of the stage
@@ -339,32 +410,6 @@ private:
             width = std::max(width, panel->getWidth());
 
         LabWidget::setWidth(width);
-        BaseWidget::updateSize(updateChildren);
-    }
-};
-
-// A panel centred in the width it is given, as tall as the panel.
-
-template<class Panel>
-class DelayCenteredWidget final : public ReferenceContainerWidget<Reference::Zero>
-{
-    using BaseWidget = ReferenceContainerWidget<Reference::Zero>;
-
-    const std::shared_ptr<LabWidget> fLeft = addSpacer();
-    const std::shared_ptr<LabWidget> fPanel = addWidget<Panel>();
-    const std::shared_ptr<LabWidget> fRight = addSpacer();
-
-public:
-    explicit DelayCenteredWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-        updateSize(false);
-    }
-
-private:
-    void updateSize(const bool updateChildren) final
-    {
-        LabWidget::setHeight(fPanel->getHeight());
         BaseWidget::updateSize(updateChildren);
     }
 };
@@ -661,19 +706,22 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// The Expert page: the scope in the centre, with the Time and Filter panels below it, between the Repeat and Dynamics
-// panels on the left and the Modulation and Output panels on the right.
+// The Expert page: the Mode toggle at the top, the Time panels below it, then the scope between the Ping / Pong and
+// Repeat panels on the left and the Sync / Link and Modulation panels on the right; along the bottom the Dynamics,
+// Filter and Output panels.
 
-class DelayCentreWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>
+class DelayBodyWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>>
 {
-    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>;
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>>;
 
+    const std::shared_ptr<LabWidget> fLeft =
+        addWidget<DelayColumnWidget<DelayPingPongPanelWidget, DelayRepeatPanelWidget>>();
     const std::shared_ptr<DelayScopeWidget> fScope = addWidget<DelayScopeWidget, Expanding>();
-    const std::shared_ptr<LabWidget> fTime = addWidget<DelayCenteredWidget<DelayTimePanelWidget>>();
-    const std::shared_ptr<LabWidget> fFilter = addWidget<DelayCenteredWidget<DelayFilterPanelWidget>>();
+    const std::shared_ptr<LabWidget> fRight =
+        addWidget<DelayColumnWidget<DelaySyncLinkPanelWidget, DelayModulationPanelWidget>>();
 
 public:
-    explicit DelayCentreWidget(LabWidget* const parent)
+    explicit DelayBodyWidget(LabWidget* const parent)
         : BaseWidget(parent) {}
 
     [[nodiscard]] DelayScopeWidget* getScope() const noexcept
@@ -682,15 +730,122 @@ public:
     }
 };
 
-class DelayExpertWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>>
+// An empty gap as wide as a panel, standing in for it in a row.
+
+template<class Panel>
+class DelayPanelGapWidget final : public LabWidget
+{
+public:
+    explicit DelayPanelGapWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void onNanoDisplay() final {}
+
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(d_roundToUnsignedInt(Panel::width * fScaleFactor), std::max(1u, getHeight()));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// The Mode toggle (Digital / Tape / BBD) above the top bar, laid out like the body below so that it spans the scope:
+// a gap as wide as the Repeat panel, the toggle, and a gap as wide as the Modulation panel. The row is as tall as the
+// toggle.
+
+class DelayModeRowWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>>
 {
     using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>>;
 
-    const std::shared_ptr<LabWidget> fLeft =
-        addWidget<DelayColumnWidget<DelayRepeatPanelWidget, DelayDynamicsPanelWidget>>();
-    const std::shared_ptr<DelayCentreWidget> fCentre = addWidget<DelayCentreWidget, Expanding>();
-    const std::shared_ptr<LabWidget> fRight =
-        addWidget<DelayColumnWidget<DelayModulationPanelWidget, DelayOutputPanelWidget>>();
+    const std::shared_ptr<LabWidget> fLeft = addWidget<DelayPanelGapWidget<DelayRepeatPanelWidget>>();
+    const std::shared_ptr<LabWidget> fToggle =
+        addWidget<PillToggleWidget<Expanding>, Expanding>(kFaustParameters[kFaustParameterMode],
+                                                          kParametersMainStart + kFaustParameterMode);
+    const std::shared_ptr<LabWidget> fRight = addWidget<DelayPanelGapWidget<DelayModulationPanelWidget>>();
+
+public:
+    explicit DelayModeRowWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::setHeight(fToggle->getHeight());
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// The top bar of the Expert page, laid out like the body below so that it spans the scope: a gap as wide as the left
+// column, the left and right Time panels sharing the scope's width, and a gap as wide as the right column.
+
+class DelayTimeBarWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>>
+{
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>>;
+
+    const std::shared_ptr<LabWidget> fLeftGap = addWidget<DelayPanelGapWidget<DelayRepeatPanelWidget>>();
+    const std::shared_ptr<LabWidget> fLeft = addWidget<DelayTimeLeftPanelWidget, Expanding>();
+    const std::shared_ptr<LabWidget> fRight = addWidget<DelayTimeRightPanelWidget, Expanding>();
+    const std::shared_ptr<LabWidget> fRightGap = addWidget<DelayPanelGapWidget<DelayModulationPanelWidget>>();
+
+public:
+    explicit DelayTimeBarWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::setHeight(fLeft->getHeight());
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+// The bottom bar of the Expert page: a panel at each end and one centred between them, as tall as the tallest.
+// The spacers alone keep the panels apart, so three panels fill the bar without a gap around each spacer.
+
+template<class LeftPanel, class MiddlePanel, class RightPanel>
+class DelayBottomBarWidget final : public ReferenceContainerWidget<Reference::Zero>
+{
+    using BaseWidget = ReferenceContainerWidget<Reference::Zero>;
+
+    const std::shared_ptr<LabWidget> fLeft = addWidget<LeftPanel>();
+    const std::shared_ptr<LabWidget> fLeftSpacer = addSpacer();
+    const std::shared_ptr<LabWidget> fMiddle = addWidget<MiddlePanel>();
+    const std::shared_ptr<LabWidget> fRightSpacer = addSpacer();
+    const std::shared_ptr<LabWidget> fRight = addWidget<RightPanel>();
+
+public:
+    explicit DelayBottomBarWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::setHeight(std::max({ fLeft->getHeight(), fMiddle->getHeight(), fRight->getHeight() }));
+        BaseWidget::updateSize(updateChildren);
+    }
+};
+
+class DelayExpertWidget final : public ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>
+{
+    using BaseWidget = ReferenceContainerWidget<Reference::Padding<kPanelGap>, kVertical>;
+
+    const std::shared_ptr<LabWidget> fMode = addWidget<DelayModeRowWidget>();
+    const std::shared_ptr<LabWidget> fTime = addWidget<DelayTimeBarWidget>();
+    const std::shared_ptr<DelayBodyWidget> fBody = addWidget<DelayBodyWidget, Expanding>();
+    const std::shared_ptr<LabWidget> fBottom =
+        addWidget<DelayBottomBarWidget<DelayDynamicsPanelWidget, DelayFilterPanelWidget, DelayOutputPanelWidget>>();
 
 public:
     explicit DelayExpertWidget(LabWidget* const parent)
@@ -698,7 +853,7 @@ public:
 
     [[nodiscard]] DelayScopeWidget* getScope() const noexcept
     {
-        return fCentre->getScope();
+        return fBody->getScope();
     }
 };
 

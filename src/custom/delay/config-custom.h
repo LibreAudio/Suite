@@ -4,5 +4,5 @@
 
 #pragma once
 
-// tall enough for the scope above the Time and Filter panels
+// tall enough for the Mode toggle, the top bar, the scope and the bottom bar stacked
 #define DISTRHO_UI_DEFAULT_HEIGHT 640
