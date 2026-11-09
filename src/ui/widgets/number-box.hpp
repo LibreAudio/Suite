@@ -28,24 +28,26 @@ struct NumberBoxMetrics : LabMetrics<R> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
+template<FaustParameterIndex kParameterIndex>
 class NumberBoxWidget : public LabParameterWidget
 {
     using BaseWidget = LabParameterWidget;
 
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static constexpr const Color kAccentColor = Reference::kAccentColors[kParameter.accentcolor];
+    static constexpr const bool kUsingMiddleSplitBar = d_isEqual(kParameter.min, -kParameter.max);
+
 public:
-    explicit NumberBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
-        : BaseWidget(parent, kParametersMainStart + index),
-          fParameter(kFaustParameters[index]),
-          fUsingMiddleSplitBar(d_isEqual(fParameter.min, -fParameter.max))
+    explicit NumberBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
     {
         setActiveCursor(R::cursor);
-        setName(fParameter.name);
-        setDefault(fParameter.init);
-        setRange(fParameter.min, fParameter.max);
-        setStep(fParameter.step);
-        setUsingLogScale(fParameter.isLogarithmic);
-        setValue(fParameter.init, false);
+        setName(kParameter.name);
+        setDefault(kParameter.init);
+        setRange(kParameter.min, kParameter.max);
+        setStep(kParameter.step);
+        setUsingLogScale(kParameter.isLogarithmic);
+        setValue(kParameter.init, false);
 
         updateSize(false);
     }
@@ -90,14 +92,14 @@ protected:
         // name
 
         char valuestr[32];
-        renderParameterValue(valuestr, fParameter, getValue());
+        renderParameterValue(valuestr, kParameter, getValue());
 
         fillColor(R::Name::color);
         fontFace("regular");
         fontSize(m.name.fontSize);
         textLetterSpacing(m.name.letterSpacing);
         textAlign(ALIGN_LEFT | ALIGN_TOP);
-        text(border2x + m.margin, m.border + m.margin, fParameter.name, nullptr);
+        text(border2x + m.margin, m.border + m.margin, kParameter.name, nullptr);
 
         // ------------------------------------------------------------------------------------------------------------
         // value
@@ -113,10 +115,10 @@ protected:
         // unit
 
        #ifdef LIBREAUDIO_PLUGIN__mbComp5
-        const char* const unit = std::strcmp(fParameter.name, "Ratio") == 0 ? ":1"
-                               : fParameter.unit;
+        const char* const unit = std::strcmp(kParameter.name, "Ratio") == 0 ? ":1"
+                               : kParameter.unit;
        #else
-        const char* const unit = fParameter.unit;
+        const char* const unit = kParameter.unit;
        #endif
         if (*unit != '\0')
         {
@@ -142,7 +144,7 @@ protected:
             fillColor(R::Bar::color〡deactivated);
             fill();
 
-            if (fUsingMiddleSplitBar)
+            if constexpr (kUsingMiddleSplitBar)
             {
                 if (normvalue < 0.5f)
                 {
@@ -169,13 +171,10 @@ protected:
     }
 
 private:
-    const FaustParameter& fParameter;
-    const bool fUsingMiddleSplitBar;
-
     void knobDoubleClicked(SubWidget*) final
     {
         char valuestr[64];
-        renderParameterValue(valuestr, fParameter, getValue());
+        renderParameterValue(valuestr, kParameter, getValue());
 
         fInterface->openTextInput(this,
                                   valuestr,
@@ -196,22 +195,14 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
-class NumberBoxWithMeterWidget : public NumberBoxWidget<kAccentColor>
+template<FaustParameterIndex kParameterIndex, FaustParameterIndex kMeterIndex>
+class NumberBoxWithMeterWidget : public NumberBoxWidget<kParameterIndex>
 {
-    using BaseWidget = NumberBoxWidget<kAccentColor>;
+    using BaseWidget = NumberBoxWidget<kParameterIndex>;
+    using BaseWidget::BaseWidget;
     using R = typename BaseWidget::R;
 
-public:
-    explicit NumberBoxWithMeterWidget(LabWidget* const parent,
-                                      const FaustParameterIndex index,
-                                      const FaustParameterIndex meter)
-        : BaseWidget(parent, index),
-          fMeter(kFaustParameters[meter]),
-          fMeterIndex(meter),
-          fMeterRange(fMeter.max - fMeter.min)
-    {
-    }
+    static constexpr const FaustParameter& kMeter = kFaustParameters[kMeterIndex];
 
 protected:
     void onNanoDisplay() override
@@ -221,7 +212,7 @@ protected:
         const NumberBoxMetrics<R> m { this };
 
         const float normvalue = 1.f - (
-            (this->fInterface->getParameterValue(kParametersMainStart + fMeterIndex) - fMeter.min) / fMeterRange
+            (this->fInterface->getParameterValue(kParametersMainStart + kMeterIndex) - kMeter.min) / (kMeter.max - kMeter.min)
         );
         const float x = normvalue * m.width;
 
@@ -242,31 +233,6 @@ protected:
 
         BaseWidget::restore();
     }
-
-private:
-    const FaustParameter& fMeter;
-    const FaustParameterIndex fMeterIndex;
-    const float fMeterRange;
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<FaustParameterIndex kParameterIndex, const Color& kAccentColor>
-class StaticNumberBoxWidget final : public NumberBoxWidget<kAccentColor>
-{
-public:
-    explicit StaticNumberBoxWidget(LabWidget* const parent)
-        : NumberBoxWidget<kAccentColor>(parent, kParameterIndex) {}
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<FaustParameterIndex kParameterIndex, FaustParameterIndex kMeterIndex, const Color& kAccentColor>
-class StaticNumberBoxWithMeterWidget final : public NumberBoxWithMeterWidget<kAccentColor>
-{
-public:
-    explicit StaticNumberBoxWithMeterWidget(LabWidget* const parent)
-        : NumberBoxWithMeterWidget<kAccentColor>(parent, kParameterIndex, kMeterIndex) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

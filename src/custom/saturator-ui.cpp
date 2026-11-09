@@ -77,15 +77,15 @@ class SaturatorTopBarWidget : public LabReferenceContainerWidget<ReferenceTopBar
 
     std::array<std::shared_ptr<LabWidget>, 11> widgets {
         addSpacer(),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterAttack_time),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterDecay_time),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterPush),
+        addWidget<NumberBoxWidget<kFaustParameterAttack_time>, Expanding>(),
+        addWidget<NumberBoxWidget<kFaustParameterDecay_time>, Expanding>(),
+        addWidget<NumberBoxWidget<kFaustParameterPush>, Expanding>(),
         addSpacer(),
         addWidget<SaturatorAutoButton>(kParametersMainStart + kFaustParameterAuto_makeup_db),
         addWidget<SaturatorAlwaysOnButton>(kParametersMainStart + kFaustParameterAuto_makeup_db),
         addSpacer(),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterDrywet),
-        addWidget<NumberBoxWidget<>, Expanding>(kFaustParameterMakeup),
+        addWidget<NumberBoxWidget<kFaustParameterDrywet>, Expanding>(),
+        addWidget<NumberBoxWidget<kFaustParameterMakeup>, Expanding>(),
         addSpacer(),
     };
 };

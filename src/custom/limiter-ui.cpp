@@ -47,9 +47,9 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
             Reference::Widgets::BoxFrame<1>,
             Horizontal,
             Expanding,
-            // StaticNumberBoxWithMeterWidget<kFaustParameterThreshold, kFaustParameterGr, Reference::Colors::acc1>,
-            StaticNumberBoxWidget<kFaustParameterThreshold, Reference::Colors::acc1>,
-            StaticNumberBoxWidget<kFaustParameterCeiling, Reference::Colors::acc6>
+            // NumberBoxWithMeterWidget<kFaustParameterThreshold, kFaustParameterGr>,
+            NumberBoxWidget<kFaustParameterThreshold>,
+            NumberBoxWidget<kFaustParameterCeiling>
         >
     >,
     SizeHintWidgetPair<
@@ -58,8 +58,8 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
             Reference::Widgets::BoxFrame<1>,
             Horizontal,
             Expanding,
-            StaticNumberBoxWidget<kFaustParameterAttack, Reference::Colors::acc5>,
-            StaticNumberBoxWidget<kFaustParameterAttack_shape, Reference::Colors::acc5>
+            NumberBoxWidget<kFaustParameterAttack>,
+            NumberBoxWidget<kFaustParameterAttack_shape>
         >
     >,
     SizeHintWidgetPair<
@@ -68,8 +68,8 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
             Reference::Widgets::BoxFrame<1>,
             Horizontal,
             Expanding,
-            StaticNumberBoxWidget<kFaustParameterRelease, Reference::Colors::acc3>,
-            StaticNumberBoxWidget<kFaustParameterAuto_release, Reference::Colors::acc3>
+            NumberBoxWidget<kFaustParameterRelease>,
+            NumberBoxWidget<kFaustParameterAuto_release>
         >
     >,
     SizeHintWidgetPair<

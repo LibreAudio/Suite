@@ -27,10 +27,10 @@ using ReverbSpringsGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<1>,
     Horizontal,
     Expanding,
-    StaticNumberBoxWidget<kFaustParameterDwell, Reference::Colors::red>,
-    StaticNumberBoxWidget<kFaustParameterTension, Reference::Colors::red>,
-    StaticNumberBoxWidget<kFaustParameterCenter, Reference::Colors::red>,
-    StaticNumberBoxWidget<kFaustParameterCrosslr, Reference::Colors::red>
+    NumberBoxWidget<kFaustParameterDwell>,
+    NumberBoxWidget<kFaustParameterTension>,
+    NumberBoxWidget<kFaustParameterCenter>,
+    NumberBoxWidget<kFaustParameterCrosslr>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -44,8 +44,8 @@ using ReverbInputGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterPredelay, Reference::Colors::blue>,
-        StaticNumberBoxWidget<kFaustParameterTone, Reference::Colors::yellow>
+        NumberBoxWidget<kFaustParameterPredelay>,
+        NumberBoxWidget<kFaustParameterTone>
     >
 >;
 
@@ -58,8 +58,8 @@ using ReverbDynamicsGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter, Reference::Colors::yellow>,
-        StaticNumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter, Reference::Colors::yellow>
+        NumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter>,
+        NumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter>
     >
 >;
 
@@ -72,8 +72,8 @@ using ReverbMixerGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterStereo_width, Reference::Colors::blue>,
-        StaticNumberBoxWidget<kFaustParameterMix, Reference::Colors::yellow>
+        NumberBoxWidget<kFaustParameterStereo_width>,
+        NumberBoxWidget<kFaustParameterMix>
     >
 >;
 

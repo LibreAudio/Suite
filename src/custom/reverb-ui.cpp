@@ -42,11 +42,11 @@ using ReverbEarlyGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterEr_size, Reference::Colors::yellow>,
-        StaticNumberBoxWidget<kFaustParameterEr_diffusion, Reference::Colors::yellow>,
-        StaticNumberBoxWidget<kFaustParameterEr_damping, Reference::Colors::yellow>,
-        StaticNumberBoxWidget<kFaustParameterEr_spread, Reference::Colors::yellow>,
-        StaticNumberBoxWidget<kFaustParameterTail_feed, Reference::Colors::yellow>
+        NumberBoxWidget<kFaustParameterEr_size>,
+        NumberBoxWidget<kFaustParameterEr_diffusion>,
+        NumberBoxWidget<kFaustParameterEr_damping>,
+        NumberBoxWidget<kFaustParameterEr_spread>,
+        NumberBoxWidget<kFaustParameterTail_feed>
     >
 >;
 
@@ -61,21 +61,21 @@ using ReverbTailGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterDecay, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterTail_size, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterTail_shape, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterTail_spread, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterDensity, Reference::Colors::green>
+        NumberBoxWidget<kFaustParameterDecay>,
+        NumberBoxWidget<kFaustParameterTail_size>,
+        NumberBoxWidget<kFaustParameterTail_shape>,
+        NumberBoxWidget<kFaustParameterTail_spread>,
+        NumberBoxWidget<kFaustParameterDensity>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>::Row,
         Horizontal,
         Expanding,
-        StaticNumberBoxWidget<kFaustParameterBass_mult, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterBass_freq, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterHf_damp, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterMod_rate, Reference::Colors::green>,
-        StaticNumberBoxWidget<kFaustParameterMod_depth, Reference::Colors::green>
+        NumberBoxWidget<kFaustParameterBass_mult>,
+        NumberBoxWidget<kFaustParameterBass_freq>,
+        NumberBoxWidget<kFaustParameterHf_damp>,
+        NumberBoxWidget<kFaustParameterMod_rate>,
+        NumberBoxWidget<kFaustParameterMod_depth>
     >
 >;
 
@@ -90,40 +90,40 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::red, kTextINPUT>,
-        StaticNumberBoxWidget<kFaustParameterPredelay, Reference::Colors::red>,
-        StaticNumberBoxWidget<kFaustParameterDim, Reference::Colors::red>
+        NumberBoxWidget<kFaustParameterPredelay>,
+        NumberBoxWidget<kFaustParameterDim>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::blue, kTextFILTERS>,
-        StaticNumberBoxWidget<kFaustParameterLowcut, Reference::Colors::blue>,
-        StaticNumberBoxWidget<kFaustParameterHighcut, Reference::Colors::blue>
+        NumberBoxWidget<kFaustParameterLowcut>,
+        NumberBoxWidget<kFaustParameterHighcut>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::pink, kTextDYNAMICS>,
-        StaticNumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter, Reference::Colors::pink>,
-        StaticNumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter, Reference::Colors::pink>
+        NumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter>,
+        NumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::babyblue, kTextMIXER>,
-        StaticNumberBoxWidget<kFaustParameterEr_level, Reference::Colors::babyblue>,
-        StaticNumberBoxWidget<kFaustParameterTail_level, Reference::Colors::babyblue>
+        NumberBoxWidget<kFaustParameterEr_level>,
+        NumberBoxWidget<kFaustParameterTail_level>
     >,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
         BoxFrameTitle<Reference::Colors::babyblue, kTextOUTPUT>,
-        StaticNumberBoxWidget<kFaustParameterStereo_width, Reference::Colors::babyblue>,
-        StaticNumberBoxWidget<kFaustParameterDrywet, Reference::Colors::babyblue>
+        NumberBoxWidget<kFaustParameterStereo_width>,
+        NumberBoxWidget<kFaustParameterDrywet>
     >
 >;
 

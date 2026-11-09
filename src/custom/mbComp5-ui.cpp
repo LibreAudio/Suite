@@ -185,17 +185,16 @@ public:
         class NumberBoxStackWidget final : public LabReferenceContainerWidget<typename BR::NumberBoxes, Vertical>
         {
             const std::array<std::shared_ptr<LabParameterWidget>, 5> widgets {
-                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_threshold)),
-                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_ratio)),
-                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_attack)),
-                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_release)),
-                this->template addWidget<NumberBoxWidgetR>(getParameterIndexForBand(kFaustParameterBand1_makeup)),
+                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_threshold)>>(),
+                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_ratio)>>(),
+                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_attack)>>(),
+                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_release)>>(),
+                this->template addWidget<NumberBoxWidget<getParameterIndexForBand(kFaustParameterBand1_makeup)>>()
             };
 
         public:
             using NBR = typename BR::NumberBoxes;
             using BaseWidget = LabReferenceContainerWidget<NBR, Vertical>;
-            using NumberBoxWidgetR = NumberBoxWidget<kAccentColor>;
 
             explicit NumberBoxStackWidget(LabWidget* const parent)
                 : BaseWidget(parent)
@@ -243,19 +242,19 @@ struct MbComp5NonBandParamsGroupReference : MbComp5BandGroupReference<0> {
     static constexpr const uint height = Reference::Widgets::NumberBox<>::height + (border + margin) * 2;
 };
 
-using MbComp5NonBandParamsGroupWidget = StaticParameterContainerWidget<
+using MbComp5NonBandParamsGroupWidget = StaticContainerWidget<
     MbComp5NonBandParamsGroupReference,
     Horizontal,
     Expanding,
-    ParameterWidgetPair<kFaustParameterSlope, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterKnee, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterRange, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterRms_time, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterShape, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterChan_link, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterBand_link, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterLookahead, NumberBoxWidget<>>,
-    ParameterWidgetPair<kFaustParameterDrywet, NumberBoxWidget<>>
+    NumberBoxWidget<kFaustParameterSlope>,
+    NumberBoxWidget<kFaustParameterKnee>,
+    NumberBoxWidget<kFaustParameterRange>,
+    NumberBoxWidget<kFaustParameterRms_time>,
+    NumberBoxWidget<kFaustParameterShape>,
+    NumberBoxWidget<kFaustParameterChan_link>,
+    NumberBoxWidget<kFaustParameterBand_link>,
+    NumberBoxWidget<kFaustParameterLookahead>,
+    NumberBoxWidget<kFaustParameterDrywet>
 >;
 
 // --------------------------------------------------------------------------------------------------------------------
