@@ -32,7 +32,7 @@ predelay_time = uiBottomLeft(vslider("[0] Predelay [style:knob][unit:ms][symbol:
 
 dwell   = uiBottomLeft(vslider("[1] Dwell [style:knob][unit:%][symbol:dwell][label:Dwell][accentcolor:01][bracket:SPRING]", 50, 0, 100, 1)) /100;
 tension = uiBottomLeft(vslider("[2] Tension [style:knob][unit:%][symbol:tension][label:Tension][accentcolor:02][bracket:SPRING]", 50, 0, 100, 1)) /100;
-tone    = uiBottomLeft(vslider("[3] Tone [style:knob][unit:%][symbol:tone][label:Tone][accentcolor:03]", 0.4, 0, 1, 0.01));
+tone    = uiBottomLeft(vslider("[3] Tone [style:knob][unit:%][symbol:tone][label:Tone][accentcolor:03]", 40, 0, 100, 1)) /100;
 
 // One knob, driving threshold/ratio/range/attack/release together. See the
 // ducker section at the foot of the file for what each endpoint pair does.
@@ -69,7 +69,7 @@ crossfeed = uiBottomRight(vslider("[5]crossfeed [style:knob][unit:%][symbol:cros
 faderMinDb = -70;
 faderGain(db) = ba.db2linear(db) * (db > faderMinDb);
 
-mix = uiBottomRight(vslider("[9]Dry-Wet[style:knob][unit:%][symbol:mix][label:Dry-Wet][accentcolor:06][bracket:MIXER][easy]", 0, -100, 100, 0.1)) / 100 : si.smoo;
+mix = uiBottomRight(vslider("[9]Dry-Wet[style:knob][unit:%][symbol:mix][label:Dry-Wet][accentcolor:06][bracket:MIXER][easy]", 0, -100, 100, 1)) / 100 : si.smoo;
 
 mixAttenDb(amount) = ba.linear2db(max(0.000001, 1 - amount));
 
