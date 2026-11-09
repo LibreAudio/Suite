@@ -94,9 +94,6 @@ protected:
         // ------------------------------------------------------------------------------------------------------------
         // name
 
-        char valuestr[32];
-        renderParameterValue(valuestr, kParameter, getValue());
-
         fillColor(R::Name::color);
         fontFace("regular");
         fontSize(m.name.fontSize);
@@ -106,6 +103,9 @@ protected:
 
         // ------------------------------------------------------------------------------------------------------------
         // value
+
+        char valuestr[32];
+        renderParameterValue(valuestr, kParameter, getValue());
 
         fillColor(R::Value::color);
         fontFace("mono");

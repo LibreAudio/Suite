@@ -23,13 +23,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct LimiterGroupsContainerReference : Reference::Zero {
-    static constexpr const uint padding = Reference::Common::padding;
-    static constexpr const uint height = Reference::Widgets::BoxFrame<1>::height + (border + margin) * 2;
-};
-
 using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
-    LimiterGroupsContainerReference,
+    Reference::Transparent<Reference::Margin<0, Reference::Widgets::BoxFrame<1>>>,
     Horizontal,
     SizeHintWidgetPair<
         Fixed,
@@ -84,29 +79,10 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimiterPresetCardsWidget : public CardGroupWidget
-{
-    using CardGroupWidget::CardGroupWidget;
-
-    const std::array<std::shared_ptr<CardWidget>, 4> cards = {
-        addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
-        addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
-        addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
-        addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack"),
-    };
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 struct LimiterEasyExpertPageReference : Reference::Zero {
     static constexpr const uint margin = Reference::Common::margin;
     static constexpr const uint padding = Reference::Common::padding;
 };
-
-using LimterEasyPageWidget = StaticBottomAlignedContainerWidget<
-    LimiterEasyExpertPageReference,
-    LimiterPresetCardsWidget
->;
 
 using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
     LimiterEasyExpertPageReference,
@@ -115,10 +91,10 @@ using LimterExpertPageWidget = StaticBottomAlignedContainerWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class LimiterCentralAreaWidget final : public CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>,
+class LimiterCentralAreaWidget final : public CentralAreaWidget<EasyPageWidget, LimterExpertPageWidget>,
                                        private ButtonEventHandler::Callback
 {
-    using BaseWidget = CentralAreaWidget<LimterEasyPageWidget, LimterExpertPageWidget>;
+    using BaseWidget = CentralAreaWidget<EasyPageWidget, LimterExpertPageWidget>;
     using ButtonWidget = TextButtonWidget<Reference::Height<30, Reference::Widgets::TopBarButton>, kCornerNone>;
 
     static constexpr const FaustParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];

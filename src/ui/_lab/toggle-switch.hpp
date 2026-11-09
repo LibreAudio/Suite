@@ -20,7 +20,7 @@ class LabToggleSwitchBaseWidget : public LabWidget,
     using BaseWidget = LabWidget;
 
 public:
-    explicit LabToggleSwitchBaseWidget(LabWidget* const parent, const uint id, const char* const name)
+    explicit LabToggleSwitchBaseWidget(LabWidget* const parent, const uint id)
         : BaseWidget(parent),
           ButtonEventHandler(this)
     {
@@ -28,10 +28,14 @@ public:
         setCallback(this);
         setCheckable(true);
         setId(id);
-        setName(name);
     }
 
 protected:
+    void buttonClicked(SubWidget*, int) override
+    {
+        fInterface->parameterControlModified(getId(), isChecked() ? 1.f : 0.f);
+    }
+
     void idleCallback() override
     {
         if (setChecked(d_isNotZero(fInterface->getParameterValue(getId())), false))
@@ -41,20 +45,18 @@ protected:
     virtual void parameterChangedByHost() {}
 
 private:
-    void buttonClicked(SubWidget*, int) final
-    {
-        fInterface->parameterControlModified(getId(), isChecked() ? 1.f : 0.f);
-    }
-
     void stateChanged(const State state, const State oldState) final
     {
-        if ((state & kButtonStateActive) == (oldState & kButtonStateActive))
-            return;
-
         if ((state & kButtonStateActive) != 0)
-            fInterface->parameterControlPressed(getId());
+        {
+            if ((oldState & kButtonStateActive) == 0)
+                fInterface->parameterControlPressed(getId());
+        }
         else
-            fInterface->parameterControlReleased(getId());
+        {
+            if ((oldState & kButtonStateActive) != 0)
+                fInterface->parameterControlReleased(getId());
+        }
     }
 
     bool onMouse(const MouseEvent& ev) final
@@ -88,8 +90,9 @@ class LabReferenceToggleSwitchWidget : public LabToggleSwitchBaseWidget
 
 public:
     explicit LabReferenceToggleSwitchWidget(LabWidget* const parent, const uint id, const char* const name)
-        : BaseWidget(parent, id, name)
+        : BaseWidget(parent, id)
     {
+        setName(name);
         updateReferenceSize<R>();
     }
 

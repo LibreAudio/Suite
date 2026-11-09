@@ -9,9 +9,39 @@
 #include "../reference.hpp"
 
 #include "LibreAudioParameters.hpp"
-#include "FaustParameter.hpp"
 
 namespace LibreAudio {
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex>
+class ToggleSwitchBaseWidget : public LabToggleSwitchBaseWidget
+{
+    using BaseWidget = LabToggleSwitchBaseWidget;
+
+public:
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static_assert(kParameter.isBoolean, "check-box parameter must be boolean");
+
+    explicit ToggleSwitchBaseWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
+    {
+        setChecked(d_isNotEqual(kParameter.init, kParameter.min), false);
+        setName(kParameter.name);
+    }
+
+protected:
+    void buttonClicked(SubWidget*, int) override
+    {
+        fInterface->parameterControlModified(getId(), isChecked() ? kParameter.max : kParameter.min);
+    }
+
+    void idleCallback() override
+    {
+        if (setChecked(d_isNotEqual(fInterface->getParameterValue(getId()), kParameter.min), false))
+            parameterChangedByHost();
+    }
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

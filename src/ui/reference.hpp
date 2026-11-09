@@ -491,6 +491,13 @@ namespace Reference {
         };
 
         template<const Color& kAccentColor = Colors::acc1>
+        struct SwitchBox : NumberBox<kAccentColor> {
+            static constexpr const Color color = kAccentColor;
+            struct Bar : NumberBox<kAccentColor>::Bar {};
+            struct Name : NumberBox<kAccentColor>::Name {};
+        };
+
+        template<const Color& kAccentColor = Colors::acc1>
         struct ThresholdMeter : Zero {
             static constexpr const MouseCursor cursor = kMouseCursorUpDown;
             static constexpr const uint padding = 1;

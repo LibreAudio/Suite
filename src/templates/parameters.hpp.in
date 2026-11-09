@@ -27,6 +27,7 @@
 {% endblock %}
 
 #include <array>
+#include <cstdint>
 
 namespace {{cid(id)}} {
 

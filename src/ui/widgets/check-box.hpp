@@ -43,38 +43,14 @@ using CheckBoxReference = Reference::Widgets::CheckBox<Reference::AccentColor<in
 // --------------------------------------------------------------------------------------------------------------------
 
 template<FaustParameterIndex kParameterIndex>
-class CheckBoxWidget : public ReferenceParameterButtonWidget<CheckBoxReference<kParameterIndex>>,
-                       private ButtonEventHandler::Callback,
-                       private IdleCallback
+class CheckBoxWidget : public ToggleSwitchBaseWidget<kParameterIndex>
 {
     using R = CheckBoxReference<kParameterIndex>;
-    using BaseWidget = ReferenceParameterButtonWidget<R, kCornerAuto>;
+    using BaseWidget = ToggleSwitchBaseWidget<kParameterIndex>;
+    using BaseWidget::BaseWidget;
     using State = typename BaseWidget::State;
 
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
-    static_assert(kParameter.isBoolean, "check-box parameter must be boolean");
-
-public:
-    explicit CheckBoxWidget(LabWidget* const parent)
-        : BaseWidget(parent, kParameterIndex)
-    {
-        BaseWidget::addIdleCallback(this);
-        BaseWidget::setCallback(this);
-        BaseWidget::updateSize(false);
-    }
-
 private:
-    void buttonClicked(SubWidget*, int) final
-    {
-        this->fInterface->parameterControlModified(
-            BaseWidget::getId(), BaseWidget::isChecked() ? kParameter.max : kParameter.min);
-    }
-
-    void idleCallback() final
-    {
-        BaseWidget::setChecked(d_isNotZero(this->fInterface->getParameterValue(BaseWidget::getId())), false);
-    }
-
     void onNanoDisplay() final
     {
         const CheckBoxMetrics<R> m { this };
@@ -141,22 +117,6 @@ private:
         BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
         BaseWidget::textLetterSpacing(m.letterSpacing);
         BaseWidget::text(m.box.xy + m.box.size + m.padding, m.height * 0.5f, BaseWidget::getName());
-    }
-
-    void stateChanged(const State state, const State oldState) final
-    {
-        BaseWidget::stateChanged(state, oldState);
-
-        if ((state & BaseWidget::kButtonStateActive) != 0)
-        {
-            if ((oldState & BaseWidget::kButtonStateActive) == 0)
-                this->fInterface->parameterControlPressed(BaseWidget::getId());
-        }
-        else
-        {
-            if ((oldState & BaseWidget::kButtonStateActive) != 0)
-                this->fInterface->parameterControlReleased(BaseWidget::getId());
-        }
     }
 
     void updateSize(const bool updateChildren) final
