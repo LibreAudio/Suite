@@ -161,7 +161,7 @@ protected:
         updateGraphSize();
 
         for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
-            reinterpret_cast<GraphInterface*>(w.get())->setBorderRadius(getBorderRadius());
+            dynamic_cast<GraphInterface*>(w.get())->setBorderRadius(getBorderRadius());
 
         BaseWidget::updateSize(updateChildren);
     }
