@@ -188,6 +188,7 @@ private:
    #endif
     HeapRingBuffer fRunnerBuffer;
     uint32_t fRunnerBufferSize;
+    void writeToRunnerBuffer(uint32_t cycleFrames);
     bool run() final;
   #endif
 

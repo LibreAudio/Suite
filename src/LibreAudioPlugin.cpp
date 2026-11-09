@@ -429,45 +429,19 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         fMainDSP->setVAD(vad);
        #endif
 
-       #if LIBREAUDIO_WANT_COMMON_IO
+      #if LIBREAUDIO_WANT_COMMON_IO
         fInputDSP->compute(cycleFrames, fCycleBuffer);
+       #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_INPUT
+        writeToRunnerBuffer(cycleFrames);
+       #endif
         fMainDSP->compute(cycleFrames, fCycleBuffer);
         fOutputDSP->compute(cycleFrames, fCycleBuffer);
-       #else
+      #else
         fMainDSP->compute(cycleFrames, fCycleBuffer);
-       #endif
+      #endif
 
-       #if LIBREAUDIO_WANT_GRAPH
-        if (isRunnerActive())
-        {
-            // FIXME make mono/stereo automatic, don't assume stereo
-           #if LIBREAUDIO_WANT_GRAPH_INPUT
-            const float* const buffer[DISTRHO_PLUGIN_NUM_INPUTS] = {
-                inputs[0] + i, inputs[1] + i,
-            };
-           #else
-            const float* const buffer[DISTRHO_PLUGIN_NUM_OUTPUTS] = {
-                fCycleBuffer[0], fCycleBuffer[1],
-            };
-           #endif
-           #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
-            const float paramval = fMainDSP->get(LIBREAUDIO_WANT_GRAPH_PARAM);
-           #endif
-
-           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1 || (LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2 && defined(LIBREAUDIO_WANT_GRAPH_PARAM))
-            for (uint32_t j = 0; j < cycleFrames; ++j)
-            {
-                fRunnerBuffer.writeFloat((buffer[0][j] + buffer[1][j]) / DISTRHO_PLUGIN_NUM_OUTPUTS);
-               #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
-                fRunnerBuffer.writeFloat(paramval);
-               #endif
-            }
-           #elif LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
-            for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
-                fRunnerBuffer.writeCustomData(buffer[c], sizeof(float) * cycleFrames);
-           #endif
-            fRunnerBuffer.commitWrite();
-        }
+       #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_OUTPUT
+        writeToRunnerBuffer(cycleFrames);
        #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
@@ -602,6 +576,31 @@ inline void LibreAudioPlugin::doUnmute()
 // --------------------------------------------------------------------------------------------------------------------
 
 #if LIBREAUDIO_WANT_GRAPH
+void LibreAudioPlugin::writeToRunnerBuffer(const uint32_t cycleFrames)
+{
+    if (! isRunnerActive())
+        return;
+
+   #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
+    const float paramval = fMainDSP->get(LIBREAUDIO_WANT_GRAPH_PARAM);
+   #endif
+
+   #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1 || (LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2 && defined(LIBREAUDIO_WANT_GRAPH_PARAM))
+    for (uint32_t j = 0; j < cycleFrames; ++j)
+    {
+        fRunnerBuffer.writeFloat((fCycleBuffer[0][j] + fCycleBuffer[1][j]) / DISTRHO_PLUGIN_NUM_OUTPUTS);
+       #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
+        fRunnerBuffer.writeFloat(paramval);
+       #endif
+    }
+   #elif LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+    for (uint32_t c = 0; c < DISTRHO_PLUGIN_NUM_OUTPUTS; ++c)
+        fRunnerBuffer.writeCustomData(fCycleBuffer[c], sizeof(float) * cycleFrames);
+   #endif
+
+    fRunnerBuffer.commitWrite();
+}
+
 bool LibreAudioPlugin::run()
 {
     static constexpr const uint32_t kDataSize = sizeof(float) * LIBREAUDIO_WANT_GRAPH_IO_COUNT;
