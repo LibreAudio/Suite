@@ -283,19 +283,65 @@ static constexpr uint boxColumns(const uint n) noexcept
     return kBoxWidth * n + DelayGroupReference::padding * (n - 1);
 }
 
-// A floating panel: rows of controls, kContentWidth wide inside its rim and as tall as the rows need. With a
-// kContentWidth of 0 it takes the width its parent gives it.
+// The title along the top of a panel, centred, in small spaced capitals.
 
-template<uint kContentWidth, class... Rows>
+template<const char* kTitle>
+class DelayPanelTitleWidget final : public LabWidget
+{
+    static constexpr const float kFontSize = 10.f;
+
+public:
+    static constexpr const uint height = 12;
+
+    explicit DelayPanelTitleWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        updateSize(false);
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        fontFace("regular");
+        fontSize(kFontSize * fScaleFactor);
+        textLetterSpacing(kFontSize * 0.08f * fScaleFactor);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        fillColor(Reference::Colors::ink3);
+        text(getWidth() * 0.5f, getHeight() * 0.5f, kTitle, nullptr);
+        textLetterSpacing(0.f);
+    }
+
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(height * fScaleFactor));
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+static constexpr const char kTitlePingPong[] = "PING-PONG";
+static constexpr const char kTitleRepeats[] = "REPEATS";
+static constexpr const char kTitleDynamics[] = "DYNAMICS";
+static constexpr const char kTitleModulation[] = "MODULATION";
+static constexpr const char kTitleOutput[] = "OUTPUT";
+static constexpr const char kTitleSyncLink[] = "SYNC";
+static constexpr const char kTitleTimeLeft[] = "LEFT";
+static constexpr const char kTitleTimeRight[] = "RIGHT";
+static constexpr const char kTitleFilter[] = "FILTER";
+
+// A floating panel: a title, then rows of controls, kContentWidth wide inside its rim and as tall as the title and
+// rows need. With a kContentWidth of 0 it takes the width its parent gives it.
+
+template<uint kContentWidth, const char* kTitle, class... Rows>
 class DelayPanelWidget final : public ReferenceContainerWidget<DelayGroupReference, kVertical>
 {
     using R = DelayGroupReference;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
 
     static constexpr const uint kWidth = (R::border + R::margin) * 2 + kContentWidth;
-    static constexpr const uint kHeight = (R::border + R::margin) * 2 + (Rows::height + ...)
-                                        + R::padding * static_cast<uint>(sizeof...(Rows) - 1);
+    static constexpr const uint kHeight = (R::border + R::margin) * 2 + DelayPanelTitleWidget<kTitle>::height
+                                        + (Rows::height + ...) + R::padding * static_cast<uint>(sizeof...(Rows));
 
+    const std::shared_ptr<LabWidget> fTitle = addWidget<DelayPanelTitleWidget<kTitle>>();
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Rows)> rows {
         addWidget<Rows>()...
     };
@@ -345,38 +391,38 @@ private:
     }
 };
 
-using DelayRepeatPanelWidget = DelayPanelWidget<boxColumns(1),
+using DelayRepeatPanelWidget = DelayPanelWidget<boxColumns(1), kTitleRepeats,
     DelayBoxRowWidget<kFaustParameterFeedback>,
     DelayBoxRowWidget<kFaustParameterCross>,
     DelayBoxRowWidget<kFaustParameterDrive>>;
 
-using DelayPingPongPanelWidget = DelayPanelWidget<boxColumns(1),
+using DelayPingPongPanelWidget = DelayPanelWidget<boxColumns(1), kTitlePingPong,
     DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 1>>,
     DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 2>>>;
 
-using DelayDynamicsPanelWidget = DelayPanelWidget<boxColumns(2),
+using DelayDynamicsPanelWidget = DelayPanelWidget<boxColumns(2), kTitleDynamics,
     DelayBoxRowWidget<kFaustParameterDeess_amount, kFaustParameterDuck>>;
 
-using DelayModulationPanelWidget = DelayPanelWidget<boxColumns(1),
+using DelayModulationPanelWidget = DelayPanelWidget<boxColumns(1), kTitleModulation,
     DelayBoxRowWidget<kFaustParameterMod_rate>,
     DelayBoxRowWidget<kFaustParameterMod_depth>,
     DelayBoxRowWidget<kFaustParameterMod_stereo_phase>>;
 
-using DelayOutputPanelWidget = DelayPanelWidget<boxColumns(2),
+using DelayOutputPanelWidget = DelayPanelWidget<boxColumns(2), kTitleOutput,
     DelayBoxRowWidget<kFaustParameterWidth, kFaustParameterDrywet>>;
 
-using DelaySyncLinkPanelWidget = DelayPanelWidget<boxColumns(1),
+using DelaySyncLinkPanelWidget = DelayPanelWidget<boxColumns(1), kTitleSyncLink,
     DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterSync>>,
     DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterLink>>>;
 
-using DelayTimeLeftPanelWidget = DelayPanelWidget<0,
+using DelayTimeLeftPanelWidget = DelayPanelWidget<0, kTitleTimeLeft,
     DelayBoxRowWidget<kFaustParameterOffset_l, kFaustParameterTime_l>>;
 
-using DelayTimeRightPanelWidget = DelayPanelWidget<0,
+using DelayTimeRightPanelWidget = DelayPanelWidget<0, kTitleTimeRight,
     DelayBoxRowWidget<kFaustParameterTime_r, kFaustParameterOffset_r>>;
 
 
-using DelayFilterPanelWidget = DelayPanelWidget<boxColumns(2),
+using DelayFilterPanelWidget = DelayPanelWidget<boxColumns(2), kTitleFilter,
     DelayBoxRowWidget<kFaustParameterHp_freq, kFaustParameterLp_freq>>;
 
 // gap between panels, and between the columns of the stage
