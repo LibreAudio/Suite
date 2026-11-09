@@ -21,7 +21,7 @@ enum Page : uint8_t {
 // invalid enum used for forced-init
 inline constexpr const Page kPageInit = static_cast<Page>(-1);
 
-enum WidgetIds : uint16_t {
+enum WidgetIds : uint32_t {
     kWidgetAbout = kWidgetIdsStart,
     kWidgetEasy,
     kWidgetExpert,
@@ -40,7 +40,7 @@ enum WidgetIds : uint16_t {
     kWidgetUndo,
 };
 
-constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
+inline constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
 {
     switch (id)
     {

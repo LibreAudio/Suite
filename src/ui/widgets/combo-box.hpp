@@ -42,23 +42,51 @@ struct ComboBoxMetrics : LabMetrics<R, RType> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
-class ComboBoxWidget final : public ReferenceParameterButtonWidget<Reference::Widgets::ComboBox<kAccentColor>>,
+namespace Reference {
+    // template<auto index>
+    // struct AccentColor {
+    // // //     static_assert(index >= 0 && index < 6, "accent index must be >= 0 && < 6");
+    //     static constexpr const Color color = {}; // = kAccentColors[index];
+    // };
+
+    template<FaustParameterIndex index>
+    struct AccentColor {
+        static constexpr const Color color = kAccentColors[kFaustParameters[index].accentcolor];
+    };
+}
+
+template<FaustParameterIndex index>
+using ComboBoxReference = Reference::Widgets::ComboBox<Reference::AccentColor<index>::color>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class ComboBoxInterface
+{
+public:
+    virtual ~ComboBoxInterface() = default;
+    virtual void maxBounds(uint& label, uint& value) = 0;
+    virtual void setBounds(uint label, uint value) = 0;
+};
+
+template<FaustParameterIndex kParameterIndex>
+class ComboBoxWidget final : public ReferenceParameterButtonWidget<ComboBoxReference<kParameterIndex>>,
+                             public ComboBoxInterface,
                              private ButtonEventHandler::Callback
 {
-    using R = Reference::Widgets::ComboBox<kAccentColor>;
+    using R = ComboBoxReference<kParameterIndex>;
     using BaseWidget = ReferenceParameterButtonWidget<R>;
 
-public:
-    explicit ComboBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
-        : BaseWidget(parent, index)
-    {
-        DISTRHO_SAFE_ASSERT_RETURN(this->fParameter.isEnumerator,);
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static_assert(kParameter.isEnumerator, "combo-box parameter must be enumerator");
 
+public:
+    explicit ComboBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParameterIndex)
+    {
         BaseWidget::setCallback(this);
     }
 
-    void maxBounds(uint& label, uint& value)
+    void maxBounds(uint& label, uint& value) override
     {
         const ComboBoxMetrics<R> m { this, 0, 0 };
 
@@ -71,14 +99,14 @@ public:
         BaseWidget::textBounds(0, 0, BaseWidget::getName(), nullptr, bounds);
         label = std::max(label, d_roundToUnsignedInt(bounds.getWidth()));
 
-        for (uint i = 0; i < this->fParameter.scalePointCount; ++i)
+        for (uint i = 0; i < kParameter.scalePointCount; ++i)
         {
-            BaseWidget::textBounds(0, 0, this->fParameter.scalePoints[i].label, nullptr, bounds);
+            BaseWidget::textBounds(0, 0, kParameter.scalePoints[i].label, nullptr, bounds);
             value = std::max(value, d_roundToUnsignedInt(bounds.getWidth()));
         }
     }
 
-    void setBounds(const uint label, const uint value)
+    void setBounds(const uint label, const uint value) override
     {
         fBounds.label = label;
         fBounds.value = value;
@@ -93,10 +121,10 @@ private:
     void buttonClicked(SubWidget*, int) final
     {
         std::vector<const char*> items;
-        items.reserve(this->fParameter.scalePointCount);
+        items.reserve(kParameter.scalePointCount);
 
-        for (uint i = 0; i < this->fParameter.scalePointCount; ++i)
-            items.push_back(this->fParameter.scalePoints[i].label);
+        for (uint i = 0; i < kParameter.scalePointCount; ++i)
+            items.push_back(kParameter.scalePoints[i].label);
 
         const ComboBoxMetrics<R> m { this, fBounds.label, fBounds.value };
 
@@ -168,12 +196,12 @@ private:
         BaseWidget::text(xlabel, m.height * 0.5f, BaseWidget::getName());
 
         const uint pos = d_roundToUnsignedInt(this->fInterface->getParameterValue(BaseWidget::getId()));
-        DISTRHO_SAFE_ASSERT_INT_RETURN(pos >= 0 && pos < this->fParameter.scalePointCount, pos,);
+        DISTRHO_SAFE_ASSERT_INT_RETURN(pos >= 0 && pos < kParameter.scalePointCount, pos,);
 
         BaseWidget::textAlign(BaseWidget::ALIGN_LEFT | BaseWidget::ALIGN_MIDDLE);
         BaseWidget::text(m.box.x + m.box.border + m.box.margin,
                          m.height * 0.5f,
-                         this->fParameter.scalePoints[pos].label);
+                         kParameter.scalePoints[pos].label);
     }
 
     void updateSize(const bool updateChildren) override

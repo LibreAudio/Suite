@@ -37,8 +37,8 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
             Reference::Widgets::BoxFrame<1>,
             Vertical,
             Expanding,
-            StaticCheckBoxWidget<kFaustParameterTrue_peak, Reference::Colors::acc6>,
-            StaticCheckBoxWidget<kFaustParameterUnity_gain, Reference::Colors::acc4>
+            CheckBoxWidget<kFaustParameterTrue_peak>,
+            CheckBoxWidget<kFaustParameterUnity_gain>
         >
     >,
     SizeHintWidgetPair<
@@ -76,7 +76,6 @@ using LimiterGroupsContainerWidget = StaticContainerSizeHintPairWidget<
         Fixed,
         ComboBoxGroupWidget<
             Reference::Widgets::BoxFrame<1>,
-            ComboBoxWidget<Reference::Colors::acc2>,
             kFaustParameterDither,
             kFaustParameterNoise_shaping
         >

@@ -33,7 +33,7 @@ enum Orientation : bool {
 constexpr inline const Corner kCornerAuto = static_cast<Corner>(UINT8_MAX);
 
 // widget ids are assigned after parameters (defined elsewhere), so leave a big enough gap to ensure no overlap
-constexpr inline const uint16_t kWidgetIdsStart = 0xfff + 1;
+constexpr inline const uint32_t kWidgetIdsStart = UINT16_MAX + 1;
 
 // --------------------------------------------------------------------------------------------------------------------
 // base widget class

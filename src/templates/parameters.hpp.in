@@ -30,7 +30,7 @@
 
 namespace {{cid(id)}} {
 
-enum FaustParameterIndex {
+enum FaustParameterIndex : uint16_t {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}
     kFaustParameter{{ w.symbol | title() }},
     {% endfor %}

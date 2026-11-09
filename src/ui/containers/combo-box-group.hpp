@@ -12,13 +12,13 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class R, class CB, FaustParameterIndex... Indexes>
+template<class R, FaustParameterIndex... Indexes>
 class ComboBoxGroupWidget : public LabReferenceContainerWidget<R, Vertical>
 {
     using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
 
-    const std::array<std::shared_ptr<CB>, sizeof...(Indexes)> comboBoxes = {
-        this->template addWidget<CB, Expanding>(Indexes)...
+    const std::array<std::shared_ptr<LabButtonBaseWidget>, sizeof...(Indexes)> comboBoxes = {
+        this->template addWidget<ComboBoxWidget<Indexes>, Expanding>()...
     };
 
 public:
@@ -39,12 +39,12 @@ protected:
         // find width for label and value fields
         uint wlabel = 0;
         uint wvalue = 0;
-        for (const std::shared_ptr<CB>& cb : comboBoxes)
-            cb->maxBounds(wlabel, wvalue);
+        for (const std::shared_ptr<LabButtonBaseWidget>& cb : comboBoxes)
+            dynamic_cast<ComboBoxInterface*>(cb.get())->maxBounds(wlabel, wvalue);
 
         // set the same width for all fields
-        for (const std::shared_ptr<CB>& cb : comboBoxes)
-            cb->setBounds(wlabel, wvalue);
+        for (const std::shared_ptr<LabButtonBaseWidget>& cb : comboBoxes)
+            dynamic_cast<ComboBoxInterface*>(cb.get())->setBounds(wlabel, wvalue);
 
         // update children size again
         BaseWidget::updateSize(true);
@@ -58,7 +58,7 @@ protected:
                 m.height - (m.border + m.margin) * 2 - m.padding * (comboBoxes.size() - 1)
             ) / comboBoxes.size();
 
-            for (const std::shared_ptr<CB>& cb : comboBoxes)
+            for (const std::shared_ptr<LabButtonBaseWidget>& cb : comboBoxes)
                 cb->setHeight(itemheight);
         }
 

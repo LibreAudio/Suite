@@ -12,7 +12,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-struct Reference {
+namespace Reference {
     struct AlphaIntensivity {
         static constexpr const float main = 0.7f;
         static constexpr const float mid = 0.45f;

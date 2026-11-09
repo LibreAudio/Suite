@@ -37,21 +37,27 @@ struct CheckBoxMetrics : LabMetrics<R, RType> {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& kAccentColor = Reference::Colors::acc1>
-class CheckBoxWidget : public ReferenceParameterButtonWidget<Reference::Widgets::CheckBox<kAccentColor>>,
+template<FaustParameterIndex index>
+using CheckBoxReference = Reference::Widgets::CheckBox<Reference::AccentColor<index>::color>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex>
+class CheckBoxWidget : public ReferenceParameterButtonWidget<CheckBoxReference<kParameterIndex>>,
                        private ButtonEventHandler::Callback,
                        private IdleCallback
 {
-    using R = Reference::Widgets::CheckBox<kAccentColor>;
+    using R = CheckBoxReference<kParameterIndex>;
     using BaseWidget = ReferenceParameterButtonWidget<R, kCornerAuto>;
     using State = typename BaseWidget::State;
 
-public:
-    explicit CheckBoxWidget(LabWidget* const parent, const FaustParameterIndex index)
-        : BaseWidget(parent, index)
-    {
-        DISTRHO_SAFE_ASSERT(this->fParameter.isBoolean);
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static_assert(kParameter.isBoolean, "check-box parameter must be boolean");
 
+public:
+    explicit CheckBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParameterIndex)
+    {
         BaseWidget::addIdleCallback(this);
         BaseWidget::setCallback(this);
         BaseWidget::updateSize(false);
@@ -61,7 +67,7 @@ private:
     void buttonClicked(SubWidget*, int) final
     {
         this->fInterface->parameterControlModified(
-            BaseWidget::getId(), BaseWidget::isChecked() ? this->fParameter.max : this->fParameter.min);
+            BaseWidget::getId(), BaseWidget::isChecked() ? kParameter.max : kParameter.min);
     }
 
     void idleCallback() final
@@ -174,16 +180,6 @@ private:
         const uint basewidth = (m.border + m.margin + m.box.border + m.box.margin) * 2 + m.padding;
         BaseWidget::setWidth(basewidth + boxsize + d_roundToUnsignedInt(bounds.getWidth()));
     }
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
-template<FaustParameterIndex kParameterIndex, const Color& kAccentColor>
-class StaticCheckBoxWidget final : public CheckBoxWidget<kAccentColor>
-{
-public:
-    explicit StaticCheckBoxWidget(LabWidget* const parent)
-        : CheckBoxWidget<kAccentColor>(parent, kParameterIndex) {}
 };
 
 // --------------------------------------------------------------------------------------------------------------------

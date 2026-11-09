@@ -82,14 +82,14 @@ public:
                     d_stderr2("Error: addToggle called but widget '%s' does not have a known size", widget->getName());
                 fToggles.emplace_back(std::move(widget));
             }
-            else if (parameter.isEnumerator)
-            {
-                std::unique_ptr<LabButtonBaseWidget> widget { new ComboBoxWidget(this, static_cast<FaustParameterIndex>(indexOffset + i)) };
-                widgets.push_back({ widget.get(), Fixed });
-                if (widget->getSize().isNull())
-                    d_stderr2("Error: addComboBox called but widget '%s' does not have a known size", widget->getName());
-                fButtons.emplace_back(std::move(widget));
-            }
+            // else if (parameter.isEnumerator)
+            // {
+            //     std::unique_ptr<LabButtonBaseWidget> widget { new ComboBoxWidget(this, static_cast<FaustParameterIndex>(indexOffset + i)) };
+            //     widgets.push_back({ widget.get(), Fixed });
+            //     if (widget->getSize().isNull())
+            //         d_stderr2("Error: addComboBox called but widget '%s' does not have a known size", widget->getName());
+            //     fButtons.emplace_back(std::move(widget));
+            // }
             else
             {
                 std::unique_ptr<KnobWidget> widget { new KnobWidget(this, parameter, indexOffset + i) };
