@@ -15,9 +15,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-// kHeight, in unscaled pixels, may make the box taller than the reference, leaving its contents their size
+// kHeight, in unscaled pixels, may make the box taller than the reference, leaving its contents their size.
+// While disabled its text and bar are drawn grey; setEnabled(false, false) greys it out but leaves it adjustable.
 template<const Color& kAccentColor = Reference::Colors::acc1, uint kHeight = Reference::Widgets::NumberBox<>::height>
-class NumberBoxWidget final : public LabKnobWidget
+class NumberBoxWidget : public LabKnobWidget
 {
     using R = Reference::Widgets::NumberBox<kAccentColor>;
     using BaseWidget = LabKnobWidget;
@@ -38,9 +39,12 @@ public:
     }
 
 private:
+    static constexpr const Color kDisabledColor { 0x5d, 0x5d, 0x66 };
+
     const FaustParameter& fParameter;
 
-    void onNanoDisplay() final
+protected:
+    void onNanoDisplay() override
     {
         drawReferenceBackground<R>();
         // drawReferenceBorder<R>();
@@ -65,14 +69,16 @@ private:
         strokeWidth(border * 0.5f);
         stroke();
 
-        fillColor(R::Name::color);
+        const bool enabled = isEnabled();
+
+        fillColor(enabled ? R::Name::color : kDisabledColor);
         fontFace("regular");
         fontSize(R::Name::fontSize * fScaleFactor);
         textLetterSpacing(R::Name::letterSpacing * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_TOP);
         text(border2x + margin, border + margin, fParameter.name, nullptr);
 
-        fillColor(R::Value::color);
+        fillColor(enabled ? R::Value::color : kDisabledColor);
         fontFace("mono");
         fontSize(R::Value::fontSize * fScaleFactor);
         textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
@@ -87,7 +93,7 @@ private:
        #endif
         if (*unit != '\0')
         {
-            fillColor(R::Unit::color);
+            fillColor(enabled ? R::Unit::color : kDisabledColor);
             fontFace("regular");
             fontSize(R::Unit::fontSize * fScaleFactor);
             textAlign(ALIGN_RIGHT | ALIGN_BOTTOM);
@@ -95,8 +101,10 @@ private:
             text(w - border2x - margin, h - bh - margin, unit, nullptr);
         }
 
-        // bottom bar
+        // bottom bar, filled from the left, or from the centre outward when the range is symmetric around 0
         {
+            const float normvalue = getNormalizedValue();
+
             save();
 
             scissor(0, h - bh, w, bh);
@@ -105,16 +113,27 @@ private:
             fillColor(R::Bar::color〡deactivated);
             fill();
 
-            scissor(0, h - bh, border2x + getNormalizedValue() * (w - border2x), bh);
+            if (d_isEqual(fParameter.min, -fParameter.max))
+            {
+                if (normvalue < 0.5f)
+                    scissor(normvalue * w, h - bh, (0.5f - normvalue) * w, bh);
+                else
+                    scissor(w * 0.5f, h - bh, (normvalue - 0.5f) * w, bh);
+            }
+            else
+            {
+                scissor(0, h - bh, border2x + normvalue * (w - border2x), bh);
+            }
             beginPath();
             roundedRect(0, 0, w, h, borderRadius);
-            fillColor(R::Bar::color);
+            fillColor(enabled ? R::Bar::color : kDisabledColor);
             fill();
 
             restore();
         }
     }
 
+private:
     void updateSize(const bool updateChildren) final
     {
         setHeight(d_roundToUnsignedInt(kHeight * fScaleFactor));

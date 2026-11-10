@@ -237,6 +237,7 @@ struct DelayCell
 {
     using Widget = Control<kId>;
     static constexpr const FaustParameterIndex id = kId;
+    static constexpr const int sync = -1;
 };
 
 template<FaustParameterIndex>
@@ -244,6 +245,222 @@ using DelayCheckboxCellWidget = DelayCheckboxWidget;
 
 template<FaustParameterIndex kId>
 using DelayBox = DelayCell<DelayNumberBoxWidget, kId>;
+
+// A number box greyed out while Link is on, when the left channel's value drives it; it stays adjustable.
+
+template<FaustParameterIndex kId>
+class DelayLinkedNumberBoxWidget final : public DelayNumberBoxWidget<kId>
+{
+public:
+    explicit DelayLinkedNumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : DelayNumberBoxWidget<kId>(parent, id)
+    {
+        update();
+    }
+
+private:
+    void idleCallback() final
+    {
+        DelayNumberBoxWidget<kId>::idleCallback();
+        update();
+    }
+
+    void update()
+    {
+        const bool link = d_isNotZero(this->fInterface->getParameterValue(kParametersMainStart + kFaustParameterLink));
+
+        if (this->isEnabled() == link)
+        {
+            this->setEnabled(! link, false);
+            this->repaint();
+        }
+    }
+};
+
+template<FaustParameterIndex kId>
+using DelayLinkedBox = DelayCell<DelayLinkedNumberBoxWidget, kId>;
+
+// A small triangle in the top right corner of a number box for a parameter with options. The widget covers the upper
+// half of the box, and a click anywhere on it opens the stage's menu of the options below or above the box. Motion
+// passes through it, so the lower half of the box under it still drags.
+
+class DelayMenuArrowWidget final : public LabWidget
+{
+    const FaustParameterIndex fId;
+    const Color fAccent;
+    bool fHover = false;
+
+public:
+    // the square in the box's corner the triangle is centred in, in px at scale 1
+    static constexpr const uint size = 18;
+
+    explicit DelayMenuArrowWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : LabWidget(parent),
+          fId(id),
+          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+    {
+        updateSize(false);
+    }
+
+private:
+    // defined after the stage, which owns the menu
+    void openMenu();
+
+    void onNanoDisplay() final
+    {
+        const float s = fScaleFactor;
+        const float cx = getWidth() - size * 0.5f * s;
+        const float cy = size * 0.5f * s;
+
+        beginPath();
+        moveTo(cx - 4.5f * s, cy - 2.5f * s);
+        lineTo(cx + 4.5f * s, cy - 2.5f * s);
+        lineTo(cx, cy + 2.5f * s);
+        closePath();
+        fillColor(fHover ? fAccent : Reference::Colors::ink3);
+        fill();
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.press && ev.button == 1 && contains(ev.pos))
+        {
+            openMenu();
+            return true;
+        }
+        return false;
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (const bool hover = contains(ev.pos); hover != fHover)
+        {
+            fHover = hover;
+            repaint();
+        }
+        return false;
+    }
+
+    // sized and placed by the box it sits in
+    void updateSize(const bool updateChildren) final
+    {
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+// A number box of kBox kind with a menu arrow over its upper half. The arrow is added after the box so it gets clicks
+// first.
+
+template<template<FaustParameterIndex> class kBox, FaustParameterIndex kId>
+class DelayMenuNumberBoxWidget final : public LabWidget
+{
+    const std::unique_ptr<LabWidget> fBox;
+    const std::unique_ptr<LabWidget> fArrow;
+
+public:
+    explicit DelayMenuNumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : LabWidget(parent),
+          fBox(new kBox<kId>(this, id)),
+          fArrow(new DelayMenuArrowWidget(this, id))
+    {
+        updateSize(false);
+    }
+
+private:
+    void onNanoDisplay() final {}
+
+    void updateSize(const bool updateChildren) final
+    {
+        setSize(std::max(1u, getWidth()), d_roundToUnsignedInt(kBoxHeight * fScaleFactor));
+
+        fBox->setAbsolutePos(getAbsolutePos());
+        fBox->setWidth(getWidth());
+        fArrow->setAbsolutePos(getAbsolutePos());
+        fArrow->setSize(getWidth(), getHeight() / 2);
+
+        LabWidget::updateSize(updateChildren);
+    }
+};
+
+template<FaustParameterIndex kId>
+using DelayMenuNumberBox = DelayMenuNumberBoxWidget<DelayNumberBoxWidget, kId>;
+
+template<FaustParameterIndex kId>
+using DelayLinkedMenuNumberBox = DelayMenuNumberBoxWidget<DelayLinkedNumberBoxWidget, kId>;
+
+template<FaustParameterIndex kId>
+using DelayMenuBox = DelayCell<DelayMenuNumberBox, kId>;
+
+template<FaustParameterIndex kId>
+using DelayLinkedMenuBox = DelayCell<DelayLinkedMenuNumberBox, kId>;
+
+// A number box with a gain reduction meter, as in the reverb: an orange bar along its top edge growing leftward from
+// the right as the reduction reported by the kMeterId output parameter grows.
+
+template<FaustParameterIndex kId, FaustParameterIndex kMeterId>
+class DelayMeterNumberBoxWidget final : public DelayNumberBoxWidget<kId>
+{
+    using BaseWidget = DelayNumberBoxWidget<kId>;
+    using R = Reference::Widgets::NumberBox<>;
+
+    float fMeterValue = 0.f;
+
+public:
+    explicit DelayMeterNumberBoxWidget(LabWidget* const parent, const FaustParameterIndex id)
+        : BaseWidget(parent, id) {}
+
+private:
+    void onNanoDisplay() final
+    {
+        BaseWidget::onNanoDisplay();
+
+        const FaustParameter& meter = kFaustParameters[kMeterId];
+        const float s = this->fScaleFactor;
+        const float w = this->getWidth();
+        const float h = this->getHeight();
+        const float bh = R::Bar::height * s;
+        const float r = R::borderRadius * s;
+        const float reduction = std::clamp((fMeterValue - meter.min) / (meter.max - meter.min), 0.f, 1.f);
+        const float x = (1.f - reduction) * w;
+
+        this->save();
+
+        this->scissor(0, 0, w, bh);
+        this->beginPath();
+        this->roundedRect(0, 0, w, h, r);
+        this->fillColor(R::Bar::color〡deactivated);
+        this->fill();
+
+        this->scissor(x, 0, w - x, bh);
+        this->beginPath();
+        this->roundedRect(0, 0, w, h, r);
+        this->fillColor(Reference::Colors::orange);
+        this->fill();
+
+        this->restore();
+    }
+
+    // repaint whenever the meter moves
+    void idleCallback() final
+    {
+        BaseWidget::idleCallback();
+
+        if (const float value = this->fInterface->getParameterValue(kParametersMainStart + kMeterId);
+            d_isNotEqual(value, fMeterValue))
+        {
+            fMeterValue = value;
+            this->repaint();
+        }
+    }
+};
+
+template<FaustParameterIndex kId, FaustParameterIndex kMeterId>
+struct DelayMeterBox
+{
+    using Widget = DelayMeterNumberBoxWidget<kId, kMeterId>;
+    static constexpr const FaustParameterIndex id = kId;
+    static constexpr const int sync = -1;
+};
 
 template<FaustParameterIndex kId>
 using DelayCheckbox = DelayCell<DelayCheckboxCellWidget, kId>;
@@ -253,26 +470,81 @@ struct DelayChoiceCheckbox
 {
     using Widget = DelayChoiceCheckboxWidget<kValue>;
     static constexpr const FaustParameterIndex id = kId;
+    static constexpr const int sync = -1;
 };
 
 // A row of a panel: one control per cell, the panel's padding apart, sharing its width.
 
+// A cell shown only while Sync is off (kSync 0) or only while it is on (kSync 1). Cells that always show have a sync
+// of -1.
+
+template<class Cell, int kSync>
+struct DelaySyncCell : Cell
+{
+    static constexpr const int sync = kSync;
+};
+
+template<class Cell>
+using DelayFreeOnly = DelaySyncCell<Cell, 0>;
+
+template<class Cell>
+using DelaySyncOnly = DelaySyncCell<Cell, 1>;
+
 template<uint kHeight, class... Cells>
 class DelayPanelRowWidget final
-    : public ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>
+    : public ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>,
+      private IdleCallback
 {
     using BaseWidget = ReferenceContainerWidget<Reference::Height<kHeight, Reference::Padding<DelayGroupReference::padding>>>;
+
+    static constexpr const std::array<int, sizeof...(Cells)> kSync { Cells::sync... };
+    static constexpr const bool kFollowsSync = ((Cells::sync != -1) || ...);
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Cells)> widgets {
         this->template addWidget<typename Cells::Widget, Expanding>(Cells::id)...
     };
+    bool fSync = false;
 
 public:
     static constexpr const uint height = kHeight;
     static constexpr const FaustParameterIndex firstId = std::get<0>(std::make_tuple(Cells::id...));
 
     explicit DelayPanelRowWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+        : BaseWidget(parent)
+    {
+        if constexpr (kFollowsSync)
+        {
+            update(true);
+            this->addIdleCallback(this);
+        }
+    }
+
+private:
+    void idleCallback() final
+    {
+        update(false);
+    }
+
+    // shows the cells that belong to the current Sync state, and lays the row out again when it changes
+    void update(const bool init)
+    {
+        const bool sync = d_isNotZero(this->fInterface->getParameterValue(kParametersMainStart + kFaustParameterSync));
+
+        if (! init && sync == fSync)
+            return;
+
+        fSync = sync;
+
+        for (size_t i = 0; i < widgets.size(); ++i)
+            if (kSync[i] != -1)
+                widgets[i]->setVisible((kSync[i] == 1) == sync);
+
+        if (! init)
+        {
+            this->updateSize(true);
+            this->repaint();
+        }
+    }
 };
 
 template<FaustParameterIndex... kIds>
@@ -336,17 +608,19 @@ static constexpr const char kTitleTimeRight[] = "RIGHT";
 static constexpr const char kTitleFilter[] = "FILTER";
 
 // A floating panel: a title, then rows of controls, kContentWidth wide inside its rim and as tall as the title and
-// rows need. With a kContentWidth of 0 it takes the width its parent gives it.
+// rows need, or kFixedHeight tall when that is not 0. With a kContentWidth of 0 it takes the width its parent gives it.
 
-template<uint kContentWidth, const char* kTitle, class... Rows>
-class DelayPanelWidget final : public ReferenceContainerWidget<DelayGroupReference, kVertical>
+template<uint kContentWidth, uint kFixedHeight, const char* kTitle, class... Rows>
+class DelaySizedPanelWidget final : public ReferenceContainerWidget<DelayGroupReference, kVertical>
 {
     using R = DelayGroupReference;
     using BaseWidget = ReferenceContainerWidget<R, kVertical>;
 
     static constexpr const uint kWidth = (R::border + R::margin) * 2 + kContentWidth;
-    static constexpr const uint kHeight = (R::border + R::margin) * 2 + DelayPanelTitleWidget<kTitle>::height
-                                        + (Rows::height + ...) + R::padding * static_cast<uint>(sizeof...(Rows));
+    static constexpr const uint kHeight = kFixedHeight != 0
+                                        ? kFixedHeight
+                                        : (R::border + R::margin) * 2 + DelayPanelTitleWidget<kTitle>::height
+                                          + (Rows::height + ...) + R::padding * static_cast<uint>(sizeof...(Rows));
 
     const std::shared_ptr<LabWidget> fTitle =
         addWidget<DelayPanelTitleWidget<kTitle>>(std::tuple_element_t<0, std::tuple<Rows...>>::firstId);
@@ -358,7 +632,7 @@ public:
     static constexpr const uint width = kWidth;
     static constexpr const uint height = kHeight;
 
-    explicit DelayPanelWidget(LabWidget* const parent)
+    explicit DelaySizedPanelWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         updateSize(false);
@@ -400,20 +674,17 @@ private:
     }
 };
 
+template<uint kContentWidth, const char* kTitle, class... Rows>
+using DelayPanelWidget = DelaySizedPanelWidget<kContentWidth, 0, kTitle, Rows...>;
+
 using DelayRepeatPanelWidget = DelayPanelWidget<boxColumns(1), kTitleRepeats,
     DelayBoxRowWidget<kFaustParameterFeedback>,
     DelayBoxRowWidget<kFaustParameterCross>,
     DelayBoxRowWidget<kFaustParameterDrive>>;
 
-using DelayOptionsPanelWidget = DelayPanelWidget<boxColumns(1), kTitleOptions,
-    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 1>>,
-    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 2>>,
-    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterSync>>,
-    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterLink>>>;
-
 using DelayDynamicsPanelWidget = DelayPanelWidget<boxColumns(1), kTitleDynamics,
-    DelayBoxRowWidget<kFaustParameterDeess_amount>,
-    DelayBoxRowWidget<kFaustParameterDuck>>;
+    DelayPanelRowWidget<kBoxHeight, DelayMeterBox<kFaustParameterDeess_amount, kFaustParameterDeess_meter>>,
+    DelayPanelRowWidget<kBoxHeight, DelayMeterBox<kFaustParameterDuck, kFaustParameterDuck_meter>>>;
 
 using DelayModulationPanelWidget = DelayPanelWidget<boxColumns(1), kTitleModulation,
     DelayBoxRowWidget<kFaustParameterMod_rate>,
@@ -424,15 +695,30 @@ using DelayOutputPanelWidget = DelayPanelWidget<boxColumns(1), kTitleOutput,
     DelayBoxRowWidget<kFaustParameterWidth>,
     DelayBoxRowWidget<kFaustParameterDrywet>>;
 
+// Time L and R give way to Div L and R, the musical divisions, while Sync is on.
+
 using DelayTimeLeftPanelWidget = DelayPanelWidget<0, kTitleTimeLeft,
-    DelayBoxRowWidget<kFaustParameterOffset_l, kFaustParameterTime_l>>;
+    DelayPanelRowWidget<kBoxHeight,
+                        DelayBox<kFaustParameterOffset_l>,
+                        DelayFreeOnly<DelayBox<kFaustParameterTime_l>>,
+                        DelaySyncOnly<DelayMenuBox<kFaustParameterDiv_l>>>>;
 
 using DelayTimeRightPanelWidget = DelayPanelWidget<0, kTitleTimeRight,
-    DelayBoxRowWidget<kFaustParameterTime_r, kFaustParameterOffset_r>>;
+    DelayPanelRowWidget<kBoxHeight,
+                        DelayFreeOnly<DelayLinkedBox<kFaustParameterTime_r>>,
+                        DelaySyncOnly<DelayLinkedMenuBox<kFaustParameterDiv_r>>,
+                        DelayBox<kFaustParameterOffset_r>>>;
 
 using DelayFilterPanelWidget = DelayPanelWidget<boxColumns(1), kTitleFilter,
     DelayBoxRowWidget<kFaustParameterHp_freq>,
     DelayBoxRowWidget<kFaustParameterLp_freq>>;
+
+// as tall as the Filter panel, level with it across the scope; its four checkbox rows reach 2 px into its bottom margin
+using DelayOptionsPanelWidget = DelaySizedPanelWidget<boxColumns(1), DelayFilterPanelWidget::height, kTitleOptions,
+    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterSync>>,
+    DelayPanelRowWidget<kRowHeight, DelayCheckbox<kFaustParameterLink>>,
+    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 1>>,
+    DelayPanelRowWidget<kRowHeight, DelayChoiceCheckbox<kFaustParameterPingpong, 2>>>;
 
 // gap between panels, and between the columns of the stage
 static constexpr const uint kPanelGap = 8;
@@ -872,6 +1158,180 @@ public:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
+// The menu of a parameter's options, styled as main's menu: a dark rounded panel of rows, the current option filled
+// with the accent colour, the hovered one tinted with it. It opens above the box it belongs to, or below it when
+// there is no room above, and is at least as wide as the box. While open it is an overlay covering the whole stage,
+// so it draws over everything and takes every click: one on an option picks it, any other closes the menu.
+
+class DelayMenuWidget final : public LabWidget
+{
+    struct R {
+        static constexpr const Color backgroundColor { 0x1e, 0x1f, 0x24, 0.96f };
+        static constexpr const Color borderColor { 0.f, 0.f, 0.f, 0.45f };
+        static constexpr const float border = 1.f;
+        static constexpr const float borderRadius = 5.f;
+        static constexpr const float margin = 4.f;
+        static constexpr const float padding = 4.f;
+        struct Item {
+            static constexpr const Color color = Reference::Colors::ink2;
+            static constexpr const Color colorChecked = Reference::Colors::track;
+            static constexpr const float fontSize = 15.f;
+            static constexpr const float borderRadius = 5.f;
+            static constexpr const float height = 18.f;
+            static constexpr const float margin = 4.f;
+        };
+    };
+
+    FaustParameterIndex fId = kFaustParameterCount;
+    Color fAccent;
+    Rectangle<float> fBox;
+    int fHoverRow = -1;
+
+public:
+    explicit DelayMenuWidget(LabWidget* const parent)
+        : LabWidget(parent)
+    {
+        hide();
+    }
+
+    // anchor is the box the menu belongs to, in absolute coordinates
+    void open(const FaustParameterIndex id, const Rectangle<float>& anchor)
+    {
+        const FaustParameter& param = kFaustParameters[id];
+        const float s = fScaleFactor;
+        const float inset = (R::border + R::margin) * s;
+
+        fId = id;
+        fAccent = Reference::kAccentColors[std::clamp(param.accentcolor, 1u, 6u) - 1];
+        fHoverRow = -1;
+
+        fontFace("regular");
+        fontSize(R::Item::fontSize * s);
+        textAlign(0);
+
+        float itemWidth = 0.f;
+        for (uint i = 0; i < param.scalePointCount; ++i)
+        {
+            Rectangle<float> bounds;
+            textBounds(0, 0, param.scalePoints[i].label, nullptr, bounds);
+            itemWidth = std::max(itemWidth, bounds.getWidth() + R::Item::margin * 2 * s);
+        }
+
+        const uint count = param.scalePointCount;
+        const float width = std::max(anchor.getWidth(), itemWidth + inset * 2);
+        const float height = inset * 2 + (count * R::Item::height + (count - 1) * R::padding) * s;
+        const float ax = anchor.getX() - getAbsoluteX();
+        const float ay = anchor.getY() - getAbsoluteY();
+        const float x = std::clamp(ax - (width - anchor.getWidth()) * 0.5f, 0.f, std::max(0.f, getWidth() - width));
+        const float y = ay > height ? ay - height : std::min(ay + anchor.getHeight(), std::max(0.f, getHeight() - height));
+
+        fBox = Rectangle<float>(x, y, width, height);
+
+        show();
+        toFront();
+        repaint();
+    }
+
+private:
+    [[nodiscard]] float rowY(const uint row) const noexcept
+    {
+        return fBox.getY() + (R::border + R::margin + row * (R::Item::height + R::padding)) * fScaleFactor;
+    }
+
+    [[nodiscard]] int rowAt(const Point<double>& pos) const noexcept
+    {
+        const float s = fScaleFactor;
+        const float inset = (R::border + R::margin) * s;
+        const float x = pos.getX();
+        const float y = pos.getY();
+
+        if (x < fBox.getX() + inset || x > fBox.getX() + fBox.getWidth() - inset)
+            return -1;
+
+        for (uint i = 0; i < kFaustParameters[fId].scalePointCount; ++i)
+            if (y >= rowY(i) && y < rowY(i) + R::Item::height * s)
+                return static_cast<int>(i);
+
+        return -1;
+    }
+
+    void close()
+    {
+        hide();
+        repaint();
+    }
+
+    void onNanoDisplay() final
+    {
+        const FaustParameter& param = kFaustParameters[fId];
+        const float s = fScaleFactor;
+        const float inset = (R::border + R::margin) * s;
+        const int current = d_roundToInt(fInterface->getParameterValue(kParametersMainStart + fId));
+
+        beginPath();
+        roundedRect(fBox.getX() + 0.5f, fBox.getY() + 0.5f, fBox.getWidth() - 1.f, fBox.getHeight() - 1.f,
+                    R::borderRadius * s);
+        fillColor(R::backgroundColor);
+        fill();
+        strokeColor(R::borderColor);
+        strokeWidth(R::border * s);
+        stroke();
+
+        fontFace("regular");
+        fontSize(R::Item::fontSize * s);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+
+        const float ix = fBox.getX() + inset;
+        const float iw = fBox.getWidth() - inset * 2;
+        const float ih = R::Item::height * s;
+
+        for (uint i = 0; i < param.scalePointCount; ++i)
+        {
+            const float iy = rowY(i);
+            const bool checked = param.scalePoints[i].value == current;
+
+            if (checked || static_cast<int>(i) == fHoverRow)
+            {
+                beginPath();
+                roundedRect(ix, iy, iw, ih, R::Item::borderRadius * s);
+                fillColor(checked ? fAccent : Color(fAccent, 0.15f));
+                fill();
+            }
+
+            fillColor(checked ? R::Item::colorChecked : R::Item::color);
+            text(ix + iw * 0.5f, iy + ih * 0.5f, param.scalePoints[i].label, nullptr);
+        }
+    }
+
+    bool onMouse(const Widget::MouseEvent& ev) final
+    {
+        if (ev.press)
+        {
+            if (const int row = rowAt(ev.pos); row >= 0 && ev.button == 1)
+                setParameterGesture(fInterface, kParametersMainStart + fId, kFaustParameters[fId].scalePoints[row].value);
+
+            close();
+        }
+        return true;
+    }
+
+    bool onMotion(const Widget::MotionEvent& ev) final
+    {
+        if (const int row = rowAt(ev.pos); row != fHoverRow)
+        {
+            fHoverRow = row;
+            repaint();
+        }
+        return true;
+    }
+
+    bool onScroll(const Widget::ScrollEvent&) final
+    {
+        return true;
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
 // The stage is the display area, with the starfield behind it: the Expert page in Expert mode, and in Easy mode four
 // preset cards along its bottom. The cards are the suite's Easy page cards and do not load anything yet.
 
@@ -884,6 +1344,9 @@ class DelayStageWidget final : public ReferenceContainerWidget<Reference::Stage,
     const std::shared_ptr<DelayExpertWidget> fExpert = addWidget<DelayExpertWidget, Expanding>();
     const std::shared_ptr<LabWidget> fSpacer = addSpacer();
     const std::shared_ptr<CardGroupWidget> fCards = addCards();
+
+    // created last, so it draws over everything and gets events first
+    const std::unique_ptr<DelayMenuWidget> fMenu { new DelayMenuWidget(this) };
 
     Page fPage = kPageEasy;
 
@@ -898,6 +1361,11 @@ public:
     void setScopeShader(BotShaderBaseWidget* const shader)
     {
         fExpert->getScope()->setShader(shader);
+    }
+
+    void openMenu(const FaustParameterIndex id, const Rectangle<float>& anchor)
+    {
+        fMenu->open(id, anchor);
     }
 
 private:
@@ -922,6 +1390,7 @@ private:
         const bool expert = page == kPageExpert;
 
         fPage = page;
+        fMenu->hide();
         fExpert->setVisible(expert);
         fExpert->getScope()->setVisible(expert);
         fSpacer->setVisible(! expert);
@@ -937,7 +1406,33 @@ private:
             repaint();
         }
     }
+
+    void updateSize(const bool updateChildren) final
+    {
+        BaseWidget::updateSize(updateChildren);
+
+        fMenu->setAbsolutePos(getAbsolutePos());
+        fMenu->setSize(getSize());
+    }
 };
+
+// opens the stage's menu for this arrow's parameter, anchored to the number box the arrow sits in
+void DelayMenuArrowWidget::openMenu()
+{
+    SubWidget* const box = dynamic_cast<SubWidget*>(getParentWidget());
+    DISTRHO_SAFE_ASSERT_RETURN(box != nullptr,);
+
+    const Rectangle<float> anchor(box->getAbsoluteX(), box->getAbsoluteY(), box->getWidth(), box->getHeight());
+
+    for (Widget* widget = box->getParentWidget(); widget != nullptr;)
+    {
+        if (DelayStageWidget* const stage = dynamic_cast<DelayStageWidget*>(widget))
+            return stage->openMenu(fId, anchor);
+
+        SubWidget* const sub = dynamic_cast<SubWidget*>(widget);
+        widget = sub != nullptr ? sub->getParentWidget() : nullptr;
+    }
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 

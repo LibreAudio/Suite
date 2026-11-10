@@ -36,7 +36,7 @@ struct Reference {
         static constexpr const Color acc4Glow { acc4, 0.45f };
         static constexpr const Color acc5Glow { acc5, 0.45f };
         static constexpr const Color acc6Glow { acc6, 0.45f };
-        // static constexpr const Color orange { 0xff, 0x7e, 0x1c };
+        static constexpr const Color orange { 0xff, 0x7e, 0x1c };
         static constexpr const Color bg0 { 0x16, 0x16, 0x18 };
         static constexpr const Color bg1 { 0x1c, 0x1c, 0x20 };
         static constexpr const Color bg2 { 0x26, 0x26, 0x2b };
