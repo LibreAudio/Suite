@@ -27,7 +27,7 @@ namespace LibreAudio {
 
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
-static constexpr const uint kNumberBoxHeight = 50;
+static constexpr const uint kNumberBoxHeight = 44;
 
 // --------------------------------------------------------------------------------------------------------------------
 
