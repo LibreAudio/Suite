@@ -37,6 +37,7 @@ struct SwitchBoxMetrics : LabMetrics<R> {
     using LabMetrics<R>::LabMetrics;
 
     const LabMetricsHeight<R, typename R::Bar> bar { *this };
+    const LabMetricsFontSize<R, typename R::Name> name { *this };
 };
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -66,6 +67,11 @@ class SwitchBoxWidget final : public LabToggleSwitchBaseWidget
     bool fAnimating = false;
     double fAnimationStartTime;
 
+public:
+    explicit SwitchBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex) {}
+
+private:
     void idleCallback() final
     {
         BaseWidget::idleCallback();

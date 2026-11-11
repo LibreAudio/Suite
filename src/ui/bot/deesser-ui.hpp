@@ -28,7 +28,7 @@ namespace LibreAudio {
 
 static constexpr const uint kCommonMargin = 8;
 static constexpr const uint kCommonPadding = 6;
-static constexpr const uint kNumberBoxHeight = 50;
+static constexpr const uint kNumberBoxHeight = 44;
 static constexpr const uint kCheckBoxGroupWidth = 115;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -1190,7 +1190,7 @@ class DeEsserDisplayWidget final : public WaveformBaseWidget
     const std::unique_ptr<RelativeColumn> fRelative { new RelativeColumn(this) };
 
 public:
-    void replace(const float values[kTextureSize])
+    void replace(const float values[kTextureSize]) override
     {
         fGlass->setSpectrum(values);
     }
