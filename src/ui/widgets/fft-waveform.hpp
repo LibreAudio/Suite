@@ -15,13 +15,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class WaveformWidget final : public LabWidget,
-                             public GraphInterface,
-                            #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
-                             private LabWidget::FramebufferCallback,
-                            #endif
-                             private IdleCallback
+class WaveformBaseWidget  : public LabWidget,
+                            public GraphInterface
 {
+public:
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -30,6 +27,27 @@ class WaveformWidget final : public LabWidget,
     static constexpr const uint32_t kTextureSize = 1;
    #endif
 
+    using LabWidget::LabWidget;
+
+   #if LIBREAUDIO_WANT_GRAPH_ANALYZER
+    virtual void replace(const float values[kTextureSize]) = 0;
+   #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
+    virtual void push(const float value
+                  #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+                   , const float value2
+                  #endif
+                    ) = 0;
+#endif
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+class WaveformWidget final : public WaveformBaseWidget,
+                            #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
+                             private LabWidget::FramebufferCallback,
+                            #endif
+                             private IdleCallback
+{
     // TODO rework smoothness handling
    #if LIBREAUDIO_WANT_GRAPH_WAVEFORM
     static constexpr const uint kUsableTextureSize = kTextureSize - 7;
@@ -43,9 +61,9 @@ class WaveformWidget final : public LabWidget,
 public:
     explicit WaveformWidget(LabWidget* const parent, const float bottom, const float start, const float top)
        #ifdef LIBREAUDIO_WANT_GRAPH_PARAM
-        : LabWidget(parent, this)
+        : WaveformBaseWidget(parent, this)
        #else
-        : LabWidget(parent)
+        : WaveformBaseWidget(parent)
        #endif
     {
         setRange(bottom, start, top);
@@ -54,7 +72,7 @@ public:
     }
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-    void replace(const float values[kTextureSize])
+    void replace(const float values[kTextureSize]) override
     {
         std::memcpy(fTextureData.data(), values, kTextureSize * sizeof(float));
 
@@ -69,7 +87,7 @@ public:
            #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
             , const float value2
            #endif
-             )
+             ) override
     {
         fTextureData[fTextureDataTail] = value;
        #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2

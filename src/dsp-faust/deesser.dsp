@@ -4,6 +4,9 @@ declare license "GPL-3.0-or-later";
 declare name "De-Esser";
 declare unique_id "LAes";
 
+declare graph "analyzer";
+declare graphsource "input";
+
 import("stdfaust.lib");
 
 process = hfLimit;
@@ -14,19 +17,19 @@ uiBottom(x) = hgroup("[8]Bottom", x);
 uiHidden(x) = hgroup("[9]Hidden", x);
 uiDeEss(x)  = uiBottom(hgroup("[5]De-Esser", x));
 
-hflim_split = uiDeEss(hslider("[01]Crossover Frequency[style:knob][unit:Hz][scale:log][symbol:crossover_frequency][label:Crossover][accentcolor:02]", 5000, 3000, 8000, 1));
+hflim_split = uiDeEss(hslider("[01]Crossover[style:knob][unit:Hz][scale:log][symbol:crossover_frequency][label:Crossover][accentcolor:02]", 5000, 3000, 8000, 1));
 
 // Detection reference, blendable: 100% measures the high band against the
 // body band (level-independent spectral tilt), 0% against 0 dBFS (plain
 // high-band level).
-hflim_mode = uiDeEss(hslider("[02]Mode[style:knob][unit:%][symbol:mode][label:Abs/Rel][accentcolor:05]", 100, 0, 100, 1)) / 100;
+hflim_mode = uiDeEss(hslider("[02]Absolute / Relative[style:knob][unit:%][symbol:mode][label:Absolute/Relative][accentcolor:05]", 0, -100, 100, 1) + 100) /200;
 
 // Each mode has its own threshold; Mode blends between them.
-hflim_threshAbs = uiDeEss(hslider("[03]Threshold Absolute[unit:dB][style:knob][symbol:threshold_abs][label:Thresh Abs][accentcolor:01]", -30, -60, 0, 1));
-hflim_threshRel = uiDeEss(hslider("[04]Threshold Relative[unit:dB][style:knob][symbol:threshold][label:Thresh Rel][accentcolor:01]", -10, -30, 0, 1));
+hflim_threshAbs = uiDeEss(hslider("[03]Thresh Abs[unit:dB][style:knob][symbol:threshold_abs][label:Thresh Abs][accentcolor:01]", -30, -60, 0, 1));
+hflim_threshRel = uiDeEss(hslider("[04]Thresh Rel[unit:dB][style:knob][symbol:threshold][label:Thresh Rel][accentcolor:01]", -10, -30, 0, 1));
 hflim_thresh    = lerp(hflim_threshAbs, hflim_threshRel, hflim_mode);
 
-hflim_ratio = uiDeEss(hslider("[05]Ratio[symbol:ratio][style:knob][label:Ratio][accentcolor:03]", 1, 1, 20, 1));
+hflim_ratio = uiDeEss(hslider("[05]Ratio[unit::1][symbol:ratio][style:knob][label:Ratio][accentcolor:03]", 1, 1, 20, 1));
 hflim_range = uiDeEss(hslider("[06]Range[unit:dB][style:knob][symbol:range][label:Range][accentcolor:04]", 6, 0, 20, 1));
 
 // Solos the high band with the reduction applied, for setting Crossover and
@@ -36,8 +39,8 @@ hflim_listen = uiDeEss(checkbox("[07]Listen[symbol:listen][label:Listen]
 
 // -1 = mid only, 0 = both (linked to the higher reduction), +1 = side only.
 // Moving away from the centre fades the link and the other channel out.
-hflim_channel = uiDeEss(hslider("[08]Channel[style:knob][symbol:channel][label:Mid/Side][accentcolor:05]
-      [tooltip: -1 processes mid only (unlinked), 0 processes both (linked to the higher reduction), +1 processes side only (unlinked)]", 0, -1, 1, 0.01)) : si.smoo;
+hflim_channel = uiDeEss(hslider("[08]Mid/Side[style:knob][symbol:channel][label:Mid/Side][accentcolor:05]
+      [tooltip: -1 processes mid only (unlinked), 0 processes both (linked to the higher reduction), +1 processes side only (unlinked)]", 0, -100, 100, 1)) /100 : si.smoo;
 hflim_midWeight  = 1 - max(0, hflim_channel);
 hflim_sideWeight = 1 + min(0, hflim_channel);
 hflim_link       = 1 - abs(hflim_channel);
@@ -45,7 +48,7 @@ hflim_link       = 1 - abs(hflim_channel);
 // Delays the audio (and the Listen band) behind the detector so the gain is
 // already down when the "s" arrives. Reported to the host as latency.
 hflim_lookaheadMs = uiDeEss(hslider("[09]Lookahead[style:knob][unit:ms][symbol:lookahead][label:Lookahead][accentcolor:04]
-      [tooltip: Delays the audio so the reduction is already in place when the sibilant arrives. Reported to the host as latency and compensated. 0 = off]", 0, 0, 100, 0.1));
+      [tooltip: Delays the audio so the reduction is already in place when the sibilant arrives. Reported to the host as latency and compensated. 0 = off]", 0, 0, 100, 1));
 maxLookaheadSamples = 19200; // 100 ms at 192 kHz
 lookaheadSamples    = int(hflim_lookaheadMs * ma.SR / 1000) : min(maxLookaheadSamples);
 lookahead           = de.delay(maxLookaheadSamples, lookaheadSamples);
@@ -61,7 +64,13 @@ hflim_drywet = uiDeEss(hslider("[10]Dry/Wet[style:knob][unit:%][symbol:drywet][l
 hflim_delta = uiDeEss(checkbox("[11]Delta[symbol:delta][label:Delta]
       [tooltip: Outputs only the signal the de-esser removes, for checking that only sibilance is affected. Turn off before printing]")) : si.smoo;
 
-hflim_meter = uiHidden(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
+// Meter ballistics, on the meters only (detection and audio are unaffected):
+// a rise within a millisecond and a release of meterRelease seconds (time
+// constant), so short sibilants stay readable.
+meterRelease = 0.2;
+meterBallistics = si.onePoleSwitching(0.001, meterRelease);
+
+hflim_meter = meterBallistics : uiHidden(hbargraph("[1]HFlim Reduction[unit:dB][symbol:deess_meter]", 0, 30));
 // A passive widget with this exact symbol becomes the plugin's reported latency
 // (see the latency_samples cases in src/templates/dsp.cpp.in).
 latency_meter = uiHidden(hbargraph("[2]latency_samples[symbol:latency_samples]", 0, maxLookaheadSamples));
@@ -70,11 +79,16 @@ latency_meter = uiHidden(hbargraph("[2]latency_samples[symbol:latency_samples]",
 // absolute = high band in dBFS, relative = high band above the body band.
 scAbsMin = -60; scAbsMax = 0;
 scRelMin = -30; scRelMax = 10;
-scMeter(meter, lo, hi) = max(lo) : min(hi) : meter;
+scMeter(meter, lo, hi) = meterBallistics : max(lo) : min(hi) : meter;
 sc_mid_abs  = scMeter(uiHidden(hbargraph("[3]Sidechain Mid Absolute[unit:dB][symbol:sc_mid_abs]",   scAbsMin, scAbsMax)), scAbsMin, scAbsMax);
 sc_mid_rel  = scMeter(uiHidden(hbargraph("[4]Sidechain Mid Relative[unit:dB][symbol:sc_mid_rel]",   scRelMin, scRelMax)), scRelMin, scRelMax);
 sc_side_abs = scMeter(uiHidden(hbargraph("[5]Sidechain Side Absolute[unit:dB][symbol:sc_side_abs]", scAbsMin, scAbsMax)), scAbsMin, scAbsMax);
 sc_side_rel = scMeter(uiHidden(hbargraph("[6]Sidechain Side Relative[unit:dB][symbol:sc_side_rel]", scRelMin, scRelMax)), scRelMin, scRelMax);
+
+// The reduction applied to each channel, after the channel weighting and
+// linking, for the display's mid and side curves.
+mid_meter  = meterBallistics : uiHidden(hbargraph("[7]Mid Reduction[unit:dB][symbol:deess_mid]",   0, 30));
+side_meter = meterBallistics : uiHidden(hbargraph("[8]Side Reduction[unit:dB][symbol:deess_side]", 0, 30));
 
 lerp(a, b, t) = a + (b - a) * t;
 
@@ -95,8 +109,9 @@ with {
         linked        = max(midDetected, sideDetected);
         midReduction  = hflim_midWeight  * lerp(midDetected,  linked, hflim_link);
         sideReduction = hflim_sideWeight * lerp(sideDetected, linked, hflim_link);
-        outMid  = hfApply(hflim_midWeight,  midReduction,  midHigh : lookahead,  m : lookahead);
-        outSide = hfApply(hflim_sideWeight, sideReduction, sideHigh : lookahead, s : lookahead);
+        outMid  = hfApply(hflim_midWeight,  midReduction : attachMeter(mid_meter),   midHigh : lookahead,  m : lookahead);
+        outSide = hfApply(hflim_sideWeight, sideReduction : attachMeter(side_meter), sideHigh : lookahead, s : lookahead);
+        attachMeter(meter, x) = attach(x, x : meter);
     };
 };
 

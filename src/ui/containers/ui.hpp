@@ -69,18 +69,18 @@ public:
     }
 
 private:
-    std::shared_ptr<WaveformWidget> fWaveform;
+    std::shared_ptr<WaveformBaseWidget> fWaveform;
 
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
-        if (WaveformWidget* const waveform = fWaveform.get())
+        if (WaveformBaseWidget* const waveform = fWaveform.get())
             waveform->replace(values);
     }
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
-        if (WaveformWidget* const waveform = fWaveform.get())
+        if (WaveformBaseWidget* const waveform = fWaveform.get())
         {
            #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
             waveform->push(value.ptr[0], value.ptr[1]);

@@ -24,7 +24,7 @@ private:
 
     const std::shared_ptr<EasyPageWidget> fEasy { new EasyPageWidget(this) };
     const std::shared_ptr<ExpertPageWidget> fExpert { new ExpertPageWidget(this) };
-    std::shared_ptr<WaveformWidget> fWaveform;
+    std::shared_ptr<WaveformBaseWidget> fWaveform;
 
     std::list<std::shared_ptr<LabWidget>> fGraphWidgets;
 
@@ -34,8 +34,9 @@ public:
     {
         fExpert->hide();
 
-       #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-        fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
+       #if LIBREAUDIO_WANT_GRAPH_ANALYZER && !defined(LIBREAUDIO_PLUGIN__deesser)
+        if (fWaveform == nullptr)
+            fWaveform = addGraphWidget<WaveformWidget>(FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f);
        #endif
 
         addIdleCallback(this);
@@ -51,7 +52,7 @@ public:
         return fExpert;
     }
 
-    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    [[nodiscard]] std::shared_ptr<WaveformBaseWidget> getWaveformWidget() const noexcept
     {
         return fWaveform;
     }
@@ -68,7 +69,7 @@ protected:
         fEasy->toFront();
         fExpert->toFront();
         fGraphWidgets.emplace_back(widget);
-        if constexpr (std::is_same_v<W, WaveformWidget>)
+        if constexpr (std::is_base_of_v<WaveformBaseWidget, W>)
             fWaveform = widget;
         return widget;
     }
