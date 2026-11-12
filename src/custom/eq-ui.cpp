@@ -11,6 +11,7 @@
 #include "LibreAudioParameters.hpp"
 #include "eq/bell-response.hpp"
 #include "eq/highpass.hpp"
+#include "eq/listen.hpp"
 #include "eq/tilt.hpp"
 #include "eq/shelf.hpp"
 
@@ -1367,7 +1368,11 @@ private:
         };
         const std::vector<float> ymFill = insideCorners(ym);
 
-        if (on)
+        // while a band is listened to, the EQ curve greys out under the listen filter's curve
+        const auto listened = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
+        const bool listening = on && listened != fBands.end();
+
+        if (on && !listening)
         {
             fillRainbow(xs, ymFill, {}, y0, p.x, p.w, 0.18f);
             strokeRainbow(xs, ym, p.x, p.w, 6.f * s, 0.12f);
@@ -1402,6 +1407,46 @@ private:
             stroke();
         }
 
+        if (listening)
+        {
+            const EqBand& b = *listened;
+            const int type = static_cast<int>(b.type);
+            const eq::Listen::Shape shape = eq::listenShape(type);
+            const float q = eq::listenQ(type, b.q);
+            const float bottom = p.y + p.h;
+
+            std::vector<float> yl(steps + 1);
+            for (int i = 0; i <= steps; ++i)
+            {
+                const float f = EqResponse::normToFreq(static_cast<float>(i) / steps);
+                yl[i] = std::min(p.yCurve(eq::listenResponse(shape, f, b.freq, q, b.sampleRate)), bottom + 4.f * s);
+            }
+            const std::vector<float> ylFill = insideCorners(yl);
+
+            beginPath();
+            moveTo(xs[0], ylFill[0]);
+            for (int i = 1; i <= steps; ++i)
+                lineTo(xs[i], ylFill[i]);
+            lineTo(xs[steps], bottom);
+            lineTo(xs[0], bottom);
+            closePath();
+            forceStencilFill(layoutDisplay());
+            fillPaint(linearGradient(0, y0, 0, bottom, withAlpha(b.color, 0.22f), withAlpha(b.color, 0.04f)));
+            fill();
+
+            beginPath();
+            moveTo(xs[0], yl[0]);
+            for (int i = 1; i <= steps; ++i)
+                lineTo(xs[i], yl[i]);
+            lineJoin(ROUND);
+            strokeColor(withAlpha(b.color, 0.15f));
+            strokeWidth(6.f * s);
+            stroke();
+            strokeColor(b.color);
+            strokeWidth(2.2f * s);
+            stroke();
+        }
+
         // what a click would add here
         if (fGhostX >= 0.f && on && fDrag.kind == DragKind::None)
         {
@@ -1414,7 +1459,7 @@ private:
         // the hovered or selected band on its own, faded out around 0 dB where it would sit on the sum
         for (const EqBand& b : fBands)
         {
-            if (b.soloAlpha <= 0.001f)
+            if (b.soloAlpha <= 0.001f || listening)
                 continue;
 
             beginPath();

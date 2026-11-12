@@ -142,6 +142,9 @@ smooth over 10ms; when off, it costs no
 per-sample work. The UI sets Listen only while Control is held, for one band: the
 one being dragged (node, piano dot, value label or option-bar box), else the
 selected one. Releasing Control restores whatever was listened to before.
+While a band is listened to, the display greys out the EQ curve and draws the
+listen filter's response (`listenResponse`, the same digital SVF) in the band's
+colour over it.
 
 ## Mouse controls
 

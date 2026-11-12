@@ -105,4 +105,32 @@ public:
         if (! active()) clear();
     }
 };
+
+// the listen filter for a band type (0 HP, 1 low shelf, 2 bell, 3 high shelf, 4 LP, 5 tilt):
+// what the band works on, below or above its frequency or around it
+inline Listen::Shape listenShape(const int type) noexcept
+{
+    return type == 0 || type == 1 ? Listen::LowPass
+         : type == 3 || type == 4 ? Listen::HighPass
+         : Listen::BandPass;
+}
+
+// a bell listens with its own Q, the other types at 0.707
+inline float listenQ(const int type, const float q) noexcept
+{
+    return type == 2 ? q : .707f;
+}
+
+// dB response at f of the listen filter, as Listen::configure sets it up
+inline float listenResponse(const Listen::Shape shape, const float f, const float frequency, const float q,
+                            const double rate) noexcept
+{
+    constexpr double pi = 3.14159265358979323846;
+    const double fc = std::clamp(double(frequency), 10., 0.45 * rate);
+    const double k = 1. / std::clamp(double(q), 0.3, 8.01);
+    const double w = std::tan(pi * std::min(double(f), 0.4999 * rate) / rate) / std::tan(pi * fc / rate);
+    const double den = std::sqrt((1. - w * w) * (1. - w * w) + k * k * w * w);
+    const double num = shape == Listen::LowPass ? 1. : shape == Listen::HighPass ? w * w : k * w;
+    return float(20. * std::log10(std::max(num / den, 1e-15)));
+}
 }

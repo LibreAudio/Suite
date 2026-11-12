@@ -130,11 +130,8 @@ public:
             if (l != nullptr)
             {
                 const int type = int(l[kType]);
-                const Listen::Shape shape = type == 2 ? Listen::BandPass
-                                          : type == 0 || type == 1 ? Listen::LowPass
-                                          : type == 3 || type == 4 ? Listen::HighPass
-                                          : Listen::BandPass;
-                listen.configure(true, l[kChannel] != 2.f, l[kChannel] != 1.f, shape, l[kFrequency], type == 2 ? l[kQ] : .707f);
+                listen.configure(true, l[kChannel] != 2.f, l[kChannel] != 1.f, listenShape(type), l[kFrequency],
+                                 listenQ(type, l[kQ]));
             }
             else
                 listen.configure(false, false, false, Listen::BandPass, 0.f, 0.f);
