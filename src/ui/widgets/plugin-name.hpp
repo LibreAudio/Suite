@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../_lab/base.hpp"
+#include "../_lab/metrics.hpp"
 
 #include "../reference.hpp"
 
@@ -16,9 +17,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class PluginNameWidget final : public LabReferenceWidget<Reference::PluginName>
+class PluginNameWidget final : public LabReferenceWidget<Reference::Widgets::PluginName>
 {
-    using R = Reference::PluginName;
+    using R = Reference::Widgets::PluginName;
     using BaseWidget = LabReferenceWidget<R>;
 
     char fName[sizeof(DISTRHO_PLUGIN_NAME) - 3];
@@ -39,32 +40,30 @@ public:
 private:
     void onNanoDisplay() final
     {
+        const LabMetrics<R> m { this };
+
         BaseWidget::onNanoDisplay();
 
-        save();
-        fontFace("chillax");
         fillColor(R::color);
-        fontSize(R::fontSize * fScaleFactor);
+        fontSize(m.fontSize);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
-        text(getWidth() * 0.5f, getHeight() * 0.5f, fName);
-        restore();
+        textLetterSpacing(m.letterSpacing);
+        text(m.width * 0.5f, m.height * 0.5f, fName);
     }
 
     void updateSize(const bool updateChildren) final
     {
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+        const LabMetrics<R> m { this };
+        const float borderAndMarginSize = (m.border + m.margin) * 2;
 
         Rectangle<float> bounds;
-        save();
-        fontFace("chillax");
-        fontSize(R::fontSize * fScaleFactor);
-        textAlign(0);
-        textLetterSpacing(R::letterSpacing * fScaleFactor);
+        fontSize(m.fontSize);
+        textAlign(ALIGN_LEFT | ALIGN_TOP);
+        textLetterSpacing(m.letterSpacing);
         textBounds(0, 0, fName, nullptr, bounds);
-        setWidth(bounds.getWidth() + (border + margin) * 2);
-        restore();
+        // FIXME
+        // setSize(bounds.getWidth() + borderAndMarginSize, bounds.getHeight() + borderAndMarginSize);
+        setWidth(bounds.getWidth() + borderAndMarginSize);
 
         BaseWidget::updateSize(updateChildren);
     }

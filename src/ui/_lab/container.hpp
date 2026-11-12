@@ -5,6 +5,7 @@
 #pragma once
 
 #include "empty.hpp"
+#include "metrics.hpp"
 
 #include "Layout.hpp"
 
@@ -14,30 +15,30 @@
 START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
-// widget container, with an horizontal or vertical layout for child widgets
+// base widget container, with a templated subclass and horizontal or vertical layout
 
 template<class BaseWidget, Orientation orientation>
 class ContainerBaseWidgetOf : public BaseWidget,
-                              public std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>
+                              public std::conditional_t<orientation == Horizontal, HorizontalLayout, VerticalLayout>
 {
 public:
-    using Layout = std::conditional_t<orientation == kHorizontal, HorizontalLayout, VerticalLayout>;
+    using Layout = std::conditional_t<orientation == Horizontal, HorizontalLayout, VerticalLayout>;
+    using BaseWidget::BaseWidget;
 
-    explicit ContainerBaseWidgetOf(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ContainerBaseWidgetOf(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ContainerBaseWidgetOf(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
-
-protected:
-    template<class W = LabEmptyWidget>
+    template<class W = LabEmptyWidget,
+             SizeHint sizeHint = Expanding,
+             typename = std::enable_if_t<std::is_base_of_v<LabWidget, W>>>
     std::shared_ptr<W> addSpacer()
     {
         std::shared_ptr<W> widget { new W(this) };
-        Layout::widgets.push_back({ widget.get(), Expanding });
+        Layout::widgets.push_back({ widget.get(), sizeHint });
+        if constexpr (sizeHint == Fixed)
+        {
+            if (widget->getSize().isNull())
+                d_stderr2("Error: addSpacer called with Fixed sizeHint but widget %u: '%s' does not have a known size",
+                          widget->getId(),
+                          widget->getName());
+        }
         return widget;
     }
 
@@ -49,63 +50,85 @@ protected:
     {
         std::shared_ptr<W> widget { new W(this, args...) };
         Layout::widgets.push_back({ widget.get(), sizeHint });
-        if (sizeHint == Fixed && widget->getSize().isNull())
-            d_stderr2("Error: addWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
-                      widget->getId(),
-                      widget->getName());
+        if constexpr (sizeHint == Fixed)
+        {
+            if (widget->getSize().isNull())
+                d_stderr2("Error: addWidget called with Fixed sizeHint but widget %u: '%s' does not have a known size",
+                          widget->getId(),
+                          widget->getName());
+        }
         return widget;
+    }
+
+    uint getLastWidgetWidth() const noexcept
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(), 0);
+
+        return static_cast<LabWidget*>(Layout::widgets.back().widget)->getWidth();
+    }
+
+    uint getLastWidgetHeight() const noexcept
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(), 0);
+
+        return static_cast<LabWidget*>(Layout::widgets.back().widget)->getHeight();
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// reference container base widget class
+// reference base widget container
 
 template<class W, class R, Orientation orientation>
 class ReferenceContainerBaseWidgetOf : public ContainerBaseWidgetOf<W, orientation>
 {
 public:
     using BaseWidget = ContainerBaseWidgetOf<W, orientation>;
-    using Layout = typename BaseWidget::Layout;
     using ResizeEvent = typename BaseWidget::ResizeEvent;
-
-    explicit ReferenceContainerBaseWidgetOf(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ReferenceContainerBaseWidgetOf(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-    explicit ReferenceContainerBaseWidgetOf(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
+    using BaseWidget::BaseWidget;
 
 protected:
+    using Layout = typename BaseWidget::Layout;
+
+    // set width or height based on first child
+    void autoSize()
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(),);
+
+        const LabMetrics<R, uint> m { this };
+        const uint space = (m.border + m.margin) * 2;
+
+        if constexpr (orientation == Horizontal)
+            LabWidget::setHeight(space + Layout::widgets.front().widget->getHeight());
+        else
+            LabWidget::setWidth(space + Layout::widgets.front().widget->getWidth());
+
+        // update children
+        ReferenceContainerBaseWidgetOf::updateSize(true);
+    }
+
     void updateSize(const bool updateChildren) override
     {
-        const float fScaleFactor = this->fScaleFactor;
-        const uint width = BaseWidget::getWidth();
-        const uint height = BaseWidget::getHeight();
-        const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-        const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-        const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
+        const LabMetrics<R, uint> m { this };
 
-        if constexpr (orientation == kHorizontal)
-            Layout::setWidth(width, padding, border + margin);
+        if constexpr (orientation == Horizontal)
+            Layout::setWidth(m.width, m.padding, m.border + m.margin);
         else
-            Layout::setHeight(height, padding, border + margin);
+            Layout::setHeight(m.height, m.padding, m.border + m.margin);
 
         BaseWidget::updateSize(updateChildren);
 
         if constexpr (std::is_same_v<W, LabTopLevelWidget>)
         {
-            Layout::align(0, 0, width, height, padding, border + margin);
+            Layout::align(0, 0, m.width, m.height, m.padding, m.border + m.margin);
         }
         else
         {
             Layout::align(BaseWidget::getAbsoluteX(),
                           BaseWidget::getAbsoluteY(),
-                          width,
-                          height,
-                          padding,
-                          border + margin);
+                          m.width,
+                          m.height,
+                          m.padding,
+                          m.border + m.margin);
         }
 
         BaseWidget::updateSize(updateChildren);
@@ -113,48 +136,45 @@ protected:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
+// do not allow using `ContainerBaseWidgetOf` after this point
+
+#ifdef __GNUC__
+#pragma GCC poison ContainerBaseWidgetOf
+#endif
+
+// --------------------------------------------------------------------------------------------------------------------
 // reference container (sub) widget class
 
-template<class R, Orientation orientation = kHorizontal>
-class ReferenceContainerWidget : public ReferenceContainerBaseWidgetOf<LabReferenceWidget<R>, R, orientation>
+template<class R, Orientation orientation>
+using LabReferenceContainerWidget = ReferenceContainerBaseWidgetOf<LabReferenceWidget<R>, R, orientation>;
+
+#if 0
+// possibly useful?
+void onPositionChanged(const PositionChangedEvent& ev) override
 {
-public:
-    using BaseWidget = ReferenceContainerBaseWidgetOf<LabReferenceWidget<R>, R, orientation>;
-    using Layout = typename BaseWidget::Layout;
-    using PositionChangedEvent = typename BaseWidget::PositionChangedEvent;
+    BaseWidget::onPositionChanged(ev);
 
-    explicit ReferenceContainerWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    const float fScaleFactor = this->fScaleFactor;
+    const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
+    const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
+    const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
 
-    explicit ReferenceContainerWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
-
-// protected:
-//     void onPositionChanged(const PositionChangedEvent& ev) override
-//     {
-//         BaseWidget::onPositionChanged(ev);
-//
-//         const float fScaleFactor = this->fScaleFactor;
-//         const uint border = d_roundToUnsignedInt(R::border * fScaleFactor);
-//         const uint margin = d_roundToUnsignedInt(R::margin * fScaleFactor);
-//         const uint padding = d_roundToUnsignedInt(R::padding * fScaleFactor);
-//
-//         Layout::setAbsolutePos(ev.pos.getX(), ev.pos.getY(), padding, border + margin);
-//     }
-};
+    Layout::setAbsolutePos(ev.pos.getX(), ev.pos.getY(), padding, border + margin);
+}
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 // reference container top-level widget class
 
 template<class R, Orientation orientation>
-class ReferenceContainerTopLevelWidget : public ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>
-{
-public:
-    using BaseWidget = ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>;
+using LabReferenceContainerTopLevelWidget = ReferenceContainerBaseWidgetOf<LabTopLevelWidget, R, orientation>;
 
-    explicit ReferenceContainerTopLevelWidget(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
-};
+// --------------------------------------------------------------------------------------------------------------------
+// do not allow using `ReferenceContainerBaseWidgetOf` after this point
+
+#ifdef __GNUC__
+#pragma GCC poison ReferenceContainerBaseWidgetOf
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 

@@ -4,12 +4,12 @@
 
 #include "LibreAudioBaseUI.hpp"
 
-#include "ui/_lab/color.hpp"
-
 #include "ui/reference.hpp"
 #include "ui/containers/main-area.hpp"
 #include "ui/containers/ui.hpp"
+#include "ui/widgets/number-box.hpp"
 #include "ui/widgets/toggle-switch.hpp"
+#include "ui/_lab/text.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -22,19 +22,22 @@ struct ReferenceTopBar : Reference::TopBar {
     static constexpr const uint height = Reference::Widgets::ToggleSwitch<1, true>::height;
 };
 
-class DualGainTopBarWidget : public ReferenceContainerWidget<ReferenceTopBar>
+class DualGainTopBarWidget : public LabReferenceContainerWidget<ReferenceTopBar, Horizontal>
 {
-    using BaseWidget = ReferenceContainerWidget<ReferenceTopBar>;
+    using BaseWidget = LabReferenceContainerWidget<ReferenceTopBar, Horizontal>;
+    using BaseWidget::BaseWidget;
 
     static constexpr const float kColor1[] = { 0.3f, 0.1f, 0.05f, 1.f };
     static constexpr const float kColor2[] = { 0.1f, 0.3f, 0.05f, 1.f };
-    std::shared_ptr<LabWidget> w1 = addWidget<LabColorWidget<kColor1>, Expanding>();
-    std::shared_ptr<LabWidget> w2 = addWidget<LabColorWidget<kColor2>, Expanding>();
-    std::shared_ptr<LabWidget> w3 = addWidget<ToggleSwitchWidget<1, true>, Expanding>(kCommonParameterBypass, "Bypass");
-
-public:
-    explicit DualGainTopBarWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
+    std::shared_ptr<LabWidget> w2 = addWidget<LabReferenceTextWidget<Reference::Widgets::TopBarButton>, Expanding>("text here");
+    std::shared_ptr<LabWidget> w2b = addWidget<NumberBoxWidget<kFaustParameterTriml>, Expanding>();
+    std::shared_ptr<LabWidget> w2c = addWidget<NumberBoxWidget<kFaustParameterTriml>, Expanding>();
+    std::shared_ptr<LabWidget> w2e = addWidget<NumberBoxWidget<kFaustParameterTriml>, Expanding>();
+    std::shared_ptr<LabWidget> w3 = addWidget<NumberBoxWidget<kFaustParameterTrimr>, Expanding>();
+    std::shared_ptr<LabWidget> w3b = addWidget<NumberBoxWidget<kFaustParameterTrimr>, Expanding>();
+    std::shared_ptr<LabWidget> w3c = addWidget<NumberBoxWidget<kFaustParameterTrimr>, Expanding>();
+    std::shared_ptr<LabWidget> w3d = addWidget<NumberBoxWidget<kFaustParameterTrimr>, Expanding>();
+    std::shared_ptr<LabWidget> w4 = addWidget<ToggleSwitchWidget<1, true>, Expanding>(kCommonParameterBypass, "Bypass");
 };
 
 struct ReferenceMainArea : Reference::MainArea {
@@ -44,7 +47,19 @@ struct ReferenceMainArea : Reference::MainArea {
     static constexpr const uint borderRadius = 20;
 };
 
-using DualGainMainAreaWidget = MainAreaContainerWidget<LabReferenceWidget<ReferenceMainArea>>;
+class DualGainStageWidget : public LabReferenceWidget<ReferenceMainArea>
+{
+    using BaseWidget = LabReferenceWidget<ReferenceMainArea>;
+    using BaseWidget::BaseWidget;
+
+public:
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
+    {
+        return {};
+    }
+};
+
+using DualGainMainAreaWidget = MainAreaContainerWidget<DualGainStageWidget>;
 using DualGainRootWidget = RootWidget<DualGainTopBarWidget, DualGainMainAreaWidget>;
 
 }
@@ -55,7 +70,7 @@ START_NAMESPACE_DISTRHO
 
 UI* createUI()
 {
-    return new LibreAudio::UI<LibreAudio::DualGainRootWidget, SHADERS_FFT_WAVEFORM_FRAG_DATA, SHADERS_FFT_WAVEFORM_FRAG_LEN>();
+    return new LibreAudio::UI<LibreAudio::DualGainRootWidget>();
 }
 
 END_NAMESPACE_DISTRHO

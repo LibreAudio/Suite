@@ -4,21 +4,23 @@
 
 #pragma once
 
-#include "../base.hpp"
 #include "../containers/knob-group.hpp"
-#include "../widgets/pill-toggle.hpp"
+#include "../containers/main-area.hpp"
+#include "../containers/pill-toggles-area.hpp"
 #if LIBREAUDIO_WANT_COMMON_IO
-#include "../widgets/gain-meter.hpp"
+#include "../widgets/io-meter.hpp"
 #endif
+
+#include "../base.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ParameterDumpStageWidget final : public ReferenceContainerWidget<Reference::Stage, kVertical>
+class ParameterDumpCentralAreaWidget final : public LabReferenceContainerWidget<Reference::CentralArea, Vertical>
 {
-    using R = Reference::Stage;
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using R = Reference::CentralArea;
+    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
     using KnobGroupWidget10 = KnobGroupWidget<SmallKnobWidget, 10>;
 
     std::shared_ptr<LabWidget> fTopArea = addWidget<PillAreaWidget<>>();
@@ -26,7 +28,7 @@ class ParameterDumpStageWidget final : public ReferenceContainerWidget<Reference
     std::list<std::shared_ptr<KnobGroupWidget10>> fKnobGroups;
 
 public:
-    explicit ParameterDumpStageWidget(LabWidget* const parent)
+    explicit ParameterDumpCentralAreaWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
         fTopArea->setHeight(30 * fScaleFactor);
@@ -47,9 +49,9 @@ public:
         updateSize(true);
     }
 
-    float getBorderRadius() const noexcept
+    [[nodiscard]] std::shared_ptr<WaveformWidget> getWaveformWidget() const noexcept
     {
-        return R::borderRadius * fScaleFactor;
+        return {};
     }
 
 private:
@@ -102,7 +104,7 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using ParameterDumpArea = MainAreaContainerWidget<ParameterDumpStageWidget>;
+using ParameterDumpMainAreaWidget = MainAreaContainerWidget<ParameterDumpCentralAreaWidget>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

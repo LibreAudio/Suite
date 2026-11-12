@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "../_lab/base.hpp"
 #include "../_lab/interface.hpp"
 
 #include "LibreAudioIPC.hpp"
@@ -36,19 +37,22 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class ShaderBaseWidget : public SubWidget
+struct ShaderWidgetInterface
 {
 public:
-    explicit ShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : SubWidget(parent),
-          fInterface(iface) {}
+    explicit ShaderWidgetInterface(LabUIWidgetInterface* const iface)
+        : fInterface(iface) {}
 
-    void setBorderRadius(const float borderRadius) noexcept
+    virtual ~ShaderWidgetInterface() = default;
+
+    virtual void setAbsolutePos(const Point<int>& pos) = 0;
+    virtual void setSize(const Size<uint>& size) = 0;
+
+    virtual void setBorderRadius(const float borderRadius)
     {
         if (d_isEqual(fBorderRadius, borderRadius))
             return;
         fBorderRadius = borderRadius;
-        repaint();
     }
 
 protected:
@@ -58,9 +62,53 @@ protected:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class ShaderBackgroundWidget final : public NanoSubWidget,
+                                     public ShaderWidgetInterface
+{
+    static constexpr const Color kBackgroundColor = Color(0x19, 0x1A, 0x1E);
+
+public:
+    explicit ShaderBackgroundWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+        : NanoSubWidget(parent),
+          ShaderWidgetInterface(iface) {}
+
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        NanoSubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size) final
+    {
+        NanoSubWidget::setSize(size);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
+    }
+
+private:
+    void onNanoDisplay() final
+    {
+        beginPath();
+
+        if (d_isNotZero(fBorderRadius))
+            roundedRect(0, 0, getWidth(), getHeight(), fBorderRadius);
+        else
+            rect(0, 0, getWidth(), getHeight());
+
+        fillColor(kBackgroundColor);
+        fill();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 template<const char src[], uint size, uint textureSize = 0>
-class BackgroundShaderWidget final : public ShaderBaseWidget,
-                                     public IdleCallback
+class CleanShaderWidget final : public SubWidget,
+                                public ShaderWidgetInterface,
+                                public IdleCallback
 {
    #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
     static constexpr const GLenum kSingleChannelFormat = GL_RED;
@@ -69,8 +117,9 @@ class BackgroundShaderWidget final : public ShaderBaseWidget,
    #endif
 
 public:
-    explicit BackgroundShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : ShaderBaseWidget(parent, iface),
+    explicit CleanShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
+        : SubWidget(parent),
+          ShaderWidgetInterface(iface),
           fParent(parent)
     {
         parent->addIdleCallback(this, kTargetIdleTimeMs);
@@ -195,11 +244,13 @@ public:
         if constexpr (textureSize != 0)
         {
             gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureSize = glGetUniformLocation(program, "_dpf_texture_size");
             gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
 
             fTextureData.resize(textureSize, 0.f);
             fTextureDataTail = textureSize - 1;
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
@@ -245,7 +296,7 @@ public:
         }
     }
 
-    ~BackgroundShaderWidget() final
+    ~CleanShaderWidget() final
     {
         fParent->removeIdleCallback(this);
 
@@ -258,6 +309,22 @@ public:
         glDeleteTextures(std::size(gl3.textures), gl3.textures);
 
         glDeleteProgram(gl3.program);
+    }
+
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        SubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size_) final
+    {
+        SubWidget::setSize(size_);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
     }
 
     // std::enable_if_t<textureSize != 0, void>
@@ -288,6 +355,8 @@ public:
     }
 
 private:
+    double last = getApp().getTime();
+
     void idleCallback() final
     {
         if (! fPendingDisplay)
@@ -296,7 +365,6 @@ private:
             repaint();
         }
 
-        static double last = getApp().getTime();
         if (const double t = getApp().getTime(); t - last > 1)
         {
             last = t;
@@ -334,7 +402,7 @@ private:
 
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
-        glUniform1f(gl3.dpfScaleFactor, fInterface->getScaleFactor());
+        glUniform1f(gl3.dpfScaleFactor, fInterface->getInterfaceScaleFactor());
 
         glUniform3f(gl3.iMouse, fMousePos.getX(), fMousePos.getY(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
@@ -342,11 +410,13 @@ private:
 
         if constexpr (textureSize != 0)
         {
+            glUniform1i(gl3.dpfTextureData, 0);
+            glUniform1i(gl3.dpfTextureSize, textureSize);
             glUniform1f(gl3.dpfTextureStart,
                         static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
-
             glTexSubImage2D(GL_TEXTURE_2D,
                             0,
                             0,
@@ -420,6 +490,7 @@ private:
         GLint dpfPosition;
         GLint dpfScaleFactor;
         GLint dpfTextureData;
+        GLint dpfTextureSize;
         GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;
@@ -443,6 +514,7 @@ private:
 
    #ifdef DISTRHO_OS_WINDOWS
     #define DGL_EXT(PROC, func) PROC func;
+    DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
     DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
     DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
     DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
@@ -456,7 +528,7 @@ private:
     DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
     DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
     DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
-    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog)
     DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
     DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
     DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)
@@ -476,6 +548,7 @@ private:
         #define DGL_EXT(PROC, func) \
             func = (PROC) wglGetProcAddress ( #func ); \
             DISTRHO_SAFE_ASSERT_RETURN(func != nullptr, false);
+        DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
         DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
         DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
         DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)

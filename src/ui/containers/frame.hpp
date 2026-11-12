@@ -5,21 +5,24 @@
 #pragma once
 
 #include "ui/containers/knob-group.hpp"
-#include "ui/widgets/button.hpp"
+#include "ui/containers/pill-toggles-area.hpp"
+#include "ui/reference/button.hpp"
+// #include "ui/widgets/button.hpp"
 #include "ui/widgets/dual-slider.hpp"
-#include "ui/widgets/pill-toggle.hpp"
+#include "ui/widgets/number-box.hpp"
 
-#include LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE
+#include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
 template<class R>
-class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, kVertical>
+class FrameContainerReferenceWidget : public LabReferenceContainerWidget<R, Vertical>
 {
-    using BaseWidget = ReferenceContainerWidget<R, kVertical>;
+    using BaseWidget = LabReferenceContainerWidget<R, Vertical>;
     using Layout = typename BaseWidget::Layout;
+    using BaseWidget::BaseWidget;
 
     std::list<std::shared_ptr<LabWidget>> fWidgets;
 
@@ -31,9 +34,6 @@ class FrameContainerReferenceWidget : public ReferenceContainerWidget<R, kVertic
     };
 
 public:
-    explicit FrameContainerReferenceWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
-
     template <FaustParameterIndex parameterA, FaustParameterIndex parameterB>
     void addDualSlider()
     {
@@ -42,9 +42,16 @@ public:
         fWidgets.emplace_back(std::move(widget));
     }
 
-    void addPillToggle(const FaustParameterIndex parameter)
+    void addNumberBox(const FaustParameterIndex index)
     {
-        std::shared_ptr<LabWidget> widget { new PillAreaWidget<1>(this, parameter) };
+        std::shared_ptr<LabWidget> widget { new NumberBoxWidget(this, index) };
+        Layout::widgets.push_back({ widget.get(), Fixed });
+        fWidgets.emplace_back(std::move(widget));
+    }
+
+    void addPillToggle(const FaustParameterIndex index)
+    {
+        std::shared_ptr<LabWidget> widget { new PillAreaWidget<1>(this, index) };
         Layout::widgets.push_back({ widget.get(), Fixed });
         fWidgets.emplace_back(std::move(widget));
     }
@@ -67,9 +74,11 @@ public:
         fWidgets.emplace_back(std::move(spacer));
     }
 
-    void addText(const char* const text)
+    void addText(const FaustParameterIndex index, const char* const text)
     {
-        std::shared_ptr<LabWidget> spacer { new TextButtonWidget<kCornerNone, TextReference, kVertical>(this, text) };
+        std::shared_ptr<LabWidget> spacer {
+            new TextButtonWidget<TextReference, kCornerNone, Vertical>(this, kParametersMainStart + index, text)
+        };
         Layout::widgets.push_back({ spacer.get(), Fixed });
         fWidgets.emplace_back(std::move(spacer));
     }
@@ -82,9 +91,13 @@ public:
 
         return {};
     }
-};
 
-// --------------------------------------------------------------------------------------------------------------------
+    template<class W, SizeHint sizeHint = Expanding>
+    void addSpacer() = delete;
+
+    template<class W, SizeHint sizeHint = Fixed, typename... Args>
+    void addWidget(Args... args) = delete;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

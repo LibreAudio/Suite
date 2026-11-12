@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="32.190018"
+   height="16.901228"
+   viewBox="0 0 32.190018 16.901228"
+   version="1.1"
+   id="svg192"
+   sodipodi:docname="LibreAudioLogoDraft10b-noDot-rainbow.svg"
+   inkscape:version="1.2.1 (9c6d41e, 2022-07-14)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview194"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="true"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="32"
+     inkscape:cx="0.9375"
+     inkscape:cy="6.671875"
+     inkscape:window-width="3440"
+     inkscape:window-height="1387"
+     inkscape:window-x="157"
+     inkscape:window-y="65"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg192"
+     showborder="false" />
+  <title
+     id="title182">LibreAudioLogoDraft10-rainbow</title>
+  <defs
+     id="defs185">
+    <path
+       d="M 0,0 H 32 V 17 H 0 Z"
+       id="path-1" />
+    <linearGradient
+       id="rainbow"
+       gradientUnits="userSpaceOnUse"
+       x1="0" y1="0" x2="32.190018" y2="0">
+      <stop offset="0.0000" stop-color="#ffbfcb" />
+      <stop offset="0.1667" stop-color="#ffdfad" />
+      <stop offset="0.3333" stop-color="#d2fdd3" />
+      <stop offset="0.5000" stop-color="#bef1ff" />
+      <stop offset="0.6667" stop-color="#c3d9ff" />
+      <stop offset="0.8333" stop-color="#dac1f3" />
+      <stop offset="1.0000" stop-color="#ffdcf5" />
+    </linearGradient>
+  </defs>
+  <path
+     d="m 1.4666981,0.00420713 c 0.8078024,0 1.4626556,0.65485321 1.4626556,1.46265557 v 9.7178633 c 0,1.467045 1.3588857,2.71092 2.7479351,2.762754 l 4.9077852,0.0264 c 1.020286,0.0055 1.960543,-0.551791 2.445548,-1.449445 l 1.641176,-3.0375107 c 1.408689,-3.053775 2.748511,-5.5642871 4.025133,-7.5371956 1.647444,-2.54598063 5.402569,-2.45610927 6.92463,0.1669096 0.261582,0.4507932 0.510382,0.9235443 0.77741,1.4708382 0.389759,0.8064394 0.688817,1.4718151 1.075815,2.319581 0.510571,1.1156368 0.915797,1.9718704 1.403693,2.9487343 0.745576,1.4927922 1.27428,2.5570842 1.676395,3.3725662 0.211743,0.429409 0.624978,1.27298 0.6582,1.340379 l 0.0077,0.01561 c 0.157878,0.320123 0.311352,0.625786 0.572933,1.140147 0.189517,0.372658 0.462336,1.139707 0.381827,1.518743 -0.159565,0.75124 -1.429007,0.650918 -1.818696,0.656066 -0.501742,0.0066 -0.804447,-0.128711 -1.170626,-0.848757 -0.266655,-0.52434 -0.42536,-0.840418 -0.589035,-1.172298 l -0.008,-0.01615 C 28.55383,14.790317 28.14072,13.947002 27.931197,13.522092 27.531473,12.711459 27.004924,11.651506 26.261426,10.162876 25.756537,9.1519865 25.338031,8.2676916 24.814801,7.1243948 24.478474,6.3765202 24.098562,5.5626931 23.769899,4.8702117 23.531697,4.3819997 23.351994,3.9457074 23.091372,3.5848272 22.665533,2.9951729 21.614363,2.9721548 21.152916,3.5389328 19.758717,5.251375 18.669338,7.8007604 17.306737,10.75787 l -0.01947,0.04224 -0.02211,0.04092 -1.660868,3.073957 c -0.99854,1.848112 -2.934363,2.995449 -5.034952,2.984234 L 5.661556,16.872749 C 2.5320877,16.855917 0.00404246,14.314239 0.00404246,11.184726 V 1.4668627 c 0,-0.4019479 -0.05124687,-0.98394796 0.2111883,-1.24832698 C 0.48021657,-0.04841283 1.0608436,0.00420713 1.4666981,0.00420713 Z"
+     id="Combined-Shape"
+     fill="url(#rainbow)"
+     fill-rule="nonzero"
+     style="display:inline;fill:url(#rainbow);stroke:none"
+     sodipodi:nodetypes="sssccscssccssssssssccssccsscccsccssss" />
+  <metadata
+     id="metadata544">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>LibreAudioLogoDraft10-rainbow</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

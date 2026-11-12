@@ -6,6 +6,8 @@ declare license "GPL-3.0-or-later";
 declare name "5-Band M-S Compressor";
 declare unique_id "LAm5";
 
+declare graph "analyzer";
+
 // Dry/wet is built here rather than taken from the host wrapper, for the same
 // reason compressor.dsp gives: leaving the flag on would stack the wrapper's
 // common "Dry / Wet" on top of this one, and the two tap the dry from
@@ -78,7 +80,7 @@ rmsTime = glob_group(vslider("[2]RMS Time[unit:ms][symbol:rms_time]
        the average collapses to the rectified signal, so the two meet
        continuously and there is no mode switch to click. Turning it up makes
        every band follow loudness instead of transients]",
-                             10, 0, 250, 0.1)) * 0.001;
+                             10, 0, 250, 1)) * 0.001;
 
 // ---- envelope shape ----
 
@@ -117,7 +119,7 @@ bandLink = glob_group(vslider("[5]Band Link[unit:%][symbol:band_link]
 // the detector can be built at, not points on a continuum. See the Shelf
 // section for how the same number reshapes the gain application.
 slopeSel = glob_group(nentry("[6]Slope[symbol:slope]
-      [style:menu{'6 dB/oct':0;'12 dB/oct':1;'24 dB/oct':2}]
+      [style:menu{'6':0;'12':1;'24':2}][unit:dB]
       [tooltip: Steepness of the band split. Applies to both halves of the
        crossover: how selectively each band listens, and how sharply the gain
        it computes is applied. Shallow settings overlap and behave more like a
@@ -129,7 +131,7 @@ slopeSel = glob_group(nentry("[6]Slope[symbol:slope]
 lookaheadMs = glob_group(vslider("[7]Lookahead[unit:ms][symbol:lookahead]
       [tooltip: Delays the audio so the gain is already down when the transient
        arrives. Reported to the host as latency and compensated. 0 = off]",
-                                 0, 0, 50, 0.1));
+                                 0, 0, 50, 1));
 
 drywet = glob_group(vslider("[8]Dry / Wet[unit:%][symbol:drywet]
       [tooltip: Blend of the compressed signal against the untouched input, for
@@ -167,28 +169,31 @@ listenFloorDb = -18; /*glob_group(vslider("[9]Listen Floor[unit:dB][symbol:liste
                                    -18, -48, -6, 1));*/
 
 //======================= Crossover frequencies =======================
-// Four free sliders, forced into ascending order on the way out and kept
-// clear of Nyquist. The 1.02 margin stops two sections from landing on the
-// same frequency, which would leave a band with no bandwidth for its detector
-// to look at and two shelves fighting over one corner.
+// Adjacent crossovers stay at least one octave (2x) apart. Reserve room for
+// all higher crossovers before clamping a lower one, so automation and preset
+// recalls cannot collapse the upper bands against Nyquist. Crossovers range
+// from 40 Hz to 12 kHz. Keep this rule in sync with mbComp5/response.hpp.
 //
-// Clamping the *effective* frequency rather than the slider means dragging
-// one crossover past another does not drag the other one's control with it -
-// the neighbour is held until the first one moves back off it.
+// Clamp effective frequencies without rewriting host parameter values. The
+// native UI additionally limits each drag against its current neighbours.
 
-nyq   = 0.45 * ma.SR;
-clamp(f) = max(20, min(f, nyq));
+nyq = min(12000, 0.45 * ma.SR);
+xoRatio = 2;
+xoFloor = min(40, nyq / pow(xoRatio, 3));
+clampXo(n, lo, f) = max(lo, min(f, nyq / pow(xoRatio, 4-n)));
 
 xoRaw(n) = xo_group(vslider("[%n]Crossover %n[unit:Hz][scale:log][symbol:xover%n]
-      [tooltip: Split point between band %n and the band above it. Held above
-       the crossover below it, so the four can never cross over each other]",
-                            ba.take(n, (100, 500, 2000, 8000)), 20, 20000, 1))
+      [tooltip: Split point between band %n and the band above it. Adjacent
+       crossovers stay at least one octave apart, between 40 Hz and 12 kHz
+       and below Nyquist]",
+                            ba.take(n, (100, 500, 2000, 8000)),
+                            40 * pow(xoRatio, n-1), 12000 / pow(xoRatio, 4-n), 1))
          : si.smoo;
 
-xf(1) = clamp(xoRaw(1));
-xf(2) = clamp(max(xf(1) * 1.02, xoRaw(2)));
-xf(3) = clamp(max(xf(2) * 1.02, xoRaw(3)));
-xf(4) = clamp(max(xf(3) * 1.02, xoRaw(4)));
+xf(1) = clampXo(1, xoFloor, xoRaw(1));
+xf(2) = clampXo(2, xf(1) * xoRatio, xoRaw(2));
+xf(3) = clampXo(3, xf(2) * xoRatio, xoRaw(3));
+xf(4) = clampXo(4, xf(3) * xoRatio, xoRaw(4));
 
 xoverFreqs = xf(1), xf(2), xf(3), xf(4);
 
@@ -206,22 +211,22 @@ threshOf(n) = band_group(n, vslider("[0]Threshold[unit:dB][symbol:band%{n}_thres
 ratioOf(n) = band_group(n, vslider("[1]Ratio[scale:log][symbol:band%{n}_ratio]
       [tooltip: dB in per dB out above this band's threshold. 1 = that band is
        left alone]",
-                                   2, 1, 20, 0.01));
+                                   2, 1, 20, 0.1));
 
 // Per-band defaults, fast at the top and slow at the bottom, which is where
 // anyone would end up setting them by hand: a 60 Hz cycle is 17 ms long, so a
 // low band with a 4 ms attack tracks the waveform instead of its envelope.
-attackOf(n) = band_group(n, vslider("[2]Attack[unit:ms][scale:log][symbol:band%{n}_attack]
+attackOf(n) = band_group(n, vslider("[2]Attack[unit:ms][symbol:band%{n}_attack]
       [tooltip: How fast this band's gain moves toward a deeper reduction. A
        1/e time constant, since the attack curve is exponential]",
-                                    ba.take(n, (30, 20, 10, 6, 4)), 0.01, 100, 0.01))
+                                    ba.take(n, (30, 20, 10, 6, 4)), 1, 100, 0.1))
             * 0.001;
 
-releaseOf(n) = band_group(n, vslider("[3]Release[unit:ms][scale:log][symbol:band%{n}_release]
+releaseOf(n) = band_group(n, vslider("[3]Release[unit:ms][symbol:band%{n}_release]
       [tooltip: How fast this band's gain moves back toward unity. Read as a
        1/e time constant at Shape 100%, or as the time to cover 20 dB at
        Shape 0%]",
-                                     ba.take(n, (300, 250, 180, 120, 90)), 1, 2000, 0.1))
+                                     ba.take(n, (300, 250, 180, 120, 90)), 1, 2000, 1))
              * 0.001;
 
 makeupOf(n) = band_group(n, vslider("[4]Makeup[unit:dB][symbol:band%{n}_makeup]

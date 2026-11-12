@@ -10,7 +10,7 @@ START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const uchar* imageData, uint imageDataSize, uint imageScale = 2>
+template<const uchar* kImageData, uint kImageDataSize, uint kImageScale = 2>
 class LabImageWidget final : public LabWidget
 {
     using BaseWidget = LabWidget;
@@ -23,7 +23,7 @@ public:
     }
 
 private:
-    const NanoImage fImage { createImageFromMemory(imageData, imageDataSize, IMAGE_GENERATE_MIPMAPS) };
+    const NanoImage fImage { createImageFromMemory(kImageData, kImageDataSize, IMAGE_GENERATE_MIPMAPS) };
     float fImageWidth;
     float fImageHeight;
 
@@ -46,12 +46,13 @@ private:
 
     void updateSize(const bool updateChildren) final
     {
-        fImageWidth = fImage.getWidth() * fScaleFactor / imageScale;
-        fImageHeight = fImage.getHeight() * fScaleFactor / imageScale;
+        fImageWidth = fImage.getWidth() * fScaleFactor / kImageScale;
+        fImageHeight = fImage.getHeight() * fScaleFactor / kImageScale;
 
         const uint width = getWidth();
         const uint height = getHeight();
 
+        // FIXME
         if (width == height)
             setSize(fImageWidth, fImageHeight);
         else if (width > height)

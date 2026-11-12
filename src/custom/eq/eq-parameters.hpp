@@ -2,10 +2,12 @@
 #pragma once
 #include "FaustParameter.hpp"
 #include <array>
+#include <cstdint>
 namespace eq {
 inline constexpr unsigned kBandCount = 16;
 enum BandParameter { kPresent, kEnabled, kType, kChannel, kFrequency, kGain, kQ, kAdaptiveQ, kSlope, kListen, kBandStride };
-inline constexpr unsigned kFaustParameterCount = kBandCount * kBandStride;
+// the shared UI widgets name parameters by this type; the slots are band * kBandStride + BandParameter
+enum FaustParameterIndex : uint16_t { kFaustParameterCount = kBandCount * kBandStride };
 inline constexpr std::array<FaustParameter, kFaustParameterCount> kFaustParameters {{
     {"", "Present", "Present", "Band 1 Present", "band_1_present", "", "", 0.0f, 0.0f, 1.0f, 1.0f, 0, nullptr, 0, {nullptr, nullptr, 0}, true, false, false, false, true, false, false, false},
     {"", "Enabled", "Enabled", "Band 1 Enabled", "band_1_enabled", "", "", 1.0f, 0.0f, 1.0f, 1.0f, 0, nullptr, 0, {nullptr, nullptr, 0}, true, false, false, false, true, false, false, false},

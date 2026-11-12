@@ -156,6 +156,17 @@ Modifiers follow FabFilter Pro-Q conventions; Cmd on macOS stands for Ctrl.
   Ctrl/Cmd-click or double-click resets to default.
 - Option bar: power (on/off) and X (remove) buttons.
 
+## UI framework
+
+The EQ UI sits in the suite's shared frame (`eq-ui.cpp`): `RootWidget` with the
+common `TopBar`, `MainAreaContainerWidget` with the IO meters, and the `UI`
+template's background and starfield shaders, which `EqRootWidget` confines to
+the curve display's well. The central area stacks the shared `WaveformWidget`
+analyser under the EQ widget, spanning the display's 20 Hz–20 kHz (the range
+`LibreAudioAnalyzerIPC` bins cover). The analyser shows the EQ output; the
+pre/post caption is a display setting only. The band controls are drawn by the
+EQ widget itself, since the shared widgets bind fixed parameter indices.
+
 ## Validation
 
 From the repository root:

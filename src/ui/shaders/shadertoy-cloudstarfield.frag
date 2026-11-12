@@ -23,14 +23,6 @@
 // Tunables
 // --------------------------------------------------------------------------------
 
-// Colour the clouds and stars are composited over: a vertical gradient running
-// top to bottom of the widget. The original shader had no visible background --
-// the tint was multiplied by its own intensity and written straight out -- so
-// setting both stops to black reproduces the original look exactly. Raise them
-// for a lifted, hazier base.
-const vec3 backgroundColorTop    = vec3(0.0980, 0.1020, 0.1176); // #191A1E
-const vec3 backgroundColorBottom = backgroundColorTop * 0.9;     // 10% darker, ~#16171B
-
 // Gradient endpoints. `colorLow` dominates near the bottom of the frame,
 // `colorHigh` near the top. (These were `color1` / `color2`.)
 const vec3 colorLow  = vec3(0.8549, 0.7569, 0.9529); // soft violet
@@ -353,13 +345,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec2 flight = (fragCoord.xy - 0.5 * iResolution.xy) / iResolution.x;
     float stars = starfield(flight, starPhase()) * (1.0 - starOcclusion * cloudCover);
 
-    // Base gradient, measured against the real edges of the widget: 0 at the
-    // bottom, 1 at the top, same orientation as the cloud envelope above.
-    vec3 backgroundColor = mix(backgroundColorBottom,
-                               backgroundColorTop,
-                               fragCoord.y / iResolution.y);
+    vec3 sky = starColor * (stars * starBrightness);
 
-    vec3 sky = backgroundColor + starColor * (stars * starBrightness);
-
-    fragColor = vec4(sky + clouds, 1.0);
+    fragColor = vec4(sky + clouds, clamp(stars * 2., 0., 1.));
 }

@@ -4,11 +4,16 @@
 
 #pragma once
 
+#include "interface.hpp"
+
 #include "Application.hpp"
 #include "NanoVG.hpp"
 
 START_NAMESPACE_DGL
 
+// --------------------------------------------------------------------------------------------------------------------
+
+class LabRootWidgetInterface;
 class LabUIWidgetInterface;
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -21,11 +26,14 @@ enum Corner : uint8_t {
 };
 
 enum Orientation : bool {
-    kHorizontal,
-    kVertical,
+    Horizontal,
+    Vertical,
 };
 
 constexpr inline const Corner kCornerAuto = static_cast<Corner>(UINT8_MAX);
+
+// widget ids are assigned after parameters (defined elsewhere), so leave a big enough gap to ensure no overlap
+constexpr inline const uint32_t kWidgetIdsStart = UINT16_MAX + 1;
 
 // --------------------------------------------------------------------------------------------------------------------
 // base widget class
@@ -36,6 +44,11 @@ class BaseWidgetOf : public BaseWidget
 public:
     explicit BaseWidgetOf(BaseWidgetOf<NanoSubWidget>* const parent)
         : BaseWidget(parent),
+          fInterface(parent->fInterface),
+          fScaleFactor(parent->fScaleFactor) {}
+
+    explicit BaseWidgetOf(BaseWidgetOf<NanoSubWidget>* const parent, NanoSubWidget::FramebufferCallback* fbCb)
+        : BaseWidget(parent, fbCb),
           fInterface(parent->fInterface),
           fScaleFactor(parent->fScaleFactor) {}
 
@@ -68,6 +81,11 @@ public:
             BaseWidget::getWindow().addIdleCallback(callback);
         else
             BaseWidget::addIdleCallback(callback);
+    }
+
+    [[nodiscard]] float getScaleFactor() const noexcept
+    {
+        return fScaleFactor;
     }
 
     [[nodiscard]] double getTime() const
@@ -114,11 +132,11 @@ protected:
        #endif
         static_assert(corner == kCornerNone || R::borderRadius != 0, "corner != none requires borderRadius");
 
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
+
         if constexpr (d_isNotZero(backgroundColor.alpha))
         {
-            const float w = BaseWidget::getWidth();
-            const float h = BaseWidget::getHeight();
-
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0 && corner != kCornerNone)
@@ -148,6 +166,40 @@ protected:
                 BaseWidget::fill();
             }
         }
+
+        if constexpr (d_isNotZero(R::shadowColor.alpha) && R::shadowFeather != 0)
+        {
+            const float r = R::borderRadius * fScaleFactor;
+            const float sx = R::shadowOffset.getX() * fScaleFactor;
+            const float sy = R::shadowOffset.getY() * fScaleFactor;
+            const float sw = R::shadowSize.getWidth() * fScaleFactor;
+            const float sh = R::shadowSize.getHeight() * fScaleFactor;
+            const float feather = R::shadowFeather * fScaleFactor;
+            const float fx = sx - feather;
+            const float fy = sy - feather;
+            const float fw = w + sx + feather * 2;
+            const float fh = h + sy + feather * 2;
+
+            BaseWidget::beginPath();
+
+            BaseWidget::rect(fx, fy, fw, fh);
+
+            if constexpr (R::borderRadius != 0)
+                BaseWidget::roundedRect(0, 0, w, h, r);
+            else
+                BaseWidget::roundedRect(0, 0, w, h);
+
+            BaseWidget::pathWinding(BaseWidget::CW);
+            BaseWidget::fillPaint(BaseWidget::boxGradient(sx - sw * 0.5f,
+                                                          sy - sh * 0.5f,
+                                                          w + sw,
+                                                          h + sh,
+                                                          r,
+                                                          feather,
+                                                          R::shadowColor,
+                                                          Color(R::shadowColor, 0.f)));
+            BaseWidget::fill();
+        }
     }
 
     template <class R>
@@ -159,52 +211,147 @@ protected:
     template <class R, const Color& borderColor>
     void drawReferenceBorder()
     {
+        static_assert(d_isZero(R::borderHighlightColor.alpha) || R::borderRadius != 0,
+                      "borderRadius must be != 0 if using border highlight color");
+
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
+
         if constexpr (R::border != 0 && d_isNotZero(borderColor.alpha))
         {
-            const float w = BaseWidget::getWidth();
-            const float h = BaseWidget::getHeight();
-
             const float border = d_roundToIntPositive(R::border * fScaleFactor);
-            const float borderh = border * 0.5f;
-
-            const float sx = borderh;
-            const float sy = borderh;
-            const float ex = w - borderh;
-            const float ey = h - borderh;
 
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0)
-            {
-                const float borderRadius = R::borderRadius * fScaleFactor;
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius < w * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius < h * 0.5f,);
-                DISTRHO_SAFE_ASSERT_RETURN(borderRadius > border,);
-
-                const float arcRadius = borderRadius - border;
-
-                BaseWidget::moveTo(sx + borderRadius, sy);
-                BaseWidget::arcTo(sx, sy, sx, ey - borderRadius, arcRadius);
-                BaseWidget::lineTo(sx, ey - borderRadius);
-                BaseWidget::arcTo(sx, ey, sx + borderRadius, ey, arcRadius);
-                BaseWidget::lineTo(ex - borderRadius, ey);
-                BaseWidget::arcTo(ex, ey, ex, ey - borderRadius, arcRadius);
-                BaseWidget::lineTo(ex, sx + borderRadius);
-                BaseWidget::arcTo(ex, sy, ex - borderRadius, sy, arcRadius);
-            }
+                borderRoundedRect(0, 0, w, h, border, d_roundToIntPositive(R::borderRadius * fScaleFactor));
             else
-            {
-                BaseWidget::moveTo(sx, sy);
-                BaseWidget::lineTo(sx, ey);
-                BaseWidget::lineTo(ex, ey);
-                BaseWidget::lineTo(ex, sy);
-            }
+                borderRect(0, 0, w, h, border);
 
-            BaseWidget::closePath();
             BaseWidget::strokeColor(borderColor);
             BaseWidget::strokeWidth(border);
             BaseWidget::stroke();
+
+            if constexpr (R::borderRadius != 0 && d_isNotZero(R::borderHighlightColor.alpha))
+            {
+                const float r = R::borderRadius * fScaleFactor;
+
+                // BaseWidget::save();
+                // BaseWidget::scissor(0, 0, w, r);
+                BaseWidget::strokePaint(BaseWidget::linearGradient(0,
+                                                                   0,
+                                                                   0,
+                                                                   r,
+                                                                   R::borderHighlightColor,
+                                                                   Color(R::borderHighlightColor, 0.f)));
+                BaseWidget::stroke();
+                // BaseWidget::restore();
+            }
+
+            if constexpr (R::borderRadius != 0 && d_isNotZero(R::borderShadowColor.alpha))
+            {
+                const float r = R::borderRadius * fScaleFactor;
+
+                // BaseWidget::save();
+                // BaseWidget::scissor(0, h - r, w, r);
+                BaseWidget::strokePaint(BaseWidget::linearGradient(0,
+                                                                   h - r,
+                                                                   0,
+                                                                   h,
+                                                                   Color(R::borderShadowColor, 0.f),
+                                                                   R::borderShadowColor));
+                BaseWidget::stroke();
+                // BaseWidget::restore();
+            }
         }
+    }
+
+    template <class R>
+    void drawReferenceLine(const float sx, const float sy, const float ex, const float ey)
+    {
+        drawReferenceLine<R, R::color>(sx, sy, ex, ey);
+    }
+
+    template <class R, const Color& color>
+    void drawReferenceLine(const float sx, const float sy, const float ex, const float ey)
+    {
+        if constexpr (d_isNotZero(R::color.alpha))
+        {
+            BaseWidget::beginPath();
+            BaseWidget::moveTo(sx, sy);
+            BaseWidget::lineTo(ex, ey);
+            BaseWidget::strokeColor(R::color);
+            if constexpr (R::width != 0)
+                BaseWidget::strokeWidth(R::width * fScaleFactor);
+            else if constexpr (R::height != 0)
+                BaseWidget::strokeWidth(R::height * fScaleFactor);
+            else
+                BaseWidget::strokeWidth(fScaleFactor);
+            BaseWidget::stroke();
+        }
+    }
+
+    template <class R>
+    void drawReferenceText(const char* const text)
+    {
+        drawReferenceText<R, R::color>(text);
+    }
+
+    template <class R, const Color& color>
+    void drawReferenceText(const char* const text)
+    {
+        if constexpr (d_isNotZero(color.alpha))
+        {
+            const float w = BaseWidget::getWidth();
+            const float h = BaseWidget::getHeight();
+
+            BaseWidget::fillColor(color);
+            BaseWidget::fontSize(R::fontSize * fScaleFactor);
+            BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
+            BaseWidget::textLetterSpacing(R::letterSpacing * fScaleFactor);
+            BaseWidget::text(w * 0.5f, h * 0.5f, text);
+        }
+    }
+
+    // mimic nanovg rect() but make it better suited for border lines
+    void borderRect(float x, float y, float w, float h, const float border)
+    {
+        const float borderh = border * 0.5f;
+        x += borderh;
+        y += borderh;
+        w -= borderh;
+        h -= borderh;
+
+        BaseWidget::moveTo(x, y);
+        BaseWidget::lineTo(x, y + h);
+        BaseWidget::lineTo(x + w, y + h);
+        BaseWidget::lineTo(x + w, y);
+        BaseWidget::closePath();
+    }
+
+    // mimic nanovg roundedRect() but make it better suited for border lines
+    void borderRoundedRect(float x, float y, float w, float h, const float border, const float r)
+    {
+        const float arcRadius = r - border;
+        const float borderh = border * 0.5f;
+        x += borderh;
+        y += borderh;
+        w -= borderh;
+        h -= borderh;
+
+        DISTRHO_SAFE_ASSERT_RETURN(r < w * 0.5f,);
+        DISTRHO_SAFE_ASSERT_RETURN(r < h * 0.5f,);
+        DISTRHO_SAFE_ASSERT_RETURN(r > border,);
+
+        BaseWidget::moveTo(x + r, y);
+        BaseWidget::arcTo(x, y, x, y + h - r, arcRadius);
+        BaseWidget::lineTo(x, y + h - r);
+        BaseWidget::arcTo(x, y + h, x + r, y + h, arcRadius);
+        BaseWidget::lineTo(x + w - r, y + h);
+        BaseWidget::arcTo(x + w, y + h, x + w, y + h - r, arcRadius);
+        BaseWidget::lineTo(x + w, y + r);
+        BaseWidget::arcTo(x + w, y, x + w - r, y, arcRadius);
+        BaseWidget::closePath();
     }
 
     template <class R>
@@ -252,11 +399,9 @@ private:
 class LabTopLevelWidget : public BaseWidgetOf<NanoTopLevelWidget>
 {
     using BaseWidget = BaseWidgetOf<NanoTopLevelWidget>;
+    using BaseWidget::BaseWidget;
 
 public:
-    explicit LabTopLevelWidget(Window& windowToMapTo, LabUIWidgetInterface* const iface)
-        : BaseWidget(windowToMapTo, iface) {}
-
     void setWidth() = delete;
     void setHeight() = delete;
     void setSize() = delete;
@@ -273,13 +418,47 @@ protected:
 class LabWidget : public BaseWidgetOf<NanoSubWidget>
 {
     using BaseWidget = BaseWidgetOf<NanoSubWidget>;
+    using BaseWidget::BaseWidget;
 
-public:
-    explicit LabWidget(LabTopLevelWidget* const parent)
-        : BaseWidget(parent) {}
+protected:
+    // helper cursor methods
+    void resetCursor()
+    {
+        setCursor(kMouseCursorArrow);
+    }
 
-    explicit LabWidget(LabWidget* const parent)
-        : BaseWidget(parent) {}
+    void setCursor(const MouseCursor cursor)
+    {
+        fInterface->setCursor(this, cursor);
+    }
+
+    // reexport event functions so the Interface friend class can call them
+    bool onKeyboard(const KeyboardEvent& ev)
+    {
+        return BaseWidget::onKeyboard(ev);
+    }
+
+    bool onCharacterInput(const CharacterInputEvent& ev)
+    {
+        return BaseWidget::onCharacterInput(ev);
+    }
+
+    bool onMouse(const MouseEvent& ev)
+    {
+        return BaseWidget::onMouse(ev);
+    }
+
+    bool onMotion(const MotionEvent& ev)
+    {
+        return BaseWidget::onMotion(ev);
+    }
+
+    bool onScroll(const ScrollEvent& ev)
+    {
+        return BaseWidget::onScroll(ev);
+    }
+
+    friend class LabRootWidgetInterface;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

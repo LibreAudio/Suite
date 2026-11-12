@@ -6,6 +6,7 @@
 
 #include "LibreAudioBaseUI.hpp"
 
+#include "ui/widgets/fft-waveform.hpp"
 #include "ui/widgets/shader.hpp"
 
 #include "las-resources.h"
@@ -14,16 +15,23 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<class RootWidget,
-         const char shaderSrc[] = SHADERS_ANALYSER_FFT_FRAG_DATA,
-         uint shaderSrcSize = SHADERS_ANALYSER_FFT_FRAG_LEN>
-class UI final : public LibreAudioBaseUI
-{
-    const std::unique_ptr<ShaderBaseWidget> fShaderBackground {
-        new BotShaderWidget<SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA,
-                                        SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN>(this, this)
-    };
+#if defined(LIBREAUDIO_PLUGIN__chorus)
+#define SHADER_PLUGIN SHADERS_CURVE_CHORUS_FRAG_DATA, SHADERS_CURVE_CHORUS_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__delay)
+#define SHADER_PLUGIN SHADERS_CURVE_DELAY_FRAG_DATA, SHADERS_CURVE_DELAY_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__springReverb)
+#define SHADER_PLUGIN SHADERS_CURVE_SPRING_REVERB_FRAG_DATA, SHADERS_CURVE_SPRING_REVERB_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__tiltEQ)
+#define SHADER_PLUGIN SHADERS_CURVE_TILT_EQ_FRAG_DATA, SHADERS_CURVE_TILT_EQ_FRAG_LEN
+#elif defined(LIBREAUDIO_PLUGIN__vocalDoubler)
+#define SHADER_PLUGIN SHADERS_CURVE_VOCAL_DOUBLER_FRAG_DATA, SHADERS_CURVE_VOCAL_DOUBLER_FRAG_LEN
+#endif
 
+#define SHADER_CLOUDSTARFIELD SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_DATA, SHADERS_SHADERTOY_CLOUDSTARFIELD_FRAG_LEN
+
+template<class RootWidget>
+class UI : public LibreAudioBaseUI
+{
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     static constexpr const uint32_t kTextureSize = LibreAudioAnalyzerIPC::kNumBins;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -32,39 +40,54 @@ class UI final : public LibreAudioBaseUI
     static constexpr const uint32_t kTextureSize = 0;
    #endif
 
-    static constexpr const std::string_view label = DISTRHO_PLUGIN_LABEL;
-    using AnalyzerShaderW = std::conditional_t<label == "dualGain",
-                                               BackgroundShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>,
-                                               BotShaderWidget<shaderSrc, shaderSrcSize, kTextureSize>>;
-
-    const std::unique_ptr<AnalyzerShaderW> fShaderAnalyser {
-        new AnalyzerShaderW(this, this)
-    };
+    using MainAreaWidget = typename RootWidget::MainAreaWidget;
+    using CentralAreaWidget = typename MainAreaWidget::CentralArea;
 
 public:
+   #ifdef SHADER_PLUGIN
+    using BotShaderPluginWidget = BotShaderWidget<SHADER_PLUGIN, kTextureSize>;
+   #endif
+
     UI() : LibreAudioBaseUI()
     {
+        const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
+            std::make_shared<ShaderBackgroundWidget>(this, this),
+            std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
+           #ifdef SHADER_PLUGIN
+            std::make_shared<BotShaderPluginWidget>(this, this),
+           #endif
+        };
+
         createRootWidget<RootWidget>();
 
-        static_cast<RootWidget*>(fRootWidget.get())->enableShaders({
-            fShaderBackground.get(), fShaderAnalyser.get()
-        });
+        RootWidget* const root = static_cast<RootWidget*>(fRootWidget.get());
+
+        root->enableShaders(shaders);
+        const std::shared_ptr<MainAreaWidget> mainArea = root->getMainAreaWidget();
+        const std::shared_ptr<CentralAreaWidget> centralArea = mainArea->getCentralAreaWidget();
+        fWaveform = centralArea->getWaveformWidget();
     }
 
 private:
+    std::shared_ptr<WaveformBaseWidget> fWaveform;
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
     {
-        fShaderAnalyser->replace(values);
+        if (WaveformBaseWidget* const waveform = fWaveform.get())
+            waveform->replace(values);
     }
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
     void audioPeaksReceived(const LibreAudioWaveformIPC<LIBREAUDIO_WANT_GRAPH_IO_COUNT>::ValueType& value) final
     {
-       #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 1
-        fShaderAnalyser->push(value);
-       #else
-        fShaderAnalyser->push(std::max(value.ptr[0], value.ptr[1]));
-       #endif
+        if (WaveformBaseWidget* const waveform = fWaveform.get())
+        {
+           #if LIBREAUDIO_WANT_GRAPH_IO_COUNT == 2
+            waveform->push(value.ptr[0], value.ptr[1]);
+           #else
+            waveform->push(value);
+           #endif
+        }
     }
    #endif
 };

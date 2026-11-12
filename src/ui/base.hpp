@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "_lab/base.hpp"
 #include "_lab/interface.hpp"
 
 namespace LibreAudio {
@@ -20,8 +21,8 @@ enum Page : uint8_t {
 // invalid enum used for forced-init
 inline constexpr const Page kPageInit = static_cast<Page>(-1);
 
-enum WidgetIds : uint16_t {
-    kWidgetAbout = 1000,
+enum WidgetIds : uint32_t {
+    kWidgetAbout = kWidgetIdsStart,
     kWidgetEasy,
     kWidgetExpert,
     kWidgetMenu,
@@ -39,7 +40,7 @@ enum WidgetIds : uint16_t {
     kWidgetUndo,
 };
 
-constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
+inline constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
 {
     switch (id)
     {
@@ -80,7 +81,7 @@ constexpr const char* WidgetIds2Str(const WidgetIds id) noexcept
     return "";
 }
 
-inline Page getCurrentPage(LabUIWidgetInterface* const iface) noexcept
+inline Page getCurrentPage(const LabUIWidgetInterface* const iface) noexcept
 {
     if (iface->isButtonEnabled(kWidgetEasy) && iface->isButtonChecked(kWidgetEasy))
         return kPageEasy;
@@ -94,6 +95,14 @@ inline Page getCurrentPage(LabUIWidgetInterface* const iface) noexcept
     // fallback
     return kPageEasy;
 }
+
+class GraphInterface
+{
+public:
+    virtual ~GraphInterface() = default;
+    virtual void setBorderRadius(float radius) = 0;
+    virtual void setRange(float min, float start, float max) = 0;
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

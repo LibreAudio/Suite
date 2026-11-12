@@ -8,16 +8,47 @@
 
 #include "../reference.hpp"
 
-#include "FaustParameter.hpp"
+#include "LibreAudioParameters.hpp"
 
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template <uint8_t accent, bool small = false>
-class ToggleSwitchWidget : public ReferenceToggleSwitchWidget<Reference::Widgets::ToggleSwitch<accent, small>>
+template<FaustParameterIndex kParameterIndex>
+class ToggleSwitchBaseWidget : public LabToggleSwitchBaseWidget
 {
-    using BaseWidget = ReferenceToggleSwitchWidget<Reference::Widgets::ToggleSwitch<accent, small>>;
+    using BaseWidget = LabToggleSwitchBaseWidget;
+
+public:
+    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static_assert(kParameter.isBoolean, "check-box parameter must be boolean");
+
+    explicit ToggleSwitchBaseWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
+    {
+        setChecked(d_isNotEqual(kParameter.init, kParameter.min), false);
+        setName(kParameter.name);
+    }
+
+protected:
+    void buttonClicked(SubWidget*, int) override
+    {
+        fInterface->parameterControlModified(getId(), isChecked() ? kParameter.max : kParameter.min);
+    }
+
+    void idleCallback() override
+    {
+        if (setChecked(d_isNotEqual(fInterface->getParameterValue(getId()), kParameter.min), false))
+            parameterChangedByHost();
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template <uint8_t accent, bool small = false>
+class ToggleSwitchWidget : public LabReferenceToggleSwitchWidget<Reference::Widgets::ToggleSwitch<accent, small>>
+{
+    using BaseWidget = LabReferenceToggleSwitchWidget<Reference::Widgets::ToggleSwitch<accent, small>>;
 
 public:
     explicit ToggleSwitchWidget(LabWidget* const parent, const uint id, const char* const name)
@@ -27,6 +58,12 @@ public:
         : BaseWidget(parent, id, parameter.name)
     {
         BaseWidget::setChecked(d_isNotZero(parameter.init), false);
+    }
+
+    explicit ToggleSwitchWidget(LabWidget* const parent, const FaustParameterIndex index)
+        : BaseWidget(parent, kParametersMainStart + index, kFaustParameters[index].name)
+    {
+        BaseWidget::setChecked(d_isNotZero(kFaustParameters[index].init), false);
     }
 };
 

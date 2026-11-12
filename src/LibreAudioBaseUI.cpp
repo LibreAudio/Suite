@@ -68,7 +68,7 @@ LibreAudioBaseUI::~LibreAudioBaseUI()
    #if LIBREAUDIO_WANT_GRAPH
     if (fIPC.isCreatedOrConnected())
     {
-        setState(kStateKeyFileMappingIPC, "");
+        // setState(kStateKeyFileMappingIPC, "");
         fIPC.close();
     }
    #endif
@@ -198,7 +198,16 @@ void LibreAudioBaseUI::uiIdle()
        #endif
     }
 
+    if (fNeedsRepaint)
+    {
+        fNeedsRepaint = false;
+        repaint();
+    }
+
     fSnapshots.idle();
+
+    if (LibreAudio::MenuOverlayWidgetInterface* const menu = fMenuWidget.get(); menu != nullptr && menu->shouldClose())
+        fMenuWidget.reset();
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -342,10 +351,16 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[0] != '\0',);
         DISTRHO_SAFE_ASSERT_RETURN(snapshotKey[1] == '\0',);
 
-        const uint8_t snapshot = snapshotKey[0] -'a';
+        const uint8_t snapshot = snapshotKey[0] - 'a';
         DISTRHO_SAFE_ASSERT_INT_RETURN(snapshot < kNumSnapshots, snapshot,);
 
         // d_stdout("loading snapshot %u | %s", snapshot, value);
+
+        if (value[0] == '\0')
+        {
+            fSnapshots.resetData(fParameterValues);
+            return;
+        }
 
         float* const parameterValues = new float[kParameterCount];
         std::memcpy(parameterValues, fParameterValues, sizeof(float) * kParameterCount);
@@ -464,6 +479,26 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 // --------------------------------------------------------------------------------------------------------------------
 // Widget Callbacks
 
+void LibreAudioBaseUI::doubleClickHelperDone(SubWidget* const widget, const char* const text)
+{
+    const uint id = widget->getId();
+
+    if (id < kWidgetIdsStart)
+    {
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id >= kParametersMainStart, id,);
+
+        const FaustParameter& param = kFaustParameters[id - kParametersMainStart];
+
+        float value;
+        if (string2number(text, value, param.step >= 1.f))
+            parameterControlModified(id, std::clamp(value, param.min, param.max));
+
+        parameterControlReleased(id);
+    }
+
+    fDoubleClickHelper.reset();
+}
+
 void LibreAudioBaseUI::onNanoDisplay()
 {
     const float w = getWidth();
@@ -486,8 +521,19 @@ void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 {
     UI::onResize(ev);
 
+    if (DoubleClickHelper* const dch = fDoubleClickHelper.get())
+    {
+        if (const uint id = dch->getWidgetId(); id < kWidgetIdsStart)
+            parameterControlReleased(id);
+
+        fDoubleClickHelper.reset();
+    }
+
+    fMenuWidget.reset();
+
     fScaleFactor = std::min(static_cast<double>(ev.size.getWidth()) / DISTRHO_UI_DEFAULT_WIDTH,
                             static_cast<double>(ev.size.getHeight()) / DISTRHO_UI_DEFAULT_HEIGHT);
+    fNeedsRepaint = true;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -535,6 +581,8 @@ void LibreAudioBaseUI::parameterControlReleased(const uint32_t index)
 
 void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const float value)
 {
+    DISTRHO_SAFE_ASSERT(fParameterPressed[index]);
+
     if (! fParameterPressed[index])
         editParameter(index, true);
 
@@ -543,6 +591,83 @@ void LibreAudioBaseUI::parameterControlModified(const uint32_t index, const floa
 
     if (! fParameterPressed[index])
         editParameter(index, false);
+}
+
+void LibreAudioBaseUI::openMenu(const Rectangle<uint>& area,
+                                const Color& color,
+                                const uint32_t id,
+                                const std::vector<const char*>& items)
+{
+    using namespace LibreAudio;
+
+    if (color.isEqual(Reference::Colors::acc2, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc2>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc3, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc3>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc4, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc4>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc5, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc5>(fRootWidget.get(), area, id, items));
+    if (color.isEqual(Reference::Colors::acc6, false))
+        return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc6>(fRootWidget.get(), area, id, items));
+
+    // fallback
+    return fMenuWidget.reset(new MenuOverlayWidget<Reference::Colors::acc1>(fRootWidget.get(), area, id, items));
+}
+
+void LibreAudioBaseUI::openTextInput(LabWidget* const widget,
+                                     const char* const text,
+                                     const Rectangle<int>& area,
+                                     const Color& textColor,
+                                     const Color& highlightColor,
+                                     const uint borderRadius,
+                                     const uint fontSize,
+                                     const bool isNumber)
+{
+    if (isNumber)
+    {
+        const uint32_t id = widget->getId();
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id >= kParametersMainStart, id,);
+        DISTRHO_SAFE_ASSERT_UINT_RETURN(id < kWidgetIdsStart, id,);
+
+        parameterControlPressed(id);
+    }
+
+    fDoubleClickHelper = std::make_unique<DoubleClickHelper>(this,
+                                                             this,
+                                                             widget,
+                                                             text,
+                                                             area,
+                                                             textColor,
+                                                             highlightColor,
+                                                             d_roundToIntPositive(borderRadius * fScaleFactor),
+                                                             fontSize * fScaleFactor,
+                                                             isNumber);
+}
+
+void LibreAudioBaseUI::setActiveWidget(LabWidget* const widget)
+{
+    fRootWidget->setActiveWidget(widget);
+}
+
+void LibreAudioBaseUI::setCursor(LabWidget* const widget, const MouseCursor cursor)
+{
+    // reset cursor to default
+    if (cursor == kMouseCursorArrow)
+    {
+        // ignore if the widget to set cursor has changed: don't reset
+        if (fCurrentCursorWidget == widget)
+        {
+            getWindow().setCursor(kMouseCursorArrow);
+            fCurrentCursorWidget = nullptr;
+        }
+        fRootWidget->resendLastMotion();
+        return;
+    }
+
+    // set cursor
+    getWindow().setCursor(cursor);
+    fCurrentCursorWidget = widget;
 }
 
 void LibreAudioBaseUI::buttonClicked(const uint32_t id)
@@ -624,6 +749,7 @@ bool LibreAudioBaseUI::isButtonEnabled(const uint32_t id) const noexcept
     }
 
     // fallback
+    DISTRHO_SAFE_ASSERT_UINT(false, id);
     return false;
 }
 

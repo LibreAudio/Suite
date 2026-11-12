@@ -27,10 +27,11 @@
 {% endblock %}
 
 #include <array>
+#include <cstdint>
 
 namespace {{cid(id)}} {
 
-enum FaustParameterIndex {
+enum FaustParameterIndex : uint16_t {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}
     kFaustParameter{{ w.symbol | title() }},
     {% endfor %}
@@ -61,7 +62,7 @@ inline constexpr const std::array<FaustParameter, kFaustParameterCount> kFaustPa
         .min = {{w.min}},
         .max = {{w.max}},
         .step = {{w.step}},
-        .accentcolor = {{ w.meta.accentcolor if w.meta.accentcolor is defined else 0 }},
+        .accentcolor = {{ (w.meta.accentcolor|int - 1) if w.meta.accentcolor is defined else 0 }},
         .scalePoints = {{ 'kFaustScalePoints_' + w.varname if w.entries else 'nullptr' }},
         .scalePointCount = {{ w.entries | length }},
         {% if w.meta.requires is defined %}

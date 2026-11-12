@@ -6,15 +6,12 @@
 
 #include "dpf/Fifo.hpp"
 #include "dpf/SharedMemory.hpp"
+#include "LibreAudioUtils.hpp"
 
 #include "fft.hpp"
 
 #include <array>
 #include <cmath>
-
-#ifndef M_PIf
-#define M_PIf static_cast<float>(M_PI)
-#endif
 
 START_NAMESPACE_DISTRHO
 
@@ -31,21 +28,7 @@ inline constexpr const uint32_t kTargetIdleTimeMs = d_roundToUnsignedInt(1000.0 
 inline constexpr const uint32_t kNumSecondsForWaveform = 8;
 
 // How many samples to use
-inline constexpr const uint32_t kNumSamplePointsForWaveform = 8192;
-
-// --------------------------------------------------------------------------------------------------------------------
-
-inline constexpr float db2coef(float db)
-{
-    return db > FFTAnalysis::kSmallestValue ? std::pow(10.f, db * 0.05f) : 0.f;
-}
-
-inline constexpr float coef2db(float coef)
-{
-    return std::pow(2.0, coef) * (-FFTAnalysis::kSmallestValue) - FFTAnalysis::kSmallestValue;
-}
-
-// coef = (+pow(2.0, coef * factor) - 1.0) / logfac * (max - min) + min;
+inline constexpr const uint32_t kNumSamplePointsForWaveform = 1024;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -66,8 +49,12 @@ public:
             return nullptr;
 
         SharedData* const data = fSharedMem.getDataPointer();
-        std::memset(data, 0, sizeof(SharedData));
-        fTmpData.fill(0.f);
+        // std::memset(data, 0, sizeof(SharedData));
+
+        for (uint32_t i = 0; i < kNumBins; ++i)
+            data->bins[i] = FFTAnalysis::kSmallestValue;
+
+        fTmpData.fill(FFTAnalysis::kSmallestValue);
 
         return fSharedMem.getDataFilename();
     }
@@ -77,7 +64,8 @@ public:
         if (fSharedMem.isCreatedOrConnected())
             fSharedMem.close();
 
-        fTmpData.fill(0.f);
+        fTmpData.fill(FFTAnalysis::kSmallestValue);
+
         return fSharedMem.connect(filename) != nullptr;
     }
 
@@ -99,8 +87,6 @@ public:
         static constexpr const uint32_t kDataSize = kWindowSize / 2;
         static constexpr const float kResponseTimeSecs = 1.f;
 
-        static constexpr const float log1k = 6.907755279f;  // logf (1000);
-
        #if defined(__GNUC__) && !defined(__MINGW32__) && !defined(__clang__)
         static constexpr const float tc = std::exp(-2.f * M_PIf * kResponseTimeSecs / 30.f);
        #else
@@ -111,7 +97,7 @@ public:
         float* const tmp = fTmpData.data();
 
         for (uint32_t b = 0; b < kNumBins; ++b)
-            tmp[b] = data->bins[b] * tc;
+            tmp[b] = std::max(FFTAnalysis::kSmallestValue, data->bins[b] + FFTAnalysis::kSmallestValue * tc);
 
         bool hasBin[kNumBins] = {};
         float norm, pab, pwr;
@@ -123,16 +109,15 @@ public:
                 continue;
 
             const float frq = analysis.freqAtBin(i);
-            const uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / log1k); // 20..20k
-            if (b == 0)
-                continue;
+            uint b = d_roundToUnsignedInt(kNumBins * std::log(frq / 20.f) / kLog1000f); // 20..20k
             if (b >= kNumBins - 1)
                 continue;
+            if (b < 2)
+                b = 1;
 
             hasBin[b] = true;
-            if (pwr = 1.f - pab / FFTAnalysis::kSmallestValue; pwr > tmp[b]) {
-                tmp[b] = pwr;
-            }
+            if (pab > tmp[b])
+                tmp[b] = pab;
         }
 
         // linear interpolation for bins without data

@@ -14,11 +14,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class BotShaderBaseWidget : public ShaderBaseWidget
+struct BotShaderWidgetInterface : ShaderWidgetInterface
 {
-public:
-    explicit BotShaderBaseWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : ShaderBaseWidget(parent, iface) {}
+    using ShaderWidgetInterface::ShaderWidgetInterface;
 
     // A float uniform that is not a parameter -- something only the UI knows, like an animation's progress.
     // getter is asked once per repaint; a shader that does not declare the uniform simply never sees it.
@@ -40,7 +38,8 @@ protected:
 // --------------------------------------------------------------------------------------------------------------------
 
 template<const char src[], uint size, uint textureSize = 0>
-class BotShaderWidget final : public BotShaderBaseWidget,
+class BotShaderWidget final : public SubWidget,
+                              public BotShaderWidgetInterface,
                               public IdleCallback
 {
    #if defined(DGL_USE_OPENGL3) && !defined(DGL_USE_GLES2)
@@ -51,7 +50,8 @@ class BotShaderWidget final : public BotShaderBaseWidget,
 
 public:
     explicit BotShaderWidget(TopLevelWidget* const parent, LabUIWidgetInterface* const iface)
-        : BotShaderBaseWidget(parent, iface),
+        : SubWidget(parent),
+          BotShaderWidgetInterface(iface),
           fParent(parent)
     {
         // 8ms was 125 Hz: on a 60 Hz display more than half of those frames were rendered
@@ -185,11 +185,13 @@ public:
         if constexpr (textureSize != 0)
         {
             gl3.dpfTextureData = glGetUniformLocation(program, "_dpf_texture_data");
+            gl3.dpfTextureSize = glGetUniformLocation(program, "_dpf_texture_size");
             gl3.dpfTextureStart = glGetUniformLocation(program, "_dpf_texture_start");
 
             fTextureData.resize(textureSize, 0.f);
             fTextureDataTail = textureSize - 1;
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // GL_LINEAR
@@ -276,6 +278,22 @@ public:
         glDeleteProgram(gl3.program);
     }
 
+    void setAbsolutePos(const Point<int>& pos) final
+    {
+        SubWidget::setAbsolutePos(pos);
+    }
+
+    void setSize(const Size<uint>& size_) final
+    {
+        SubWidget::setSize(size_);
+    }
+
+    void setBorderRadius(const float borderRadius) final
+    {
+        ShaderWidgetInterface::setBorderRadius(borderRadius);
+        repaint();
+    }
+
     // std::enable_if_t<textureSize != 0, void>
     void replace(const float values[textureSize])
     {
@@ -334,7 +352,7 @@ private:
 
         glUniform1f(gl3.dpfBorderRadius, fBorderRadius);
         glUniform2f(gl3.dpfPosition, getAbsoluteX(), tlw->getHeight() - height - getAbsoluteY());
-        glUniform1f(gl3.dpfScaleFactor, fInterface->getScaleFactor());
+        glUniform1f(gl3.dpfScaleFactor, fInterface->getInterfaceScaleFactor());
 
         glUniform3f(gl3.iMouse, fMouseX.next(), fMouseY.next(), fMouseZ);
         glUniform3f(gl3.iResolution, width, height, 0.f);
@@ -383,11 +401,13 @@ private:
 
         if constexpr (textureSize != 0)
         {
+            glUniform1i(gl3.dpfTextureData, 0);
+            glUniform1i(gl3.dpfTextureSize, textureSize);
             glUniform1f(gl3.dpfTextureStart,
                         static_cast<float>(textureSize - fTextureDataTail - 1) / (textureSize - 1));
 
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gl3.textures[0]);
-
             glTexSubImage2D(GL_TEXTURE_2D,
                             0,
                             0,
@@ -484,6 +504,7 @@ private:
         GLint dpfPosition;
         GLint dpfScaleFactor;
         GLint dpfTextureData;
+        GLint dpfTextureSize;
         GLint dpfTextureStart;
         GLint iMouse;
         GLint iResolution;
@@ -549,6 +570,7 @@ private:
 
    #ifdef DISTRHO_OS_WINDOWS
     #define DGL_EXT(PROC, func) PROC func;
+    DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
     DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
     DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
     DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)
@@ -562,7 +584,7 @@ private:
     DGL_EXT(PFNGLENABLEVERTEXATTRIBARRAYPROC,  glEnableVertexAttribArray)
     DGL_EXT(PFNGLGENBUFFERSPROC,               glGenBuffers)
     DGL_EXT(PFNGLGETATTRIBLOCATIONPROC,        glGetAttribLocation)
-    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,         glGetProgramInfoLog)
+    DGL_EXT(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog)
     DGL_EXT(PFNGLGETPROGRAMIVPROC,             glGetProgramiv)
     DGL_EXT(PFNGLGETSHADERINFOLOGPROC,         glGetShaderInfoLog)
     DGL_EXT(PFNGLGETSHADERIVPROC,              glGetShaderiv)
@@ -582,6 +604,7 @@ private:
         #define DGL_EXT(PROC, func) \
             func = (PROC) wglGetProcAddress ( #func ); \
             DISTRHO_SAFE_ASSERT_RETURN(func != nullptr, false);
+        DGL_EXT(PFNGLACTIVETEXTUREPROC,            glActiveTexture)
         DGL_EXT(PFNGLATTACHSHADERPROC,             glAttachShader)
         DGL_EXT(PFNGLBINDBUFFERPROC,               glBindBuffer)
         DGL_EXT(PFNGLBUFFERDATAPROC,               glBufferData)

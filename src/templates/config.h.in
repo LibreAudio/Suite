@@ -81,12 +81,24 @@
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 1
+    {% elif meta.graph == "waveform-param" %}
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
+#define LIBREAUDIO_WANT_GRAPH_PARAM kFaustParameter{{ meta.graphsymbol | title() }}
     {% elif meta.graph == "waveform-stereo" %}
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 1
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 2
     {% else %}
     {{fail("Invalid graph type")}}
+    {% endif %}
+    {% if meta.graphsource is defined and meta.graphsource == "input" %}
+#define LIBREAUDIO_WANT_GRAPH_INPUT 1
+#define LIBREAUDIO_WANT_GRAPH_OUTPUT 0
+    {% else %}
+#define LIBREAUDIO_WANT_GRAPH_INPUT 0
+#define LIBREAUDIO_WANT_GRAPH_OUTPUT 1
     {% endif %}
 {% endif %}
 #endif
@@ -95,6 +107,8 @@
 #define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
 #define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
 #define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
+#define LIBREAUDIO_WANT_GRAPH_INPUT 0
+#define LIBREAUDIO_WANT_GRAPH_OUTPUT 0
 #endif
 
 #define LIBREAUDIO_PLUGIN_DSP_INCLUDE "{{id}}-dsp.hpp"

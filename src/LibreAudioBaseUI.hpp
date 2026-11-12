@@ -6,12 +6,16 @@
 
 #include "DistrhoUI.hpp"
 #include "FaustParameter.hpp"
-#include <string>
 #include "LibreAudioSnapshots.hpp"
 #include "LibreAudioIPC.hpp"
 
+#include <string>
+
+#include "dpf-widgets/DoubleClickHelper.hpp"
+
 #include "ui/base.hpp"
 #include "ui/reference.hpp"
+#include "ui/containers/menu.hpp"
 #include "ui/containers/root.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -21,6 +25,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 class LibreAudioBaseUI : public UI,
+                         public DoubleClickHelper::Callback,
                          private LibreAudioSnapshots::Callback
 {
     using R = LibreAudio::Reference::Window;
@@ -72,6 +77,10 @@ private:
     LibreAudio::Page fPage = LibreAudio::kPageEasy;
     LibreAudio::Page fLastEasyExpertPage = LibreAudio::kPageEasy;
 
+    std::unique_ptr<DoubleClickHelper> fDoubleClickHelper;
+    std::shared_ptr<LibreAudio::MenuOverlayWidgetInterface> fMenuWidget;
+    LabWidget* fCurrentCursorWidget = nullptr;
+
    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
     LibreAudioAnalyzerIPC fIPC;
    #elif LIBREAUDIO_WANT_GRAPH_WAVEFORM
@@ -80,6 +89,7 @@ private:
     LibreAudioSnapshots fSnapshots;
     bool fCopyingSnapshot = false;
     bool fFirstIdle = true;
+    bool fNeedsRepaint = false;
 
     uint32_t fCurrentPreset = 0; // TODO
 
@@ -89,12 +99,8 @@ private:
     [[nodiscard]] const char* getEditorSettings() const noexcept final { return fEditorSettings.c_str(); }
     void setEditorSettings(const char* value) final;
 
-    double fRunnerRate = 0;
-    bool fIsMouseDown = false;
-
-    [[nodiscard]] double getAudioSampleRate() const noexcept final { return getSampleRate(); }
-
-    [[nodiscard]] float getScaleFactor() const noexcept final { return fScaleFactor; }
+    [[nodiscard]] float getInterfaceScaleFactor() const noexcept final { return fScaleFactor; }
+    [[nodiscard]] double getInterfaceSampleRate() const noexcept final { return getSampleRate(); }
 
     void pageButtonClicked(LibreAudio::Page page);
     void snapshotButtonClicked(uint32_t button);
@@ -119,6 +125,7 @@ private:
     // ----------------------------------------------------------------------------------------------------------------
     // Widget Callbacks
 
+    void doubleClickHelperDone(SubWidget* widget, const char* text) final;
     void onNanoDisplay() final;
     void onResize(const ResizeEvent& ev) final;
 
@@ -132,6 +139,22 @@ private:
     void parameterControlPressed(uint32_t index) final;
     void parameterControlReleased(uint32_t index) final;
     void parameterControlModified(uint32_t index, float value) final;
+
+    void openMenu(const Rectangle<uint>& area,
+                  const Color& color,
+                  uint32_t id,
+                  const std::vector<const char*>& items) final;
+    void openTextInput(LabWidget* widget,
+                       const char* text,
+                       const Rectangle<int>& area,
+                       const Color& textColor,
+                       const Color& highlightColor,
+                       uint borderRadius,
+                       uint fontSize,
+                       bool isNumber) final;
+
+    void setActiveWidget(LabWidget* widget) final;
+    void setCursor(LabWidget* widget, MouseCursor cursor) final;
 
     void buttonClicked(uint32_t id) final;
     [[nodiscard]] bool isButtonEnabled(uint32_t id) const noexcept final;

@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui/containers/main-area.hpp"
+#include "ui/containers/root.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
+#include "ui/widgets/fft-waveform.hpp"
 
 #include "LibreAudioParameters.hpp"
 #include "eq/bell-response.hpp"
@@ -61,6 +63,10 @@ static constexpr const float kTextScale = 1.4f;
 static constexpr const float kFreqMin = 10.f;
 static constexpr const float kFreqMax = 22000.f;
 static constexpr const float kGainLimit = 24.f;
+
+// the frequencies LibreAudioAnalyzerIPC spreads its bins across, logarithmically
+static constexpr const float kAnalyserFreqMin = 20.f;
+static constexpr const float kAnalyserFreqMax = 20000.f;
 
 // display padding above and below the curve area
 static constexpr const float kDisplayPadVertical = 40.f;
@@ -337,14 +343,19 @@ struct EqResponse {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class EqWidget final : public LabReferenceWidget<Reference::TransparentStage>,
+// the EQ fills the central area without a frame of its own, the curve display draws its own well inside it
+struct EqAreaReference : Reference::Zero {
+    static constexpr const uint padding = Reference::Common::margin;
+};
+
+class EqWidget final : public LabReferenceWidget<EqAreaReference>,
                        private IdleCallback
 {
-    using R = Reference::TransparentStage;
+    using R = EqAreaReference;
     using BaseWidget = LabReferenceWidget<R>;
 
-    // the curve display is the stage well, the piano roll sits bare under it, the option bar on a raised panel
-    using WellRef = Reference::Stage;
+    // the curve display is a central-area well, the piano roll sits bare under it, the option bar on a raised panel
+    using WellRef = Reference::CentralArea;
 
 public:
     enum class Analyser : uint8_t { Pre, Post, Off };
@@ -365,6 +376,14 @@ public:
     {
         const Box d = layoutDisplay();
         return Rectangle<int>(d_roundToInt(d.x), d_roundToInt(d.y), d_roundToInt(d.w), d_roundToInt(d.h));
+    }
+
+    // where the analyser sits: across the display's 20 Hz .. 20 kHz span, which its bins cover
+    [[nodiscard]] Rectangle<int> getAnalyserArea() const noexcept
+    {
+        const Plot p = plot();
+        const float x0 = p.xOf(kAnalyserFreqMin), x1 = p.xOf(kAnalyserFreqMax);
+        return Rectangle<int>(d_roundToInt(x0), d_roundToInt(p.y), d_roundToInt(x1 - x0), d_roundToInt(p.h));
     }
 
     [[nodiscard]] float getDisplayBorderRadius() const noexcept
@@ -615,7 +634,7 @@ private:
                 fBands.push_back(b);
                 it = fBands.end() - 1;
             }
-            it->sampleRate = fInterface->getAudioSampleRate();
+            it->sampleRate = fInterface->getInterfaceSampleRate();
             it->on = p[eq::kEnabled] > .5f;
             it->type = static_cast<EqBandType>(int(p[eq::kType]));
             it->defQ = it->isCut() ? 0.707f : it->isShelf() ? 0.7f : it->isTilt() ? .3f : 1.f;
@@ -666,7 +685,7 @@ private:
         b.gain = b.isCut() ? 0.f : gain;
         b.slope = 2;
         b.color = EqColors::bands[(n - 1) % EqColors::bands.size()];
-        b.sampleRate = fInterface->getAudioSampleRate();
+        b.sampleRate = fInterface->getInterfaceSampleRate();
         applyTypeDefaults(b);
 
         fBands.push_back(b);
@@ -2179,9 +2198,9 @@ private:
         bool changed = readParameters();
         changed |= restoreEditorSettings();
         for (EqBand& b : fBands)
-            if (b.sampleRate != fInterface->getAudioSampleRate())
+            if (b.sampleRate != fInterface->getInterfaceSampleRate())
             {
-                b.sampleRate = fInterface->getAudioSampleRate();
+                b.sampleRate = fInterface->getInterfaceSampleRate();
                 changed = true;
             }
 
@@ -2936,47 +2955,107 @@ private:
 };
 
 // --------------------------------------------------------------------------------------------------------------------
+// The central area: main's analyser widget under the EQ widget. The analyser is drawn first, so the grid, curves and
+// controls sit on top of it, and it spans only the part of the curve display its bins cover.
 
-class EqMainArea final : public MainAreaContainerWidget<EqWidget>
+class EqCentralAreaWidget final : public LabReferenceWidget<EqAreaReference>,
+                                  private IdleCallback
 {
+    using BaseWidget = LabReferenceWidget<EqAreaReference>;
+
+    const std::shared_ptr<WaveformWidget> fAnalyser {
+        new WaveformWidget(this, FFTAnalysis::kSmallestValue, FFTAnalysis::kSmallestValue, 0.f)
+    };
+    const std::shared_ptr<EqWidget> fEq { new EqWidget(this) };
+
+    Rectangle<int> fLastAnalyserArea;
+    bool fLastAnalyserVisible = true;
+
 public:
-    EqMainArea(LabTopLevelWidget* const parent)
-        : MainAreaContainerWidget(parent) {}
+    explicit EqCentralAreaWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        addIdleCallback(this);
+    }
+
+    [[nodiscard]] std::shared_ptr<WaveformBaseWidget> getWaveformWidget() const noexcept
+    {
+        return fAnalyser;
+    }
 
     [[nodiscard]] Rectangle<int> getDisplayAbsoluteArea() const noexcept
     {
-        const Rectangle<int> area = fStage->getDisplayArea();
-        const Point<int> pos = fStage->getAbsolutePos();
+        const Rectangle<int> area = fEq->getDisplayArea();
+        const Point<int> pos = getAbsolutePos();
         return Rectangle<int>(pos.getX() + area.getX(), pos.getY() + area.getY(), area.getSize());
     }
 
     [[nodiscard]] float getDisplayBorderRadius() const noexcept
     {
-        return fStage->getDisplayBorderRadius();
+        return fEq->getDisplayBorderRadius();
     }
 
-    [[nodiscard]] bool isAnalyserVisible() const noexcept
+private:
+    // the analyser follows the display as the piano and option bar are shown or hidden, and hides with it off
+    void placeAnalyser()
     {
-        return fStage->isAnalyserVisible();
+        // the waveform widget insets its drawing by the central-area border
+        const int border = d_roundToIntPositive(Reference::CentralArea::border * fScaleFactor);
+        const Rectangle<int> area = fEq->getAnalyserArea();
+        const Point<int> pos = getAbsolutePos();
+
+        fLastAnalyserArea = area;
+        fLastAnalyserVisible = fEq->isAnalyserVisible();
+
+        fAnalyser->setAbsolutePos(pos.getX() + area.getX() - border, pos.getY() + area.getY() - border);
+        static_cast<LabWidget*>(fAnalyser.get())->setSize(area.getWidth() + border * 2, area.getHeight() + border * 2);
+        fAnalyser->setVisible(fLastAnalyserVisible);
+    }
+
+    void idleCallback() final
+    {
+        const Rectangle<int> area = fEq->getAnalyserArea();
+
+        if (area.getPos() != fLastAnalyserArea.getPos() || area.getSize() != fLastAnalyserArea.getSize() ||
+            fEq->isAnalyserVisible() != fLastAnalyserVisible)
+            placeAnalyser();
+    }
+
+    void onNanoDisplay() final
+    {
+    }
+
+    void onPositionChanged(const PositionChangedEvent& ev) final
+    {
+        BaseWidget::onPositionChanged(ev);
+        fEq->setAbsolutePos(ev.pos);
+        placeAnalyser();
+    }
+
+    void onResize(const ResizeEvent& ev) final
+    {
+        BaseWidget::onResize(ev);
+        static_cast<LabWidget*>(fEq.get())->setSize(ev.size);
+        placeAnalyser();
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
-// Both shaders sit in the curve display's well only, and follow it as the piano and option bar frames under it are
-// shown or hidden.
+// Main's root, with the background and starfield shaders in the curve display's well only, following it as the piano
+// and option bar frames under it are shown or hidden.
 
-class EqRootWidget final : public RootBaseWidget,
+using EqMainArea = MainAreaContainerWidget<EqCentralAreaWidget>;
+
+class EqRootWidget final : public RootWidget<TopBar, EqMainArea>,
                            private IdleCallback
 {
-    std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
-    std::shared_ptr<EqMainArea> fMainArea = addWidget<EqMainArea, Expanding>();
+    using BaseWidget = RootWidget<TopBar, EqMainArea>;
 
     Rectangle<int> fLastDisplayArea;
-    bool fLastAnalyserVisible = true;
 
 public:
     EqRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : RootBaseWidget(window, iface)
+        : BaseWidget(window, iface)
     {
         addIdleCallback(this);
     }
@@ -2984,36 +3063,25 @@ public:
 private:
     void idleCallback() final
     {
-        const Rectangle<int> area = fMainArea->getDisplayAbsoluteArea();
+        const Rectangle<int> area = fMainArea->getCentralAreaWidget()->getDisplayAbsoluteArea();
 
-        if (area.getPos() != fLastDisplayArea.getPos() || area.getSize() != fLastDisplayArea.getSize() ||
-            fMainArea->isAnalyserVisible() != fLastAnalyserVisible)
+        if (area.getPos() != fLastDisplayArea.getPos() || area.getSize() != fLastDisplayArea.getSize())
             updateSize(false);
     }
 
     void updateSize(const bool updateChildren) final
     {
-        RootBaseWidget::updateSize(updateChildren);
+        BaseWidget::updateSize(updateChildren);
 
-        fLastDisplayArea = fMainArea->getDisplayAbsoluteArea();
-        fLastAnalyserVisible = fMainArea->isAnalyserVisible();
+        const std::shared_ptr<EqCentralAreaWidget>& centralArea = fMainArea->getCentralAreaWidget();
+        fLastDisplayArea = centralArea->getDisplayAbsoluteArea();
 
-        if (fShaders.empty())
-            return;
-
-        ShaderBaseWidget* const background = fShaders.front();
-        background->setAbsolutePos(fLastDisplayArea.getPos());
-        background->setSize(Size<uint>(fLastDisplayArea.getWidth(), fLastDisplayArea.getHeight()));
-        background->setBorderRadius(fMainArea->getDisplayBorderRadius());
-
-        if (fShaders.size() < 2)
-            return;
-
-        ShaderBaseWidget* const analyser = fShaders.back();
-        analyser->setAbsolutePos(fLastDisplayArea.getPos());
-        analyser->setSize(Size<uint>(fLastDisplayArea.getWidth(), fLastDisplayArea.getHeight()));
-        analyser->setBorderRadius(fMainArea->getDisplayBorderRadius());
-        analyser->setVisible(fLastAnalyserVisible);
+        for (const std::shared_ptr<ShaderWidgetInterface>& sw : fShaders)
+        {
+            sw->setAbsolutePos(fLastDisplayArea.getPos());
+            sw->setSize(Size<uint>(fLastDisplayArea.getWidth(), fLastDisplayArea.getHeight()));
+            sw->setBorderRadius(centralArea->getDisplayBorderRadius());
+        }
     }
 };
 

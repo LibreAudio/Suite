@@ -203,11 +203,12 @@ if (${LIBREAUDIO_CUSTOM_UI})
   )
 
   target_include_directories(las-ui
+    PUBLIC
+      ../deps/DPF-Widgets/opengl
     PRIVATE
       .
       ../deps/DPF/distrho
       ../deps/DPF-Widgets/generic
-      ../deps/DPF-Widgets/opengl
   )
 
   target_link_libraries(las-ui
@@ -229,6 +230,8 @@ endif()
 function(las_add_plugin LABEL)
   set(TARGET "la-${LABEL}")
 
+  file(READ dsp-faust/${LABEL}.dsp DSP_FILE_CONTENTS)
+
   set(EXTRA_ARGS)
   if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   else()
@@ -236,17 +239,19 @@ function(las_add_plugin LABEL)
   endif()
 
   set(EXTRA_DSP_LIBS)
-  if("${LABEL}" STREQUAL "chorus" OR "${LABEL}" STREQUAL "dualGain" OR "${LABEL}" STREQUAL "vocalDoubler" OR "${LABEL}" STREQUAL "eq")
+  # the native EQ has no Faust graph declaration, but sends an analyser spectrum
+  if("${DSP_FILE_CONTENTS}" MATCHES "\ndeclare graph \"analyzer\";\n" OR "${LABEL}" STREQUAL "eq")
     list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
-  elseif("${LABEL}" STREQUAL "leveler")
+  endif()
+  if("${LABEL}" STREQUAL "leveler")
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
   endif()
 
   set(EXTRA_UI_LIBS)
 
-  set(DSP_FILE custom/${LABEL}-dsp.cpp)
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${DSP_FILE}")
-    set(DSP_FILE LibreAudioPlugin.cpp)
+  set(DSP_CPP_FILE custom/${LABEL}-dsp.cpp)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${DSP_CPP_FILE}")
+    set(DSP_CPP_FILE LibreAudioPlugin.cpp)
   endif()
 
   if("${LABEL}" STREQUAL "eq")
@@ -264,12 +269,9 @@ function(las_add_plugin LABEL)
     set(MAIN_CONFIG_FILE ${CMAKE_CURRENT_BINARY_DIR}/${LABEL}/config.h)
   endif()
 
-  set(UI_FILE custom/${LABEL}-ui.cpp)
-  if("${LABEL}" STREQUAL "mbComp5")
-    set(UI_FILE custom/mb5Comp-ui.cpp)
-  endif()
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_FILE}")
-    set(UI_FILE LibreAudioUI.cpp)
+  set(UI_CPP_FILE custom/${LABEL}-ui.cpp)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${UI_CPP_FILE}")
+    set(UI_CPP_FILE LibreAudioUI.cpp)
   endif()
 
   if (${LIBREAUDIO_CUSTOM_UI})
@@ -283,10 +285,10 @@ function(las_add_plugin LABEL)
         ${MAIN_PARAMETER_FILE}
         ${MAIN_CONFIG_FILE}
       FILES_DSP
-        ${DSP_FILE}
+        ${DSP_CPP_FILE}
         ${MAIN_DSP_FILES}
       FILES_UI
-        ${UI_FILE}
+        ${UI_CPP_FILE}
         LibreAudioBaseUI.cpp
         ${CMAKE_CURRENT_BINARY_DIR}/las-resources.h
       ${EXTRA_ARGS}
@@ -316,7 +318,7 @@ function(las_add_plugin LABEL)
         ${MAIN_PARAMETER_FILE}
         ${MAIN_CONFIG_FILE}
       FILES_DSP
-        ${DSP_FILE}
+        ${DSP_CPP_FILE}
         ${MAIN_DSP_FILES}
       ${EXTRA_ARGS}
     )

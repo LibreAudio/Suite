@@ -20,9 +20,9 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class RootBaseWidget : public ReferenceRootWidget<Reference::Window, kVertical>
+class RootBaseWidget : public LabReferenceRootWidget<Reference::Window, Vertical>
 {
-    using BaseWidget = ReferenceRootWidget<Reference::Window, kVertical>;
+    using BaseWidget = LabReferenceRootWidget<Reference::Window, Vertical>;
 
 public:
     RootBaseWidget(Window& window, LabUIWidgetInterface* const iface)
@@ -32,27 +32,20 @@ public:
                              FONTS_INTER_18PT_REGULAR_TTF_DATA,
                              FONTS_INTER_18PT_REGULAR_TTF_LEN,
                              false);
-        createFontFromMemory("chillax",
-                             FONTS_CHILLAX_MEDIUM_TTF_DATA,
-                             FONTS_CHILLAX_MEDIUM_TTF_LEN,
-                             false);
         createFontFromMemory("mono",
                              FONTS_SPLINESANSMONO_REGULAR_TTF_DATA,
                              FONTS_SPLINESANSMONO_REGULAR_TTF_LEN,
                              false);
     }
 
-    // , ShaderBaseWidget* const analyzer = nullptr
-    void enableShaders(const std::list<ShaderBaseWidget*>& shaders)
+    void enableShaders(const std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>>& shaders)
     {
         fShaders = shaders;
-        // fShaderAnalyzer = analyzer;
         updateSize(false);
     }
 
 protected:
-    std::list<ShaderBaseWidget*> fShaders;
-    // ShaderBaseWidget* fShaderAnalyzer = nullptr;
+    std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>> fShaders;
 
     friend class DISTRHO_NAMESPACE::LibreAudioBaseUI;
 };
@@ -63,22 +56,29 @@ template <class TopBar, class MainArea>
 class RootWidget : public RootBaseWidget
 {
 public:
+    using MainAreaWidget = MainArea;
+
     RootWidget(Window& window, LabUIWidgetInterface* const iface)
         : RootBaseWidget(window, iface) {}
+
+    const std::shared_ptr<MainArea>& getMainAreaWidget() const noexcept
+    {
+        return fMainArea;
+    }
 
 protected:
     std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
     std::shared_ptr<MainArea> fMainArea = addWidget<MainArea, Expanding>();
 
-    void updateSize(const bool updateChildren) final
+    void updateSize(const bool updateChildren) override
     {
         RootBaseWidget::updateSize(updateChildren);
 
-        const Point<int> pos = fMainArea->getMainAreaAbsolutePos();
-        const Size<uint> size = fMainArea->getMainAreaSize();
-        const float borderRadius = fMainArea->getMainAreaBorderRadius();
+        const Point<int> pos = fMainArea->getCentralAreaAbsolutePos();
+        const Size<uint> size = fMainArea->getCentralAreaSize();
+        const float borderRadius = fMainArea->getCentralAreaBorderRadius();
 
-        for (ShaderBaseWidget* const sw : fShaders)
+        for (const std::shared_ptr<ShaderWidgetInterface>& sw : fShaders)
         {
             sw->setAbsolutePos(pos);
             sw->setSize(size);

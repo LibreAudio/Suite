@@ -4,11 +4,16 @@
 
 #pragma once
 
-#include "DistrhoUtils.hpp"
+#include "Color.hpp"
+#include "Geometry.hpp"
+
+#include <vector>
 
 START_NAMESPACE_DGL
 
 // --------------------------------------------------------------------------------------------------------------------
+
+class LabWidget;
 
 class LabUIWidgetInterface
 {
@@ -23,6 +28,22 @@ public:
     virtual void parameterControlReleased(uint32_t index) = 0;
     virtual void parameterControlModified(uint32_t index, float value) = 0;
 
+    virtual void openMenu(const Rectangle<uint>& area,
+                          const Color& color,
+                          uint32_t id,
+                          const std::vector<const char*>& items) = 0;
+    virtual void openTextInput(LabWidget* widget,
+                               const char* text,
+                               const Rectangle<int>& area,
+                               const Color& textColor,
+                               const Color& highlightColor,
+                               uint borderRadius,
+                               uint fontSize,
+                               bool isNumber) = 0;
+
+    virtual void setActiveWidget(LabWidget* widget) = 0;
+    virtual void setCursor(LabWidget* widget, MouseCursor cursor) = 0;
+
     virtual void buttonClicked(uint32_t id) = 0;
     [[nodiscard]] virtual bool isButtonEnabled(uint32_t id) const noexcept = 0;
     [[nodiscard]] virtual bool isButtonChecked(uint32_t id) const noexcept = 0;
@@ -30,9 +51,8 @@ public:
     [[nodiscard]] virtual const char* getEditorSettings() const noexcept = 0;
     virtual void setEditorSettings(const char* value) = 0;
 
-    [[nodiscard]] virtual double getAudioSampleRate() const noexcept = 0;
-
-    [[nodiscard]] virtual float getScaleFactor() const noexcept = 0;
+    [[nodiscard]] virtual double getInterfaceSampleRate() const noexcept = 0;
+    [[nodiscard]] virtual float getInterfaceScaleFactor() const noexcept = 0;
 };
 
 // --------------------------------------------------------------------------------------------------------------------
