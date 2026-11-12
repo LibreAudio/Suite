@@ -139,8 +139,9 @@ through a 0.707 low-pass, a high shelf or low-pass through a 0.707 high-pass,
 tilt through a 0.707 band-pass. A Mid or Side band mutes the other channel while
 listening. Listen and shape changes crossfade over 5ms and its coefficients
 smooth over 10ms; when off, it costs no
-per-sample work. The UI sets Listen only while Control is held on a node or piano
-dot drag, for that band alone.
+per-sample work. The UI sets Listen only while Control is held, for one band: the
+one being dragged (node, piano dot, value label or option-bar box), else the
+selected one. Releasing Control restores whatever was listened to before.
 
 ## Mouse controls
 
@@ -148,7 +149,7 @@ Modifiers follow FabFilter Pro-Q conventions; Cmd on macOS stands for Ctrl.
 
 - Click empty display or piano: new band, dragged immediately.
 - Drag a node: frequency and gain (cuts: resonance). Shift: fine (¼ speed).
-  Control: listen to the band while held.
+- Hold Control: listen to the band being dragged, or else the selected band.
 - Double-click or Alt-click a node or piano dot: band on/off.
 - Wheel over a node: Q (cuts: slope). Shift: fine.
 - Right-click a node: type and channel menu.

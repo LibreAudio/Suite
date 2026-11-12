@@ -419,8 +419,6 @@ private:
         int slope = 2;
         float dbMax = 0.f;
         bool fine = false;  // Shift: movement scaled by kFineScale
-        bool listen = false;        // Control held on a dot drag: the band is listened to
-        uint32_t listenBefore = 0;  // band listening before that, restored afterwards
     };
 
     struct LabelHit {
@@ -477,6 +475,8 @@ private:
 
     // pointer state
     Drag fDrag;
+    uint32_t fControlListen = 0;        // band listened to while Control is held, 0 when none
+    uint32_t fControlListenBefore = 0;  // band listening before Control was pressed, restored on release
     uint32_t fHoverNode = 0;
     uint32_t fHoverPianoDot = 0;
     uint32_t fPianoTip = 0;
@@ -845,32 +845,47 @@ private:
         return { pb.x + pb.w + kBarButtonGap * fScaleFactor, pb.y, pb.w, pb.h };
     }
 
-    // Control held while dragging a dot listens to that band for as long as it is held.
-    void setDragListen(const bool listen)
+    // Control held: the key state read directly where the platform allows, else the event's modifiers
+    static bool controlHeld(const uint mod) noexcept
     {
-        if (listen && fDrag.kind != DragKind::Node && fDrag.kind != DragKind::PianoDot)
-            return;
-        if (listen == fDrag.listen)
-            return;
-        EqBand* const band = findBand(fDrag.id);
-        if (band == nullptr)
-            return;
-        fDrag.listen = listen;
-        if (listen)
+        bool known;
+        const bool control = readControlKey(&known);
+        return known ? control : (mod & kModifierControl) != 0;
+    }
+
+    // While Control is held, the band being dragged is listened to, or else the selected one, wherever it is edited
+    // from: the display, the piano roll or the option bar. Releasing Control restores the band listened to before.
+    // Returns whether the listened band changed.
+    bool updateControlListen(const bool control)
+    {
+        uint32_t target = 0;
+        if (control)
+        {
+            const uint32_t id = fDrag.kind != DragKind::None ? fDrag.id : fActive;
+            if (findBand(id) != nullptr)
+                target = id;
+        }
+
+        if (target == fControlListen)
+            return false;
+
+        if (fControlListen == 0)
         {
             const auto it = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
-            fDrag.listenBefore = it != fBands.end() ? it->id : 0;
-            for (EqBand& b : fBands)
-                b.listen = false;
+            fControlListenBefore = it != fBands.end() ? it->id : 0;
+        }
+
+        for (EqBand& b : fBands)
+            b.listen = false;
+
+        if (EqBand* const band = findBand(target))
             band->listen = true;
-        }
-        else
-        {
-            band->listen = false;
-            if (EqBand* const before = findBand(fDrag.listenBefore))
-                before->listen = true;
-        }
+        else if (EqBand* const before = findBand(fControlListenBefore))
+            before->listen = true;
+
+        fControlListen = target;
         repaint();
+        return true;
     }
 
     [[nodiscard]] std::array<Box, kBandTypes.size()> layoutTypeIcons() const noexcept
@@ -2218,15 +2233,11 @@ private:
             changed = true;
         }
 
-        // Control pressed or released mid-drag without moving the mouse
-        if (fDrag.kind == DragKind::Node || fDrag.kind == DragKind::PianoDot)
+        // Control pressed or released without moving the mouse, and selection changes while it is held
         {
             bool known;
-            if (const bool control = readControlKey(&known); known && control != fDrag.listen)
-            {
-                const BandEdit edit {*this};
-                setDragListen(control);
-            }
+            if (const bool control = readControlKey(&known); known && updateControlListen(control))
+                publishBands();
         }
 
         const bool on = ! isBypassed();
@@ -2366,8 +2377,8 @@ private:
 
             if (fDrag.kind == DragKind::PianoDot && ! pianoDotAt(x, y))
                 fPianoTip = 0;
-            setDragListen(false);
             fDrag = Drag();
+            updateControlListen(controlHeld(ev.mod));
             repaint();
             return true;
         }
@@ -2429,7 +2440,7 @@ private:
 
         if (pressCaption(x, y) || pressDisplay(x, y, ev.mod) || pressPiano(x, y, ev.mod) || pressBar(x, y, ev.mod))
         {
-            setDragListen((ev.mod & kModifierControl) != 0);
+            updateControlListen(controlHeld(ev.mod));
             repaint();
             return true;
         }
@@ -2654,9 +2665,10 @@ private:
         const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
 
+        updateControlListen(controlHeld(ev.mod));
+
         if (fDrag.kind != DragKind::None)
         {
-            setDragListen((ev.mod & kModifierControl) != 0);
             if (EqBand* const b = findBand(fDrag.id))
                 dragTo(*b, x, y, ev.mod);
             repaint();
@@ -2869,13 +2881,13 @@ private:
             repaint();
     }
 
-    // Control pressed or released mid-drag without moving the mouse, where the host forwards keys
+    // Control pressed or released without moving the mouse, where the host forwards keys
     bool onKeyboard(const Widget::KeyboardEvent& ev) final
     {
-        if (fDrag.kind != DragKind::None && (ev.key == kKeyControlL || ev.key == kKeyControlR))
+        if (ev.key == kKeyControlL || ev.key == kKeyControlR)
         {
             const BandEdit edit {*this};
-            setDragListen(ev.press);
+            updateControlListen(ev.press);
             return true;
         }
         return BaseWidget::onKeyboard(ev);
