@@ -27,6 +27,18 @@ private:
     double rate = 48000;
 
 public:
+    // the SVF's prewarped cutoff, with the frequency limited to 10 Hz..0.45 of the sample rate
+    static double cutoffG(const float frequency, const double sampleRate) noexcept
+    {
+        return std::tan(3.14159265358979323846 * std::clamp(double(frequency), 10., 0.45 * sampleRate) / sampleRate);
+    }
+
+    // the SVF's damping, 1/Q with Q limited to 0.3..8.01
+    static double damping(const float q) noexcept
+    {
+        return 1. / std::clamp(double(q), 0.3, 8.01);
+    }
+
     void setRate(const double sampleRate)
     {
         rate = sampleRate;
@@ -51,9 +63,8 @@ public:
         const bool wasActive = active();
         targetMix[0] = targetMix[1] = listening ? 1.f : 0.f;
         if (! listening) return; // fade out with the last band's settings
-        const double f = std::clamp(double(frequency), 10., 0.45 * rate);
-        targetG = std::tan(3.14159265358979323846 * f / rate);
-        targetK = 1. / std::clamp(double(q), 0.3, 8.01);
+        targetG = cutoffG(frequency, rate);
+        targetK = damping(q);
         included[0] = routeMid;
         included[1] = routeSide;
         for (int i = 0; i < kShapeCount; ++i) targetWeight[i] = i == shape ? 1.f : 0.f;
@@ -125,10 +136,9 @@ inline float listenQ(const int type, const float q) noexcept
 inline float listenResponse(const Listen::Shape shape, const float f, const float frequency, const float q,
                             const double rate) noexcept
 {
-    constexpr double pi = 3.14159265358979323846;
-    const double fc = std::clamp(double(frequency), 10., 0.45 * rate);
-    const double k = 1. / std::clamp(double(q), 0.3, 8.01);
-    const double w = std::tan(pi * std::min(double(f), 0.4999 * rate) / rate) / std::tan(pi * fc / rate);
+    const double k = Listen::damping(q);
+    const double w = std::tan(3.14159265358979323846 * std::min(double(f), 0.4999 * rate) / rate)
+                   / Listen::cutoffG(frequency, rate);
     const double den = std::sqrt((1. - w * w) * (1. - w * w) + k * k * w * w);
     const double num = shape == Listen::LowPass ? 1. : shape == Listen::HighPass ? w * w : k * w;
     return float(20. * std::log10(std::max(num / den, 1e-15)));

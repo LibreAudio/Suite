@@ -272,16 +272,6 @@ struct EqResponse {
         return db;
     }
 
-    // the summed response of the bands feeding one half of mid/side, Stereo bands feed both
-    static float totalDb(const float f, const std::vector<EqBand>& bands, const EqChannel skip) noexcept
-    {
-        float db = 0.f;
-        for (const EqBand& b : bands)
-            if (b.channel != skip)
-                db += bandDb(f, b);
-        return db;
-    }
-
     // the type a new band gets, by where it lands across the display
     static EqBandType typeAt(const float t) noexcept
     {
@@ -649,6 +639,13 @@ private:
         }
     }
 
+    // the band listened to, at most one
+    EqBand* listenedBand() noexcept
+    {
+        const auto it = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
+        return it != fBands.end() ? &*it : nullptr;
+    }
+
     EqBand* findBand(const uint32_t id) noexcept
     {
         for (EqBand& b : fBands)
@@ -872,8 +869,8 @@ private:
 
         if (fControlListen == 0)
         {
-            const auto it = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
-            fControlListenBefore = it != fBands.end() ? it->id : 0;
+            const EqBand* const before = listenedBand();
+            fControlListenBefore = before != nullptr ? before->id : 0;
         }
 
         for (EqBand& b : fBands)
@@ -1063,6 +1060,15 @@ private:
                                        withAlpha(EqColors::rainbow[k + 1], alpha)));
             stroke();
         }
+    }
+
+    // Starts a path through the points (xs[i], ys[i]).
+    void polyline(const std::vector<float>& xs, const std::vector<float>& ys)
+    {
+        beginPath();
+        moveTo(xs[0], ys[0]);
+        for (size_t i = 1; i < xs.size(); ++i)
+            lineTo(xs[i], ys[i]);
     }
 
     // Adds a tiny contour outside the display's scissor to the current path, so NanoVG fills it with its stencil
@@ -1336,18 +1342,29 @@ private:
                                        [](const EqBand& b) { return b.on && b.channel != EqChannel::Stereo; });
         const int steps = std::max(240, d_roundToInt(p.w / s));
 
-        std::vector<float> xs(steps + 1), ym(steps + 1), ys;
+        std::vector<float> xs(steps + 1), fs(steps + 1), ym(steps + 1), ys;
         if (split)
             ys.resize(steps + 1);
 
         for (int i = 0; i <= steps; ++i)
         {
             const float t = static_cast<float>(i) / steps;
-            const float f = EqResponse::normToFreq(t);
             xs[i] = p.x + t * p.w;
-            ym[i] = p.yCurve(EqResponse::totalDb(f, fBands, EqChannel::Side));
+            fs[i] = EqResponse::normToFreq(t);
+
+            // each band once, into the halves it feeds
+            float mid = 0.f, side = 0.f;
+            for (const EqBand& b : fBands)
+            {
+                const float db = EqResponse::bandDb(fs[i], b);
+                if (b.channel != EqChannel::Side)
+                    mid += db;
+                if (b.channel != EqChannel::Mid)
+                    side += db;
+            }
+            ym[i] = p.yCurve(mid);
             if (split)
-                ys[i] = p.yCurve(EqResponse::totalDb(f, fBands, EqChannel::Mid));
+                ys[i] = p.yCurve(side);
         }
 
         // The display's scissor is rectangular, so the fills are clamped inside its rounded corners. With about one
@@ -1369,8 +1386,8 @@ private:
         const std::vector<float> ymFill = insideCorners(ym);
 
         // while a band is listened to, the EQ curve greys out under the listen filter's curve
-        const auto listened = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
-        const bool listening = on && listened != fBands.end();
+        const EqBand* const listened = on ? listenedBand() : nullptr;
+        const bool listening = listened != nullptr;
 
         if (on && !listening)
         {
@@ -1386,10 +1403,7 @@ private:
         }
         else
         {
-            beginPath();
-            moveTo(xs[0], ymFill[0]);
-            for (int i = 1; i <= steps; ++i)
-                lineTo(xs[i], ymFill[i]);
+            polyline(xs, ymFill);
             lineTo(xs[steps], y0);
             lineTo(xs[0], y0);
             closePath();
@@ -1397,10 +1411,7 @@ private:
             fillColor(withAlpha(EqColors::off, 0.1f));
             fill();
 
-            beginPath();
-            moveTo(xs[0], ym[0]);
-            for (int i = 1; i <= steps; ++i)
-                lineTo(xs[i], ym[i]);
+            polyline(xs, ym);
             lineJoin(ROUND);
             strokeColor(EqColors::off);
             strokeWidth(2.2f * s);
@@ -1417,16 +1428,9 @@ private:
 
             std::vector<float> yl(steps + 1);
             for (int i = 0; i <= steps; ++i)
-            {
-                const float f = EqResponse::normToFreq(static_cast<float>(i) / steps);
-                yl[i] = std::min(p.yCurve(eq::listenResponse(shape, f, b.freq, q, b.sampleRate)), bottom + 4.f * s);
-            }
-            const std::vector<float> ylFill = insideCorners(yl);
+                yl[i] = std::min(p.yCurve(eq::listenResponse(shape, fs[i], b.freq, q, b.sampleRate)), bottom + 4.f * s);
 
-            beginPath();
-            moveTo(xs[0], ylFill[0]);
-            for (int i = 1; i <= steps; ++i)
-                lineTo(xs[i], ylFill[i]);
+            polyline(xs, insideCorners(yl));
             lineTo(xs[steps], bottom);
             lineTo(xs[0], bottom);
             closePath();
@@ -1434,10 +1438,7 @@ private:
             fillPaint(linearGradient(0, y0, 0, bottom, withAlpha(b.color, 0.22f), withAlpha(b.color, 0.04f)));
             fill();
 
-            beginPath();
-            moveTo(xs[0], yl[0]);
-            for (int i = 1; i <= steps; ++i)
-                lineTo(xs[i], yl[i]);
+            polyline(xs, yl);
             lineJoin(ROUND);
             strokeColor(withAlpha(b.color, 0.15f));
             strokeWidth(6.f * s);
@@ -1457,20 +1458,15 @@ private:
         }
 
         // the hovered or selected band on its own, faded out around 0 dB where it would sit on the sum
+        std::vector<float> yb(listening ? 0 : steps + 1);
         for (const EqBand& b : fBands)
         {
-            if (b.soloAlpha <= 0.001f || listening)
+            if (listening || b.soloAlpha <= 0.001f)
                 continue;
 
-            beginPath();
             for (int i = 0; i <= steps; ++i)
-            {
-                const float y = p.yCurve(EqResponse::bandDb(EqResponse::normToFreq(static_cast<float>(i) / steps), b));
-                if (i == 0)
-                    moveTo(xs[i], y);
-                else
-                    lineTo(xs[i], y);
-            }
+                yb[i] = p.yCurve(EqResponse::bandDb(fs[i], b));
+            polyline(xs, yb);
 
             const float fade = 0.085f * p.h;
             const Color c = withAlpha(b.color, b.soloAlpha);
