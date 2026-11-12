@@ -7,11 +7,11 @@ with the suite's plugin shell. Common input/output processing still uses Faust.
 
 There are 16 stable, reusable host parameter slots. Present, enabled, type,
 channel, frequency, gain, Q, adaptive Q and slope are stored per slot. Bell
-(type 2), low/high shelves (types 1/3), Butterworth high-pass (type 0) and ladder
-high-pass (type 5), plus x42 high-pass (type 6) Butterworth low-pass (type 4), and tilt (type 7), process audio. The UI creates a
+(type 2), low/high shelves (types 1/3), Butterworth high-pass (type 0),
+Butterworth low-pass (type 4) and tilt (type 5) process audio. The UI creates a
 high-pass in the leftmost 10% of the display, a low shelf from 10–27%, a bell
-from 27–76%, a high shelf from 76–90%, and a low-pass in the rightmost 10%. These, the ladder and x42 HP are selectable
-from the type menu, along with Butterworth LP and Tilt. Slots are preallocated; the audio callback never allocates. Disabled,
+from 27–76%, a high shelf from 76–90%, and a low-pass in the rightmost 10%. These and Tilt are selectable
+from the type menu. Slots are preallocated; the audio callback never allocates. Disabled,
 removed and zero-gain bells fade to unity using the upstream gain interpolation,
 then stop processing. Mid and side have independent states; stereo runs both.
 With no active filters, the main EQ processor returns without touching audio.
@@ -76,35 +76,6 @@ Low-pass has independent preallocated mid/side states, coefficient smoothing,
 click-reducing topology transitions, and fades to exact bypass before retiring.
 Existing type IDs and host parameter slots are unchanged.
 
-## Ladder high-pass
-
-`ladder-highpass.hpp` adds a Moog-inspired alternative as appended type 5, keeping
-all existing type IDs and parameter indices intact. The UI places its resonant
-high-pass/rung icon beside Butterworth HP in both the control row and context
-menu. Selecting it defaults to 24dB/oct; 6/12/18/24dB/oct remain available.
-
-It is a cascade of one-pole trapezoidal high-pass stages with global negative
-feedback, input tanh saturation and tanh saturation in the feedback path. The
-implicit feedback equation is solved with at most 16 safeguarded Newton steps.
-This is not a transistor-level emulation of a particular Moog model. The ladder
-structure follows the high-pass ladder discussion in Vadim Zavalishin's
-*The Art of VA Filter Design*. Implementation is original native C++.
-
-Q=0.707 is zero feedback. Values above that increase feedback up to below the
-three/four-stage oscillation thresholds. Values below it also give zero feedback.
-6dB ignores Q completely. Without resonance, each stage contributes -3.0103dB at
-the selected cutoff, so a four-stage ladder is -12.0412dB there, unlike the
-Butterworth cascade. Passband gain is compensated in the small-signal limit.
-The displayed curve is this small-signal response; saturation changes the
-response at higher levels. This initial model runs at the host sample rate,
-without oversampling, so saturation can introduce aliasing.
-
-The ladder uses the same parameter smoothing, fade-out/reconfigure/fade-in
-slope transitions and inactive-band retirement policy as the Butterworth HP.
-Nonlinear stereo runs independently on L/R. Mid/side selections use separate
-M/S state banks, allowing routing changes to fade without reusing the wrong
-channel history. No processing-time allocations are needed.
-
 ## x42 shelves
 
 `x42-shelf.hpp` is an unmodified copy of x42/fil4.lv2 `src/iir.h` at commit
@@ -129,30 +100,9 @@ audio path retains upstream float coefficients, so its rounding error at very
 low frequencies is not reproduced in the graph. Host type IDs and the
 parameter layout are unchanged.
 
-## x42 high-pass
-
-`x42-highpass.hpp` is an unmodified copy of x42/fil4.lv2 `src/hip.h` at commit
-`885edf4d4c8da3f1414462ec7b5fc1c2da0f3ac1`. Copyright 2015 Robin Gareus;
-GPL-2.0-or-later. Its copyright and license notice are preserved.
-
-`fil4-highpass.hpp` wraps its resonant 12dB/oct filter, original resonance mapping
-and coefficient interpolation (once per block of at most 32 samples). The adapter
-starts from unity instead of silence and forces initial frequency calculation
-so upstream's omega state is initialized. Disabled filters interpolate to unity
-and then stop processing. Mid and side have independent preallocated states.
-
-DSP and plot preserve the upstream frequency ceiling of sample rate / 12
-(4kHz at 48kHz), minimum 5Hz, and quality clamp of 0.0625–4. The UI edits Q from
-0.3–4. Stored frequency/Q can exceed these limits after switching types or host
-automation; processing and the graph use the clamped values. Slope is fixed at
-12dB/oct and cannot be edited for x42 HP. Switching among all three HP designs
-preserves every band setting, including the stored variable slope for switching
-back. The graph evaluates the actual digital transfer function, including the
-one-sample feedback delay.
-
 ## Tilt
 
-Type 7 adds a native tilt with Frequency, Gain and Shape controls. Frequency is
+Type 5 is a native tilt with Frequency, Gain and Shape controls. Frequency is
 its 0dB pivot (the node stays on that pivot); dragging vertically adjusts gain.
 Positive gain lowers bass and raises treble; negative gain reverses the tilt.
 Shape is 0% Linear through 100% Shelf, also editable by scrolling the node.
@@ -178,6 +128,31 @@ host Q slot encodes Shape linearly: Q=0.3 is Linear, Q=8.01 is Shelf. The custom
 UI shows Shape as 0–100%; host generic parameter views retain the Q slot name.
 This value is saved and restored with the other band parameters.
 
+## Listen
+
+Each slot has a Listen parameter (`kListen`, after Slope). The lowest present
+slot with Listen on is auditioned through a unity-peak trapezoidal SVF band-pass
+at the band's frequency, applied to the EQ output (`listen.hpp`). Bells and
+shelves use their Q (0.3–8.01) for the band-pass width; cuts and tilt use 0.707.
+A Mid or Side band mutes the other channel while listening. Listen crossfades
+over 5ms and its coefficients smooth over 10ms; when off, it costs no
+per-sample work. The UI keeps Listen exclusive: turning it on for one band turns
+it off for all others.
+
+## Mouse controls
+
+Modifiers follow FabFilter Pro-Q conventions; Cmd on macOS stands for Ctrl.
+
+- Click empty display or piano: new band, dragged immediately.
+- Drag a node: frequency and gain (cuts: resonance). Shift: fine (¼ speed).
+  Alt: lock to the dominant axis. Control: listen to the band while held.
+- Double-click or Alt-click a node or piano dot: band on/off.
+- Wheel over a node: Q (cuts: slope). Shift: fine.
+- Right-click a node: type and channel menu.
+- Value labels and number boxes: drag to edit, Shift for fine, wheel to step;
+  Ctrl/Cmd-click or double-click resets to default.
+- Option bar: power (on/off), headphones (listen) and X (remove) buttons.
+
 ## Validation
 
 From the repository root:
@@ -187,12 +162,8 @@ c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-dsp.cpp src/custom/eq/eq-
 /tmp/suite3-eq-test
 c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-highpass.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-hp-test
 /tmp/suite3-hp-test
-c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-ladder.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-ladder-test
-/tmp/suite3-ladder-test
 c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-shelf.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-shelf-test
 /tmp/suite3-shelf-test
-c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-x42-highpass.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-x42-hp-test
-/tmp/suite3-x42-hp-test
 c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-lowpass.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-lp-test
 /tmp/suite3-lp-test
 c++ -std=c++17 -O2 -I src -I deps/DPF/distrho tests/eq-tilt.cpp src/custom/eq/eq-dsp.cpp -o /tmp/suite3-tilt-test
@@ -209,16 +180,9 @@ The high-pass test compares measured output with the analytic Butterworth
 response at all four orders and three sample rates, checks that 6dB is invariant
 to Q, and verifies routing, bypass retirement and live automation.
 
-The ladder test checks all slopes and multiple resonance settings against the
-small-signal graph at three sample rates, nonlinear stereo crosstalk, mid/side
-isolation, 6dB Q independence, retirement and extreme live parameter changes.
-
 The shelf test covers upstream sample parity including smoothing, measured vs
 plotted response across sample rates and Q/gain settings, endpoint gains,
 mid/side isolation, exact bypass retirement, type switches and extreme automation.
-
-The x42 HP test checks upstream sample parity, measured versus plotted response,
-cutoff and Q clamping, mid/side routing, exact bypass retirement and automation.
 
 The low-pass test checks all orders against the Butterworth transfer function,
 DC/Nyquist endpoints, 6dB Q independence, routing, retirement and automation.

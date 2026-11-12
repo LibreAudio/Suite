@@ -9,8 +9,6 @@
 #include "LibreAudioParameters.hpp"
 #include "eq/bell-response.hpp"
 #include "eq/highpass.hpp"
-#include "eq/ladder-highpass.hpp"
-#include "eq/fil4-highpass.hpp"
 #include "eq/tilt.hpp"
 #include "eq/shelf.hpp"
 
@@ -54,13 +52,17 @@ static constexpr const float kRowGap = 6.f;
 static constexpr const float kIconWidth = 22.f;
 static constexpr const float kIconHeight = 14.f;
 static constexpr const float kIconGap = 8.f;
+static constexpr const float kPowerSize = 22.f;
+static constexpr const float kPowerInset = 14.f;
+static constexpr const float kBarButtonGap = 4.f;
 static constexpr const float kMenuButtonWidth = 26.f;
 static constexpr const float kMenuButtonHeight = 24.f;
 
 
 static constexpr const double kDoubleClickTime = 0.4;
 static constexpr const double kAddDebounceTime = 0.45;
-static constexpr const double kRemoveGraceTime = 0.6;
+// pointer and wheel movement scale while Shift is held
+static constexpr const float kFineScale = 0.25f;
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -118,11 +120,11 @@ static constexpr const std::array<EqRegion, 7> kRegions {{
 // --------------------------------------------------------------------------------------------------------------------
 // One EQ band, and the analog-prototype magnitude model the display draws it with.
 
-enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, LadderHighPass, X42HighPass, Tilt };
+enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, Tilt };
 enum class EqChannel : uint8_t { Stereo, Mid, Side };
 
-static constexpr const std::array<EqBandType, 8> kBandTypes {
-    EqBandType::HighPass, EqBandType::LadderHighPass, EqBandType::X42HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::Tilt, EqBandType::HighShelf, EqBandType::LowPass
+static constexpr const std::array<EqBandType, 6> kBandTypes {
+    EqBandType::HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::Tilt, EqBandType::HighShelf, EqBandType::LowPass
 };
 
 struct EqBand {
@@ -131,6 +133,7 @@ struct EqBand {
     EqBandType type;
     EqChannel channel;
     bool on;
+    bool listen;        // auditioned on its own; at most one band at a time
     float freq, defFreq;
     float gain;
     float q, defQ;
@@ -140,7 +143,6 @@ struct EqBand {
     mutable std::array<float, 4> tiltSettings {-1.f, 0.f, 0.f, 0.f};
     int slope;          // cuts only: 1..4, times 6 dB/oct
     Color color;
-    double created;
 
     // animation state
     float soloAlpha;
@@ -155,11 +157,11 @@ struct EqBand {
 
     [[nodiscard]] bool isCut() const noexcept
     {
-        return type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::X42HighPass || type == EqBandType::LowPass;
+        return type == EqBandType::HighPass || type == EqBandType::LowPass;
     }
 
-    int effectiveSlope() const noexcept { return type == EqBandType::X42HighPass ? 2 : slope; }
-    bool hasVariableSlope() const noexcept { return isCut() && type != EqBandType::X42HighPass; }
+    int effectiveSlope() const noexcept { return slope; }
+    bool hasVariableSlope() const noexcept { return isCut(); }
 
     // a 6 dB/oct cut has no resonance
     [[nodiscard]] bool hasQ() const noexcept
@@ -182,13 +184,13 @@ struct EqResponse {
     static float qToNorm(const float q, const EqBand& b) noexcept
     {
         if (b.isTilt()) return eq::tiltShape(q);
-        return std::log(q / 0.3f) / std::log((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f);
+        return std::log(q / 0.3f) / std::log((b.isShelf() ? 2.f : 8.01f) / 0.3f);
     }
 
     static float normToQ(const float n, const EqBand& b) noexcept
     {
         if (b.isTilt()) return .3f + 7.71f * n;
-        return 0.3f * std::pow((b.isShelf() ? 2.f : b.type == EqBandType::X42HighPass ? 4.f : 8.01f) / 0.3f, n);
+        return 0.3f * std::pow((b.isShelf() ? 2.f : 8.01f) / 0.3f, n);
     }
 
     // resonance of a cut, as the dB it adds at the corner
@@ -208,10 +210,6 @@ struct EqResponse {
             }
             return float(20. * std::log10(std::max(1e-15, std::abs(eq::tiltTransfer(b.tiltCache, f, b.sampleRate)))));
         }
-        if (b.type == EqBandType::X42HighPass)
-            return eq::x42HighPassResponse(f, b.freq, b.q, b.sampleRate);
-        if (b.type == EqBandType::LadderHighPass)
-            return eq::ladderHighPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
         if (b.type == EqBandType::HighPass)
             return eq::highPassResponse(f, b.freq, b.slope, b.q, b.sampleRate);
         if (b.type == EqBandType::LowPass)
@@ -256,8 +254,6 @@ struct EqResponse {
         switch (type)
         {
         case EqBandType::HighPass: return "Butterworth HP";
-        case EqBandType::LadderHighPass: return "Ladder HP";
-        case EqBandType::X42HighPass: return "x42 HP";
         case EqBandType::LowShelf: return "Low Shelf";
         case EqBandType::Tilt: return "Tilt";
         case EqBandType::Peak: return "Bell";
@@ -368,6 +364,9 @@ private:
         float gain = 0.f, freq = 0.f, q = 0.f;
         int slope = 2;
         float dbMax = 0.f;
+        bool fine = false;  // Shift: movement scaled by kFineScale
+        bool listen = false;        // Control held on a dot drag: the band is listened to
+        uint32_t listenBefore = 0;  // band listening before that, restored afterwards
     };
 
     struct LabelHit {
@@ -383,6 +382,16 @@ private:
         kTargetPianoDot = 3u << 24,
         kTargetBox = 4u << 24,
     };
+
+    // Cmd on macOS, Ctrl elsewhere
+    static bool commandHeld(const uint mod) noexcept
+    {
+#ifdef DISTRHO_OS_MAC
+        return (mod & kModifierSuper) != 0;
+#else
+        return (mod & kModifierControl) != 0;
+#endif
+    }
 
     enum Caption : uint8_t {
         kCaptionReset,
@@ -435,6 +444,7 @@ private:
     std::vector<LabelHit> fLabelHits;
     std::array<Box, kCaptionCount> fCaptionBoxes {};
     std::array<Box, 3> fChannelBoxes {};
+    bool fHoverRemove = false;
 
     // ----------------------------------------------------------------------------------------------------------------
     // band list
@@ -520,6 +530,7 @@ private:
             send(eq::kQ, b.q);
             send(eq::kAdaptiveQ, b.adaptiveQ);
             send(eq::kSlope, float(b.slope));
+            send(eq::kListen, b.listen ? 1.f : 0.f);
             send(eq::kPresent, 1.f);
         }
         if (fDrag.kind == DragKind::None)
@@ -578,6 +589,7 @@ private:
             it->q = p[eq::kQ];
             it->adaptiveQ = p[eq::kAdaptiveQ];
             it->slope = int(p[eq::kSlope]);
+            it->listen = p[eq::kListen] > .5f;
         }
     }
 
@@ -593,7 +605,7 @@ private:
     {
         if (b.isCut())
         {
-            b.slope = b.type == EqBandType::LadderHighPass ? 4 : 2;
+            b.slope = 2;
             b.q = b.defQ = 0.707f;
         }
         else
@@ -618,7 +630,6 @@ private:
         b.gain = b.isCut() ? 0.f : gain;
         b.slope = 2;
         b.color = EqColors::bands[(n - 1) % EqColors::bands.size()];
-        b.created = getTime();
         b.sampleRate = fInterface->getAudioSampleRate();
         applyTypeDefaults(b);
 
@@ -643,14 +654,7 @@ private:
         if (b.type == type)
             return;
 
-        // Changing the high-pass design must not reset the user's band settings.
-        const bool switchingHighPass =
-            (b.type == EqBandType::HighPass || b.type == EqBandType::LadderHighPass || b.type == EqBandType::X42HighPass) &&
-            (type == EqBandType::HighPass || type == EqBandType::LadderHighPass || type == EqBandType::X42HighPass);
         b.type = type;
-        if (switchingHighPass)
-            return;
-
         applyTypeDefaults(b);
         if (b.isCut())
             b.gain = 0.f;
@@ -771,13 +775,72 @@ private:
         return right ? bar.x + bar.w - side : bar.x + side;
     }
 
+    // the band's on/off power button at the left end of the option bar
+    [[nodiscard]] Box layoutPowerButton() const noexcept
+    {
+        const float s = fScaleFactor;
+        const Box bar = layoutBar();
+        return { bar.x + kPowerInset * s, bar.y + (bar.h - kPowerSize * s) * 0.5f, kPowerSize * s, kPowerSize * s };
+    }
+
+    // the band's listen button, right of the power button
+    [[nodiscard]] Box layoutListenButton() const noexcept
+    {
+        const Box pb = layoutPowerButton();
+        return { pb.x + pb.w + kBarButtonGap * fScaleFactor, pb.y, pb.w, pb.h };
+    }
+
+    // the band's remove button, right of the listen button
+    [[nodiscard]] Box layoutRemoveButton() const noexcept
+    {
+        const Box lb = layoutListenButton();
+        return { lb.x + lb.w + kBarButtonGap * fScaleFactor, lb.y, lb.w, lb.h };
+    }
+
+    // listening is exclusive: turning it on for one band turns it off for the others
+    void toggleListen(EqBand& band) noexcept
+    {
+        const bool listen = ! band.listen;
+        for (EqBand& b : fBands)
+            b.listen = false;
+        band.listen = listen;
+    }
+
+    // Control held while dragging a dot listens to that band for as long as it is held.
+    void setDragListen(const bool listen)
+    {
+        if (listen && fDrag.kind != DragKind::Node && fDrag.kind != DragKind::PianoDot)
+            return;
+        if (listen == fDrag.listen)
+            return;
+        EqBand* const band = findBand(fDrag.id);
+        if (band == nullptr)
+            return;
+        fDrag.listen = listen;
+        if (listen)
+        {
+            const auto it = std::find_if(fBands.begin(), fBands.end(), [](const EqBand& b) { return b.listen; });
+            fDrag.listenBefore = it != fBands.end() ? it->id : 0;
+            for (EqBand& b : fBands)
+                b.listen = false;
+            band->listen = true;
+        }
+        else
+        {
+            band->listen = false;
+            if (EqBand* const before = findBand(fDrag.listenBefore))
+                before->listen = true;
+        }
+        repaint();
+    }
+
     [[nodiscard]] std::array<Box, kBandTypes.size()> layoutTypeIcons() const noexcept
     {
         const float s = fScaleFactor;
         const Box bar = layoutBar();
         const float groupW = (kIconWidth * kBandTypes.size() + kIconGap * (kBandTypes.size() - 1)) * s;
         const float y = bar.y + (bar.h - kIconHeight * s) * 0.5f;
-        float x = barSideCentre(false) - groupW * 0.5f;
+        float x = barSideCentre(true) - groupW * 0.5f;
 
         std::array<Box, kBandTypes.size()> icons;
         for (Box& icon : icons)
@@ -888,16 +951,6 @@ private:
         {
         case EqBandType::HighPass:
             M(1.5f, 11.f); C(3.f, 11.f, 3.5f, 4.f, 6.5f, 4.f); L(16.5f, 4.f);
-            break;
-        case EqBandType::LadderHighPass:
-            // Steep high-pass with a resonant shoulder, marked with ladder rungs.
-            M(1.5f, 11.f); C(5.f, 11.f, 4.5f, 1.5f, 8.f, 1.5f);
-            C(10.f, 1.5f, 9.5f, 4.f, 12.f, 4.f); L(16.5f, 4.f);
-            M(2.f, 8.f); L(5.f, 8.f); M(3.f, 6.f); L(6.f, 6.f);
-            break;
-        case EqBandType::X42HighPass:
-            M(1.5f, 11.f); C(4.f, 11.f, 5.f, 1.f, 8.f, 1.f);
-            C(10.f, 1.f, 10.f, 4.f, 13.f, 4.f); L(16.5f, 4.f);
             break;
         case EqBandType::Tilt:
             M(1.5f, 10.f); L(16.5f, 2.f);
@@ -1774,7 +1827,67 @@ private:
 
         const bool lit = b->on && on;
 
-        // filter shapes on the left
+        // power button: an arc open at the top, with a stroke through the gap
+        {
+            const Box pb = layoutPowerButton();
+            const float cx = pb.x + pb.w * 0.5f, cy = pb.y + pb.h * 0.5f;
+            const float r = 6.f * s;
+            if (lit)
+                glowDot(cx, cy, 4.f * s, 9.f * s, b->color, 0.25f);
+            const float gap = 0.32f * static_cast<float>(M_PI);
+            beginPath();
+            arc(cx, cy, r, -0.5f * static_cast<float>(M_PI) + gap, 1.5f * static_cast<float>(M_PI) - gap, CW);
+            moveTo(cx, cy - r - 1.5f * s);
+            lineTo(cx, cy - 1.f * s);
+            lineCap(ROUND);
+            strokeColor(lit ? b->color : b->on ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
+            strokeWidth(1.4f * s);
+            stroke();
+        }
+
+        // listen button: headphones
+        {
+            const Box lb = layoutListenButton();
+            const float cx = lb.x + lb.w * 0.5f, cy = lb.y + lb.h * 0.5f;
+            const float r = 6.f * s;
+            if (b->listen && on)
+                glowDot(cx, cy, 4.f * s, 9.f * s, b->color, 0.25f);
+            const Color c = b->listen ? (on ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
+            beginPath();
+            arc(cx, cy + 1.f * s, r, static_cast<float>(M_PI), 0.f, CW);
+            lineTo(cx + r, cy + 3.5f * s);
+            moveTo(cx - r, cy + 1.f * s);
+            lineTo(cx - r, cy + 3.5f * s);
+            lineCap(ROUND);
+            strokeColor(c);
+            strokeWidth(1.4f * s);
+            stroke();
+            for (const float side : { -1.f, 1.f })
+            {
+                beginPath();
+                roundedRect(cx + side * r - 1.75f * s, cy + 1.5f * s, 3.5f * s, 5.5f * s, 1.2f * s);
+                fillColor(c);
+                fill();
+            }
+        }
+
+        // remove button: an X
+        {
+            const Box xb = layoutRemoveButton();
+            const float cx = xb.x + xb.w * 0.5f, cy = xb.y + xb.h * 0.5f;
+            const float d = 6.f * s;
+            beginPath();
+            moveTo(cx - d, cy - d);
+            lineTo(cx + d, cy + d);
+            moveTo(cx + d, cy - d);
+            lineTo(cx - d, cy + d);
+            lineCap(ROUND);
+            strokeColor(fHoverRemove ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
+            strokeWidth(1.4f * s);
+            stroke();
+        }
+
+        // filter shapes on the right
         {
             const std::array<Box, kBandTypes.size()> icons = layoutTypeIcons();
             for (size_t i = 0; i < icons.size(); ++i)
@@ -1790,7 +1903,7 @@ private:
         setFont("mono", 7.f);
         textAlign(ALIGN_CENTER | ALIGN_BOTTOM);
         fillColor(EqColors::ink3);
-        text(barSideCentre(false), bar.y + bar.h - 5.f * s, EqResponse::typeName(b->type), nullptr);
+        text(barSideCentre(true), bar.y + bar.h - 5.f * s, EqResponse::typeName(b->type), nullptr);
 
         // arrows and number boxes in the middle
         {
@@ -1848,7 +1961,7 @@ private:
             }
         }
 
-        // channel on the right
+        // channel on the left
         {
             static constexpr const char* const kLabels[3] = { "BOTH", "MID", "SIDE" };
             const float gap = 12.f * s;
@@ -1860,7 +1973,7 @@ private:
             for (int i = 0; i < 3; ++i)
                 total += widths[i] = textWidth(kLabels[i]);
 
-            float x = barSideCentre(true) - total * 0.5f;
+            float x = barSideCentre(false) - total * 0.5f;
             const float cy = bar.y + bar.h * 0.5f;
 
             for (int i = 0; i < 3; ++i)
@@ -2115,6 +2228,17 @@ private:
         return hit;
     }
 
+    static void resetField(EqBand& b, const Field field) noexcept
+    {
+        switch (field)
+        {
+        case Field::Gain: b.gain = 0.f; break;
+        case Field::Slope: b.slope = 2; break;
+        case Field::Freq: b.freq = b.defFreq; break;
+        case Field::Q: b.q = b.defQ; break;
+        }
+    }
+
     void startDrag(const DragKind kind, const EqBand& b, const float x, const float y, const Field field = Field::Gain)
     {
         fDrag.kind = kind;
@@ -2130,14 +2254,16 @@ private:
     }
 
     // If the range zooms mid-drag, carry on from where the pointer is rather than jump.
-    void rebaseDragOnZoom(const EqBand& b, const float y, const float dbMax)
+    // Returns true when it rebased, so the caller's vertical offset is now zero.
+    bool rebaseDragOnZoom(const EqBand& b, const float y, const float dbMax)
     {
         if (d_isEqual(fDrag.dbMax, dbMax))
-            return;
+            return false;
         fDrag.dbMax = dbMax;
         fDrag.y = y;
         fDrag.gain = b.gain;
         fDrag.q = b.q;
+        return true;
     }
 
     void setCursorIfChanged(const MouseCursor cursor)
@@ -2160,6 +2286,7 @@ private:
 
             if (fDrag.kind == DragKind::PianoDot && ! pianoDotAt(x, y))
                 fPianoTip = 0;
+            setDragListen(false);
             fDrag = Drag();
             repaint();
             return true;
@@ -2214,10 +2341,11 @@ private:
         if (ev.button != kMouseButtonLeft)
             return BaseWidget::onMouse(ev);
 
-        const bool shift = (ev.mod & kModifierShift) != 0;
+        fDrag.fine = (ev.mod & kModifierShift) != 0;
 
-        if (pressCaption(x, y) || pressDisplay(x, y, shift) || pressPiano(x, y, shift) || pressBar(x, y))
+        if (pressCaption(x, y) || pressDisplay(x, y, ev.mod) || pressPiano(x, y, ev.mod) || pressBar(x, y, ev.mod))
         {
+            setDragListen((ev.mod & kModifierControl) != 0);
             repaint();
             return true;
         }
@@ -2261,7 +2389,7 @@ private:
         return false;
     }
 
-    bool pressDisplay(const float x, const float y, const bool shift)
+    bool pressDisplay(const float x, const float y, const uint mod)
     {
         if (! layoutDisplay().contains(x, y))
             return false;
@@ -2275,15 +2403,9 @@ private:
                 fActive = b->id;
 
                 if (hit.field == Field::Slope && !b->hasVariableSlope()) return true;
-                if (isDoubleClick(kTargetLabel | (b->id << 2) | static_cast<uint32_t>(hit.field)))
+                if (commandHeld(mod) || isDoubleClick(kTargetLabel | (b->id << 2) | static_cast<uint32_t>(hit.field)))
                 {
-                    switch (hit.field)
-                    {
-                    case Field::Gain: b->gain = 0.f; break;
-                    case Field::Slope: b->slope = b->type == EqBandType::LadderHighPass ? 4 : 2; break;
-                    case Field::Freq: b->freq = b->defFreq; break;
-                    case Field::Q: b->q = b->defQ; break;
-                    }
+                    resetField(*b, hit.field);
                     return true;
                 }
 
@@ -2295,16 +2417,10 @@ private:
         // a node
         if (EqBand* const b = nodeAt(x, y))
         {
-            if (shift)
+            // Alt-click or double-click: band on/off
+            if ((mod & kModifierAlt) != 0 || isDoubleClick(kTargetNode | b->id))
             {
                 b->on = ! b->on;
-                return true;
-            }
-
-            if (isDoubleClick(kTargetNode | b->id))
-            {
-                if (getTime() - b->created >= kRemoveGraceTime)
-                    removeBand(b->id);
                 return true;
             }
 
@@ -2330,23 +2446,17 @@ private:
         return true;
     }
 
-    bool pressPiano(const float x, const float y, const bool shift)
+    bool pressPiano(const float x, const float y, const uint mod)
     {
         if (! fShowPiano || ! layoutPiano().contains(x, y))
             return false;
 
         if (EqBand* const b = pianoDotAt(x, y))
         {
-            if (shift)
+            // Alt-click or double-click: band on/off
+            if ((mod & kModifierAlt) != 0 || isDoubleClick(kTargetPianoDot | b->id))
             {
                 b->on = ! b->on;
-                return true;
-            }
-
-            if (isDoubleClick(kTargetPianoDot | b->id))
-            {
-                removeBand(b->id);
-                fPianoTip = 0;
                 return true;
             }
 
@@ -2374,7 +2484,7 @@ private:
         return true;
     }
 
-    bool pressBar(const float x, const float y)
+    bool pressBar(const float x, const float y, const uint mod)
     {
         if (! fShowControls || ! layoutBar().contains(x, y))
             return false;
@@ -2382,6 +2492,24 @@ private:
         EqBand* const b = barBand();
         if (b == nullptr)
             return true;
+
+        if (layoutPowerButton().contains(x, y))
+        {
+            b->on = ! b->on;
+            return true;
+        }
+
+        if (layoutListenButton().contains(x, y))
+        {
+            toggleListen(*b);
+            return true;
+        }
+
+        if (layoutRemoveButton().contains(x, y))
+        {
+            removeBand(b->id);
+            return true;
+        }
 
         const std::array<Box, kBandTypes.size()> icons = layoutTypeIcons();
         for (size_t i = 0; i < icons.size(); ++i)
@@ -2430,15 +2558,9 @@ private:
             if (field == Field::Q && ! b->hasQ())
                 return true;
 
-            if (isDoubleClick(kTargetBox | (b->id << 2) | static_cast<uint32_t>(field)))
+            if (commandHeld(mod) || isDoubleClick(kTargetBox | (b->id << 2) | static_cast<uint32_t>(field)))
             {
-                switch (field)
-                {
-                case Field::Gain: b->gain = 0.f; break;
-                case Field::Slope: b->slope = b->type == EqBandType::LadderHighPass ? 4 : 2; break;
-                case Field::Freq: b->freq = b->defFreq; break;
-                case Field::Q: b->q = b->defQ; break;
-                }
+                resetField(*b, field);
                 return true;
             }
 
@@ -2456,8 +2578,9 @@ private:
 
         if (fDrag.kind != DragKind::None)
         {
+            setDragListen((ev.mod & kModifierControl) != 0);
             if (EqBand* const b = findBand(fDrag.id))
-                dragTo(*b, x, y);
+                dragTo(*b, x, y, ev.mod);
             repaint();
             return true;
         }
@@ -2466,11 +2589,33 @@ private:
         return BaseWidget::onMotion(ev);
     }
 
-    void dragTo(EqBand& b, const float x, const float y)
+    // Shift scales movement down for fine control; toggling it mid-drag restarts the
+    // drag from the current values. Alt locks node and piano-dot drags to the
+    // dominant axis: frequency only, or gain/resonance only.
+    void dragTo(EqBand& b, const float x, const float y, const uint mod)
     {
         const float s = fScaleFactor;
         const Plot p = plot();
-        const float dx = x - fDrag.x;
+
+        if (const bool fine = (mod & kModifierShift) != 0; fine != fDrag.fine)
+        {
+            fDrag.fine = fine;
+            fDrag.x = x;
+            fDrag.y = y;
+            fDrag.gain = b.gain;
+            fDrag.freq = b.freq;
+            fDrag.q = b.q;
+            fDrag.slope = b.slope;
+        }
+
+        const float k = fDrag.fine ? kFineScale : 1.f;
+        float dx = (x - fDrag.x) * k;
+        float pdy = (fDrag.y - y) * k; // pointer px upwards
+        if ((mod & kModifierAlt) != 0 && (fDrag.kind == DragKind::Node || fDrag.kind == DragKind::PianoDot))
+        {
+            if (std::abs(dx) >= std::abs(pdy)) pdy = 0.f;
+            else dx = 0.f;
+        }
 
         switch (fDrag.kind)
         {
@@ -2479,36 +2624,36 @@ private:
 
         // the node itself: frequency across, gain (or a cut's resonance) up and down
         case DragKind::Node:
-            rebaseDragOnZoom(b, y, p.dbMax);
-            b.freq = p.freqAt(x);
+            if (rebaseDragOnZoom(b, y, p.dbMax)) pdy = 0.f;
+            b.freq = p.freqAt(p.xOf(fDrag.freq) + dx);
             if (! b.isCut())
             {
-                b.gain = std::clamp(fDrag.gain + (fDrag.y - y) / p.hUse * 2.f * p.dbMax, -kGainLimit, kGainLimit);
+                b.gain = std::clamp(fDrag.gain + pdy / p.hUse * 2.f * p.dbMax, -kGainLimit, kGainLimit);
             }
             else if (b.hasQ())
             {
-                const float db = EqResponse::qToDb(fDrag.q) + (fDrag.y - y) / p.hUse * 2.f * p.dbMax;
+                const float db = EqResponse::qToDb(fDrag.q) + pdy / p.hUse * 2.f * p.dbMax;
                 b.q = std::clamp(0.707f * std::pow(10.f, db / 20.f), EqResponse::normToQ(0.f, b), EqResponse::normToQ(1.f, b));
             }
             break;
 
         // one value next to a node
         case DragKind::Label:
-            rebaseDragOnZoom(b, y, p.dbMax);
+            if (rebaseDragOnZoom(b, y, p.dbMax)) pdy = 0.f;
             switch (fDrag.field)
             {
             case Field::Slope:
-                b.slope = std::clamp(d_roundToInt(fDrag.slope + (fDrag.y - y) / s / 30.f), 1, 4);
+                b.slope = std::clamp(d_roundToInt(fDrag.slope + pdy / s / 30.f), 1, 4);
                 break;
             case Field::Gain:
-                b.gain = std::clamp(fDrag.gain + (fDrag.y - y) / p.hUse * 2.f * p.dbMax, -kGainLimit, kGainLimit);
+                b.gain = std::clamp(fDrag.gain + pdy / p.hUse * 2.f * p.dbMax, -kGainLimit, kGainLimit);
                 break;
             case Field::Freq:
                 b.freq = std::clamp(EqResponse::normToFreq(std::clamp(EqResponse::freqToNorm(fDrag.freq) + dx / p.w, 0.f, 1.f)),
                                     kFreqMin, kFreqMax);
                 break;
             case Field::Q:
-                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q, b) + (fDrag.y - y) / p.h, 0.f, 1.f), b);
+                b.q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(fDrag.q, b) + pdy / p.h, 0.f, 1.f), b);
                 break;
             }
             break;
@@ -2516,8 +2661,8 @@ private:
         // a number box in the option bar, at fixed prototype-px rates
         case DragKind::Box: {
             const float dbMax = targetDbMax();
-            rebaseDragOnZoom(b, y, dbMax);
-            const float dy = (fDrag.y - y) / s;
+            if (rebaseDragOnZoom(b, y, dbMax)) pdy = 0.f;
+            const float dy = pdy / s;
             switch (fDrag.field)
             {
             case Field::Slope:
@@ -2539,10 +2684,10 @@ private:
 
         // a piano dot: frequency snaps to notes
         case DragKind::PianoDot: {
-            const Box k = layoutPiano();
-            const float f = EqResponse::normToFreq(std::clamp((x - k.x) / k.w, 0.f, 1.f));
+            const Box piano = layoutPiano();
+            const float f = EqResponse::normToFreq(std::clamp(EqResponse::freqToNorm(fDrag.freq) + dx / piano.w, 0.f, 1.f));
             b.freq = std::clamp(EqResponse::freqOfMidi(std::round(EqResponse::midiOf(f))), kFreqMin, kFreqMax);
-            const float dy = (fDrag.y - y) / s;
+            const float dy = pdy / s;
             if (! b.isCut())
                 b.gain = std::clamp(fDrag.gain + dy * 0.1f, -kGainLimit, kGainLimit);
             else if (b.hasQ())
@@ -2557,9 +2702,10 @@ private:
         const uint32_t prevNode = fHoverNode, prevDot = fHoverPianoDot, prevTip = fPianoTip;
         const int prevLabel = fHoverLabel, prevCaption = fHoverCaption;
         const float prevGhost = fGhostX;
-        const bool prevMenu = fMenuOpen;
+        const bool prevMenu = fMenuOpen, prevRemove = fHoverRemove;
 
         fHoverNode = 0;
+        fHoverRemove = false;
         fHoverPianoDot = 0;
         fHoverLabel = -1;
         fHoverCaption = -1;
@@ -2628,6 +2774,11 @@ private:
             for (const Box& icon : layoutTypeIcons())
                 if (icon.contains(x, y))
                     cursor = kMouseCursorHand;
+            if (layoutPowerButton().contains(x, y) || layoutListenButton().contains(x, y))
+                cursor = kMouseCursorHand;
+            fHoverRemove = layoutRemoveButton().contains(x, y);
+            if (fHoverRemove)
+                cursor = kMouseCursorHand;
             for (const Box& ch : fChannelBoxes)
                 if (ch.contains(x, y))
                     cursor = kMouseCursorHand;
@@ -2638,8 +2789,21 @@ private:
         setCursorIfChanged(cursor);
 
         if (prevNode != fHoverNode || prevDot != fHoverPianoDot || prevTip != fPianoTip || prevLabel != fHoverLabel ||
-            prevCaption != fHoverCaption || d_isNotEqual(prevGhost, fGhostX) || prevMenu != fMenuOpen)
+            prevCaption != fHoverCaption || d_isNotEqual(prevGhost, fGhostX) || prevMenu != fMenuOpen ||
+            prevRemove != fHoverRemove)
             repaint();
+    }
+
+    // Control pressed or released mid-drag without moving the mouse, where the host forwards keys
+    bool onKeyboard(const Widget::KeyboardEvent& ev) final
+    {
+        if (fDrag.kind != DragKind::None && (ev.key == kKeyControlL || ev.key == kKeyControlR))
+        {
+            const BandEdit edit {*this};
+            setDragListen(ev.press);
+            return true;
+        }
+        return BaseWidget::onKeyboard(ev);
     }
 
     bool onScroll(const Widget::ScrollEvent& ev) final
@@ -2647,7 +2811,7 @@ private:
         const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
         const float dir = ev.delta.getY() > 0.0 ? 1.f : ev.delta.getY() < 0.0 ? -1.f : 0.f;
-        const float fine = (ev.mod & kModifierShift) != 0 ? 0.25f : 1.f;
+        const float fine = (ev.mod & kModifierShift) != 0 ? kFineScale : 1.f;
 
         if (d_isZero(dir) || ! contains(ev.pos))
             return BaseWidget::onScroll(ev);
@@ -2661,7 +2825,7 @@ private:
                 if (b->hasVariableSlope())
                     b->slope = std::clamp(b->slope + static_cast<int>(dir), 1, 4);
                 else
-                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q, *b) + dir * 0.05f, 0.f, 1.f), *b);
+                    b->q = EqResponse::normToQ(std::clamp(EqResponse::qToNorm(b->q, *b) + dir * 0.05f * fine, 0.f, 1.f), *b);
                 repaint();
                 return true;
             }

@@ -5,10 +5,9 @@
 #include "bell-response.hpp"
 #include "x42-bell.hpp"
 #include "highpass.hpp"
-#include "ladder-highpass.hpp"
 #include "shelf.hpp"
-#include "fil4-highpass.hpp"
 #include "tilt.hpp"
+#include "listen.hpp"
 #include <array>
 
 namespace eq {
@@ -19,16 +18,14 @@ class DynamicEq final : public FaustDSP
         HighPass highpass[2];
         LowPass lowpass[2];
         Tilt tilt[2];
-        X42HighPass x42highpass[2];
         Shelf lowShelf[2], highShelf[2];
-        LadderHighPass ladder[2];
-        LadderHighPass ladderStereo[2];
         float frequency = .02f, bandwidth = 1.f;
         float gain[2] = {1.f, 1.f};
         bool dirty = true;
     };
     std::array<float, kFaustParameterCount> values {};
     std::array<Band, kBandCount> bands {};
+    Listen listen;
     int rate = 48000;
 
 public:
@@ -62,12 +59,10 @@ public:
             for (auto& filter : band.highpass) filter.clear();
             for (auto& filter : band.lowpass) filter.clear();
             for (auto& filter : band.tilt) filter.clear();
-            for (auto& filter : band.x42highpass) filter.clear();
             for (auto& filter : band.lowShelf) filter.clear();
             for (auto& filter : band.highShelf) filter.clear();
-            for (auto& filter : band.ladder) filter.clear();
-            for (auto& filter : band.ladderStereo) filter.clear();
         }
+        listen.clear();
     }
     void instanceConstants(int sampleRate) override
     {
@@ -78,12 +73,10 @@ public:
             for (auto& filter : band.highpass) filter.setRate(rate);
             for (auto& filter : band.lowpass) filter.setRate(rate);
             for (auto& filter : band.tilt) filter.setRate(rate);
-            for (auto& filter : band.x42highpass) filter.setRate(rate);
             for (auto& filter : band.lowShelf) filter.setRate(rate, false);
             for (auto& filter : band.highShelf) filter.setRate(rate, true);
-            for (auto& filter : band.ladder) filter.setRate(rate);
-            for (auto& filter : band.ladderStereo) filter.setRate(rate);
         }
+        listen.setRate(rate);
         instanceClear();
     }
     void instanceInit(int sampleRate) override
@@ -111,25 +104,34 @@ public:
             for (unsigned c = 0; c < 2; ++c)
                 band.highpass[c].configure(hp && p[kChannel] != (c == 0 ? 2.f : 1.f),
                                            p[kFrequency], int(p[kSlope]), p[kQ], rate);
-            const bool ladder = p[kPresent] > .5f && p[kEnabled] > .5f && p[kType] == 5.f;
-            for (unsigned c = 0; c < 2; ++c)
-            {
-                band.ladder[c].configure(ladder && p[kChannel] == (c == 0 ? 1.f : 2.f),
-                                         p[kFrequency], int(p[kSlope]), p[kQ], rate);
-                band.ladderStereo[c].configure(ladder && p[kChannel] == 0.f,
-                                               p[kFrequency], int(p[kSlope]), p[kQ], rate);
-            }
             for (unsigned c = 0; c < 2; ++c)
             {
                 const bool enabled = p[kPresent] > .5f && p[kEnabled] > .5f
                                   && p[kChannel] != (c == 0 ? 2.f : 1.f);
-                band.tilt[c].configure(enabled && p[kType] == 7.f, p[kFrequency], p[kGain], tiltShape(p[kQ]));
+                band.tilt[c].configure(enabled && p[kType] == 5.f, p[kFrequency], p[kGain], tiltShape(p[kQ]));
                 band.lowpass[c].configure(enabled && p[kType] == 4.f, p[kFrequency], int(p[kSlope]), p[kQ], rate);
-                band.x42highpass[c].configure(enabled && p[kType] == 6.f, p[kFrequency], p[kQ]);
                 band.lowShelf[c].configure(enabled && p[kType] == 1.f, p[kFrequency], p[kGain], p[kQ]);
                 band.highShelf[c].configure(enabled && p[kType] == 3.f, p[kFrequency], p[kGain], p[kQ]);
             }
             band.dirty = false;
+        }
+
+        // The lowest present slot with Listen on is auditioned. Bells and shelves
+        // use their Q for the listen width; cuts and tilt use 0.707.
+        {
+            const float* l = nullptr;
+            for (unsigned slot = 0; slot < bands.size() && l == nullptr; ++slot)
+            {
+                const float* p = values.data() + slot * kBandStride;
+                if (p[kPresent] > .5f && p[kListen] > .5f) l = p;
+            }
+            if (l != nullptr)
+            {
+                const bool useQ = l[kType] >= 1.f && l[kType] <= 3.f;
+                listen.configure(true, l[kChannel] != 2.f, l[kChannel] != 1.f, l[kFrequency], useQ ? l[kQ] : .707f);
+            }
+            else
+                listen.configure(false, false, false, 0.f, 0.f);
         }
 
         // The active list includes filters fading back to unity. Once settled,
@@ -139,10 +141,10 @@ public:
         unsigned size = 0;
         for (auto& band : bands)
             for (unsigned c = 0; c < 2; ++c)
-                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active() || band.lowpass[c].active() || band.tilt[c].active() || band.ladder[c].active() || band.ladderStereo[0].active() || band.ladderStereo[1].active()
-                    || band.x42highpass[c].active() || band.lowShelf[c].active() || band.highShelf[c].active())
+                if (band.gain[c] != 1.f || band.filter[c].g0() != 0.f || band.highpass[c].active() || band.lowpass[c].active() || band.tilt[c].active()
+                    || band.lowShelf[c].active() || band.highShelf[c].active())
                     active[size++] = {&band, c};
-        if (size == 0) return; // exact passthrough, without even an M/S round trip
+        if (size == 0 && ! listen.active()) return; // exact passthrough, without even an M/S round trip
 
         for (int offset = 0; offset < count; offset += 32)
         {
@@ -165,29 +167,9 @@ public:
                 b.highpass[c].process(n, signal[c]);
                 b.lowpass[c].process(n, signal[c]);
                 b.tilt[c].process(n, signal[c]);
-                b.x42highpass[c].process(n, signal[c]);
-                b.ladder[c].process(n, signal[c]);
-                // Nonlinear stereo filtering must run on L/R, not M/S: those
-                // transforms commute only for linear processors. Separate state
-                // banks also let routing changes fade out without reinterpreting history.
-                if (c == 1 && (b.ladderStereo[0].active() || b.ladderStereo[1].active()))
-                {
-                    for (int j = 0; j < n; ++j)
-                    {
-                        const float m = signal[0][j], side = signal[1][j];
-                        signal[0][j] = m + side;
-                        signal[1][j] = m - side;
-                    }
-                    b.ladderStereo[0].process(n, signal[0]);
-                    b.ladderStereo[1].process(n, signal[1]);
-                    for (int j = 0; j < n; ++j)
-                    {
-                        const float l = signal[0][j], r = signal[1][j];
-                        signal[0][j] = .5f * (l + r);
-                        signal[1][j] = .5f * (l - r);
-                    }
-                }
             }
+            float* const ms[2] = {signal[0], signal[1]};
+            listen.process(n, ms);
             for (int i = 0; i < n; ++i)
             {
                 buffers[0][offset + i] = signal[0][i] + signal[1][i];
