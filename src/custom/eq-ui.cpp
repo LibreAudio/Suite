@@ -20,10 +20,34 @@
 #include <cstdio>
 #include <vector>
 #include <string>
+#include <cstdint>
+
+// The physical Control key, read directly: hosts often keep a lone modifier press from reaching the plugin window.
+// Declared here rather than through the platform headers, whose Point/Rect/Rectangle collide with DGL's names.
+#if defined(__APPLE__)
+extern "C" uint64_t CGEventSourceFlagsState(int32_t stateID);
+#elif defined(_WIN32)
+extern "C" __declspec(dllimport) short __stdcall GetAsyncKeyState(int vKey);
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace LibreAudio {
+
+// whether Control is held down: false where the state cannot be read, *known tells which
+static bool readControlKey(bool* const known) noexcept
+{
+#if defined(__APPLE__)
+    *known = true;
+    return (CGEventSourceFlagsState(0 /* combined session state */) & 0x00040000 /* control mask */) != 0;
+#elif defined(_WIN32)
+    *known = true;
+    return (GetAsyncKeyState(0x11 /* VK_CONTROL */) & 0x8000) != 0;
+#else
+    *known = false;
+    return false;
+#endif
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 // Dynamic native EQ: band numbers map to stable host parameter slots.
@@ -55,8 +79,11 @@ static constexpr const float kIconGap = 8.f;
 static constexpr const float kPowerSize = 22.f;
 static constexpr const float kPowerInset = 14.f;
 static constexpr const float kBarButtonGap = 4.f;
-static constexpr const float kMenuButtonWidth = 26.f;
+static constexpr const float kMenuButtonWidth = 36.f;
 static constexpr const float kMenuButtonHeight = 24.f;
+static constexpr const float kMenuCloseMargin = 60.f;   // how far the pointer may stray outside the menu
+static constexpr const size_t kMenuTypeColumns = 3;     // band types in the menu, in rows of this many
+static constexpr const float kMenuTypesHeight = kMenuButtonHeight * 2.f + 1.f; // their two rows
 
 
 static constexpr const double kDoubleClickTime = 0.4;
@@ -123,8 +150,16 @@ static constexpr const std::array<EqRegion, 7> kRegions {{
 enum class EqBandType : uint8_t { HighPass, LowShelf, Peak, HighShelf, LowPass, Tilt };
 enum class EqChannel : uint8_t { Stereo, Mid, Side };
 
+// the channels as the option bar and context menu show them, left to right
+static constexpr const std::array<EqChannel, 3> kChannelOrder { EqChannel::Mid, EqChannel::Stereo, EqChannel::Side };
+
 static constexpr const std::array<EqBandType, 6> kBandTypes {
     EqBandType::HighPass, EqBandType::LowShelf, EqBandType::Peak, EqBandType::Tilt, EqBandType::HighShelf, EqBandType::LowPass
+};
+
+// the band types in the context menu, row by row: shelves and bell, then cuts and tilt
+static constexpr const std::array<EqBandType, kBandTypes.size()> kMenuBandTypes {
+    EqBandType::LowShelf, EqBandType::Peak, EqBandType::HighShelf, EqBandType::HighPass, EqBandType::Tilt, EqBandType::LowPass
 };
 
 struct EqBand {
@@ -404,6 +439,7 @@ private:
     };
 
     static constexpr const std::array<int, 5> kRanges { 3, 6, 12, 24, 0 }; // 0 = auto
+    static constexpr const uint8_t kDefaultRangeIndex = 2;                  // 12 dB
 
     float fParamValues[kFaustParameterCount];
     std::array<bool, kFaustParameterCount> fEditing {};
@@ -413,7 +449,7 @@ private:
     uint32_t fActive = 0;
 
     Analyser fAnalyser = Analyser::Post;
-    uint8_t fRangeIndex = 4;
+    uint8_t fRangeIndex = kDefaultRangeIndex;
     bool fShowPiano = false;
     bool fShowRegions = false;
     bool fShowControls = false;
@@ -473,7 +509,7 @@ private:
         if (value.empty())
         {
             fShowPiano = fShowRegions = fShowControls = false;
-            fRangeIndex = 4;
+            fRangeIndex = kDefaultRangeIndex;
             fAnalyser = Analyser::Post;
             fDbView = targetDbMax();
             return true;
@@ -783,27 +819,11 @@ private:
         return { bar.x + kPowerInset * s, bar.y + (bar.h - kPowerSize * s) * 0.5f, kPowerSize * s, kPowerSize * s };
     }
 
-    // the band's listen button, right of the power button
-    [[nodiscard]] Box layoutListenButton() const noexcept
+    // the band's remove button, right of the power button
+    [[nodiscard]] Box layoutRemoveButton() const noexcept
     {
         const Box pb = layoutPowerButton();
         return { pb.x + pb.w + kBarButtonGap * fScaleFactor, pb.y, pb.w, pb.h };
-    }
-
-    // the band's remove button, right of the listen button
-    [[nodiscard]] Box layoutRemoveButton() const noexcept
-    {
-        const Box lb = layoutListenButton();
-        return { lb.x + lb.w + kBarButtonGap * fScaleFactor, lb.y, lb.w, lb.h };
-    }
-
-    // listening is exclusive: turning it on for one band turns it off for the others
-    void toggleListen(EqBand& band) noexcept
-    {
-        const bool listen = ! band.listen;
-        for (EqBand& b : fBands)
-            b.listen = false;
-        band.listen = listen;
     }
 
     // Control held while dragging a dot listens to that band for as long as it is held.
@@ -855,8 +875,8 @@ private:
     {
         const float s = fScaleFactor;
         const Box d = layoutDisplay();
-        const float w = (6.f + kMenuButtonWidth * kBandTypes.size() + (kBandTypes.size() - 1)) * s;
-        const float h = (6.f + kMenuButtonHeight * 2.f + 5.f) * s;
+        const float w = (6.f + kMenuButtonWidth * kMenuTypeColumns + (kMenuTypeColumns - 1)) * s;
+        const float h = (6.f + kMenuTypesHeight + kMenuButtonHeight * 2.f + 10.f) * s;
         return {
             std::clamp(fMenuX - 34.f * s, d.x + 4.f * s, d.x + d.w - w - 4.f * s),
             std::clamp(fMenuY + 10.f * s, d.y + 4.f * s, d.y + d.h - h - 4.f * s),
@@ -1831,60 +1851,16 @@ private:
         {
             const Box pb = layoutPowerButton();
             const float cx = pb.x + pb.w * 0.5f, cy = pb.y + pb.h * 0.5f;
-            const float r = 6.f * s;
             if (lit)
                 glowDot(cx, cy, 4.f * s, 9.f * s, b->color, 0.25f);
-            const float gap = 0.32f * static_cast<float>(M_PI);
-            beginPath();
-            arc(cx, cy, r, -0.5f * static_cast<float>(M_PI) + gap, 1.5f * static_cast<float>(M_PI) - gap, CW);
-            moveTo(cx, cy - r - 1.5f * s);
-            lineTo(cx, cy - 1.f * s);
-            lineCap(ROUND);
-            strokeColor(lit ? b->color : b->on ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
-            strokeWidth(1.4f * s);
-            stroke();
-        }
-
-        // listen button: headphones
-        {
-            const Box lb = layoutListenButton();
-            const float cx = lb.x + lb.w * 0.5f, cy = lb.y + lb.h * 0.5f;
-            const float r = 6.f * s;
-            if (b->listen && on)
-                glowDot(cx, cy, 4.f * s, 9.f * s, b->color, 0.25f);
-            const Color c = b->listen ? (on ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f);
-            beginPath();
-            arc(cx, cy + 1.f * s, r, static_cast<float>(M_PI), 0.f, CW);
-            lineTo(cx + r, cy + 3.5f * s);
-            moveTo(cx - r, cy + 1.f * s);
-            lineTo(cx - r, cy + 3.5f * s);
-            lineCap(ROUND);
-            strokeColor(c);
-            strokeWidth(1.4f * s);
-            stroke();
-            for (const float side : { -1.f, 1.f })
-            {
-                beginPath();
-                roundedRect(cx + side * r - 1.75f * s, cy + 1.5f * s, 3.5f * s, 5.5f * s, 1.2f * s);
-                fillColor(c);
-                fill();
-            }
+            strokePowerIcon(cx, cy, lit ? b->color : b->on ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
         }
 
         // remove button: an X
         {
             const Box xb = layoutRemoveButton();
-            const float cx = xb.x + xb.w * 0.5f, cy = xb.y + xb.h * 0.5f;
-            const float d = 6.f * s;
-            beginPath();
-            moveTo(cx - d, cy - d);
-            lineTo(cx + d, cy + d);
-            moveTo(cx + d, cy - d);
-            lineTo(cx - d, cy + d);
-            lineCap(ROUND);
-            strokeColor(fHoverRemove ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
-            strokeWidth(1.4f * s);
-            stroke();
+            strokeRemoveIcon(xb.x + xb.w * 0.5f, xb.y + xb.h * 0.5f,
+                             fHoverRemove ? EqColors::ink2 : withAlpha(EqColors::ink3, 0.7f));
         }
 
         // filter shapes on the right
@@ -1961,9 +1937,9 @@ private:
             }
         }
 
-        // channel on the left
+        // channel, centred between the drawn X and the drawn left arrow
         {
-            static constexpr const char* const kLabels[3] = { "BOTH", "MID", "SIDE" };
+            static constexpr const char* const kLabels[3] = { "MID", "M & S", "SIDE" };
             const float gap = 12.f * s;
 
             setFont("regular", 11.f, 0.06f);
@@ -1973,12 +1949,16 @@ private:
             for (int i = 0; i < 3; ++i)
                 total += widths[i] = textWidth(kLabels[i]);
 
-            float x = barSideCentre(false) - total * 0.5f;
+            const Box xb = layoutRemoveButton();
+            const Box arrow = layoutBarRow()[0];
+            const float left = xb.x + xb.w * 0.5f + 6.f * s;           // the X's right tips
+            const float right = arrow.x + arrow.w * 0.5f - 1.65f * s;  // the arrow's left point
+            float x = (left + right - total) * 0.5f;
             const float cy = bar.y + bar.h * 0.5f;
 
             for (int i = 0; i < 3; ++i)
             {
-                const bool sel = static_cast<int>(b->channel) == i;
+                const bool sel = b->channel == kChannelOrder[i];
                 fillColor(sel ? (lit ? b->color : EqColors::ink2) : withAlpha(EqColors::ink3, 0.7f));
                 text(x, cy, kLabels[i], nullptr);
                 fChannelBoxes[i] = { x - 3.f * s, cy - 10.f * s, widths[i] + 6.f * s, 20.f * s };
@@ -2042,6 +2022,38 @@ private:
         restore();
     }
 
+    // power icon: an arc open at the top, with a stroke through the gap
+    void strokePowerIcon(const float cx, const float cy, const Color c)
+    {
+        const float s = fScaleFactor;
+        const float r = 6.f * s;
+        const float gap = 0.32f * static_cast<float>(M_PI);
+        beginPath();
+        arc(cx, cy, r, -0.5f * static_cast<float>(M_PI) + gap, 1.5f * static_cast<float>(M_PI) - gap, CW);
+        moveTo(cx, cy - r - 1.5f * s);
+        lineTo(cx, cy - 1.f * s);
+        lineCap(ROUND);
+        strokeColor(c);
+        strokeWidth(1.4f * s);
+        stroke();
+    }
+
+    // remove icon: an X
+    void strokeRemoveIcon(const float cx, const float cy, const Color c)
+    {
+        const float s = fScaleFactor;
+        const float d = 6.f * s;
+        beginPath();
+        moveTo(cx - d, cy - d);
+        lineTo(cx + d, cy + d);
+        moveTo(cx + d, cy - d);
+        lineTo(cx - d, cy + d);
+        lineCap(ROUND);
+        strokeColor(c);
+        strokeWidth(1.4f * s);
+        stroke();
+    }
+
     void drawMenu()
     {
         const EqBand* const b = findBand(fMenuBand);
@@ -2067,7 +2079,7 @@ private:
         for (size_t i = 0; i < kBandTypes.size(); ++i)
         {
             const Box cell = menuTypeCell(i);
-            const bool sel = b->type == kBandTypes[i];
+            const bool sel = b->type == kMenuBandTypes[i];
             if (sel)
             {
                 beginPath();
@@ -2076,24 +2088,24 @@ private:
                 fill();
             }
             const Box icon { cell.x + (cell.w - 18.f * s) * 0.5f, cell.y + (cell.h - 12.f * s) * 0.5f, 18.f * s, 12.f * s };
-            strokeTypeIcon(kBandTypes[i], icon, sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
+            strokeTypeIcon(kMenuBandTypes[i], icon, sel ? EqColors::darker : EqColors::ink2, 1.3f * s);
         }
 
         beginPath();
-        moveTo(m.x + 7.f * s, m.y + (3.f + kMenuButtonHeight + 2.5f) * s);
-        lineTo(m.x + m.w - 7.f * s, m.y + (3.f + kMenuButtonHeight + 2.5f) * s);
+        moveTo(m.x + 7.f * s, m.y + (3.f + kMenuTypesHeight + 2.5f) * s);
+        lineTo(m.x + m.w - 7.f * s, m.y + (3.f + kMenuTypesHeight + 2.5f) * s);
         strokeColor(Color(1.f, 1.f, 1.f, 0.08f));
         strokeWidth(1.f);
         stroke();
 
-        static constexpr const char* const kLabels[3] = { "Both", "Mid", "Side" };
+        static constexpr const char* const kLabels[3] = { "Mid", "M & S", "Side" };
         setFont("regular", 11.5f / kTextScale * 1.2f, 0.02f);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
 
         for (int i = 0; i < 3; ++i)
         {
             const Box cell = menuChannelCell(i);
-            const bool sel = static_cast<int>(b->channel) == i;
+            const bool sel = b->channel == kChannelOrder[i];
             if (sel)
             {
                 beginPath();
@@ -2104,13 +2116,42 @@ private:
             fillColor(sel ? EqColors::darker : EqColors::ink2);
             text(cell.x + cell.w * 0.5f, cell.y + cell.h * 0.5f, kLabels[i], nullptr);
         }
+
+        beginPath();
+        moveTo(m.x + 7.f * s, m.y + (3.f + kMenuTypesHeight + kMenuButtonHeight + 7.5f) * s);
+        lineTo(m.x + m.w - 7.f * s, m.y + (3.f + kMenuTypesHeight + kMenuButtonHeight + 7.5f) * s);
+        strokeColor(Color(1.f, 1.f, 1.f, 0.08f));
+        strokeWidth(1.f);
+        stroke();
+
+        // power and remove; power is filled while on
+        for (int i = 0; i < 2; ++i)
+        {
+            const Box cell = menuActionCell(i);
+            const bool sel = i == 0 && b->on;
+            if (sel)
+            {
+                beginPath();
+                roundedRect(cell.x, cell.y, cell.w, cell.h, 5.f * s);
+                fillColor(b->color);
+                fill();
+            }
+            const Color c = sel ? EqColors::darker : EqColors::ink2;
+            const float cx = cell.x + cell.w * 0.5f, cy = cell.y + cell.h * 0.5f;
+            if (i == 0)
+                strokePowerIcon(cx, cy, c);
+            else
+                strokeRemoveIcon(cx, cy, c);
+        }
     }
 
     [[nodiscard]] Box menuTypeCell(const size_t i) const noexcept
     {
         const float s = fScaleFactor;
         const Box m = layoutMenu();
-        return { m.x + (3.f + i * (kMenuButtonWidth + 1.f)) * s, m.y + 3.f * s, kMenuButtonWidth * s, kMenuButtonHeight * s };
+        const size_t col = i % kMenuTypeColumns, row = i / kMenuTypeColumns;
+        return { m.x + (3.f + col * (kMenuButtonWidth + 1.f)) * s, m.y + (3.f + row * (kMenuButtonHeight + 1.f)) * s,
+                 kMenuButtonWidth * s, kMenuButtonHeight * s };
     }
 
     [[nodiscard]] Box menuChannelCell(const int i) const noexcept
@@ -2118,7 +2159,16 @@ private:
         const float s = fScaleFactor;
         const Box m = layoutMenu();
         const float w = (m.w - 6.f * s - 2.f * s) / 3.f;
-        return { m.x + 3.f * s + i * (w + 1.f * s), m.y + (3.f + kMenuButtonHeight + 5.f) * s, w, kMenuButtonHeight * s };
+        return { m.x + 3.f * s + i * (w + 1.f * s), m.y + (3.f + kMenuTypesHeight + 5.f) * s, w, kMenuButtonHeight * s };
+    }
+
+    // third menu row: power, remove
+    [[nodiscard]] Box menuActionCell(const int i) const noexcept
+    {
+        const float s = fScaleFactor;
+        const Box m = layoutMenu();
+        const float w = (m.w - 6.f * s - 1.f * s) / 2.f;
+        return { m.x + 3.f * s + i * (w + 1.f * s), m.y + (3.f + kMenuTypesHeight + kMenuButtonHeight + 10.f) * s, w, kMenuButtonHeight * s };
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -2147,6 +2197,17 @@ private:
             if (std::abs(target - fDbView) < 0.02f)
                 fDbView = target;
             changed = true;
+        }
+
+        // Control pressed or released mid-drag without moving the mouse
+        if (fDrag.kind == DragKind::Node || fDrag.kind == DragKind::PianoDot)
+        {
+            bool known;
+            if (const bool control = readControlKey(&known); known && control != fDrag.listen)
+            {
+                const BandEdit edit {*this};
+                setDragListen(control);
+            }
         }
 
         const bool on = ! isBypassed();
@@ -2307,10 +2368,14 @@ private:
                 {
                     for (size_t i = 0; i < kBandTypes.size(); ++i)
                         if (menuTypeCell(i).contains(x, y))
-                            setBandType(*b, kBandTypes[i]);
+                            setBandType(*b, kMenuBandTypes[i]);
                     for (int i = 0; i < 3; ++i)
                         if (menuChannelCell(i).contains(x, y))
-                            b->channel = static_cast<EqChannel>(i);
+                            b->channel = kChannelOrder[i];
+                    if (menuActionCell(0).contains(x, y))
+                        b->on = ! b->on;
+                    else if (menuActionCell(1).contains(x, y))
+                        removeBand(b->id);
                 }
                 return true;
             }
@@ -2499,12 +2564,6 @@ private:
             return true;
         }
 
-        if (layoutListenButton().contains(x, y))
-        {
-            toggleListen(*b);
-            return true;
-        }
-
         if (layoutRemoveButton().contains(x, y))
         {
             removeBand(b->id);
@@ -2525,7 +2584,7 @@ private:
         {
             if (fChannelBoxes[i].contains(x, y))
             {
-                b->channel = static_cast<EqChannel>(i);
+                b->channel = kChannelOrder[i];
                 return true;
             }
         }
@@ -2590,8 +2649,7 @@ private:
     }
 
     // Shift scales movement down for fine control; toggling it mid-drag restarts the
-    // drag from the current values. Alt locks node and piano-dot drags to the
-    // dominant axis: frequency only, or gain/resonance only.
+    // drag from the current values.
     void dragTo(EqBand& b, const float x, const float y, const uint mod)
     {
         const float s = fScaleFactor;
@@ -2611,11 +2669,6 @@ private:
         const float k = fDrag.fine ? kFineScale : 1.f;
         float dx = (x - fDrag.x) * k;
         float pdy = (fDrag.y - y) * k; // pointer px upwards
-        if ((mod & kModifierAlt) != 0 && (fDrag.kind == DragKind::Node || fDrag.kind == DragKind::PianoDot))
-        {
-            if (std::abs(dx) >= std::abs(pdy)) pdy = 0.f;
-            else dx = 0.f;
-        }
 
         switch (fDrag.kind)
         {
@@ -2714,11 +2767,14 @@ private:
 
         if (fMenuOpen)
         {
-            // the menu closes once the pointer has been in it and leaves
-            const bool inside = layoutMenu().contains(x, y);
+            // the menu closes once the pointer has been in it and moves kMenuCloseMargin beyond it
+            const Box m = layoutMenu();
+            const float margin = kMenuCloseMargin * fScaleFactor;
+            const Box near { m.x - margin, m.y - margin, m.w + 2.f * margin, m.h + 2.f * margin };
+            const bool inside = m.contains(x, y);
             if (inside)
                 fMenuEntered = true;
-            else if (fMenuEntered)
+            else if (fMenuEntered && ! near.contains(x, y))
                 fMenuOpen = false;
             if (inside)
                 cursor = kMouseCursorHand;
@@ -2774,7 +2830,7 @@ private:
             for (const Box& icon : layoutTypeIcons())
                 if (icon.contains(x, y))
                     cursor = kMouseCursorHand;
-            if (layoutPowerButton().contains(x, y) || layoutListenButton().contains(x, y))
+            if (layoutPowerButton().contains(x, y))
                 cursor = kMouseCursorHand;
             fHoverRemove = layoutRemoveButton().contains(x, y);
             if (fHoverRemove)

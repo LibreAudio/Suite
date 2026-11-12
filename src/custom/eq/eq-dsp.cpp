@@ -116,8 +116,10 @@ public:
             band.dirty = false;
         }
 
-        // The lowest present slot with Listen on is auditioned. Bells and shelves
-        // use their Q for the listen width; cuts and tilt use 0.707.
+        // The lowest present slot with Listen on is auditioned on the input before
+        // the EQ, through the region the band works on: a bell through a band-pass
+        // of its Q, a low shelf or high-pass through a low-pass, a high shelf or
+        // low-pass through a high-pass, tilt through a 0.707 band-pass.
         {
             const float* l = nullptr;
             for (unsigned slot = 0; slot < bands.size() && l == nullptr; ++slot)
@@ -127,11 +129,15 @@ public:
             }
             if (l != nullptr)
             {
-                const bool useQ = l[kType] >= 1.f && l[kType] <= 3.f;
-                listen.configure(true, l[kChannel] != 2.f, l[kChannel] != 1.f, l[kFrequency], useQ ? l[kQ] : .707f);
+                const int type = int(l[kType]);
+                const Listen::Shape shape = type == 2 ? Listen::BandPass
+                                          : type == 0 || type == 1 ? Listen::LowPass
+                                          : type == 3 || type == 4 ? Listen::HighPass
+                                          : Listen::BandPass;
+                listen.configure(true, l[kChannel] != 2.f, l[kChannel] != 1.f, shape, l[kFrequency], type == 2 ? l[kQ] : .707f);
             }
             else
-                listen.configure(false, false, false, 0.f, 0.f);
+                listen.configure(false, false, false, Listen::BandPass, 0.f, 0.f);
         }
 
         // The active list includes filters fading back to unity. Once settled,
@@ -149,12 +155,12 @@ public:
         for (int offset = 0; offset < count; offset += 32)
         {
             const int n = std::min(32, count - offset);
-            float signal[2][32];
+            float signal[2][32], dry[2][32];
             for (int i = 0; i < n; ++i)
             {
                 const float l = buffers[0][offset + i], r = buffers[1][offset + i];
-                signal[0][i] = .5f * (l + r);
-                signal[1][i] = .5f * (l - r);
+                signal[0][i] = dry[0][i] = .5f * (l + r);
+                signal[1][i] = dry[1][i] = .5f * (l - r);
             }
             for (unsigned i = 0; i < size; ++i)
             {
@@ -168,8 +174,9 @@ public:
                 b.lowpass[c].process(n, signal[c]);
                 b.tilt[c].process(n, signal[c]);
             }
+            const float* const drySignal[2] = {dry[0], dry[1]};
             float* const ms[2] = {signal[0], signal[1]};
-            listen.process(n, ms);
+            listen.process(n, drySignal, ms);
             for (int i = 0; i < n; ++i)
             {
                 buffers[0][offset + i] = signal[0][i] + signal[1][i];

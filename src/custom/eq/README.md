@@ -131,13 +131,16 @@ This value is saved and restored with the other band parameters.
 ## Listen
 
 Each slot has a Listen parameter (`kListen`, after Slope). The lowest present
-slot with Listen on is auditioned through a unity-peak trapezoidal SVF band-pass
-at the band's frequency, applied to the EQ output (`listen.hpp`). Bells and
-shelves use their Q (0.3–8.01) for the band-pass width; cuts and tilt use 0.707.
-A Mid or Side band mutes the other channel while listening. Listen crossfades
-over 5ms and its coefficients smooth over 10ms; when off, it costs no
-per-sample work. The UI keeps Listen exclusive: turning it on for one band turns
-it off for all others.
+slot with Listen on is auditioned through a trapezoidal SVF at the band's
+frequency, applied to the input before the EQ and replacing the EQ output
+(`listen.hpp`), so you hear the region the band works on, unprocessed: a bell
+through a unity-peak band-pass of its Q (0.3–8.01), a low shelf or high-pass
+through a 0.707 low-pass, a high shelf or low-pass through a 0.707 high-pass,
+tilt through a 0.707 band-pass. A Mid or Side band mutes the other channel while
+listening. Listen and shape changes crossfade over 5ms and its coefficients
+smooth over 10ms; when off, it costs no
+per-sample work. The UI sets Listen only while Control is held on a node or piano
+dot drag, for that band alone.
 
 ## Mouse controls
 
@@ -145,13 +148,13 @@ Modifiers follow FabFilter Pro-Q conventions; Cmd on macOS stands for Ctrl.
 
 - Click empty display or piano: new band, dragged immediately.
 - Drag a node: frequency and gain (cuts: resonance). Shift: fine (¼ speed).
-  Alt: lock to the dominant axis. Control: listen to the band while held.
+  Control: listen to the band while held.
 - Double-click or Alt-click a node or piano dot: band on/off.
 - Wheel over a node: Q (cuts: slope). Shift: fine.
 - Right-click a node: type and channel menu.
 - Value labels and number boxes: drag to edit, Shift for fine, wheel to step;
   Ctrl/Cmd-click or double-click resets to default.
-- Option bar: power (on/off), headphones (listen) and X (remove) buttons.
+- Option bar: power (on/off) and X (remove) buttons.
 
 ## Validation
 
