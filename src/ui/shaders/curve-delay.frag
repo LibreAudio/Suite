@@ -32,8 +32,8 @@
    -- and waveWidth() is the only place it is read. Swap that for the real
    wet signal when the host can provide it.
 
-   Text (grid times, L / R) cannot be drawn here; DelayP2 in delay-ui.cpp
-   draws it over this shader from the same model. If the times, the zoom
+   Text (grid times, L / R) cannot be drawn here; DelayScopeWidget in
+   delay-ui.cpp draws it over this shader from the same model. If the times, the zoom
    levels or the grid change below, change DelayScopeModel to match.
 
    Curve only: the background stays black and fully transparent (alpha 0), so
