@@ -7,7 +7,7 @@
 #include "LibreAudioBaseUI.hpp"
 
 #include "ui/widgets/fft-waveform.hpp"
-#include "ui/widgets/shader.hpp"
+#include "ui/bot/shader.hpp"
 
 #include "las-resources.h"
 

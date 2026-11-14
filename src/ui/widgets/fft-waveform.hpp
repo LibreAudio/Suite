@@ -7,7 +7,7 @@
 #include "config.h"
 #include "../base.hpp"
 #include "../_lab/metrics.hpp"
-#include "shader-clean.hpp"
+#include "shader.hpp"
 
 #include "LibreAudioIPC.hpp"
 

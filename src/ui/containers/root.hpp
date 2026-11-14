@@ -7,7 +7,7 @@
 #include "las-resources.h"
 
 #include "../reference.hpp"
-#include "../widgets/shader-clean.hpp"
+#include "../widgets/shader.hpp"
 #include "../_lab/root.hpp"
 
 #include <list>
