@@ -38,14 +38,14 @@ public:
                              false);
     }
 
-    void enableShaders(const std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>>& shaders)
+    void enableShaders(const std::list<std::shared_ptr<ShaderWidgetInterface>>& shaders)
     {
         fShaders = shaders;
         updateSize(false);
     }
 
 protected:
-    std::list<std::shared_ptr<LibreAudio::ShaderWidgetInterface>> fShaders;
+    std::list<std::shared_ptr<ShaderWidgetInterface>> fShaders;
 
     friend class DISTRHO_NAMESPACE::LibreAudioBaseUI;
 };

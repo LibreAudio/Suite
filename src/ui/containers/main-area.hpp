@@ -37,7 +37,7 @@ public:
         return fCentralArea->getBorderRadius();
     }
 
-    const std::shared_ptr<CentralAreaWidget>& getCentralAreaWidget() const noexcept
+    const std::shared_ptr<CentralAreaWidget> getCentralAreaWidget() const noexcept
     {
         return fCentralArea;
     }
