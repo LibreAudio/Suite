@@ -33,45 +33,22 @@
 {% if id in ["adtDoubler", "adtDoubler_stereo"] %}
 #define LIBREAUDIO_WANT_COMMON_IO 0
 {% endif %}
-#ifdef _DARKGLASS_DEVICE_PABLITO
-#define LIBREAUDIO_WANT_COMMON_IO 0
-#endif
-#ifndef LIBREAUDIO_WANT_COMMON_IO
-#define LIBREAUDIO_WANT_COMMON_IO 1
-#endif
 
 // optional time controls
 {% for w in active if w.symbol == "dpf_bpm" %}
-#define DISTRHO_PLUGIN_WANT_TIMEPOS 1
 #define LIBREAUDIO_WANT_TIMEPOS_BPM 1
 {% endfor %}
-#ifndef LIBREAUDIO_WANT_TIMEPOS_BPM
-#define LIBREAUDIO_WANT_TIMEPOS_BPM 0
-#endif
 
 // optional speech/voice-activity detection control
 {% for w in active if w.symbol == "dpf_vad" %}
-#define LIBREAUDIO_EXTRA_PROCESSOR_INCLUDE "dsp-cpp/speech-detection.hpp"
-#define LIBREAUDIO_WANT_EXTRA_PROCESSOR 1
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 1
 {% endfor %}
-#ifndef LIBREAUDIO_WANT_SPEECH_DETECTION
-#define LIBREAUDIO_WANT_SPEECH_DETECTION 0
-#endif
-
-// optional extra processor
-#ifndef LIBREAUDIO_WANT_EXTRA_PROCESSOR
-#define LIBREAUDIO_WANT_EXTRA_PROCESSOR 0
-#endif
 
 // optional latency output
 {% for w in passive if w.symbol == "latency_samples" %}
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
 #define LIBREAUDIO_MAX_LATENCY_SAMPLES {{w.max|int}}
 {% endfor %}
-#ifndef DISTRHO_PLUGIN_WANT_LATENCY
-#define DISTRHO_PLUGIN_WANT_LATENCY 0
-#endif
 
 // optional dry/wet control on top of main dsp
 #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
@@ -108,14 +85,6 @@
 #define LIBREAUDIO_WANT_GRAPH_OUTPUT 1
     {% endif %}
 {% endif %}
-#endif
-#ifndef LIBREAUDIO_WANT_GRAPH
-#define LIBREAUDIO_WANT_GRAPH 0
-#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
-#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
-#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
-#define LIBREAUDIO_WANT_GRAPH_INPUT 0
-#define LIBREAUDIO_WANT_GRAPH_OUTPUT 0
 #endif
 
 #define LIBREAUDIO_PLUGIN_DSP_INCLUDE "{{id}}-dsp.hpp"

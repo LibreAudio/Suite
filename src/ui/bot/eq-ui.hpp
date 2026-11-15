@@ -356,7 +356,7 @@ public:
     explicit EqWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
-        for (uint32_t i = 0; i < eqb::kFaustParameterCount; ++i)
+        for (uint32_t i = 0; i < eqb::kParameterCount; ++i)
             fParamValues[i] = fInterface->getParameterValue(kParametersMainStart + i);
 
         restoreBands();
@@ -451,8 +451,8 @@ private:
     static constexpr const std::array<int, 5> kRanges { 3, 6, 12, 24, 0 }; // 0 = auto
     static constexpr const uint8_t kDefaultRangeIndex = 2;                  // 12 dB
 
-    float fParamValues[eqb::kFaustParameterCount];
-    std::array<bool, eqb::kFaustParameterCount> fEditing {};
+    float fParamValues[eqb::kParameterCount];
+    std::array<bool, eqb::kParameterCount> fEditing {};
 
     std::vector<EqBand> fBands;
     uint32_t fBandSeq = 0;
@@ -598,7 +598,7 @@ private:
     bool readParameters()
     {
         bool changed = false;
-        for (unsigned i = 0; i < eqb::kFaustParameterCount; ++i)
+        for (unsigned i = 0; i < eqb::kParameterCount; ++i)
         {
             const float value = fInterface->getParameterValue(kParametersMainStart + i);
             if (fParamValues[i] == value) continue;

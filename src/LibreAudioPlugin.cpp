@@ -21,7 +21,7 @@
 #include "common_output-dsp.hpp"
 #endif
 #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
-#include LIBREAUDIO_EXTRA_PROCESSOR_INCLUDE
+#include LIBREAUDIO_EXTRA_DSP_INCLUDE
 #endif
 
 #ifdef LIBREAUDIO_CUSTOM_UI
@@ -190,27 +190,17 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
         break;
    #if LIBREAUDIO_WANT_DRYWET
     case kCommonParameterDryWet:
-        parameter.hints = kParameterIsAutomatable;
-       #ifdef _DARKGLASS_DEVICE_PABLITO
-        parameter.name = "Blend";
-       #else
-        parameter.name = "Dry / Wet";
-       #endif
-        parameter.symbol = kCommonParameterSymbols[index];
-        parameter.unit = "%";
-        parameter.ranges.def = 50.f;
-        parameter.ranges.min = 0.f;
-        parameter.ranges.max = 100.f;
+        initLibreAudioParameter(parameter, getParameter(index));
         break;
    #endif
    #if LIBREAUDIO_WANT_COMMON_IO
     case kParametersInputStart ... kParametersInputEnd:
         parameter.groupId = kGroupInput;
-        initLibreAudioParameter(parameter, common_input::kFaustParameters[index - kParametersInputStart]);
+        initLibreAudioParameter(parameter, getParameter(index));
         break;
     case kParametersOutputStart ... kParametersOutputEnd:
         parameter.groupId = kGroupOutput;
-        initLibreAudioParameter(parameter, common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters]);
+        initLibreAudioParameter(parameter, getParameter(index));
         break;
    #endif
     default:
@@ -218,7 +208,7 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
        #if LIBREAUDIO_WANT_COMMON_IO
         parameter.groupId = kGroupMain;
        #endif
-        initLibreAudioParameter(parameter, kFaustParameters[index - kParametersMainStart]);
+        initLibreAudioParameter(parameter, getParameter(index));
         break;
     }
 }
@@ -272,12 +262,6 @@ void LibreAudioPlugin::initPortGroup(const uint32_t groupId, PortGroup& portGrou
     case kGroupMain:
         portGroup.name = DISTRHO_PLUGIN_NAME;
         portGroup.symbol = DISTRHO_PLUGIN_LABEL;
-        portGroup.symbol.toBasic();
-        break;
-    case kGroupExtra:
-        // TODO
-        portGroup.name = DISTRHO_PLUGIN_NAME " (Extra)";
-        portGroup.symbol = DISTRHO_PLUGIN_LABEL "_extra";
         portGroup.symbol.toBasic();
         break;
     }
@@ -647,7 +631,7 @@ bool LibreAudioPlugin::run()
     fAnalysis.init(bufferSize, getSampleRate());
    #endif
 
-    std::unique_ptr<float[]> _data { new float[bufferSize * LIBREAUDIO_WANT_GRAPH_IO_COUNT] };
+    const std::unique_ptr<float[]> _data { new float[bufferSize * LIBREAUDIO_WANT_GRAPH_IO_COUNT] };
     float* const data = _data.get();
 
     while (fRunnerBuffer.getReadableDataSize() >= bufferSize * kDataSize)

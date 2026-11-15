@@ -6,16 +6,52 @@
 
 #include "config.h"
 
-inline constexpr const char* const _constexpr_DISTRHO_PLUGIN_NAME = DISTRHO_PLUGIN_NAME;
-static_assert(_constexpr_DISTRHO_PLUGIN_NAME[0] == 'L', "Name does not start with 'LA '");
-static_assert(_constexpr_DISTRHO_PLUGIN_NAME[1] == 'A', "Name does not start with 'LA '");
-static_assert(_constexpr_DISTRHO_PLUGIN_NAME[2] == ' ', "Name does not start with 'LA '");
-
-inline constexpr const char* const _constexpr_DISTRHO_PLUGIN_LABEL = DISTRHO_PLUGIN_LABEL;
-static_assert(_constexpr_DISTRHO_PLUGIN_LABEL[0] != '\0', "Label must not be empty");
-
 #if defined(__has_include) && __has_include("config-custom.h")
 #include "config-custom.h"
+#endif
+
+// optional common IO
+#ifdef _DARKGLASS_DEVICE_PABLITO
+#define LIBREAUDIO_WANT_COMMON_IO 0
+#endif
+#ifndef LIBREAUDIO_WANT_COMMON_IO
+#define LIBREAUDIO_WANT_COMMON_IO 1
+#endif
+
+// optional time controls
+#ifndef LIBREAUDIO_WANT_TIMEPOS_BPM
+#define LIBREAUDIO_WANT_TIMEPOS_BPM 0
+#elif LIBREAUDIO_WANT_TIMEPOS_BPM
+#define DISTRHO_PLUGIN_WANT_TIMEPOS 1
+#endif
+
+// optional speech/voice-activity detection control
+#ifndef LIBREAUDIO_WANT_SPEECH_DETECTION
+#define LIBREAUDIO_WANT_SPEECH_DETECTION 0
+#elif LIBREAUDIO_WANT_SPEECH_DETECTION
+#define LIBREAUDIO_WANT_EXTRA_PROCESSOR 1
+#define LIBREAUDIO_EXTRA_DSP_INCLUDE "dsp-cpp/speech-detection-dsp.hpp"
+#define LIBREAUDIO_EXTRA_PARAMETERS_INCLUDE "dsp-cpp/speech-detection-parameters.hpp"
+#endif
+
+// optional latency output
+#ifndef DISTRHO_PLUGIN_WANT_LATENCY
+#define DISTRHO_PLUGIN_WANT_LATENCY 0
+#endif
+
+// optional UI graphs (fft analyzer, waveform, etc)
+#ifndef LIBREAUDIO_WANT_GRAPH
+#define LIBREAUDIO_WANT_GRAPH 0
+#define LIBREAUDIO_WANT_GRAPH_ANALYZER 0
+#define LIBREAUDIO_WANT_GRAPH_WAVEFORM 0
+#define LIBREAUDIO_WANT_GRAPH_IO_COUNT 0
+#define LIBREAUDIO_WANT_GRAPH_INPUT 0
+#define LIBREAUDIO_WANT_GRAPH_OUTPUT 0
+#endif
+
+// optional extra (non-faust dsp) processor
+#ifndef LIBREAUDIO_WANT_EXTRA_PROCESSOR
+#define LIBREAUDIO_WANT_EXTRA_PROCESSOR 0
 #endif
 
 #define DISTRHO_PLUGIN_BRAND "Libre Audio"
@@ -48,3 +84,11 @@ static_assert(_constexpr_DISTRHO_PLUGIN_LABEL[0] != '\0', "Label must not be emp
 #if DISTRHO_PLUGIN_NUM_INPUTS != DISTRHO_PLUGIN_NUM_OUTPUTS
 #error DISTRHO_PLUGIN_NUM_INPUTS != DISTRHO_PLUGIN_NUM_OUTPUTS
 #endif
+
+inline constexpr const char* const _constexpr_DISTRHO_PLUGIN_NAME = DISTRHO_PLUGIN_NAME;
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[0] == 'L', "Name does not start with 'LA '");
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[1] == 'A', "Name does not start with 'LA '");
+static_assert(_constexpr_DISTRHO_PLUGIN_NAME[2] == ' ', "Name does not start with 'LA '");
+
+inline constexpr const char* const _constexpr_DISTRHO_PLUGIN_LABEL = DISTRHO_PLUGIN_LABEL;
+static_assert(_constexpr_DISTRHO_PLUGIN_LABEL[0] != '\0', "Label must not be empty");
