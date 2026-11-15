@@ -93,6 +93,9 @@ LibreAudioPlugin::~LibreAudioPlugin()
     delete fInputDSP;
     delete fOutputDSP;
    #endif
+   #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+    delete fExtraDSP;
+   #endif
     delete[] fCommonParameterValues;
     delete[] fInternalBuffer;
    #if DISTRHO_PLUGIN_WANT_LATENCY
