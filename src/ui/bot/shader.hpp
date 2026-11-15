@@ -222,7 +222,7 @@ public:
             gl3.parameterValues = new GLint[count];
             String symbol;
 
-            for (uint32_t i = 0; i < count; ++i)
+            for (uint32_t i = kFirstUsableParameterSymbol; i < kParametersCount; ++i)
             {
                 gl3.parameterValues[i] = -1;
 
@@ -418,13 +418,10 @@ private:
                             fTextureData.data());
         }
 
-        if (const uint32_t count = fInterface->getParameterCount())
+        for (uint32_t i = kFirstUsableParameterSymbol; i < kParametersCount; ++i)
         {
-            for (uint32_t i = 0; i < count; ++i)
-            {
-                if (gl3.parameterValues[i] >= 0)
-                    glUniform1f(gl3.parameterValues[i], fInterface->getParameterValue(i));
-            }
+            if (gl3.parameterValues[i] >= 0)
+                glUniform1f(gl3.parameterValues[i], fInterface->getParameterValue(i));
         }
 
         for (CustomUniform& uniform : fCustomUniforms)

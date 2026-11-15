@@ -28,23 +28,23 @@ class DynamicEq final : public LibreAudioProcessor
         float gain[2] = {1.f, 1.f};
         bool dirty = true;
     };
-    std::array<float, eqb::kFaustParameterCount> values {};
+    std::array<float, eqb::kParameterCount> values {};
     std::array<Band, kBandCount> bands {};
     Listen listen;
-    int rate = 48000;
+    int srate = 48000;
 
 public:
-    float get(uint32_t index) const override { return index < values.size() ? values[index] : 0.f; }
+    float get(int index) const override { return index < eqb::kParameterCount ? values[index] : 0.f; }
     void init(int sampleRate) override
     {
         rate(sampleRate);
-        for (unsigned i = 0; i < values.size(); ++i) values[i] = kFaustParameters[i].init;
+        for (unsigned i = 0; i < eqb::kParameterCount; ++i) values[i] = eqb::kParameters[i].init;
         for (auto& band : bands) band.dirty = true;
     }
-    void set(uint32_t index, float value) override
+    void set(int index, float value) override
     {
-        if (index >= values.size() || !std::isfinite(value)) return;
-        const auto& p = kFaustParameters[index];
+        if (index >= eqb::kParameterCount || !std::isfinite(value)) return;
+        const auto& p = eqb::kParameters[index];
         value = std::clamp(value, p.min, p.max);
         if (p.isInteger) value = std::round(value);
         if (values[index] == value) return;
@@ -53,18 +53,18 @@ public:
     }
     void rate(int sampleRate) override
     {
-        rate = std::max(1, sampleRate);
+        srate = std::max(1, sampleRate);
         for (auto& band : bands)
         {
             band.dirty = true;
-            for (auto& filter : band.highpass) filter.setRate(rate);
-            for (auto& filter : band.lowpass) filter.setRate(rate);
-            for (auto& filter : band.tilt) filter.setRate(rate);
-            for (auto& filter : band.lowShelf) filter.setRate(rate, false);
-            for (auto& filter : band.highShelf) filter.setRate(rate, true);
+            for (auto& filter : band.highpass) filter.setRate(srate);
+            for (auto& filter : band.lowpass) filter.setRate(srate);
+            for (auto& filter : band.tilt) filter.setRate(srate);
+            for (auto& filter : band.lowShelf) filter.setRate(srate, false);
+            for (auto& filter : band.highShelf) filter.setRate(srate, true);
         }
-        listen.setRate(rate);
-        instanceClear();
+        listen.setRate(srate);
+        reset();
     }
     void reset() override
     {
@@ -87,7 +87,7 @@ public:
             auto& band = bands[slot];
             if (!band.dirty) continue;
             const float* p = values.data() + slot * kBandStride;
-            band.frequency = bellFrequency(p[kFrequency], rate);
+            band.frequency = bellFrequency(p[kFrequency], srate);
             band.bandwidth = bellBandwidth(p[kQ], p[kGain], p[kAdaptiveQ]);
             const bool enabled = p[kPresent] > .5f && p[kEnabled] > .5f && p[kType] == 2.f;
             const float gain = enabled ? std::pow(10.f, p[kGain] / 20.f) : 1.f;
@@ -96,13 +96,13 @@ public:
             const bool hp = p[kPresent] > .5f && p[kEnabled] > .5f && p[kType] == 0.f;
             for (unsigned c = 0; c < 2; ++c)
                 band.highpass[c].configure(hp && p[kChannel] != (c == 0 ? 2.f : 1.f),
-                                           p[kFrequency], int(p[kSlope]), p[kQ], rate);
+                                           p[kFrequency], int(p[kSlope]), p[kQ], srate);
             for (unsigned c = 0; c < 2; ++c)
             {
                 const bool enabled = p[kPresent] > .5f && p[kEnabled] > .5f
                                   && p[kChannel] != (c == 0 ? 2.f : 1.f);
                 band.tilt[c].configure(enabled && p[kType] == 5.f, p[kFrequency], p[kGain], tiltShape(p[kQ]));
-                band.lowpass[c].configure(enabled && p[kType] == 4.f, p[kFrequency], int(p[kSlope]), p[kQ], rate);
+                band.lowpass[c].configure(enabled && p[kType] == 4.f, p[kFrequency], int(p[kSlope]), p[kQ], srate);
                 band.lowShelf[c].configure(enabled && p[kType] == 1.f, p[kFrequency], p[kGain], p[kQ]);
                 band.highShelf[c].configure(enabled && p[kType] == 3.f, p[kFrequency], p[kGain], p[kQ]);
             }
@@ -182,3 +182,18 @@ public:
 };
 
 }
+
+// --------------------------------------------------------------------------------------------------------------------
+
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+
+namespace extra {
+inline LibreAudioProcessor* createDSP()
+{
+    return new eqb::DynamicEq;
+}
+}
+
+#endif
+
+// --------------------------------------------------------------------------------------------------------------------

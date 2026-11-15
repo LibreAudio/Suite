@@ -35,11 +35,13 @@ enum CommonParameters {
     kCommonParameterCount
 };
 
+#if LIBREAUDIO_WANT_COMMON_IO
 enum Groups {
     kGroupInput,
     kGroupOutput,
     kGroupMain,
 };
+#endif
 
 enum Parameters {
     kParametersCommonStart,
@@ -54,11 +56,17 @@ enum Parameters {
     kParametersMainEnd = kParametersMainStart + kFaustParameterCount - 1,
    #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
     kParametersExtraStart,
-    kParametersCount = kParametersExtraStart + extra_dsp::kParameterCount - 1
+    kParametersCount = kParametersExtraStart + extra::kParameterCount - 1
    #else
     kParametersCount
    #endif
 };
+
+#if LIBREAUDIO_WANT_DRYWET
+inline constexpr const uint32_t kFirstUsableParameterSymbol = kCommonParameterDryWet;
+#else
+inline constexpr const uint32_t kFirstUsableParameterSymbol = kCommonParameterCount;
+#endif
 
 inline constexpr const char* kCommonParameterSymbols[kCommonParameterCount] = {
     ParameterDesignationSymbols::bypass,
@@ -128,7 +136,7 @@ inline constexpr const LibreAudioParameter& getParameter(const uint32_t index) n
 {
     return
        #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
-        index >= kParametersExtraStart ? extra_dsp::kParameters[index - kParametersExtraStart] :
+        index >= kParametersExtraStart ? extra::kParameters[index - kParametersExtraStart] :
        #endif
         index >= kParametersMainStart ? kFaustParameters[index - kParametersMainStart] :
        #if LIBREAUDIO_WANT_COMMON_IO

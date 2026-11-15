@@ -5,6 +5,7 @@
 #pragma once
 
 #include "LibreAudioProcessor.hpp"
+#include "DistrhoPluginInfo.h"
 
 #include <algorithm>
 #include <cmath>
@@ -126,5 +127,18 @@ public:
         return 0.f;
     }
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+
+namespace extra {
+inline LibreAudioProcessor* createDSP()
+{
+    return new LibreAudioSpeechDetection;
+}
+}
+
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------

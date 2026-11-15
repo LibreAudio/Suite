@@ -4,14 +4,17 @@
 #pragma once
 
 #include "LibreAudioParameter.hpp"
+#include "DistrhoPluginInfo.h"
+
 #include <array>
 #include <cstdint>
+
 namespace eqb {
 inline constexpr unsigned kBandCount = 16;
 enum BandParameter { kPresent, kEnabled, kType, kChannel, kFrequency, kGain, kQ, kAdaptiveQ, kSlope, kListen, kBandStride };
 // the shared UI widgets name parameters by this type; the slots are band * kBandStride + BandParameter
 enum ParameterIndex : uint16_t { kParameterCount = kBandCount * kBandStride };
-inline constexpr std::array<LibreAudioParameter, kParameterCount> kFaustParameters {{
+inline constexpr std::array<LibreAudioParameter, kParameterCount> kParameters {{
     {"", "Present", "Present", "Band 1 Present", "band_1_present", "", "", nullptr, 0.0f, 0.0f, 1.0f, 1.0f, 0, 0, true, false, false, false, true, false, false, false},
     {"", "Enabled", "Enabled", "Band 1 Enabled", "band_1_enabled", "", "", nullptr, 1.0f, 0.0f, 1.0f, 1.0f, 0, 0, true, false, false, false, true, false, false, false},
     {"", "Type", "Type", "Band 1 Type", "band_1_type", "", "", nullptr, 2.0f, 0.0f, 5.0f, 1.0f, 0, 0, false, false, false, false, true, false, false, false},
@@ -174,3 +177,12 @@ inline constexpr std::array<LibreAudioParameter, kParameterCount> kFaustParamete
     {"", "Listen", "Listen", "Band 16 Listen", "band_16_listen", "", "", nullptr, 0.0f, 0.0f, 1.0f, 1.0f, 0, 0, true, false, false, false, true, false, false, false},
 }};
 }
+
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+
+namespace extra {
+using eqb::kParameterCount;
+using eqb::kParameters;
+}
+
+#endif

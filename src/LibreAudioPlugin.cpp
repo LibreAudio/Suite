@@ -42,19 +42,6 @@ static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
 // --------------------------------------------------------------------------------------------------------------------
 
-#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
-static LibreAudioProcessor* createExtraDSP()
-{
-   #if LIBREAUDIO_WANT_SPEECH_DETECTION
-    return new LibreAudioSpeechDetection;
-   #else
-    #error undefined extra dsp
-   #endif
-}
-#endif
-
-// --------------------------------------------------------------------------------------------------------------------
-
 LibreAudioPlugin::LibreAudioPlugin()
     : Plugin(kParametersCount, 0, kStateCount),
       fCommonParameterValues(new float[kCommonParameterCount]),
@@ -64,7 +51,7 @@ LibreAudioPlugin::LibreAudioPlugin()
     , fOutputDSP(common_output::createDSP())
    #endif
    #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
-    , fExtraDSP(createExtraDSP())
+    , fExtraDSP(extra::createDSP())
    #endif
 {
     initCommonParameterValuesToDefault(fCommonParameterValues);
@@ -247,6 +234,7 @@ void LibreAudioPlugin::initState(const uint32_t index, State& state)
 }
 #endif
 
+#if LIBREAUDIO_WANT_COMMON_IO
 void LibreAudioPlugin::initPortGroup(const uint32_t groupId, PortGroup& portGroup)
 {
     switch (static_cast<Groups>(groupId))
@@ -266,6 +254,7 @@ void LibreAudioPlugin::initPortGroup(const uint32_t groupId, PortGroup& portGrou
         break;
     }
 }
+#endif
 
 // --------------------------------------------------------------------------------------------------------------------
 // Internal data
@@ -282,9 +271,15 @@ float LibreAudioPlugin::getParameterValue(const uint32_t index) const
     case kParametersOutputStart ... kParametersOutputEnd:
         return fOutputDSP->get(index - kParametersOutputStart + kCommonIOParameters);
    #endif
+    case kParametersMainStart ... kParametersMainEnd:
+        return fMainDSP->get(index - kParametersMainStart);
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParametersCount, 0.f);
-        return fMainDSP->get(index - kParametersMainStart);
+       #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+        return fExtraDSP->get(index - kParametersExtraStart);
+       #else
+        return 0.f;
+       #endif
     }
 }
 
@@ -304,9 +299,13 @@ void LibreAudioPlugin::setParameterValue(uint32_t index, const float value)
         fOutputDSP->set(index - kParametersOutputStart + kCommonIOParameters, value);
         break;
    #endif
+    case kParametersMainStart ... kParametersMainEnd:
+        fMainDSP->set(index - kParametersMainStart, value);
     default:
         DISTRHO_SAFE_ASSERT_RETURN(index < kParametersCount,);
-        fMainDSP->set(index - kParametersMainStart, value);
+       #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+        fExtraDSP->set(index - kParametersExtraStart, value);
+       #endif
         break;
     }
 

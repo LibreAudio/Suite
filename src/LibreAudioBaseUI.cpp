@@ -68,63 +68,6 @@ LibreAudioBaseUI::~LibreAudioBaseUI()
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// static metadata
-
-static std::vector<const char*> createParameterSymbols()
-{
-    static std::vector<const char*> symbols;
-    symbols.reserve(kParametersCount);
-
-    for (uint32_t i = 0; i < kCommonParameterCount; ++i)
-    {
-        switch (static_cast<CommonParameters>(i))
-        {
-        case kCommonParameterBypass:
-        case kCommonParameterReset:
-            symbols.push_back(nullptr);
-            break;
-       #if LIBREAUDIO_WANT_DRYWET
-        case kCommonParameterDryWet:
-            symbols.push_back("dry_wet");
-            break;
-       #endif
-        case kCommonParameterCount:
-            break;
-        }
-    }
-
-    for (const LibreAudioParameter& parameter : common_input::kFaustParameters)
-        symbols.push_back(parameter.symbol);
-
-    for (const LibreAudioParameter& parameter : common_output::kFaustParameters)
-        symbols.push_back(parameter.symbol);
-
-    for (const LibreAudioParameter& parameter : kFaustParameters)
-        symbols.push_back(parameter.symbol);
-
-    return symbols;
-}
-
-// TODO remove this
-const std::vector<const char*>& LibreAudioBaseUI::kParameterSymbols = createParameterSymbols();
-
-uint32_t LibreAudioBaseUI::getParameterCount() const noexcept
-{
-    return kParametersCount;
-}
-
-const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noexcept
-{
-    return
-        index >= kParametersMainStart ? kFaustParameters[index - kParametersMainStart].symbol :
-       #if LIBREAUDIO_WANT_COMMON_IO
-        index >= kParametersOutputStart ? common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters].symbol :
-        index >= kParametersInputStart ? common_input::kFaustParameters[index - kParametersInputStart].symbol :
-       #endif
-        kCommonParameterSymbols[index];
-}
-
-// --------------------------------------------------------------------------------------------------------------------
 // protected data
 
 void LibreAudioBaseUI::uiCrossing(const bool enter, CrossingMode)
@@ -403,8 +346,8 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
             const nlohmann::json& jactions = jundoredo.at("actions");
 
             const auto findSymbol = [](const std::string& symbol){
-                for (uint32_t i = 0, size = kParameterSymbols.size(); i < size; ++i)
-                    if (kParameterSymbols[i] != nullptr && symbol == kParameterSymbols[i])
+                for (uint32_t i = kFirstUsableParameterSymbol; i < kParametersCount; ++i)
+                    if (symbol == getParameter(i).symbol)
                         return i;
                 d_stderr2("invalid symbol %s", symbol.c_str());
                 return UINT32_MAX;
@@ -507,6 +450,16 @@ void LibreAudioBaseUI::onResize(const ResizeEvent& ev)
 
 // --------------------------------------------------------------------------------------------------------------------
 // UI Widget Interface
+
+uint32_t LibreAudioBaseUI::getParameterCount() const noexcept
+{
+    return kParametersCount;
+}
+
+const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noexcept
+{
+    return getParameter(index).symbol;
+}
 
 void LibreAudioBaseUI::parameterControlPressed(const uint32_t index)
 {
@@ -829,7 +782,7 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
 
                 for (const LibreAudioUndoRedo::Parameter& parameter : action)
                 {
-                    if (const char* const symbol = kParameterSymbols[parameter.index])
+                    if (const char* const symbol = getParameter(parameter.index).symbol)
                     {
                         jaction.push_back(nlohmann::json::object({
                             { "symbol", symbol },

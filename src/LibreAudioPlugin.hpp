@@ -76,12 +76,14 @@ protected:
     void initState(uint32_t index, State& state) final;
   #endif
 
+  #if LIBREAUDIO_WANT_COMMON_IO
    /**
       Initialize the port group @a groupId.
       This function will be called once,
       shortly after the plugin is created and all audio ports and parameters have been enumerated.
     */
     void initPortGroup(uint32_t groupId, PortGroup& portGroup) final;
+  #endif
 
    /* -----------------------------------------------------------------------------------------------------------------
     * Internal data */

@@ -5,10 +5,11 @@
 #pragma once
 
 #include "LibreAudioParameter.hpp"
+#include "DistrhoPluginInfo.h"
 
 #include <array>
 
-namespace extra_dsp {
+namespace speech_detection {
 
 enum ParameterIndex : uint16_t {
     kParameterVAD,
@@ -43,3 +44,12 @@ inline constexpr const std::array<LibreAudioParameter, kParameterCount> kParamet
 }};
 
 }
+
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+
+namespace extra {
+using speech_detection::kParameterCount;
+using speech_detection::kParameters;
+}
+
+#endif
