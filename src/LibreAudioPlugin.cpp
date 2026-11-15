@@ -447,7 +447,7 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
        #endif
 
        #if LIBREAUDIO_WANT_SPEECH_DETECTION
-        fMainDSP->setVAD(fExtraDSP->get(0));
+        fMainDSP->setVAD(fExtraDSP->get(speech_detection::kParameterVAD));
        #endif
 
         fMainDSP->run(cycleFrames, fCycleBuffer);

@@ -17,7 +17,7 @@
 #include "bot/eq-shelf.hpp"
 #include "bot/eq-parameters.hpp"
 
-#include "OpenGL.hpp"
+// #include "OpenGL.hpp"
 
 #include <algorithm>
 #include <array>
@@ -27,32 +27,11 @@
 #include <string>
 #include <cstdint>
 
-// The physical Control key, read directly: hosts often keep a lone modifier press from reaching the plugin window.
-// Declared here rather than through the platform headers, whose Point/Rect/Rectangle collide with DGL's names.
-#if defined(__APPLE__)
-extern "C" uint64_t CGEventSourceFlagsState(int32_t stateID);
-#elif defined(_WIN32)
-extern "C" __declspec(dllimport) short __stdcall GetAsyncKeyState(int vKey);
-#endif
+// #undef near
 
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace LibreAudio {
-
-// whether Control is held down: false where the state cannot be read, *known tells which
-static bool readControlKey(bool* const known) noexcept
-{
-#if defined(__APPLE__)
-    *known = true;
-    return (CGEventSourceFlagsState(0 /* combined session state */) & 0x00040000 /* control mask */) != 0;
-#elif defined(_WIN32)
-    *known = true;
-    return (GetAsyncKeyState(0x11 /* VK_CONTROL */) & 0x8000) != 0;
-#else
-    *known = false;
-    return false;
-#endif
-}
 
 // --------------------------------------------------------------------------------------------------------------------
 // Dynamic native EQ: band numbers map to stable host parameter slots.
@@ -850,14 +829,6 @@ private:
         return { pb.x + pb.w + kBarButtonGap * fScaleFactor, pb.y, pb.w, pb.h };
     }
 
-    // Control held: the key state read directly where the platform allows, else the event's modifiers
-    static bool controlHeld(const uint mod) noexcept
-    {
-        bool known;
-        const bool control = readControlKey(&known);
-        return known ? control : (mod & kModifierControl) != 0;
-    }
-
     // While Control is held, the band being dragged is listened to, or else the selected one, wherever it is edited
     // from: the display, the piano roll or the option bar. Releasing Control restores the band listened to before.
     // Returns whether the listened band changed.
@@ -1188,9 +1159,9 @@ private:
         // NanoVG's stencil fills expect a zeroed stencil buffer, and DPF clears only colour and depth each frame, so
         // it is cleared here; anything left in it would be painted by the curve fill. This runs before NanoVG sends
         // the frame's draws, at its end.
-        glStencilMask(0xff);
-        glClearStencil(0);
-        glClear(GL_STENCIL_BUFFER_BIT);
+        // glStencilMask(0xff);
+        // glClearStencil(0);
+        // glClear(GL_STENCIL_BUFFER_BIT);
 
         const bool on = ! isBypassed();
 
@@ -2281,13 +2252,6 @@ private:
             changed = true;
         }
 
-        // Control pressed or released without moving the mouse, and selection changes while it is held
-        {
-            bool known;
-            if (const bool control = readControlKey(&known); known && updateControlListen(control))
-                publishBands();
-        }
-
         const bool on = ! isBypassed();
 
         for (EqBand& b : fBands)
@@ -2426,7 +2390,8 @@ private:
             if (fDrag.kind == DragKind::PianoDot && ! pianoDotAt(x, y))
                 fPianoTip = 0;
             fDrag = Drag();
-            updateControlListen(controlHeld(ev.mod));
+            if (updateControlListen((ev.mod & kModifierControl) != 0))
+                publishBands();
             repaint();
             return true;
         }
@@ -2488,7 +2453,8 @@ private:
 
         if (pressCaption(x, y) || pressDisplay(x, y, ev.mod) || pressPiano(x, y, ev.mod) || pressBar(x, y, ev.mod))
         {
-            updateControlListen(controlHeld(ev.mod));
+            if (updateControlListen((ev.mod & kModifierControl) != 0))
+                publishBands();
             repaint();
             return true;
         }
@@ -2713,7 +2679,8 @@ private:
         const BandEdit edit {*this};
         const float x = ev.pos.getX(), y = ev.pos.getY();
 
-        updateControlListen(controlHeld(ev.mod));
+        if (updateControlListen((ev.mod & kModifierControl) != 0))
+            publishBands();
 
         if (fDrag.kind != DragKind::None)
         {
@@ -2935,7 +2902,8 @@ private:
         if (ev.key == kKeyControlL || ev.key == kKeyControlR)
         {
             const BandEdit edit {*this};
-            updateControlListen(ev.press);
+            if (updateControlListen(ev.press))
+                publishBands();
             return true;
         }
         return BaseWidget::onKeyboard(ev);
