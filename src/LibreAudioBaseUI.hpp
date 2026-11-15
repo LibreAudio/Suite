@@ -5,7 +5,7 @@
 #pragma once
 
 #include "DistrhoUI.hpp"
-#include "FaustParameter.hpp"
+#include "LibreAudioParameter.hpp"
 #include "LibreAudioSnapshots.hpp"
 #include "LibreAudioIPC.hpp"
 
@@ -37,8 +37,6 @@ public:
 
     static const std::vector<const char*>& kParameterSymbols;
 
-    static bool isParameterOutputOrTrigger(uint32_t index);
-
     // ----------------------------------------------------------------------------------------------------------------
     // protected data
 
@@ -65,8 +63,6 @@ protected:
 private:
     // ----------------------------------------------------------------------------------------------------------------
     // private data
-
-    const uint32_t kParameterCount;
 
     bool* const fParameterPressed;
     float* const fParameterValues;
@@ -127,7 +123,7 @@ private:
     // ----------------------------------------------------------------------------------------------------------------
     // UI Widget Interface
 
-    [[nodiscard]] uint32_t getParameterCount() const noexcept final { return kParameterCount; }
+    [[nodiscard]] uint32_t getParameterCount() const noexcept final;
     [[nodiscard]] const char* getParameterSymbol(uint32_t index) const noexcept final;
     [[nodiscard]] float getParameterValue(uint32_t index) const noexcept final { return fParameterValues[index]; }
 

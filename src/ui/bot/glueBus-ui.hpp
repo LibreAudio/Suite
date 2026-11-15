@@ -333,8 +333,8 @@ class GlueBusXYPadWidget final : public LabWidget,
 
     static constexpr const FaustParameterIndex kParamX = kFaustParameterComp_sat;
     static constexpr const FaustParameterIndex kParamY = kFaustParameterDrive;
-    static constexpr const FaustParameter& kX = kFaustParameters[kParamX];
-    static constexpr const FaustParameter& kY = kFaustParameters[kParamY];
+    static constexpr const LibreAudioParameter& kX = kFaustParameters[kParamX];
+    static constexpr const LibreAudioParameter& kY = kFaustParameters[kParamY];
 
     // compression 1 and 2, then saturation 1 and 2
     static constexpr const std::array<FaustParameterIndex, 4> kMeters {
@@ -377,7 +377,7 @@ private:
     }
 
     // a value from a normalized position, on the parameter's steps
-    [[nodiscard]] static float fromNorm(const FaustParameter& param, const float norm) noexcept
+    [[nodiscard]] static float fromNorm(const LibreAudioParameter& param, const float norm) noexcept
     {
         const float value = param.min + std::clamp(norm, 0.f, 1.f) * (param.max - param.min);
         return std::clamp(param.min + std::round((value - param.min) / param.step) * param.step, param.min, param.max);

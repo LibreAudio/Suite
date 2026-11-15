@@ -20,7 +20,7 @@ class ToggleSwitchBaseWidget : public LabToggleSwitchBaseWidget
     using BaseWidget = LabToggleSwitchBaseWidget;
 
 public:
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kParameterIndex];
     static_assert(kParameter.isBoolean, "check-box parameter must be boolean");
 
     explicit ToggleSwitchBaseWidget(LabWidget* const parent)
@@ -54,7 +54,7 @@ public:
     explicit ToggleSwitchWidget(LabWidget* const parent, const uint id, const char* const name)
         : BaseWidget(parent, id, name) {}
 
-    explicit ToggleSwitchWidget(LabWidget* const parent, const uint id, const FaustParameter& parameter)
+    explicit ToggleSwitchWidget(LabWidget* const parent, const uint id, const LibreAudioParameter& parameter)
         : BaseWidget(parent, id, parameter.name)
     {
         BaseWidget::setChecked(d_isNotZero(parameter.init), false);

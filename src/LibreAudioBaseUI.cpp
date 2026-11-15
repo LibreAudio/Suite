@@ -26,18 +26,8 @@ static float* createParameterValues(const uint32_t paramCount)
 {
     float* const values = new float[paramCount];
 
-    initCommonParameterValuesToDefault(values);
-
-   #if LIBREAUDIO_WANT_COMMON_IO
-    for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
-        values[kParametersInputStart + i] = common_input::kFaustParameters[i].init;
-
-    for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
-        values[kParametersOutputStart + i - kCommonIOParameters] = common_output::kFaustParameters[i].init;
-   #endif
-
-    for (uint32_t i = 0, size = kFaustParameters.size(); i < size; ++i)
-        values[kParametersMainStart + i] = kFaustParameters[i].init;
+    for (uint32_t i = 0; i < kParametersCount; ++i)
+        values[i] = getParameterInit(i);
 
     return values;
 }
@@ -46,14 +36,13 @@ static float* createParameterValues(const uint32_t paramCount)
 
 LibreAudioBaseUI::LibreAudioBaseUI()
     : UI(),
-      kParameterCount(kParametersMainStart  + kFaustParameters.size()),
-      fParameterPressed(new bool[kParameterCount]),
-      fParameterValues(createParameterValues(kParameterCount)),
-      fParameterValuesWhenActivated(new float[kParameterCount]),
-      fSnapshots(kNumSnapshots, kParameterCount, fParameterValues, this)
+      fParameterPressed(new bool[kParametersCount]),
+      fParameterValues(createParameterValues(kParametersCount)),
+      fParameterValuesWhenActivated(new float[kParametersCount]),
+      fSnapshots(kNumSnapshots, kParametersCount, fParameterValues, this)
 {
-    std::memset(fParameterPressed, 0, sizeof(bool) * kParameterCount);
-    std::memcpy(fParameterValuesWhenActivated, fParameterValues, sizeof(float) * kParameterCount);
+    std::memset(fParameterPressed, 0, sizeof(bool) * kParametersCount);
+    std::memcpy(fParameterValuesWhenActivated, fParameterValues, sizeof(float) * kParametersCount);
 
     // set minimum size
     const double scaleFactor = TopLevelWidget::getScaleFactor();
@@ -104,30 +93,24 @@ static std::vector<const char*> createParameterSymbols()
         }
     }
 
-    for (const FaustParameter& parameter : common_input::kFaustParameters)
+    for (const LibreAudioParameter& parameter : common_input::kFaustParameters)
         symbols.push_back(parameter.symbol);
 
-    for (const FaustParameter& parameter : common_output::kFaustParameters)
+    for (const LibreAudioParameter& parameter : common_output::kFaustParameters)
         symbols.push_back(parameter.symbol);
 
-    for (const FaustParameter& parameter : kFaustParameters)
+    for (const LibreAudioParameter& parameter : kFaustParameters)
         symbols.push_back(parameter.symbol);
 
     return symbols;
 }
 
-// FIXME remove this
+// TODO remove this
 const std::vector<const char*>& LibreAudioBaseUI::kParameterSymbols = createParameterSymbols();
 
-bool LibreAudioBaseUI::isParameterOutputOrTrigger(const uint32_t i)
+uint32_t LibreAudioBaseUI::getParameterCount() const noexcept
 {
-    return
-        i >= kParametersMainStart ? isFaustParameterOutputOrTrigger(kFaustParameters[i - kParametersMainStart]) :
-       #if LIBREAUDIO_WANT_COMMON_IO
-        i >= kParametersOutputStart ? isFaustParameterOutputOrTrigger(common_output::kFaustParameters[i - kParametersOutputStart + kCommonIOParameters]) :
-        i >= kParametersInputStart ? isFaustParameterOutputOrTrigger(common_input::kFaustParameters[i - kParametersInputStart]) :
-       #endif
-        false;
+    return kParametersCount;
 }
 
 const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noexcept
@@ -348,8 +331,8 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
             return;
         }
 
-        float* const parameterValues = new float[kParameterCount];
-        std::memcpy(parameterValues, fParameterValues, sizeof(float) * kParameterCount);
+        float* const parameterValues = new float[kParametersCount];
+        std::memcpy(parameterValues, fParameterValues, sizeof(float) * kParametersCount);
 
         nlohmann::json j;
 
@@ -371,9 +354,9 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
            #if LIBREAUDIO_WANT_COMMON_IO
             for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
             {
-                const FaustParameter& param = common_input::kFaustParameters[i];
+                const LibreAudioParameter& param = common_input::kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 try {
@@ -385,9 +368,9 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 
             for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
             {
-                const FaustParameter& param = common_output::kFaustParameters[i];
+                const LibreAudioParameter& param = common_output::kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 try {
@@ -400,9 +383,9 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
 
             for (uint32_t i = 0, size = kFaustParameterCount; i < size; ++i)
             {
-                const FaustParameter& param = kFaustParameters[i];
+                const LibreAudioParameter& param = kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 try {
@@ -473,7 +456,7 @@ void LibreAudioBaseUI::doubleClickHelperDone(SubWidget* const widget, const char
     {
         DISTRHO_SAFE_ASSERT_UINT_RETURN(id >= kParametersMainStart, id,);
 
-        const FaustParameter& param = kFaustParameters[id - kParametersMainStart];
+        const LibreAudioParameter& param = kFaustParameters[id - kParametersMainStart];
 
         float value;
         if (string2number(text, value, param.step >= 1.f))
@@ -803,9 +786,9 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
            #if LIBREAUDIO_WANT_COMMON_IO
             for (uint32_t i = 0; i < common_input::kFaustParameterCount; ++i)
             {
-                const FaustParameter& param = common_input::kFaustParameters[i];
+                const LibreAudioParameter& param = common_input::kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 jparameters[param.symbol] = parameterValues[kParametersInputStart + i];
@@ -813,9 +796,9 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
 
             for (uint32_t i = kCommonIOParameters; i < common_output::kFaustParameterCount; ++i)
             {
-                const FaustParameter& param = common_output::kFaustParameters[i];
+                const LibreAudioParameter& param = common_output::kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 jparameters[param.symbol] = parameterValues[kParametersOutputStart + i - kCommonIOParameters];
@@ -824,9 +807,9 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
 
             for (uint32_t i = 0, size = kFaustParameterCount; i < size; ++i)
             {
-                const FaustParameter& param = kFaustParameters[i];
+                const LibreAudioParameter& param = kFaustParameters[i];
 
-                if (isFaustParameterOutputOrTrigger(param))
+                if (isParameterOutputOrTrigger(param))
                     continue;
 
                 jparameters[param.symbol] = parameterValues[kParametersMainStart + i];
@@ -869,7 +852,7 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
 
 void LibreAudioBaseUI::snapshotParametersChanged(const float* const parameterValues)
 {
-    for (uint32_t i = 0; i < kParameterCount; ++i)
+    for (uint32_t i = 0; i < kParametersCount; ++i)
     {
         if (isParameterOutputOrTrigger(i))
             continue;

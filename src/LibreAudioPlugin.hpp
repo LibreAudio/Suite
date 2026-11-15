@@ -7,7 +7,7 @@
 #include "DistrhoPlugin.hpp"
 #include "extra/ValueSmoother.hpp"
 
-#include "FaustParameter.hpp"
+#include "FaustDSP.hpp"
 
 #include <atomic>
 
@@ -18,9 +18,6 @@
 #endif
 #if LIBREAUDIO_WANT_GRAPH_ANALYZER
 #include "fft.hpp"
-#endif
-#if LIBREAUDIO_WANT_SPEECH_DETECTION
-#include "LibreAudioSpeechDetection.hpp"
 #endif
 
 struct FaustDSP;
@@ -144,10 +141,6 @@ private:
     LinearValueSmoother fGlobalDryValue;
     LinearValueSmoother fGlobalWetValue;
 
-   #if LIBREAUDIO_WANT_SPEECH_DETECTION
-    LibreAudioSpeechDetection<2> fSpeechDetection;
-   #endif
-
     float* const fInternalBuffer = new float[kInternalBlockSize * 2];
     float* fCycleBuffer[2] = {
         fInternalBuffer + (kInternalBlockSize * 0),
@@ -169,8 +162,11 @@ private:
 
     FaustDSP* const fMainDSP;
    #if LIBREAUDIO_WANT_COMMON_IO
-    FaustDSP* const fInputDSP;
-    FaustDSP* const fOutputDSP;
+    LibreAudioProcessor* const fInputDSP;
+    LibreAudioProcessor* const fOutputDSP;
+   #endif
+   #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+    LibreAudioProcessor* const fExtraDSP;
    #endif
 
     void mute();

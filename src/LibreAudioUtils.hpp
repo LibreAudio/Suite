@@ -6,7 +6,7 @@
 
 #include "extra/ScopedSafeLocale.hpp"
 
-#include "FaustParameter.hpp"
+#include "LibreAudioParameter.hpp"
 
 #include <cerrno>
 
@@ -90,7 +90,7 @@ inline constexpr const float kFreqScale__log = kLog1000f; // std::log(kFreqScale
 // --------------------------------------------------------------------------------------------------------------------
 
 template<size_t size>
-static inline void _renderParameterValue(char str[size], const FaustParameter& param, const float value)
+static inline void _renderParameterValue(char str[size], const LibreAudioParameter& param, const float value)
 {
     if (param.scalePointCount != 0)
     {

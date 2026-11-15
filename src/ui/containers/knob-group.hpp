@@ -65,7 +65,7 @@ public:
              i < count && numVisibleWidgets < kMaxNumParameters;
              ++i)
         {
-            const FaustParameter& parameter = kFaustParameters[i];
+            const LibreAudioParameter& parameter = kFaustParameters[i];
             if ((parameter.isEnumerator && kMaxNumParameters == 5) || parameter.isOutput) {
                 d_stdout("knob-group skipped parameter %s", parameter.name);
                 continue;
@@ -368,7 +368,7 @@ private:
         const char* lastBracket = "";
         for (const std::shared_ptr<KnobWidget>& knob : fKnobs)
         {
-            const FaustParameter& parameter = knob->getParameter();
+            const LibreAudioParameter& parameter = knob->getParameter();
 
             if (std::strcmp(parameter.bracket, lastBracket) != 0)
             {
@@ -480,7 +480,7 @@ public:
 
         for (uint32_t i = 0, count = std::size(kFaustParameters); i < count; ++i)
         {
-            const FaustParameter& parameter = kFaustParameters[i];
+            const LibreAudioParameter& parameter = kFaustParameters[i];
             if (! parameter.isEasy) {
                 continue;
             }

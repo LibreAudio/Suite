@@ -32,8 +32,8 @@
 {% block ImplementationFaustCode %}
 
 #define LIBREAUDIO_EXTRA_METHODS \
-    float get(uint32_t) const; \
-    void set(uint32_t, float); \
+    float get(int) const; \
+    void set(int, float); \
 {% for w in active if w.symbol == "dpf_bpm" %}
     void setBPM(float); \
 {% endfor %}
@@ -56,6 +56,9 @@
     | replace(', FAUSTFLOAT** inputs,', ',')
     | replace('  FAUSTFLOAT* input', '  const FAUSTFLOAT* input')
     | replace(' = inputs[', ' = outputs[')
+    | replace(' instanceConstants', ' rate')
+    | replace(' instanceClear', ' reset')
+    | replace(' void compute', ' void run')
 }}
 
 {% endblock %}
@@ -65,7 +68,7 @@ FAUSTDR_BEGIN_NAMESPACE
 // --------------------------------------------------------------------------------------------------------------------
 // custom extensions to faust generated code
 
-inline float {{cid(id)}}::get(uint32_t index) const
+inline float {{cid(id)}}::get(int index) const
 {
     switch (index) {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}
@@ -77,7 +80,7 @@ inline float {{cid(id)}}::get(uint32_t index) const
     }
 }
 
-inline void {{cid(id)}}::set(uint32_t index, float value)
+inline void {{cid(id)}}::set(int index, float value)
 {
     switch (index) {
     {% for w in (active + passive) if w.symbol not in ["dpf_bpm", "dpf_vad", "latency_samples"] %}

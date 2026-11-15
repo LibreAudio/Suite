@@ -8,6 +8,8 @@
 
 #include "LibreAudioUtils.hpp"
 
+// TODO replace constructor arg with template arg
+
 namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -22,7 +24,7 @@ class DrawableKnobWidget final : public DrawableKnobWidget_Bot<R>
     static constexpr const double kTimeForValueFadeout = 0.1;
 
 public:
-    DrawableKnobWidget(LabWidget* const parent, const FaustParameter& parameter, const uint32_t id)
+    DrawableKnobWidget(LabWidget* const parent, const LibreAudioParameter& parameter, const uint32_t id)
         : BaseWidget(parent, parameter, id),
           fParameter(parameter)
     {
@@ -37,13 +39,13 @@ public:
         updateSize(false);
     }
 
-    const FaustParameter& getParameter() const noexcept
+    const LibreAudioParameter& getParameter() const noexcept
     {
         return fParameter;
     }
 
 private:
-    const FaustParameter& fParameter;
+    const LibreAudioParameter& fParameter;
 
     void onNanoDisplay() final
     {

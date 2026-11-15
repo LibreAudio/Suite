@@ -17,7 +17,7 @@ class DrawableKnobWidget_Bot : public LabParameterWidget
     using BaseWidget = LabParameterWidget;
 
 public:
-    DrawableKnobWidget_Bot(LabWidget* const parent, const FaustParameter& parameter, const uint32_t id)
+    DrawableKnobWidget_Bot(LabWidget* const parent, const LibreAudioParameter& parameter, const uint32_t id)
         : BaseWidget(parent, id),
           fParameter(parameter)
     {
@@ -39,7 +39,7 @@ public:
     }
 
 protected:
-    const FaustParameter& fParameter;
+    const LibreAudioParameter& fParameter;
 
     void onNanoDisplay() override
     {

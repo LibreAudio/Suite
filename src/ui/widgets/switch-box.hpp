@@ -54,7 +54,7 @@ class SwitchBoxWidget final : public LabToggleSwitchBaseWidget
     using BaseWidget = LabToggleSwitchBaseWidget;
     using BaseWidget::BaseWidget;
 
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kParameterIndex];
     static_assert(kParameter.isBoolean, "switch-box parameter must be boolean");
 
     const NanoImage fImage = createImageFromMemory(IMAGES_POWER_28_PNG_DATA,

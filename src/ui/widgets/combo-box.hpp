@@ -76,7 +76,7 @@ class ComboBoxWidget final : public ReferenceParameterButtonWidget<ComboBoxRefer
     using R = ComboBoxReference<kParameterIndex>;
     using BaseWidget = ReferenceParameterButtonWidget<R>;
 
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kParameterIndex];
     static_assert(kParameter.isEnumerator, "combo-box parameter must be enumerator");
 
 public:

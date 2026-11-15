@@ -30,7 +30,7 @@ public:
         uint8_t numPills = 0;
         for (uint32_t i = parameterStart, count = std::size(kFaustParameters); i < count && numPills < kMaxNumToggles; ++i)
         {
-            const FaustParameter& parameter = kFaustParameters[i];
+            const LibreAudioParameter& parameter = kFaustParameters[i];
             if (! parameter.isEnumerator || parameter.isOutput) {
                 d_stdout("pill area skipped parameter %s", parameter.label);
                 continue;
@@ -48,7 +48,7 @@ public:
 
         for (uint32_t i = parameterStart, count = std::size(kFaustParameters); i < count && fToggles.size() < kMaxNumToggles; ++i)
         {
-            const FaustParameter& parameter = kFaustParameters[i];
+            const LibreAudioParameter& parameter = kFaustParameters[i];
             if (! parameter.isEnumerator || parameter.isOutput) {
                 d_stdout("pill area skipped parameter %s", parameter.label);
                 continue;

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "LibreAudioProcessor.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -11,20 +13,26 @@
 
 #include "rnnoise.h"
 
-template<int numChannels>
-class LibreAudioSpeechDetection
+// --------------------------------------------------------------------------------------------------------------------
+
+class LibreAudioSpeechDetection : public LibreAudioProcessor
 {
+    static constexpr const uint8_t kNumChannels = 2;
+
     // rnnoise block size
     static constexpr const uint32_t rnnoiseFrameSize = 480;
     static constexpr const uint32_t rnnoiseFrameSizeF = rnnoiseFrameSize * sizeof(float);
 
     // rnnoise handles
-    DenoiseState* rnnoise[numChannels] = {};
+    DenoiseState* rnnoise[kNumChannels] = {};
 
     // buffers for rnnoise block processing
     uint32_t bufferInPos = 0;
-    float* bufferIn[numChannels] = {};
+    float* bufferIn[kNumChannels] = {};
     float* bufferOut = new float[rnnoiseFrameSize];
+
+    // current state
+    int sampleRate = 0;
 
     // current speech detection value
     float vad = 0.f;
@@ -32,30 +40,55 @@ class LibreAudioSpeechDetection
 public:
     LibreAudioSpeechDetection()
     {
-        for (int c = 0; c < numChannels; ++c)
+        for (uint8_t c = 0; c < kNumChannels; ++c)
         {
             bufferIn[c] = new float[rnnoiseFrameSize];
             rnnoise[c] = rnnoise_create(nullptr);
         }
     }
 
-    ~LibreAudioSpeechDetection()
+    ~LibreAudioSpeechDetection() override
     {
         delete[] bufferOut;
 
-        for (int c = 0; c < numChannels; ++c)
+        for (uint8_t c = 0; c < kNumChannels; ++c)
         {
             delete[] bufferIn[c];
             rnnoise_destroy(rnnoise[c]);
         }
     }
 
-    float process(const float* const inputs[numChannels], const uint32_t frames)
+    float get(int) const noexcept override
+    {
+        return vad;
+    }
+
+    void init(const int rate) override
+    {
+        sampleRate = rate;
+    }
+
+    void rate(const int rate) override
+    {
+        sampleRate = rate;
+    }
+
+    void reset() override
+    {
+        bufferInPos = 0;
+        vad = 0.f;
+    }
+
+    void set(int, float) override
+    {
+    }
+
+    void run(const int frames, float* inputs[kNumChannels]) override
     {
         // optimize for non-denormal usage
-        for (int c = 0; c < numChannels; ++c)
+        for (uint8_t c = 0; c < kNumChannels; ++c)
         {
-            for (uint32_t i = 0; i < frames; ++i)
+            for (int i = 0; i < frames; ++i)
             {
                 if (!std::isfinite(inputs[c][i]))
                     __builtin_unreachable();
@@ -63,13 +96,13 @@ public:
         }
 
         // process in rnnoise block-size chunks
-        for (uint32_t offset = 0; offset != frames;)
+        for (int offset = 0; offset != frames;)
         {
-            const uint32_t framesCycle = std::min(rnnoiseFrameSize - bufferInPos, frames - offset);
+            const uint32_t framesCycle = std::min<int>(rnnoiseFrameSize - bufferInPos, frames - offset);
             const uint32_t framesCycleF = framesCycle * sizeof(float);
 
             // copy input data into buffer
-            for (int c = 0; c < numChannels; ++c)
+            for (uint8_t c = 0; c < kNumChannels; ++c)
                 std::memcpy(bufferIn[c] + bufferInPos, inputs[c] + offset, framesCycleF);
 
             // run rnnoise once input buffer is full
@@ -79,19 +112,19 @@ public:
 
                 // run rnnoise
                 vad = 0.f;
-                for (int c = 0; c < numChannels; ++c)
+                for (uint8_t c = 0; c < kNumChannels; ++c)
                     vad = std::max(vad, rnnoise_process_frame(rnnoise[c], bufferOut, bufferIn[c]));
             }
 
             offset += framesCycle;
         }
-
-        return vad;
     }
 
-    void reset()
+    [[nodiscard]] float latency() const override
     {
-        bufferInPos = 0;
-        vad = 0.f;
+        // TODO
+        return 0.f;
     }
 };
+
+// --------------------------------------------------------------------------------------------------------------------

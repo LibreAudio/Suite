@@ -75,7 +75,7 @@ class PillToggleWidget : public LabReferenceContainerWidget<Reference::Widgets::
 
 public:
     explicit PillToggleWidget(LabWidget* const parent,
-                              const FaustParameter& parameter,
+                              const LibreAudioParameter& parameter,
                               const uint32_t id)
         : BaseWidget(parent)
     {

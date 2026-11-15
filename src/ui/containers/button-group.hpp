@@ -35,13 +35,11 @@ public:
              typename = std::enable_if_t<std::is_base_of_v<LabButtonBaseWidget, B>>>
     std::shared_ptr<LabButtonBaseWidget> addButton(const FaustParameterIndex index, Args... args)
     {
-        const FaustParameter& parameter = kFaustParameters[index];
+        const LibreAudioParameter& parameter = kFaustParameters[index];
         DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.min, 0.f), nullptr);
         DISTRHO_SAFE_ASSERT_RETURN(d_isEqual(parameter.max, 1.f), nullptr);
 
-        return BaseWidget::template addButton<B>(kParametersMainStart + index,
-                                                 getFaustParameterLabel(parameter),
-                                                 args...);
+        return BaseWidget::template addButton<B>(kParametersMainStart + index, getParameterLabel(parameter), args...);
     }
 
     template<class BP,

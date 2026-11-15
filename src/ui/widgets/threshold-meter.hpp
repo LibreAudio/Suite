@@ -57,9 +57,9 @@ private:
     const uint kParameterIdMeterL;
     const uint kParameterIdMeterR;
 
-    const FaustParameter& kParameterSlider;
-    const FaustParameter& kParameterMeterL;
-    const FaustParameter& kParameterMeterR;
+    const LibreAudioParameter& kParameterSlider;
+    const LibreAudioParameter& kParameterMeterL;
+    const LibreAudioParameter& kParameterMeterR;
 
     float fMeterValueL = kParameterMeterL.min;
     float fMeterValueR = kParameterMeterR.min;

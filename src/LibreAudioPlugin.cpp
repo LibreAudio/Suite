@@ -20,6 +20,9 @@
 #include "common_input-dsp.hpp"
 #include "common_output-dsp.hpp"
 #endif
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+#include LIBREAUDIO_EXTRA_PROCESSOR_INCLUDE
+#endif
 
 #ifdef LIBREAUDIO_CUSTOM_UI
 #include <memory>
@@ -39,6 +42,19 @@ static constexpr const float kParameterSmoothingTime = 0.05f; // in seconds
 
 // --------------------------------------------------------------------------------------------------------------------
 
+#if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+static LibreAudioProcessor* createExtraDSP()
+{
+   #if LIBREAUDIO_WANT_SPEECH_DETECTION
+    return new LibreAudioSpeechDetection;
+   #else
+    #error undefined extra dsp
+   #endif
+}
+#endif
+
+// --------------------------------------------------------------------------------------------------------------------
+
 LibreAudioPlugin::LibreAudioPlugin()
     : Plugin(kParametersCount, 0, kStateCount),
       fCommonParameterValues(new float[kCommonParameterCount]),
@@ -46,6 +62,9 @@ LibreAudioPlugin::LibreAudioPlugin()
    #if LIBREAUDIO_WANT_COMMON_IO
     , fInputDSP(common_input::createDSP())
     , fOutputDSP(common_output::createDSP())
+   #endif
+   #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+    , fExtraDSP(createExtraDSP())
    #endif
 {
     initCommonParameterValuesToDefault(fCommonParameterValues);
@@ -66,9 +85,12 @@ LibreAudioPlugin::LibreAudioPlugin()
     fInputDSP->init(iSampleRate);
     fOutputDSP->init(iSampleRate);
    #endif
+   #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+    fExtraDSP->init(iSampleRate);
+   #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
-    fMainDSP->compute(0, fCycleBuffer);
+    fMainDSP->run(0, fCycleBuffer);
     updateLatencyIfNeeded();
    #endif
 }
@@ -95,7 +117,7 @@ LibreAudioPlugin::~LibreAudioPlugin()
 // --------------------------------------------------------------------------------------------------------------------
 // Init
 
-static void initParameterFromFaust(Parameter& parameter, const FaustParameter& faustParameter)
+static void initLibreAudioParameter(Parameter& parameter, const LibreAudioParameter& faustParameter)
 {
     parameter.hints = kParameterIsAutomatable;
     if (faustParameter.isBoolean)
@@ -184,11 +206,11 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
    #if LIBREAUDIO_WANT_COMMON_IO
     case kParametersInputStart ... kParametersInputEnd:
         parameter.groupId = kGroupInput;
-        initParameterFromFaust(parameter, common_input::kFaustParameters[index - kParametersInputStart]);
+        initLibreAudioParameter(parameter, common_input::kFaustParameters[index - kParametersInputStart]);
         break;
     case kParametersOutputStart ... kParametersOutputEnd:
         parameter.groupId = kGroupOutput;
-        initParameterFromFaust(parameter, common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters]);
+        initLibreAudioParameter(parameter, common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters]);
         break;
    #endif
     default:
@@ -196,7 +218,7 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
        #if LIBREAUDIO_WANT_COMMON_IO
         parameter.groupId = kGroupMain;
        #endif
-        initParameterFromFaust(parameter, kFaustParameters[index - kParametersMainStart]);
+        initLibreAudioParameter(parameter, kFaustParameters[index - kParametersMainStart]);
         break;
     }
 }
@@ -250,6 +272,12 @@ void LibreAudioPlugin::initPortGroup(const uint32_t groupId, PortGroup& portGrou
     case kGroupMain:
         portGroup.name = DISTRHO_PLUGIN_NAME;
         portGroup.symbol = DISTRHO_PLUGIN_LABEL;
+        portGroup.symbol.toBasic();
+        break;
+    case kGroupExtra:
+        // TODO
+        portGroup.name = DISTRHO_PLUGIN_NAME " (Extra)";
+        portGroup.symbol = DISTRHO_PLUGIN_LABEL "_extra";
         portGroup.symbol.toBasic();
         break;
     }
@@ -374,19 +402,18 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         fCommonParameterValues[kCommonParameterReset] = 0.f;
         fGlobalDryValue.clearToTargetValue();
         fGlobalWetValue.clearToTargetValue();
-        fMainDSP->instanceClear();
+        fMainDSP->reset();
        #if LIBREAUDIO_WANT_COMMON_IO
-        fInputDSP->instanceClear();
-        fOutputDSP->instanceClear();
+        fInputDSP->reset();
+        fOutputDSP->reset();
+       #endif
+       #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+        fExtraDSP->reset();
        #endif
 
        #if DISTRHO_PLUGIN_WANT_LATENCY
         fLatencyReadPos = -fLastKnownLatency;
         fLatencyWritePos = 0;
-       #endif
-
-       #if LIBREAUDIO_WANT_SPEECH_DETECTION
-        fSpeechDetection.reset();
        #endif
     }
 
@@ -424,24 +451,30 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
         }
        #endif
 
-       #if LIBREAUDIO_WANT_SPEECH_DETECTION
-        const float vad = fSpeechDetection.process(fCycleBuffer, cycleFrames);
-        fMainDSP->setVAD(vad);
+       #if LIBREAUDIO_WANT_COMMON_IO
+        fInputDSP->run(cycleFrames, fCycleBuffer);
        #endif
 
-      #if LIBREAUDIO_WANT_COMMON_IO
-        fInputDSP->compute(cycleFrames, fCycleBuffer);
        #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_INPUT
         writeToRunnerBuffer(cycleFrames);
        #endif
-        fMainDSP->compute(cycleFrames, fCycleBuffer);
-        fOutputDSP->compute(cycleFrames, fCycleBuffer);
-      #else
-        fMainDSP->compute(cycleFrames, fCycleBuffer);
-      #endif
+
+       #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+        fExtraDSP->run(cycleFrames, fCycleBuffer);
+       #endif
+
+       #if LIBREAUDIO_WANT_SPEECH_DETECTION
+        fMainDSP->setVAD(fExtraDSP->get(0));
+       #endif
+
+        fMainDSP->run(cycleFrames, fCycleBuffer);
 
        #if LIBREAUDIO_WANT_GRAPH && LIBREAUDIO_WANT_GRAPH_OUTPUT
         writeToRunnerBuffer(cycleFrames);
+       #endif
+
+       #if LIBREAUDIO_WANT_COMMON_IO
+        fOutputDSP->run(cycleFrames, fCycleBuffer);
        #endif
 
         for (uint32_t j = 0; j < cycleFrames; ++j)
@@ -503,14 +536,17 @@ void LibreAudioPlugin::sampleRateChanged(const double newSampleRate)
     fGlobalWetValue.setSampleRate(newSampleRate);
 
     const int sampleRate = d_roundToIntPositive(newSampleRate);
-    fMainDSP->instanceConstants(sampleRate);
+    fMainDSP->rate(sampleRate);
    #if LIBREAUDIO_WANT_COMMON_IO
-    fInputDSP->instanceConstants(sampleRate);
-    fOutputDSP->instanceConstants(sampleRate);
+    fInputDSP->rate(sampleRate);
+    fOutputDSP->rate(sampleRate);
+   #endif
+   #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+    fExtraDSP->rate(sampleRate);
    #endif
 
    #if DISTRHO_PLUGIN_WANT_LATENCY
-    fMainDSP->compute(0, fCycleBuffer);
+    fMainDSP->run(0, fCycleBuffer);
     updateLatencyIfNeeded();
    #endif
 
@@ -518,7 +554,6 @@ void LibreAudioPlugin::sampleRateChanged(const double newSampleRate)
     if (runnerActive)
         startRunner(kTargetIdleTimeMs);
    #endif
-
 }
 
 // --------------------------------------------------------------------------------------------------------------------

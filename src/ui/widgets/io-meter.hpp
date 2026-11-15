@@ -41,13 +41,13 @@ class GainMeterWidget final : public LabParameterWidget
         ? kParametersInputStart + common_input::kFaustParameterInput_trim
         : kParametersOutputStart + common_output::kFaustParameterOutput_trim - kCommonIOParameters;
 
-    static constexpr const FaustParameter& kParameterMeterL = type == Input
+    static constexpr const LibreAudioParameter& kParameterMeterL = type == Input
         ? common_input::kFaustParameters[common_input::kFaustParameterInput_peak_l]
         : common_output::kFaustParameters[common_output::kFaustParameterOutput_peak_l];
-    static constexpr const FaustParameter& kParameterMeterR = type == Input
+    static constexpr const LibreAudioParameter& kParameterMeterR = type == Input
         ? common_input::kFaustParameters[common_input::kFaustParameterInput_peak_r]
         : common_output::kFaustParameters[common_output::kFaustParameterOutput_peak_r];
-    static constexpr const FaustParameter& kParameterGain = type == Input
+    static constexpr const LibreAudioParameter& kParameterGain = type == Input
         ? common_input::kFaustParameters[common_input::kFaustParameterInput_trim]
         : common_output::kFaustParameters[common_output::kFaustParameterOutput_trim];
 

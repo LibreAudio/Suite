@@ -35,7 +35,7 @@ public:
     }
 
 protected:
-    const FaustParameter& fParameter;
+    const LibreAudioParameter& fParameter;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

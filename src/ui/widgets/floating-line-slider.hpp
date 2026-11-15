@@ -62,7 +62,7 @@ public:
     }
 
 private:
-    const FaustParameter& fParameter;
+    const LibreAudioParameter& fParameter;
     float fPaddedMinimum = 0.f;
     String fUnitWithSpacePrefix;
 

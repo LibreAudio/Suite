@@ -21,6 +21,7 @@ START_NAMESPACE_DISTRHO
 // --------------------------------------------------------------------------------------------------------------------
 
 inline constexpr const uint32_t kCommonIOParameters = 1;
+inline constexpr const uint32_t kExtraParameterCount = 0;
 
 enum CommonParameters {
     kCommonParameterBypass,
@@ -35,6 +36,7 @@ enum Groups {
     kGroupInput,
     kGroupOutput,
     kGroupMain,
+    kGroupExtra,
 };
 
 enum Parameters {
@@ -47,7 +49,9 @@ enum Parameters {
     kParametersOutputEnd = kParametersOutputStart + common_output::kFaustParameterCount - 1 - kCommonIOParameters,
    #endif
     kParametersMainStart,
-    kParametersCount = kParametersMainStart + kFaustParameterCount
+    kParametersMainEnd = kParametersMainStart + kFaustParameterCount - 1,
+    kParametersExtraStart,
+    kParametersCount = kParametersExtraStart + kExtraParameterCount
 };
 
 inline constexpr const char* kCommonParameterSymbols[kCommonParameterCount] = {
@@ -57,6 +61,8 @@ inline constexpr const char* kCommonParameterSymbols[kCommonParameterCount] = {
     "dry_wet",
    #endif
 };
+
+// --------------------------------------------------------------------------------------------------------------------
 
 inline void initCommonParameterValuesToDefault(float values[kCommonParameterCount])
 {
@@ -77,6 +83,36 @@ inline void initCommonParameterValuesToDefault(float values[kCommonParameterCoun
             break;
         }
     }
+}
+
+inline constexpr const LibreAudioParameter _kFallback = {};
+
+inline constexpr const LibreAudioParameter& getParameter(const uint32_t index) noexcept
+{
+    return
+        index >= kParametersMainStart ? kFaustParameters[index - kParametersMainStart] :
+       #if LIBREAUDIO_WANT_COMMON_IO
+        index >= kParametersOutputStart ? common_output::kFaustParameters[index - kParametersOutputStart + kCommonIOParameters] :
+        index >= kParametersInputStart ? common_input::kFaustParameters[index - kParametersInputStart] :
+       #endif
+        _kFallback;
+}
+
+inline constexpr float getParameterInit(const uint32_t index) noexcept
+{
+    return getParameter(index).init;
+}
+
+inline constexpr const char* getParameterSymbol(const uint32_t index) noexcept
+{
+    return getParameter(index).symbol;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+inline constexpr bool isParameterOutputOrTrigger(const uint32_t index) noexcept
+{
+    return isParameterOutputOrTrigger(getParameter(index));
 }
 
 // --------------------------------------------------------------------------------------------------------------------

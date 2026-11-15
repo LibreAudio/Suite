@@ -184,7 +184,7 @@ class DeEsserThresholdMeterWidget final : public LabParameterWidget
 {
     using R = DeEsserMeterReference;
 
-    static constexpr const FaustParameter& kThreshold = kFaustParameters[M::threshold];
+    static constexpr const LibreAudioParameter& kThreshold = kFaustParameters[M::threshold];
     static constexpr const std::array<FaustParameterIndex, 2> kMeters { M::mid, M::side };
     static constexpr const float kTop = kFaustParameters[M::mid].max;
     static constexpr const float kFloor = kFaustParameters[M::mid].min;
@@ -493,9 +493,9 @@ class DeEsserGlassWidget final : public LabWidget,
     using R = DeEsserGlassReference;
 
     static constexpr const uint32_t kNumBins = LibreAudioAnalyzerIPC::kNumBins;
-    static constexpr const FaustParameter& kCrossover = kFaustParameters[kFaustParameterCrossover_frequency];
-    static constexpr const FaustParameter& kRange = kFaustParameters[kFaustParameterRange];
-    static constexpr const FaustParameter& kReduction = kFaustParameters[kFaustParameterDeess_mid];
+    static constexpr const LibreAudioParameter& kCrossover = kFaustParameters[kFaustParameterCrossover_frequency];
+    static constexpr const LibreAudioParameter& kRange = kFaustParameters[kFaustParameterRange];
+    static constexpr const LibreAudioParameter& kReduction = kFaustParameters[kFaustParameterDeess_mid];
 
     std::array<float, kNumBins> fSpectrum;
     bool fPendingDisplay = false;
@@ -562,7 +562,7 @@ private:
     // a parameter's value on its steps and within its range, sent if it changed
     void setParameter(const FaustParameterIndex index, float& current, const float value)
     {
-        const FaustParameter& param = kFaustParameters[index];
+        const LibreAudioParameter& param = kFaustParameters[index];
         const float stepped = std::clamp(std::round(value / param.step) * param.step, param.min, param.max);
         if (d_isEqual(current, stepped))
             return;

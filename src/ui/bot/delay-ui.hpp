@@ -91,7 +91,7 @@ class DelayCheckboxWidget : public LabWidget
     static constexpr const float kFontSize = Reference::Widgets::NumberBox<>::Name::fontSize;
 
     const FaustParameterIndex fId;
-    const FaustParameter& fParameter;
+    const LibreAudioParameter& fParameter;
     const int fOnValue;
     const char* const fLabel;
     const Color fAccent;
@@ -109,7 +109,7 @@ protected:
           fParameter(kFaustParameters[id]),
           fOnValue(onValue),
           fLabel(label),
-          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+          fAccent(Reference::kAccentColors[std::clamp<uint8_t>(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
     {
         updateSize(false);
     }
@@ -117,7 +117,7 @@ protected:
     // the label of a parameter's choice, or its name when it has no label for that value
     static const char* choiceLabel(const FaustParameterIndex id, const int value) noexcept
     {
-        const FaustParameter& parameter = kFaustParameters[id];
+        const LibreAudioParameter& parameter = kFaustParameters[id];
         for (uint i = 0; i < parameter.scalePointCount; ++i)
             if (parameter.scalePoints[i].value == value)
                 return parameter.scalePoints[i].label;
@@ -300,7 +300,7 @@ public:
     explicit DelayMenuArrowWidget(LabWidget* const parent, const FaustParameterIndex id)
         : LabWidget(parent),
           fId(id),
-          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+          fAccent(Reference::kAccentColors[std::clamp<uint8_t>(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
     {
         updateSize(false);
     }
@@ -417,7 +417,7 @@ private:
     {
         BaseWidget::onNanoDisplay();
 
-        const FaustParameter& meter = kFaustParameters[kMeterId];
+        const LibreAudioParameter& meter = kFaustParameters[kMeterId];
         const float s = this->fScaleFactor;
         const float w = this->getWidth();
         const float h = this->getHeight();
@@ -578,7 +578,7 @@ public:
 
     explicit DelayPanelTitleWidget(LabWidget* const parent, const FaustParameterIndex id)
         : LabWidget(parent),
-          fAccent(Reference::kAccentColors[std::clamp(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
+          fAccent(Reference::kAccentColors[std::clamp<uint8_t>(kFaustParameters[id].accentcolor, 1u, 6u) - 1])
     {
         updateSize(false);
     }
@@ -1201,12 +1201,12 @@ public:
     // anchor is the box the menu belongs to, in absolute coordinates
     void open(const FaustParameterIndex id, const Rectangle<float>& anchor)
     {
-        const FaustParameter& param = kFaustParameters[id];
+        const LibreAudioParameter& param = kFaustParameters[id];
         const float s = fScaleFactor;
         const float inset = (R::border + R::margin) * s;
 
         fId = id;
-        fAccent = Reference::kAccentColors[std::clamp(param.accentcolor, 1u, 6u) - 1];
+        fAccent = Reference::kAccentColors[std::clamp<uint8_t>(param.accentcolor, 1u, 6u) - 1];
         fHoverRow = -1;
 
         fontFace("regular");
@@ -1267,7 +1267,7 @@ private:
 
     void onNanoDisplay() final
     {
-        const FaustParameter& param = kFaustParameters[fId];
+        const LibreAudioParameter& param = kFaustParameters[fId];
         const float s = fScaleFactor;
         const float inset = (R::border + R::margin) * s;
         const int current = d_roundToInt(fInterface->getParameterValue(kParametersMainStart + fId));

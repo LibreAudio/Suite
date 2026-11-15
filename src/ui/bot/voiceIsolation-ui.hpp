@@ -138,7 +138,7 @@ public:
 
 // The common Dry / Wet, which LibreAudioPlugin mixes with the latency-aligned input, described for a number box.
 
-static constexpr const FaustParameter kDryWetParameter = {
+static constexpr const LibreAudioParameter kDryWetParameter = {
     .bracket = "",
     .label = "Dry-Wet",
     .shortlabel = "",
@@ -146,19 +146,14 @@ static constexpr const FaustParameter kDryWetParameter = {
     .symbol = "dry_wet",
     .tooltip = "",
     .unit = "%",
+    .scalePoints = nullptr,
     // TODO
     .init = 50.f, // LIBREAUDIO_DRYWET_DEFAULT,
     .min = 0.f,
     .max = 100.f,
     .step = 1.f,
     .accentcolor = 1,
-    .scalePoints = nullptr,
     .scalePointCount = 0,
-    .requirement = {
-        .context = nullptr,
-        .symbol = nullptr,
-        .value = -1,
-    },
     .isBoolean = false,
     .isEasy = false,
     .isEnumerator = false,

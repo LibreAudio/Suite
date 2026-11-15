@@ -97,7 +97,7 @@ class LimiterCentralAreaWidget final : public CentralAreaWidget<EasyPageWidget, 
     using BaseWidget = CentralAreaWidget<EasyPageWidget, LimterExpertPageWidget>;
     using ButtonWidget = TextButtonWidget<Reference::Height<30, Reference::Widgets::TopBarButton>, kCornerNone>;
 
-    static constexpr const FaustParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];
+    static constexpr const LibreAudioParameter& kParamThreshold = kFaustParameters[kFaustParameterThreshold];
 
     static constexpr const float kPaddedMinimumScale = -48.f;
 

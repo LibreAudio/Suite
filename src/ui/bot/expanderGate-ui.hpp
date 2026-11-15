@@ -701,7 +701,7 @@ public:
         : BaseWidget(parent)
     {
         BaseWidget::template addButton<SoloButtonWidget>(kParametersMainStart + kId,
-                                                         getFaustParameterLabel(kFaustParameters[kId]));
+                                                         getParameterLabel(kFaustParameters[kId]));
     }
 };
 
@@ -718,7 +718,7 @@ class ExpanderChoiceButtonWidget final
     using CR = typename GR::Choice;
     using BaseWidget = LabReferenceContainerWidget<GR, Horizontal>;
 
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kId];
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kId];
 
     class ChoiceWidget final : public LabReferenceButtonWidget<CR, kCornerBoth>
     {
@@ -1365,7 +1365,7 @@ class ExpanderInputMeterWidget final : public LabParameterWidget
 {
     using R = ExpanderMeterReference;
 
-    static constexpr const FaustParameter& kParameterSlider = kFaustParameters[kFaustParameterThreshold];
+    static constexpr const LibreAudioParameter& kParameterSlider = kFaustParameters[kFaustParameterThreshold];
     static constexpr const std::array<FaustParameterIndex, 2> kMeters { kFaustParameterLevel_1, kFaustParameterLevel_2 };
     static constexpr const float kFloor = kFaustParameters[kFaustParameterLevel_1].min;
     static constexpr const float kScale[] = { 0, -12, -24, -36, -48, -60 };

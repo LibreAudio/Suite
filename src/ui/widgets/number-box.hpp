@@ -33,7 +33,7 @@ class NumberBoxWidget : public LabParameterWidget
 {
     using BaseWidget = LabParameterWidget;
 
-    static constexpr const FaustParameter& kParameter = kFaustParameters[kParameterIndex];
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kParameterIndex];
     static constexpr const uint8_t kAccentColorIndex = _accentColorIndex != UINT8_MAX
                                                      ? _accentColorIndex
                                                      : kParameter.accentcolor;
@@ -205,7 +205,7 @@ class NumberBoxWithMeterWidget : public NumberBoxWidget<kParameterIndex>
     using BaseWidget::BaseWidget;
     using R = typename BaseWidget::R;
 
-    static constexpr const FaustParameter& kMeter = kFaustParameters[kMeterIndex];
+    static constexpr const LibreAudioParameter& kMeter = kFaustParameters[kMeterIndex];
 
 protected:
     void onNanoDisplay() override
