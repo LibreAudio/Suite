@@ -170,28 +170,28 @@ void LibreAudioBaseUI::presetButtonClicked(const uint32_t preset)
     const float* const values = getPresetValues(preset);
     DISTRHO_SAFE_ASSERT_RETURN(values != nullptr,);
 
+    std::array<bool, kFaustParameterCount> modified = {};
+
     for (uint32_t i = 0; i < kFaustParameterCount; ++i)
     {
         if (isParameterOutputOrTrigger(kParametersMainStart + i))
             continue;
-        fParameterValuesWhenActivated[kParametersMainStart + i] = fParameterValues[kParametersMainStart + i] = values[kParametersMainStart + i];
-        fSnapshots.updateParameterValue(kParametersMainStart + i, values[kParametersMainStart + i], values[kParametersMainStart + i]);
+        if (d_isEqual(fParameterValues[kParametersMainStart + i], values[i]))
+            continue;
+        modified[i] = true;
+        fParameterValues[kParametersMainStart + i] = values[i];
+        fParameterValuesWhenActivated[kParametersMainStart + i] = values[i];
+        fSnapshots.updateParameterValue(kParametersMainStart + i, values[i], values[i]);
         editParameter(kParametersMainStart + i, true);
     }
 
     for (uint32_t i = 0; i < kFaustParameterCount; ++i)
-    {
-        if (isParameterOutputOrTrigger(kParametersMainStart + i))
-            continue;
-        setParameterValue(kParametersMainStart + i, values[kParametersMainStart + i]);
-    }
+        if (modified[i])
+            setParameterValue(kParametersMainStart + i, values[i]);
 
     for (uint32_t i = 0; i < kFaustParameterCount; ++i)
-    {
-        if (isParameterOutputOrTrigger(kParametersMainStart + i))
-            continue;
-        editParameter(kParametersMainStart + i, false);
-    }
+        if (modified[i])
+            editParameter(kParametersMainStart + i, false);
 }
 
 void LibreAudioBaseUI::snapshotButtonClicked(const uint32_t button)
@@ -762,7 +762,7 @@ bool LibreAudioBaseUI::isButtonChecked(const uint32_t id) const noexcept
     case kWidgetPresetB:
     case kWidgetPresetC:
     case kWidgetPresetD:
-        return fCurrentPreset == id - kWidgetPresetA; // TODO
+        return fCurrentPreset == id - kWidgetPresetA;
     case kWidgetRedo:
         return false;
     case kWidgetSnapshotCopy:
