@@ -70,7 +70,7 @@ target_sources(las-rnnoise
     rnnoise-model-data/rnnoise_data.c
 )
 
-if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+if(LIBREAUDIO_USE_SSE)
   target_compile_definitions(las-rnnoise
     PRIVATE
       CPU_INFO_BY_ASM
@@ -97,5 +97,39 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
         "-msse4.1"
   )
 endif()
+
+# ---------------------------------------------------------------------------------------------------------------------
+# speexdsp-resample library
+
+add_library(las-speexdsp-resample STATIC)
+
+set_target_properties(las-speexdsp-resample
+  PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_definitions(las-speexdsp-resample
+  PRIVATE
+    FLOATING_POINT
+    $<$<BOOL:${LIBREAUDIO_USE_NEON}>:USE_NEON>
+    $<$<BOOL:${LIBREAUDIO_USE_SSE}>:USE_SSE>
+    $<$<BOOL:${LIBREAUDIO_USE_SSE}>:USE_SSE2>
+  PUBLIC
+    OUTSIDE_SPEEX
+    RANDOM_PREFIX=las
+)
+
+target_include_directories(las-speexdsp-resample
+  PRIVATE
+    speexdsp/libspeexdsp
+  PUBLIC
+    speexdsp/include/speex
+)
+
+target_sources(las-speexdsp-resample
+  PRIVATE
+    speexdsp/libspeexdsp/resample.c
+)
 
 # ---------------------------------------------------------------------------------------------------------------------

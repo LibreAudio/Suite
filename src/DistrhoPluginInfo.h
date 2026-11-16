@@ -25,13 +25,22 @@
 #define DISTRHO_PLUGIN_WANT_TIMEPOS 1
 #endif
 
-// optional speech/voice-activity detection control
+// optional speech/voice-activity detection
 #ifndef LIBREAUDIO_WANT_SPEECH_DETECTION
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 0
 #elif LIBREAUDIO_WANT_SPEECH_DETECTION
 #define LIBREAUDIO_WANT_EXTRA_PROCESSOR 1
 #define LIBREAUDIO_EXTRA_DSP_INCLUDE "dsp-cpp/speech-detection-dsp.hpp"
 #define LIBREAUDIO_EXTRA_PARAMETERS_INCLUDE "dsp-cpp/speech-detection-parameters.hpp"
+#endif
+
+// optional speech/voice isolation
+#ifndef LIBREAUDIO_WANT_VOICE_ISOLATION
+#define LIBREAUDIO_WANT_VOICE_ISOLATION 0
+#elif LIBREAUDIO_WANT_VOICE_ISOLATION
+#define LIBREAUDIO_WANT_EXTRA_PROCESSOR 1
+#define LIBREAUDIO_EXTRA_DSP_INCLUDE "bot/voice-isolation-dsp.hpp"
+#define LIBREAUDIO_EXTRA_PARAMETERS_INCLUDE "dsp-cpp/voice-isolation-parameters.hpp"
 #endif
 
 // optional latency output

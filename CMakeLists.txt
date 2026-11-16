@@ -59,8 +59,10 @@ add_compile_options(-Wno-unused-parameter)
 
 # base tuning, SSE2 or NEON required
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+  set(LIBREAUDIO_USE_SSE TRUE)
   add_compile_options(-mtune=generic -msse -msse2 -mfpmath=sse)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM|armv[3-9][a-z]*)$")
+  set(LIBREAUDIO_USE_NEON TRUE)
   add_compile_options(-mfpu=neon-vfpv4 -mfloat-abi=hard)
 endif()
 

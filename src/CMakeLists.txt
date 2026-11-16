@@ -230,7 +230,11 @@ function(las_add_plugin LABEL)
     list(APPEND EXTRA_DSP_LIBS las-kiss-fft)
   endif()
   if("${LABEL}" STREQUAL "leveler")
+   # OR "${LABEL}" STREQUAL "voiceIsolation"
     list(APPEND EXTRA_DSP_LIBS las-rnnoise)
+  endif()
+  if("${LABEL}" STREQUAL "voiceIsolation")
+    list(APPEND EXTRA_DSP_LIBS las-speexdsp-resample)
   endif()
 
   set(EXTRA_UI_LIBS)
@@ -329,6 +333,16 @@ function(las_add_plugin LABEL)
     PRIVATE
       ${EXTRA_DSP_LIBS}
   )
+
+  # FIXME
+  if("${LABEL}" STREQUAL "voiceIsolation")
+    target_include_directories(${TARGET}
+      PUBLIC
+        ../deps/rnnoise/include
+        ../deps/rnnoise/src
+        ../deps/rnnoise-model-data
+    )
+  endif()
 endfunction()
 
 # ---------------------------------------------------------------------------------------------------------------------

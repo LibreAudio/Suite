@@ -39,7 +39,7 @@
 #define LIBREAUDIO_WANT_TIMEPOS_BPM 1
 {% endfor %}
 
-// optional speech/voice-activity detection control
+// optional speech/voice-activity detection
 {% for w in active if w.symbol == "dpf_vad" %}
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 1
 {% endfor %}

@@ -1,0 +1,717 @@
+diff --git a/deps/CMakeLists.txt b/deps/CMakeLists.txt
+index 329fec5..396b5c5 100644
+--- a/deps/CMakeLists.txt
++++ b/deps/CMakeLists.txt
+@@ -59,7 +59,6 @@ target_include_directories(las-rnnoise
+ target_sources(las-rnnoise
+   PRIVATE
+     rnnoise/src/celt_lpc.c
+-    rnnoise/src/denoise.c
+     rnnoise/src/kiss_fft.c
+     rnnoise/src/nnet.c
+     rnnoise/src/nnet_default.c
+@@ -68,6 +67,8 @@ target_sources(las-rnnoise
+     rnnoise/src/rnn.c
+     rnnoise/src/rnnoise_tables.c
+     rnnoise-model-data/rnnoise_data.c
++    # includes rnnoise/src/denoise.c
++    rnnoise-stereo.c
+ )
+ 
+ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X86)$")
+@@ -99,3 +100,36 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64|x64|X64|i.86|x86|X8
+ endif()
+ 
+ # ---------------------------------------------------------------------------------------------------------------------
++# speexdsp resampler library
++
++add_library(las-speex-resampler STATIC)
++
++set_target_properties(las-speex-resampler
++  PROPERTIES
++    INTERPROCEDURAL_OPTIMIZATION OFF
++    POSITION_INDEPENDENT_CODE ON
++)
++
++target_compile_definitions(las-speex-resampler
++  PUBLIC
++    OUTSIDE_SPEEX
++    RANDOM_PREFIX=las
++)
++
++# upstream code, not ours to fix
++target_compile_options(las-speex-resampler
++  PRIVATE
++    -Wno-sign-compare
++)
++
++target_include_directories(las-speex-resampler
++  PUBLIC
++    speexdsp/include/speex
++)
++
++target_sources(las-speex-resampler
++  PRIVATE
++    speex-resampler.c
++)
++
++# ---------------------------------------------------------------------------------------------------------------------
+diff --git a/deps/rnnoise-stereo.c b/deps/rnnoise-stereo.c
+new file mode 100644
+index 0000000..7066b96
+--- /dev/null
++++ b/deps/rnnoise-stereo.c
+@@ -0,0 +1,73 @@
++// Copyright 2026 Klaus Scheuermann
++// SPDX-License-Identifier: GPL-3.0-or-later
++
++// Compiles upstream's implementation here to access its private FFT analysis
++// and synthesis helpers without changing the submodule.
++// Replaces denoise.c in the las-rnnoise library, so the public rnnoise API stays available.
++#include "rnnoise/src/denoise.c"
++#include "rnnoise-stereo.h"
++
++_Static_assert(NB_BANDS == LAS_RNNOISE_NB_BANDS, "rnnoise band count changed");
++
++float las_rnnoise_process_stereo(DenoiseState* left, DenoiseState* right,
++                                 float* outLeft, float* outRight,
++                                 const float* inLeft, const float* inRight,
++                                 const LasRnnoiseStereoSettings* settings,
++                                 float* bandGains)
++{
++    DenoiseState* states[2] = {left, right};
++    const float* inputs[2] = {inLeft, inRight};
++    float* outputs[2] = {outLeft, outRight};
++    kiss_fft_cpx X[2][FREQ_SIZE], P[2][FREQ_SIZE];
++    float Ex[2][NB_BANDS], Ep[2][NB_BANDS], Exp[2][NB_BANDS];
++    float gains[2][NB_BANDS] = {{0}}, raw[NB_BANDS], linked[NB_BANDS], applied[NB_BANDS], gf[FREQ_SIZE] = {0};
++    float vad = 0;
++    static const float a_hp[2] = {-1.99599f, 0.99600f};
++    static const float b_hp[2] = {-2, 1};
++
++    // Separate analysis avoids cancellation for wide/anti-phase inputs.
++    // The less attenuated estimate wins in each band, protecting speech on
++    // either side; precisely the same resulting mask is applied to both.
++    for (int c = 0; c < 2; ++c) {
++        float x[FRAME_SIZE], features[NB_FEATURES], probability = 0;
++        DenoiseState* st = states[c];
++        rnn_biquad(x, st->mem_hp_x, inputs[c], b_hp, a_hp, FRAME_SIZE);
++        const int silence = rnn_compute_frame_features(st, X[c], P[c], Ex[c], Ep[c], Exp[c], features, x);
++        if (!silence)
++            compute_rnn(&st->model, &st->rnn, gains[c], &probability, features, st->arch);
++        vad = MAX16(vad, probability);
++    }
++    for (int i = 0; i < NB_BANDS; ++i) {
++        raw[i] = MAX16(gains[0][i], gains[1][i]);
++        linked[i] = MAX16(raw[i], settings->decay * MAX16(left->lastg[i], right->lastg[i]));
++        // Use joint energy for release compensation: a silent channel must
++        // not hold the other channel's suppression open.
++        const float previous = left->delayed_Ex[i] + right->delayed_Ex[i];
++        const float current = Ex[0][i] + Ex[1][i];
++        left->lastg[i] = right->lastg[i] =
++            MIN16(1.f, linked[i] * (previous + 1e-3f) / (current + 1e-3f));
++        // the floor only limits what is applied, release tracking stays unchanged
++        applied[i] = MAX16(linked[i], settings->minGain);
++        if (bandGains != NULL)
++            bandGains[i] = applied[i];
++    }
++    interp_band_gain(gf, applied);
++    for (int c = 0; c < 2; ++c) {
++        DenoiseState* st = states[c];
++        // Pitch reconstruction is estimated per channel, so it is optional:
++        // without it, a common multiplicative mask preserves the stereo phase/image.
++        if (settings->pitchFilter)
++            rnn_pitch_filter(st->delayed_X, st->delayed_P, st->delayed_Ex, st->delayed_Ep, st->delayed_Exp, raw);
++        for (int i = 0; i < FREQ_SIZE; ++i) {
++            st->delayed_X[i].r *= gf[i];
++            st->delayed_X[i].i *= gf[i];
++        }
++        frame_synthesis(st, outputs[c], st->delayed_X);
++        RNN_COPY(st->delayed_X, X[c], FREQ_SIZE);
++        RNN_COPY(st->delayed_P, P[c], FREQ_SIZE);
++        RNN_COPY(st->delayed_Ex, Ex[c], NB_BANDS);
++        RNN_COPY(st->delayed_Ep, Ep[c], NB_BANDS);
++        RNN_COPY(st->delayed_Exp, Exp[c], NB_BANDS);
++    }
++    return vad;
++}
+diff --git a/src/LibreAudioParameters.hpp b/src/LibreAudioParameters.hpp
+index ad37d41..25de763 100644
+--- a/src/LibreAudioParameters.hpp
++++ b/src/LibreAudioParameters.hpp
+@@ -70,7 +70,7 @@ inline void initCommonParameterValuesToDefault(float values[kCommonParameterCoun
+             break;
+        #if LIBREAUDIO_WANT_DRYWET
+         case kCommonParameterDryWet:
+-            values[i] = 50.f;
++            values[i] = LIBREAUDIO_DRYWET_DEFAULT;
+        #endif
+             break;
+         case kCommonParameterCount:
+diff --git a/src/LibreAudioPlugin.cpp b/src/LibreAudioPlugin.cpp
+index 725f0b4..a573a9f 100644
+--- a/src/LibreAudioPlugin.cpp
++++ b/src/LibreAudioPlugin.cpp
+@@ -67,6 +67,12 @@ LibreAudioPlugin::LibreAudioPlugin()
+     fOutputDSP->init(iSampleRate);
+    #endif
+ 
++   #if LIBREAUDIO_WANT_VOICE_ISOLATION
++    fVoiceIsolation.setSampleRate(sampleRate);
++    for (uint32_t i = 0; i < kFaustParameterCount; ++i)
++        setVoiceIsolationParameter(i, fMainDSP->get(i));
++   #endif
++
+    #if DISTRHO_PLUGIN_WANT_LATENCY
+     fMainDSP->compute(0, fCycleBuffer);
+     updateLatencyIfNeeded();
+@@ -176,7 +182,7 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
+        #endif
+         parameter.symbol = kCommonParameterSymbols[index];
+         parameter.unit = "%";
+-        parameter.ranges.def = 50.f;
++        parameter.ranges.def = LIBREAUDIO_DRYWET_DEFAULT;
+         parameter.ranges.min = 0.f;
+         parameter.ranges.max = 100.f;
+         break;
+@@ -432,10 +467,16 @@ void LibreAudioPlugin::run(const float** const inputs, float** const outputs, co
+ 
+        #if LIBREAUDIO_WANT_COMMON_IO
+         fInputDSP->compute(cycleFrames, fCycleBuffer);
++       #endif
++       #if LIBREAUDIO_WANT_VOICE_ISOLATION
++        fVoiceIsolation.process(fCycleBuffer, cycleFrames);
++       #endif
+         fMainDSP->compute(cycleFrames, fCycleBuffer);
++       #if LIBREAUDIO_WANT_VOICE_ISOLATION
++        updateVoiceIsolationMeters();
++       #endif
++       #if LIBREAUDIO_WANT_COMMON_IO
+         fOutputDSP->compute(cycleFrames, fCycleBuffer);
+-       #else
+-        fMainDSP->compute(cycleFrames, fCycleBuffer);
+        #endif
+ 
+         for (uint32_t j = 0; j < cycleFrames; ++j)
+@@ -641,7 +686,11 @@ bool LibreAudioPlugin::run()
+ #if DISTRHO_PLUGIN_WANT_LATENCY
+ bool LibreAudioPlugin::updateLatencyIfNeeded()
+ {
++   #if LIBREAUDIO_WANT_VOICE_ISOLATION
++    const uint32_t latency = fMainDSP->latency() + fVoiceIsolation.latency();
++   #else
+     const uint32_t latency = fMainDSP->latency();
++   #endif
+     DISTRHO_SAFE_ASSERT_UINT2_RETURN(latency < LIBREAUDIO_MAX_LATENCY_SAMPLES,
+                                      latency,
+                                      LIBREAUDIO_MAX_LATENCY_SAMPLES, true);
+@@ -661,6 +710,44 @@ bool LibreAudioPlugin::updateLatencyIfNeeded()
+ }
+ #endif
+ 
++#if LIBREAUDIO_WANT_VOICE_ISOLATION
++void LibreAudioPlugin::setVoiceIsolationParameter(const uint32_t index, const float value)
++{
++    switch (index)
++    {
++    case kFaustParameterMax_reduction:
++        fVoiceIsolation.setMaxReduction(value);
++        break;
++    case kFaustParameterRelease:
++        fVoiceIsolation.setRelease(value);
++        break;
++    case kFaustParameterPitch_enhancement:
++        fVoiceIsolation.setPitchEnhancement(value > 0.5f);
++        break;
++    case kFaustParameterThreshold:
++        fVoiceIsolation.setThreshold(value);
++        break;
++    case kFaustParameterGrace_period:
++        fVoiceIsolation.setGracePeriod(value);
++        break;
++    }
++}
++
++void LibreAudioPlugin::updateVoiceIsolationMeters()
++{
++    static_assert(kFaustParameterBand_32 - kFaustParameterBand_1 + 1 == decltype(fVoiceIsolation)::kNumBands,
++                  "band meters must be consecutive, one per rnnoise band");
++
++    fMainDSP->set(kFaustParameterVad, fVoiceIsolation.vadCurrent());
++    fMainDSP->set(kFaustParameterVad_average, fVoiceIsolation.vadAverage());
++    fMainDSP->set(kFaustParameterVad_minimum, fVoiceIsolation.vadMinimum());
++    fMainDSP->set(kFaustParameterVad_maximum, fVoiceIsolation.vadMaximum());
++
++    for (uint32_t i = 0; i < fVoiceIsolation.kNumBands; ++i)
++        fMainDSP->set(kFaustParameterBand_1 + i, fVoiceIsolation.bandReduction(i));
++}
++#endif
++
+ // --------------------------------------------------------------------------------------------------------------------
+ 
+ Plugin* createPlugin()
+diff --git a/src/LibreAudioPlugin.hpp b/src/LibreAudioPlugin.hpp
+index 74fd51f..a557e8e 100644
+--- a/src/LibreAudioPlugin.hpp
++++ b/src/LibreAudioPlugin.hpp
+@@ -22,6 +22,9 @@
+ #if LIBREAUDIO_WANT_SPEECH_DETECTION
+ #include "LibreAudioSpeechDetection.hpp"
+ #endif
++#if LIBREAUDIO_WANT_VOICE_ISOLATION
++#include "LibreAudioVoiceIsolation.hpp"
++#endif
+ 
+ struct FaustDSP;
+ 
+@@ -148,6 +151,10 @@ private:
+     LibreAudioSpeechDetection<2> fSpeechDetection;
+    #endif
+ 
++   #if LIBREAUDIO_WANT_VOICE_ISOLATION
++    LibreAudioVoiceIsolation<kInternalBlockSize> fVoiceIsolation;
++   #endif
++
+     float* const fInternalBuffer = new float[kInternalBlockSize * 2];
+     float* fCycleBuffer[2] = {
+         fInternalBuffer + (kInternalBlockSize * 0),
+@@ -196,6 +204,13 @@ private:
+     bool updateLatencyIfNeeded();
+    #endif
+ 
++   #if LIBREAUDIO_WANT_VOICE_ISOLATION
++    // forwards a main dsp parameter to fVoiceIsolation, if it is one of its controls
++    void setVoiceIsolationParameter(uint32_t index, float value);
++    // writes the fVoiceIsolation meters into the main dsp, must run after it computes
++    void updateVoiceIsolationMeters();
++   #endif
++
+     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibreAudioPlugin)
+ };
+ 
+diff --git a/src/templates/config.h.in b/src/templates/config.h.in
+index 62c6cb4..f006d33 100644
+--- a/src/templates/config.h.in
++++ b/src/templates/config.h.in
+@@ -68,6 +83,7 @@
+ 
+ // optional dry/wet control on top of main dsp
+ #define LIBREAUDIO_WANT_DRYWET {{1 if meta.drywet == "true" else 0}}
++#define LIBREAUDIO_DRYWET_DEFAULT {{meta.drywet_default if meta.drywet_default is defined else 50}}.f
+ 
+ // optional UI graphs (fft analyzer, waveform, etc)
+ #ifdef LIBREAUDIO_CUSTOM_UI
+diff --git a/src/ui/widgets/power-box.hpp b/src/ui/widgets/power-box.hpp
+new file mode 100644
+index 0000000..fdd64bf
+--- /dev/null
++++ b/src/ui/widgets/power-box.hpp
+@@ -0,0 +1,155 @@
++// Libre Audio Suite
++// Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
++// SPDX-License-Identifier: GPL-3.0-or-later
++
++#pragma once
++
++#include "../_lab/toggle-switch.hpp"
++
++#include "../reference.hpp"
++
++#include "LibreAudioParameters.hpp"
++
++#include "las-resources.h"
++
++namespace LibreAudio {
++
++// --------------------------------------------------------------------------------------------------------------------
++// An on / off parameter drawn like a number box: its name at the top left, and under it, centred, a power icon, grey
++// when off, lighter grey when hovered and the accent colour when on, over the number box's bottom bar, which fills
++// from the left when it turns on and empties when it turns off, in barTime. Clicking anywhere on the box toggles it.
++
++template<const Color& kAccentColor = Reference::Colors::acc1>
++struct PowerBoxReference : Reference::Widgets::NumberBox<kAccentColor> {
++    struct Icon {
++        static constexpr const Color color = Reference::Colors::ink3;
++        static constexpr const Color color〡hover = Reference::Colors::ink2;
++        static constexpr const Color color〡checked = kAccentColor;
++        // the image is drawn at half its pixel size, for high resolution screens
++        static constexpr const int imageScale = 2;
++    };
++    // how long the bar takes to fill or empty, in seconds
++    static constexpr const double barTime = 0.05;
++};
++
++// kHeight, in unscaled pixels, may make the box taller than a number box, leaving its contents their size
++template<const Color& kAccentColor = Reference::Colors::acc1, uint kHeight = Reference::Widgets::NumberBox<>::height>
++class PowerBoxWidget final : public ToggleSwitchBaseWidget
++{
++    using R = PowerBoxReference<kAccentColor>;
++    using BaseWidget = ToggleSwitchBaseWidget;
++
++public:
++    // name, if given, replaces the parameter's name, such as a shorter one that fits the box
++    explicit PowerBoxWidget(LabWidget* const parent, const FaustParameterIndex id, const char* const name = nullptr)
++        : BaseWidget(parent, kParametersMainStart + id, name != nullptr ? name : kFaustParameters[id].name)
++    {
++        setChecked(d_isNotZero(kFaustParameters[id].init), false);
++        fBar = isChecked() ? 1.f : 0.f;
++        updateSize(false);
++    }
++
++private:
++    const NanoImage fImage {
++        createImageFromMemory(IMAGES_POWER_28_PNG_DATA, IMAGES_POWER_28_PNG_LEN, IMAGE_GENERATE_MIPMAPS)
++    };
++
++    // bar fill as drawn, 0 to 1, moving towards the checked state
++    float fBar = 0.f;
++    double fLastTime = 0;
++
++    void idleCallback() final
++    {
++        BaseWidget::idleCallback();
++
++        const double now = getApp().getTime();
++        const double dt = fLastTime != 0 ? now - fLastTime : 0;
++        fLastTime = now;
++
++        const float target = isChecked() ? 1.f : 0.f;
++
++        if (d_isEqual(fBar, target))
++            return;
++
++        const float step = static_cast<float>(dt / R::barTime);
++        fBar = target > fBar ? std::min(target, fBar + step) : std::max(target, fBar - step);
++        repaint();
++    }
++
++    void onNanoDisplay() final
++    {
++        drawReferenceBackground<R>();
++
++        const float s = fScaleFactor;
++        const float border = R::border * s;
++        const float border2x = border * 2;
++        const float borderRadius = R::borderRadius * s;
++        const float margin = R::margin * s;
++        const float bh = R::Bar::height * s;
++        const float w = getWidth();
++        const float h = getHeight();
++
++        // inset shading
++        beginPath();
++        roundedRect(0, 0, w, h, borderRadius);
++        fillPaint(linearGradient(0, 0, 0, margin, R::insetShadingColor, Reference::Colors::transparent));
++        fill();
++        strokeColor(R::backgroundColor);
++        strokeWidth(border * 0.5f);
++        stroke();
++
++        fillColor(R::Name::color);
++        fontFace("regular");
++        fontSize(R::Name::fontSize * s);
++        textLetterSpacing(R::Name::letterSpacing * s);
++        textAlign(ALIGN_LEFT | ALIGN_TOP);
++        text(border2x + margin, border + margin, getName(), nullptr);
++
++        // the icon, centred under the name
++        const float iw = fImage.getWidth() * s / R::Icon::imageScale;
++        const float ih = fImage.getHeight() * s / R::Icon::imageScale;
++        const float nameBottom = border + margin + R::Name::fontSize * s;
++        const float ix = std::round((w - iw) * 0.5f);
++        const float iy = std::round(nameBottom + (h - bh - margin - nameBottom - ih) * 0.5f);
++
++        save();
++        globalTint(isChecked() ? R::Icon::color〡checked : isHovered() ? R::Icon::color〡hover : R::Icon::color);
++        beginPath();
++        rect(ix, iy, iw, ih);
++        fillPaint(imagePattern(ix, iy, iw, ih, 0.f, fImage, 1.f));
++        fill();
++        restore();
++
++        // bottom bar, filled to fBar, with nothing filled when off
++        {
++            save();
++
++            scissor(0, h - bh, w, bh);
++            beginPath();
++            roundedRect(0, 0, w, h, borderRadius);
++            fillColor(R::Bar::color〡deactivated);
++            fill();
++
++            if (fBar > 0.f)
++            {
++                scissor(0, h - bh, fBar * w, bh);
++                beginPath();
++                roundedRect(0, 0, w, h, borderRadius);
++                fillColor(R::Bar::color);
++                fill();
++            }
++
++            restore();
++        }
++    }
++
++    void updateSize(const bool updateChildren) final
++    {
++        setHeight(d_roundToUnsignedInt(kHeight * fScaleFactor));
++        BaseWidget::updateSize(updateChildren);
++    }
++};
++
++// --------------------------------------------------------------------------------------------------------------------
++
++} /* namespace LibreAudio */
+diff --git a/src/ui/widgets/switch-box.hpp b/src/ui/widgets/switch-box.hpp
+new file mode 100644
+index 0000000..f07a113
+--- /dev/null
++++ b/src/ui/widgets/switch-box.hpp
+@@ -0,0 +1,247 @@
++// Libre Audio Suite
++// Copyright (C) 2026 Filipe Coelho <falktx@falktx.com>
++// SPDX-License-Identifier: GPL-3.0-or-later
++
++#pragma once
++
++#include "../_lab/base.hpp"
++#include "../_lab/interface.hpp"
++
++#include "../reference.hpp"
++
++#include "LibreAudioParameters.hpp"
++
++#include <vector>
++
++namespace LibreAudio {
++
++// --------------------------------------------------------------------------------------------------------------------
++// A parameter of a few values, drawn like a number box: its name at the top left, and under it, centred, a row of
++// cells styled like mbComp5's listen / bypass buttons, one per value. A checkbox shows Off / On, an enumerator its
++// scale points.
++
++template<const Color& kAccentColor = Reference::Colors::acc1>
++struct SwitchBoxReference : Reference::Widgets::NumberBox<kAccentColor> {
++    struct Group {
++        static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
++        static constexpr const uint borderRadius = 6;
++        static constexpr const uint margin = 2;
++        static constexpr const uint padding = 2;
++    };
++    struct Cell {
++        static constexpr const Color backgroundColor〡checked = kAccentColor;
++        static constexpr const Color color = Reference::Colors::ink2;
++        static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
++        static constexpr const Color color〡hover = kAccentColor;
++        static constexpr const float fontSize = 11.f;
++        static constexpr const float letterSpacing = 0.f;
++        static constexpr const uint borderRadius = 4;
++        static constexpr const uint height = 16;
++        static constexpr const uint margin = 5;
++        static constexpr const uint minWidth = 18;
++    };
++};
++
++template<const Color& kAccentColor = Reference::Colors::acc1>
++class SwitchBoxWidget final : public LabWidget,
++                              private IdleCallback
++{
++    using R = SwitchBoxReference<kAccentColor>;
++    using BaseWidget = LabWidget;
++
++    struct Option {
++        const char* label;
++        float value;
++    };
++
++public:
++    // name, if given, replaces the parameter's name, such as a shorter one that fits the box
++    explicit SwitchBoxWidget(LabWidget* const parent, const FaustParameterIndex id, const char* const name = nullptr)
++        : BaseWidget(parent),
++          fParameter(kFaustParameters[id])
++    {
++        setId(kParametersMainStart + id);
++        setName(name != nullptr ? name : fParameter.name);
++
++        if (fParameter.scalePointCount != 0)
++        {
++            for (uint i = 0; i < fParameter.scalePointCount; ++i)
++                fOptions.push_back({ fParameter.scalePoints[i].label,
++                                     static_cast<float>(fParameter.scalePoints[i].value) });
++        }
++        else
++        {
++            fOptions.push_back({ "Off", fParameter.min });
++            fOptions.push_back({ "On", fParameter.max });
++        }
++
++        fCells.resize(fOptions.size());
++        fValue = fParameter.init;
++
++        addIdleCallback(this);
++        updateSize(false);
++    }
++
++private:
++    const FaustParameter& fParameter;
++    std::vector<Option> fOptions;
++    // cell areas as last drawn, for the mouse
++    std::vector<Rectangle<float>> fCells;
++    float fValue;
++    int fHovered = -1;
++
++    [[nodiscard]] int cellAt(const Point<double>& pos) const noexcept
++    {
++        for (size_t i = 0; i < fCells.size(); ++i)
++            if (fCells[i].contains(pos.getX(), pos.getY()))
++                return static_cast<int>(i);
++        return -1;
++    }
++
++    // the option nearest the value
++    [[nodiscard]] size_t selected() const noexcept
++    {
++        size_t index = 0;
++        for (size_t i = 1; i < fOptions.size(); ++i)
++            if (std::abs(fOptions[i].value - fValue) < std::abs(fOptions[index].value - fValue))
++                index = i;
++        return index;
++    }
++
++    void idleCallback() final
++    {
++        const float value = fInterface->getParameterValue(getId());
++
++        if (d_isNotEqual(value, fValue))
++        {
++            fValue = value;
++            repaint();
++        }
++    }
++
++    bool onMouse(const MouseEvent& ev) final
++    {
++        if (ev.press && ev.button == 1)
++        {
++            const int cell = cellAt(ev.pos);
++
++            if (cell >= 0)
++            {
++                fValue = fOptions[cell].value;
++                fInterface->parameterControlPressed(getId());
++                fInterface->parameterControlModified(getId(), fValue);
++                fInterface->parameterControlReleased(getId());
++                repaint();
++                return true;
++            }
++        }
++
++        return BaseWidget::onMouse(ev);
++    }
++
++    bool onMotion(const MotionEvent& ev) final
++    {
++        const int hovered = contains(ev.pos) ? cellAt(ev.pos) : -1;
++
++        if (hovered != fHovered)
++        {
++            fHovered = hovered;
++            repaint();
++        }
++
++        return BaseWidget::onMotion(ev);
++    }
++
++    void onNanoDisplay() final
++    {
++        drawReferenceBackground<R>();
++
++        const float s = fScaleFactor;
++        const float border = R::border * s;
++        const float border2x = border * 2;
++        const float borderRadius = R::borderRadius * s;
++        const float margin = R::margin * s;
++        const float w = getWidth();
++        const float h = getHeight();
++
++        // inset shading
++        beginPath();
++        roundedRect(0, 0, w, h, borderRadius);
++        fillPaint(linearGradient(0, 0, 0, margin, R::insetShadingColor, Reference::Colors::transparent));
++        fill();
++        strokeColor(R::backgroundColor);
++        strokeWidth(border * 0.5f);
++        stroke();
++
++        fillColor(R::Name::color);
++        fontFace("regular");
++        fontSize(R::Name::fontSize * s);
++        textLetterSpacing(R::Name::letterSpacing * s);
++        textAlign(ALIGN_LEFT | ALIGN_TOP);
++        text(border2x + margin, border + margin, getName(), nullptr);
++
++        // the cells share the widest label's width; the group is centred under the name
++        fontSize(R::Cell::fontSize * s);
++        textLetterSpacing(R::Cell::letterSpacing * s);
++        textAlign(0);
++
++        float cellWidth = R::Cell::minWidth * s;
++        for (const Option& option : fOptions)
++        {
++            Rectangle<float> bounds;
++            textBounds(0, 0, option.label, nullptr, bounds);
++            cellWidth = std::max(cellWidth, bounds.getWidth() + R::Cell::margin * 2 * s);
++        }
++
++        const size_t count = fOptions.size();
++        const float groupMargin = R::Group::margin * s;
++        const float groupPadding = R::Group::padding * s;
++        const float cellHeight = R::Cell::height * s;
++        const float groupWidth = groupMargin * 2 + cellWidth * count + groupPadding * (count - 1);
++        const float groupHeight = groupMargin * 2 + cellHeight;
++        const float nameBottom = border + margin + R::Name::fontSize * s;
++        const float gx = std::round((w - groupWidth) * 0.5f);
++        const float gy = std::round(nameBottom + (h - border - margin - nameBottom - groupHeight) * 0.5f);
++
++        beginPath();
++        roundedRect(gx, gy, groupWidth, groupHeight, R::Group::borderRadius * s);
++        fillColor(R::Group::backgroundColor);
++        fill();
++
++        const size_t checked = selected();
++        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
++
++        for (size_t i = 0; i < count; ++i)
++        {
++            const float x = gx + groupMargin + (cellWidth + groupPadding) * i;
++            const float y = gy + groupMargin;
++
++            fCells[i] = Rectangle<float>(x, y, cellWidth, cellHeight);
++
++            if (i == checked)
++            {
++                beginPath();
++                roundedRect(x, y, cellWidth, cellHeight, R::Cell::borderRadius * s);
++                fillColor(R::Cell::backgroundColor〡checked);
++                fill();
++                fillColor(R::Cell::color〡checked);
++            }
++            else
++            {
++                fillColor(static_cast<int>(i) == fHovered ? R::Cell::color〡hover : R::Cell::color);
++            }
++
++            text(x + cellWidth * 0.5f, y + cellHeight * 0.5f, fOptions[i].label, nullptr);
++        }
++    }
++
++    void updateSize(const bool updateChildren) final
++    {
++        updateReferenceSize<R>();
++        BaseWidget::updateSize(updateChildren);
++    }
++};
++
++// --------------------------------------------------------------------------------------------------------------------
++
++} /* namespace LibreAudio */
