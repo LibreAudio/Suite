@@ -4,6 +4,7 @@
 
 #include "LibreAudioBaseUI.hpp"
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioPresets.hpp"
 #include "LibreAudioStates.hpp"
 
 #include "common_input-parameters.hpp"
@@ -161,6 +162,35 @@ void LibreAudioBaseUI::pageButtonClicked(const LibreAudio::Page page)
         break;
     default:
         break;
+    }
+}
+
+void LibreAudioBaseUI::presetButtonClicked(const uint32_t preset)
+{
+    const float* const values = getPresetValues(preset);
+    DISTRHO_SAFE_ASSERT_RETURN(values != nullptr,);
+
+    for (uint32_t i = 0; i < kFaustParameterCount; ++i)
+    {
+        if (isParameterOutputOrTrigger(kParametersMainStart + i))
+            continue;
+        fParameterValuesWhenActivated[kParametersMainStart + i] = fParameterValues[kParametersMainStart + i] = values[kParametersMainStart + i];
+        fSnapshots.updateParameterValue(kParametersMainStart + i, values[kParametersMainStart + i], values[kParametersMainStart + i]);
+        editParameter(kParametersMainStart + i, true);
+    }
+
+    for (uint32_t i = 0; i < kFaustParameterCount; ++i)
+    {
+        if (isParameterOutputOrTrigger(kParametersMainStart + i))
+            continue;
+        setParameterValue(kParametersMainStart + i, values[kParametersMainStart + i]);
+    }
+
+    for (uint32_t i = 0; i < kFaustParameterCount; ++i)
+    {
+        if (isParameterOutputOrTrigger(kParametersMainStart + i))
+            continue;
+        editParameter(kParametersMainStart + i, false);
     }
 }
 
@@ -461,6 +491,26 @@ const char* LibreAudioBaseUI::getParameterSymbol(const uint32_t index) const noe
     return getParameter(index).symbol;
 }
 
+uint32_t LibreAudioBaseUI::getPresetCount() const noexcept
+{
+    return LIBREAUDIO_PLUGIN_ID::kPresetMetadata.size();
+}
+
+const char* LibreAudioBaseUI::getPresetTitle(const uint32_t index) const noexcept
+{
+    return LIBREAUDIO_PLUGIN_ID::kPresetMetadata[index].title;
+}
+
+const char* LibreAudioBaseUI::getPresetSubtitle(const uint32_t index) const noexcept
+{
+    return LIBREAUDIO_PLUGIN_ID::kPresetMetadata[index].subtitle;
+}
+
+const float* LibreAudioBaseUI::getPresetValues(const uint32_t index) const noexcept
+{
+    return LIBREAUDIO_PLUGIN_ID::kPresetValues[index];
+}
+
 void LibreAudioBaseUI::parameterControlPressed(const uint32_t index)
 {
     DISTRHO_SAFE_ASSERT_RETURN(! fParameterPressed[index],);
@@ -620,7 +670,8 @@ void LibreAudioBaseUI::buttonClicked(const uint32_t id)
     case kWidgetPresetB:
     case kWidgetPresetC:
     case kWidgetPresetD:
-        fCurrentPreset = id - kWidgetPresetA; // TODO
+        fCurrentPreset = id - kWidgetPresetA;
+        presetButtonClicked(fCurrentPreset);
         break;
     case kWidgetRedo:
         fSnapshots.redo();

@@ -6,6 +6,7 @@
 #include "ui/containers/container.hpp"
 #include "ui/containers/central-area.hpp"
 #include "ui/containers/main-area.hpp"
+#include "ui/containers/preset-cards.hpp"
 #include "ui/containers/top-bar.hpp"
 #include "ui/containers/ui.hpp"
 #include "ui/widgets/card.hpp"
@@ -373,22 +374,6 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class DjFilterPresetCardsWidget : public CardGroupWidget
-{
-    const std::array<std::shared_ptr<CardWidget>, 4> cards = {
-        addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening"),
-        addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap"),
-        addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread"),
-        addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack"),
-    };
-
-public:
-    explicit DjFilterPresetCardsWidget(LabWidget* const parent)
-        : CardGroupWidget(parent) {}
-};
-
-// --------------------------------------------------------------------------------------------------------------------
-
 // bottom area of both pages has the same height, so the big knob sits at the same place
 static constexpr const uint kBottomAreaHeight = std::max(Reference::Widgets::CardGroup::height,
                                                          DjFilterGroupsContainerReference::height);
@@ -416,7 +401,7 @@ using DjFilterEasyPageWidget = StaticContainerSizeHintPairWidget<
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
     SizeHintWidgetPair<Fixed, DjFilterBigKnobRowWidget>,
     SizeHintWidgetPair<Expanding, LabEmptyWidget>,
-    SizeHintWidgetPair<Fixed, DjFilterBottomAreaWidget<DjFilterPresetCardsWidget>>
+    SizeHintWidgetPair<Fixed, DjFilterBottomAreaWidget<PresetCardsWidget>>
 >;
 
 // big filter knob at seven eighths down the display, knobs group at the bottom

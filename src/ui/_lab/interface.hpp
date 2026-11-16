@@ -24,6 +24,11 @@ public:
     [[nodiscard]] virtual const char* getParameterSymbol(uint32_t index) const noexcept = 0;
     [[nodiscard]] virtual float getParameterValue(uint32_t index) const noexcept = 0;
 
+    [[nodiscard]] virtual uint32_t getPresetCount() const noexcept = 0;
+    [[nodiscard]] virtual const char* getPresetTitle(uint32_t index) const noexcept = 0;
+    [[nodiscard]] virtual const char* getPresetSubtitle(uint32_t index) const noexcept = 0;
+    [[nodiscard]] virtual const float* getPresetValues(uint32_t index) const noexcept = 0;
+
     virtual void parameterControlPressed(uint32_t index) = 0;
     virtual void parameterControlReleased(uint32_t index) = 0;
     virtual void parameterControlModified(uint32_t index, float value) = 0;

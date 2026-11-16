@@ -16,13 +16,9 @@ class CardGroupWidget : public LabReferenceButtonGroupWidget<Reference::Widgets:
 {
     using R = Reference::Widgets::CardGroup;
     using BaseWidget = LabReferenceButtonGroupWidget<R>;
+    using BaseWidget::BaseWidget;
 
 public:
-    explicit CardGroupWidget(LabWidget* const parent)
-        : BaseWidget(parent)
-    {
-    }
-
     std::shared_ptr<CardWidget> addCard(const uint id, const char* const title, const char* const subtitle)
     {
         return BaseWidget::addButton<CardWidget, Expanding>(id, title, subtitle);

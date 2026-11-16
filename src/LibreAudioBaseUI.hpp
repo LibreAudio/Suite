@@ -80,7 +80,7 @@ private:
     bool fFirstIdle = true;
     bool fNeedsRepaint = false;
 
-    uint32_t fCurrentPreset = 0; // TODO
+    uint32_t fCurrentPreset = 0;
 
     float fScaleFactor = 1.f;
     int32_t fNumParameterPressed = 0;
@@ -89,6 +89,7 @@ private:
     [[nodiscard]] double getInterfaceSampleRate() const noexcept final { return getSampleRate(); }
 
     void pageButtonClicked(LibreAudio::Page page);
+    void presetButtonClicked(uint32_t preset);
     void snapshotButtonClicked(uint32_t button);
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -121,6 +122,11 @@ private:
     [[nodiscard]] uint32_t getParameterCount() const noexcept final;
     [[nodiscard]] const char* getParameterSymbol(uint32_t index) const noexcept final;
     [[nodiscard]] float getParameterValue(uint32_t index) const noexcept final { return fParameterValues[index]; }
+
+    [[nodiscard]] uint32_t getPresetCount() const noexcept final;
+    [[nodiscard]] const char* getPresetTitle(uint32_t index) const noexcept final;
+    [[nodiscard]] const char* getPresetSubtitle(uint32_t index) const noexcept final;
+    [[nodiscard]] const float* getPresetValues(uint32_t index) const noexcept final;
 
     void parameterControlPressed(uint32_t index) final;
     void parameterControlReleased(uint32_t index) final;

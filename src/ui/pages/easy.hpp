@@ -6,8 +6,8 @@
 
 #include "base.hpp"
 
-#include "../containers/card-group.hpp"
 #include "../containers/knob-group.hpp"
+#include "../containers/preset-cards.hpp"
 
 namespace LibreAudio {
 
@@ -23,21 +23,8 @@ class EasyPageWidget final : public ReferencePageWidget<Reference::CentralArea, 
         addSpacer(),
         addWidget<EasyKnobsGroupWidget>(),
         addSpacer(),
-        addCards(),
+        addWidget<PresetCardsWidget>(),
     };
-
-    std::shared_ptr<LabWidget> addCards()
-    {
-        std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
-
-        widget->addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening");
-        widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
-        widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
-        widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
-
-        Layout::widgets.push_back({ widget.get(), Fixed });
-        return widget;
-    }
 };
 
 // --------------------------------------------------------------------------------------------------------------------

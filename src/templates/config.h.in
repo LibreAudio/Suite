@@ -29,23 +29,23 @@
 #define DISTRHO_PLUGIN_UNIQUE_ID {{meta.unique_id}}
 #define DISTRHO_PLUGIN_URI "https://libreaudio.org/plugins/{{id}}"
 
-// optional common IO
 {% if id in ["adtDoubler", "adtDoubler_stereo"] %}
+// optional common IO
 #define LIBREAUDIO_WANT_COMMON_IO 0
 {% endif %}
 
-// optional time controls
 {% for w in active if w.symbol == "dpf_bpm" %}
+// optional time controls
 #define LIBREAUDIO_WANT_TIMEPOS_BPM 1
 {% endfor %}
 
-// optional speech/voice-activity detection control
 {% for w in active if w.symbol == "dpf_vad" %}
+// optional speech/voice-activity detection control
 #define LIBREAUDIO_WANT_SPEECH_DETECTION 1
 {% endfor %}
 
-// optional latency output
 {% for w in passive if w.symbol == "latency_samples" %}
+// optional latency output
 #define DISTRHO_PLUGIN_WANT_LATENCY 1
 #define LIBREAUDIO_MAX_LATENCY_SAMPLES {{w.max|int}}
 {% endfor %}
@@ -89,6 +89,7 @@
 
 #define LIBREAUDIO_PLUGIN_DSP_INCLUDE "{{id}}-dsp.hpp"
 #define LIBREAUDIO_PLUGIN_PARAMETERS_INCLUDE "{{id}}-parameters.hpp"
+#define LIBREAUDIO_PLUGIN_ID {{cid(id)}}
 #define LIBREAUDIO_PLUGIN__{{cid(id)}}
 
 namespace {{cid(id)}} {}

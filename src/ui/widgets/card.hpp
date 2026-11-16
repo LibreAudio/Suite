@@ -107,7 +107,7 @@ private:
         BaseWidget::fontSize(R::Subtitle::fontSize * this->fScaleFactor);
         BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_MIDDLE);
         BaseWidget::textLetterSpacing(R::Subtitle::letterSpacing * this->fScaleFactor);
-        BaseWidget::text(w * 0.5f, h * 0.5f + margin * 0.5f, fSubtitle);
+        BaseWidget::textBox(margin, h * 0.5f + margin * 0.5f, w - margin * 2, fSubtitle);
 
         if (BaseWidget::isCheckable() && BaseWidget::isChecked())
             drawReferenceBorder<R, R::borderColor〡selected>();
