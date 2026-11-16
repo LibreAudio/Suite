@@ -4,12 +4,6 @@
 
 #include "ui/containers/ui.hpp"
 
-// compat fixes
-#define StaticContainerPairWidget StaticContainerSizeHintPairWidget
-#define LabKnobWidget LabParameterWidget
-#define StageWidget CentralAreaWidget
-#define ReferenceContainerWidget LabReferenceContainerWidget
-
 #include "ui/bot/glueBus-ui.hpp"
 
 // --------------------------------------------------------------------------------------------------------------------
