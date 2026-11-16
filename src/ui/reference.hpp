@@ -30,7 +30,7 @@ namespace Reference {
         static constexpr const uint margin = 8;
         static constexpr const uint padding = 6;
 
-        static constexpr const uint rowHeight = 40;
+        static constexpr const uint rowHeight = 44;
     };
 
     struct Colors {
