@@ -354,7 +354,7 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
             }
            #endif
 
-            for (uint32_t i = 0, size = kFaustParameterCount; i < size; ++i)
+            for (uint32_t i = 0; i < kFaustParameterCount; ++i)
             {
                 const LibreAudioParameter& param = kFaustParameters[i];
 
@@ -367,6 +367,22 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
                     parameterValues[kParametersMainStart + i] = fParameterValues[kParametersMainStart + i];
                 }
             }
+
+           #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+            for (uint32_t i = 0; i < extra::kParameterCount; ++i)
+            {
+                const LibreAudioParameter& param = extra::kParameters[i];
+
+                if (isParameterOutputOrTrigger(param))
+                    continue;
+
+                try {
+                    parameterValues[kParametersExtraStart + i] = jparameters.at(param.symbol).get<float>();
+                } catch(...) {
+                    parameterValues[kParametersExtraStart + i] = fParameterValues[kParametersExtraStart + i];
+                }
+            }
+           #endif
         } DISTRHO_SAFE_EXCEPTION("failed to unserialize snapshot parameters");
 
         LibreAudioUndoRedo::Actions actions;
@@ -809,7 +825,7 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
             }
            #endif
 
-            for (uint32_t i = 0, size = kFaustParameterCount; i < size; ++i)
+            for (uint32_t i = 0; i < kFaustParameterCount; ++i)
             {
                 const LibreAudioParameter& param = kFaustParameters[i];
 
@@ -818,6 +834,18 @@ void LibreAudioBaseUI::snapshotDataToSave(const uint32_t snapshot,
 
                 jparameters[param.symbol] = parameterValues[kParametersMainStart + i];
             }
+
+           #if LIBREAUDIO_WANT_EXTRA_PROCESSOR
+            for (uint32_t i = 0; i < extra::kParameterCount; ++i)
+            {
+                const LibreAudioParameter& param = extra::kParameters[i];
+
+                if (isParameterOutputOrTrigger(param))
+                    continue;
+
+                jparameters[param.symbol] = parameterValues[kParametersExtraStart + i];
+            }
+           #endif
         }
 
         // undo/redo actions
