@@ -216,11 +216,12 @@ namespace Reference {
                                                + (kIncludeHeader ? Header::height + padding : 0);
         };
 
+        template<const Color& kAccentColor>
         struct Card : Zero {
             static constexpr const Color backgroundColor = { Colors::ink3, AlphaIntensivity::glow };
-            static constexpr const Color backgroundColor〡selected = { Colors::acc5, AlphaIntensivity::glow };
+            static constexpr const Color backgroundColor〡selected = { kAccentColor, AlphaIntensivity::glow };
             static constexpr const Color borderColor = Colors::ink3;
-            static constexpr const Color borderColor〡selected = Colors::acc5;
+            static constexpr const Color borderColor〡selected = kAccentColor;
             static constexpr const Color glowColor { borderColor〡selected, AlphaIntensivity::glow };
             static constexpr const MouseCursor cursor = kMouseCursorHand;
             static constexpr const uint border = 1;
@@ -229,7 +230,7 @@ namespace Reference {
             static constexpr const uint height = 80;
             struct Title {
                 static constexpr const Color color = Colors::ink;
-                static constexpr const Color color〡selected = Colors::acc5;
+                static constexpr const Color color〡selected = kAccentColor;
                 static constexpr const float fontSize = Common::fontSize;
                 static constexpr const float letterSpacing = Common::letterSpacing;
             };

@@ -19,9 +19,12 @@ class CardGroupWidget : public LabReferenceButtonGroupWidget<Reference::Widgets:
     using BaseWidget::BaseWidget;
 
 public:
-    std::shared_ptr<CardWidget> addCard(const uint id, const char* const title, const char* const subtitle)
+    template<const Color& kAccentColor = Reference::Colors::acc1>
+    std::shared_ptr<CardWidget<kAccentColor>> addCard(const uint id,
+                                                      const char* const title,
+                                                      const char* const subtitle)
     {
-        return BaseWidget::addButton<CardWidget, Expanding>(id, title, subtitle);
+        return BaseWidget::addButton<CardWidget<kAccentColor>, Expanding>(id, title, subtitle);
     }
 
 private:

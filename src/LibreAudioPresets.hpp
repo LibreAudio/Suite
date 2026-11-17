@@ -33,10 +33,10 @@ inline constexpr const std::array<float[], 0> _kPresetValues = {};
 namespace djFilter {
 
 inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
-    { "Clean Cut", "Non-resonant 12dB Highpass and Lowpass" },
-    { "Two Thirds Resonance", "Clean but singing resonant filters" },
-    { "Spacial Filters", "Drowning in reverb on the edges" },
-    { "Whiny Baby", "Resonant distortion on the extreme" },
+    { "Clean Cut", "Non-resonant 12dB\nHighpass and Lowpass" },
+    { "Two Thirds Resonance", "Clean but singing\nresonant filters" },
+    { "Spacial Filters", "Drowning in reverb\non the edges" },
+    { "Whiny Baby", "Resonant distortion\non the extreme" },
 }};
 
 inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{

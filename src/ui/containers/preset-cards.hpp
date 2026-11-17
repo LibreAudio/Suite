@@ -19,8 +19,28 @@ public:
         if (count == 0)
             return;
 
-        for (uint32_t i = 0; i < count && i < 4; ++i)
-            addCard(kWidgetPresetA + i, fInterface->getPresetTitle(i), fInterface->getPresetSubtitle(i));
+        addCard<Reference::Colors::acc2>(kWidgetPresetA,
+                                         fInterface->getPresetTitle(0),
+                                         fInterface->getPresetSubtitle(0));
+
+        if (count >= 2)
+        {
+            addCard<Reference::Colors::acc3>(kWidgetPresetB,
+                                             fInterface->getPresetTitle(1),
+                                             fInterface->getPresetSubtitle(1));
+
+            if (count >= 3)
+            {
+                addCard<Reference::Colors::acc4>(kWidgetPresetC,
+                                                 fInterface->getPresetTitle(2),
+                                                 fInterface->getPresetSubtitle(2));
+
+                if (count >= 4)
+                    addCard<Reference::Colors::acc6>(kWidgetPresetD,
+                                                     fInterface->getPresetTitle(3),
+                                                     fInterface->getPresetSubtitle(3));
+            }
+        }
     }
 };
 

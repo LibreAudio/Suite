@@ -12,9 +12,10 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class CardWidget : public LabReferenceButtonWidget<Reference::Widgets::Card, kCornerBoth>
+template<const Color& kAccentColor = Reference::Colors::acc1>
+class CardWidget : public LabReferenceButtonWidget<Reference::Widgets::Card<kAccentColor>, kCornerBoth>
 {
-    using R = Reference::Widgets::Card;
+    using R = Reference::Widgets::Card<kAccentColor>;
     using BaseWidget = LabReferenceButtonWidget<R, kCornerBoth>;
 
 public:
@@ -29,7 +30,7 @@ public:
         : BaseWidget(parent, id),
           fSubtitle(subtitle)
     {
-        setName(title);
+        BaseWidget::setName(title);
         BaseWidget::updateSize(false);
     }
 
@@ -51,7 +52,7 @@ private:
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0)
-                BaseWidget::roundedRect(-f2, -f2, w + f4, h + f4, R::borderRadius * fScaleFactor);
+                BaseWidget::roundedRect(-f2, -f2, w + f4, h + f4, R::borderRadius * this->fScaleFactor);
             else
                 BaseWidget::rect(-f2, -f2, w + f4, h + f4);
 
@@ -59,7 +60,7 @@ private:
                                                           -f * 0.5f,
                                                           w + f,
                                                           h + f,
-                                                          R::borderRadius * fScaleFactor * 2.f,
+                                                          R::borderRadius * this->fScaleFactor * 2.f,
                                                           f2,
                                                           Color(R::glowColor, 0.2f),
                                                           Reference::Colors::transparent));
@@ -67,16 +68,16 @@ private:
         }
 
         if (BaseWidget::isCheckable() && BaseWidget::isChecked())
-            drawReferenceBackground<R, R::backgroundColor〡selected, kCornerBoth>();
+            BaseWidget::template drawReferenceBackground<R, R::backgroundColor〡selected, kCornerBoth>();
         else
-            drawReferenceBackground<R, R::backgroundColor, kCornerBoth>();
+            BaseWidget::template drawReferenceBackground<R, R::backgroundColor, kCornerBoth>();
 
         if (BaseWidget::isHovered())
         {
             BaseWidget::beginPath();
 
             if constexpr (R::borderRadius != 0)
-                BaseWidget::roundedRect(0, 0, w, h, R::borderRadius * fScaleFactor);
+                BaseWidget::roundedRect(0, 0, w, h, R::borderRadius * this->fScaleFactor);
             else
                 BaseWidget::rect(0, 0, w, h);
 
@@ -89,7 +90,10 @@ private:
             //                                               Reference::Colors::transparent,
             //                                               R::glowColor));
 
-            BaseWidget::fillPaint(BaseWidget::radialGradient(w, w, std::min(w, h), std::max(w, h) * 2.5f,
+            BaseWidget::fillPaint(BaseWidget::radialGradient(w,
+                                                             w,
+                                                             std::min(w, h),
+                                                             std::max(w, h) * 2.5f,
                                                              Reference::Colors::transparent, R::glowColor));
 
             BaseWidget::fill();
@@ -101,7 +105,7 @@ private:
         BaseWidget::fontSize(R::Title::fontSize * this->fScaleFactor);
         BaseWidget::textAlign(BaseWidget::ALIGN_CENTER | BaseWidget::ALIGN_TOP);
         BaseWidget::textLetterSpacing(R::Title::letterSpacing * this->fScaleFactor);
-        BaseWidget::text(w * 0.5f, margin, getName());
+        BaseWidget::text(w * 0.5f, margin, BaseWidget::getName());
 
         BaseWidget::fillColor(R::Subtitle::color);
         BaseWidget::fontSize(R::Subtitle::fontSize * this->fScaleFactor);
@@ -110,11 +114,11 @@ private:
         BaseWidget::textBox(margin, h * 0.5f + margin * 0.5f, w - margin * 2, fSubtitle);
 
         if (BaseWidget::isCheckable() && BaseWidget::isChecked())
-            drawReferenceBorder<R, R::borderColor〡selected>();
+            BaseWidget::template drawReferenceBorder<R, R::borderColor〡selected>();
         else if (BaseWidget::isHovered())
-            drawReferenceBorder<R, R::glowColor>();
+            BaseWidget::template drawReferenceBorder<R, R::glowColor>();
         else
-            drawReferenceBorder<R, R::borderColor>();
+            BaseWidget::template drawReferenceBorder<R, R::borderColor>();
     }
 };
 
