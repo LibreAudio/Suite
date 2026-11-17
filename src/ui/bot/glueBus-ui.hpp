@@ -841,9 +841,9 @@ class GlueBusDisplayWidget final : public WaveformBaseWidget
 // The stage: the starfield, the display above the controls and the control rows at the bottom. Easy and Expert pages
 // show the same controls for now.
 
-class GlueBusStageWidget final : public CentralAreaWidget<GlueBusPageWidget, GlueBusPageWidget>
+class GlueBusStageWidget final : public CentralAreaWidget<EasyPageWidget, GlueBusPageWidget>
 {
-    using BaseWidget = CentralAreaWidget<GlueBusPageWidget, GlueBusPageWidget>;
+    using BaseWidget = CentralAreaWidget<EasyPageWidget, GlueBusPageWidget>;
 
     const std::shared_ptr<GlueBusDisplayWidget> fDisplay { addGraphWidget<GlueBusDisplayWidget>() };
 
@@ -856,8 +856,9 @@ public:
         const LabMetrics<R> m { this };
         const LabMetrics<GlueBusPageReference> pm { this };
 
-        const GlueBusPageWidget* const page = fLastPage == kPageEasy ? getEasyWidget().get() : getExpertWidget().get();
-        const uint space = m.border + pm.margin + page->getControlsHeight();
+        const uint space = m.border + pm.margin + (
+            fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight() : getExpertWidget()->getControlsHeight()
+        );
 
         return Size<uint>(getWidth() - m.border * 2, std::max(1u, getHeight() - std::min(getHeight(), space)));
     }

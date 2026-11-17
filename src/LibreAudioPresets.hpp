@@ -6,7 +6,9 @@
 
 #include "config.h"
 
+#include "delay-parameters.hpp"
 #include "djFilter-parameters.hpp"
+#include "glueBus-parameters.hpp"
 #include "limiter-parameters.hpp"
 #include "mbComp5-parameters.hpp"
 #include "reverb-parameters.hpp"
@@ -30,6 +32,38 @@ inline constexpr const std::array<PresetMetadata, 0> _kPresetMetadata = {};
 inline constexpr const std::array<float[0], 0> _kPresetValues = {};
 
 inline constexpr const std::array<FaustParameterIndex, 0> _kIgnoredPresetParameters = {};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace delay {
+
+inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
+    { "Wide Quaters", "Warm, laid back and stereo widened quater echoes" },
+    { "Slap 16th", "Tightly modulated and de-essed slap echo" },
+    { "Ping Pong", "Relaxed dotted 8th ping-pong" },
+    { "Echo Extreme", "High repetition filtered echo madness" },
+}};
+
+inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
+    {
+        2.0, 0.0, 1.0, 1.0, 375.0, 500.0, 120.0, 3.0, 3.0, 2.0, 2.0, 35.0, 0.0, 30.0, 0.20200000703334808, 1.5, 90.0, 180.0, 20000.0, 40.0, 20.0, 100.0, 100.0, -0,-0,-0,
+    },
+    {
+        1.0, 0.0, 1.0, 1.0, 375.0, 500.0, 120.0, 9.0, 9.0, 0.0, 0.0, 0.0, 0.0, 60.0, 0.5020000338554382, 0.09999999403953552, 90.0, 80.0, 10000.0, 80.0, 0.0, 100.0, 100.0, -0,-0,-0,
+    },
+    {
+        0.0, 2.0, 1.0, 1.0, 375.0, 500.0, 120.0, 5.0, 5.0, 1.0, 2.0, 50.0, 30.0, 60.0, 0.5020000338554382, 0.0, 90.0, 80.0, 7000.0, 40.0, 20.0, 100.0, 100.0, -0,-0,-0,
+    },
+    {
+        2.0, 0.0, 0.0, 0.0, 489.0, 1289.0, 120.0, 5.0, 5.0, 0.0, 0.0, 70.0, 100.0, 0.0, 0.5020000338554382, 1.5999999046325684, 90.0, 80.0, 1999.0, 40.0, 0.0, 130.0, 100.0, -0,-0,-0,
+    },
+}};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
+};
+
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -59,6 +93,38 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
 
 inline constexpr const std::array _kIgnoredPresetParameters = {
     kFaustParameterKnob,
+};
+
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace glueBus {
+
+inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
+    { "Gentle Glue", "Subtle compression and a bit of color" },
+    { "Tight Punch", "Snappy bus glue for punchy drums" },
+    { "Heavy Parallel", "Smashed parallel compression blended for massive weight" },
+    { "Analog Glue", "Warm console-style glue with subtle saturation" },
+}};
+
+inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
+    {
+        0.10000002384185791, 100.0, 0.0, 2.0, 0.0, 100.0, 1000.0, 0.0, 0.0, 1000.0, 0.0, 0.0, -0,-0,-0,-0,-0,-0,
+    },
+    {
+        0.10000002384185791, 100.0, 0.0, 4.0, 0.0, 100.0, 100.0, 5.0, -5.0, 5001.0, 0.0, 5.0, -0,-0,-0,-0,-0,-0,
+    },
+    {
+        0.5999999046325684, 100.0, 0.0, 10.0, 0.0, 30.0, 100.0, 0.0, 20.0, 5001.0, 0.0, 20.0, -0,-0,-0,-0,-0,-0,
+    },
+    {
+        -0.5, 100.0, 0.0, 1.0, 0.0, 80.0, 80.0, 3.0, 8.0, 2846.0, 0.0, -3.0, -0,-0,-0,-0,-0,-0,
+    },
+}};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
 };
 
 }
@@ -216,9 +282,9 @@ inline constexpr const std::array _kIgnoredPresetParameters = {
 
 namespace LIBREAUDIO_PLUGIN_ID {
 
-inline constexpr const auto kPresetMetadata = _kPresetMetadata;
-inline constexpr const auto kPresetValues = _kPresetValues;
-inline constexpr const auto kIgnoredPresetParameters = _kIgnoredPresetParameters;
+inline constexpr const decltype(_kPresetMetadata) kPresetMetadata = _kPresetMetadata;
+inline constexpr const decltype(_kPresetValues) kPresetValues = _kPresetValues;
+inline constexpr const decltype(_kIgnoredPresetParameters) kIgnoredPresetParameters = _kIgnoredPresetParameters;
 
 }
 
