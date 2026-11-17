@@ -29,6 +29,8 @@ inline constexpr const std::array<PresetMetadata, 0> _kPresetMetadata = {};
 
 inline constexpr const std::array<float[0], 0> _kPresetValues = {};
 
+inline constexpr const std::array<FaustParameterIndex, 0> _kIgnoredPresetParameters = {};
+
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace djFilter {
@@ -54,6 +56,10 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
         0.0, 100.0, 100.0, 0.0,
     },
 }};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterKnob,
+};
 
 }
 
@@ -82,6 +88,10 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
         0.0, -1.0, 1.0, 0.0, 0.30000001192092896, 100.0, 30.0, 100.0, 0.0, 0.0, -0,-0,
     },
 }};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterThreshold,
+};
 
 }
 
@@ -195,6 +205,10 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
     },
 }};
 
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterMix,
+};
+
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -204,6 +218,7 @@ namespace LIBREAUDIO_PLUGIN_ID {
 
 inline constexpr const auto kPresetMetadata = _kPresetMetadata;
 inline constexpr const auto kPresetValues = _kPresetValues;
+inline constexpr const auto kIgnoredPresetParameters = _kIgnoredPresetParameters;
 
 }
 

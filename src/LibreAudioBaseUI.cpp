@@ -178,6 +178,9 @@ void LibreAudioBaseUI::presetButtonClicked(const uint32_t preset)
             continue;
         if (d_isEqual(fParameterValues[kParametersMainStart + i], values[i]))
             continue;
+        if (const auto it = std::find(kIgnoredPresetParameters.cbegin(), kIgnoredPresetParameters.cend(), i);
+            it != kIgnoredPresetParameters.cend())
+            continue;
         modified[i] = true;
         fParameterValues[kParametersMainStart + i] = values[i];
         fParameterValuesWhenActivated[kParametersMainStart + i] = values[i];
