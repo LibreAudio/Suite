@@ -215,6 +215,10 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
     },
 }};
 
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
+};
+
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -242,6 +246,10 @@ inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPr
         50.0, 100.0, 0.0, 40.0, -0,-0,90.0, 70.0, 140.0, 100.0, -0,-0,
     },
 }};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
+};
 
 }
 
