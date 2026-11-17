@@ -45,6 +45,7 @@ private:
         BaseWidget::onNanoDisplay();
 
         fillColor(R::color);
+        fontFace("title_regular");
         fontSize(m.fontSize);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         textLetterSpacing(m.letterSpacing);

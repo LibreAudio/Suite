@@ -36,6 +36,18 @@ public:
                              FONTS_SPLINESANSMONO_REGULAR_TTF_DATA,
                              FONTS_SPLINESANSMONO_REGULAR_TTF_LEN,
                              false);
+        createFontFromMemory("title_light",
+                             FONTS_CHILLAX_LIGHT_TTF_DATA,
+                             FONTS_CHILLAX_LIGHT_TTF_LEN,
+                             false);
+        createFontFromMemory("title_medium",
+                             FONTS_CHILLAX_MEDIUM_TTF_DATA,
+                             FONTS_CHILLAX_MEDIUM_TTF_LEN,
+                             false);
+        createFontFromMemory("title_regular",
+                             FONTS_CHILLAX_REGULAR_TTF_DATA,
+                             FONTS_CHILLAX_REGULAR_TTF_LEN,
+                             false);
     }
 
     void enableShaders(const std::list<std::shared_ptr<ShaderWidgetInterface>>& shaders)

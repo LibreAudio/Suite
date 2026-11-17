@@ -452,8 +452,8 @@ namespace Reference {
 
         struct PluginName : Zero {
             static constexpr const Color color = Colors::acc1;
-            static constexpr const float fontSize = 20;
-            static constexpr const float letterSpacing = fontSize * 0.05;
+            static constexpr const float fontSize = 26;
+            static constexpr const float letterSpacing = fontSize * -0.03f;
         };
 
         struct PillToggle : Zero {
