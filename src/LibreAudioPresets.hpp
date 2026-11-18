@@ -71,7 +71,7 @@ namespace djFilter {
 
 inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
     { "Clean Cut", "Non-resonant 12dB\nHighpass and Lowpass" },
-    { "Two Thirds Resonance", "Clean but singing\nresonant filters" },
+    { "66% Resonance", "Clean but singing\nresonant filters" },
     { "Spacial Filters", "Drowning in reverb\non the edges" },
     { "Whiny Baby", "Resonant distortion\non the extreme" },
 }};
@@ -169,7 +169,7 @@ inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata 
     { "Pop Master", "Gentle multiband control for polished masters" },
     { "Soft Smoother", "Slow, transparent leveling with lookahead precision" },
     { "Smooth Vocals", "Even vocal tone with tamed sibilance" },
-    { "FM Radio", "Heavy band compression for that on air polish" },
+    { "FM Radio", "Heavy band compression for that on-air polish" },
 }};
 
 inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
@@ -227,9 +227,9 @@ namespace springReverb {
 
 inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
     { "Large Wide Vocals", "Spacious stereo spring for lush vocals" },
-    { "Icy Medium Stage", "Shimmering cold tank with mid-length tail" },
-    { "Guitar Amp TankOld", "School amp reverb, narrow and warm" },
-    { "Huge Ducked Sustain", "Giant spring wash with sidechain breathing" },
+    { "Icy Stage", "Shimmering cold tank with mid-length tail" },
+    { "Guitar Amp Tank", "Old-school amp reverb, narrow and warm" },
+    { "Huge Ducked Sustain", "Giant wash with sidechain breathing" },
 }};
 
 inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
@@ -260,7 +260,7 @@ namespace vocalDoubler {
 inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
     { "Wide Pop", "Polished double-tracked width for modern pop" },
     { "Bright Detune", "Crisp micro-pitch spread for sparkling vocals" },
-    { "Realistic Hookline Doubles", "Human-like layered doubles with subtle imperfections" },
+    { "Hookline Doubles", "Human-like doubles with subtle imperfections" },
     { "Lennon Overdub", "Vintage tape ADT with classic 60s character" },
 }};
 
