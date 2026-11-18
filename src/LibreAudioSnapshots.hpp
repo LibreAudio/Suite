@@ -47,7 +47,9 @@ struct LibreAudioSnapshots : private LibreAudioUndoRedo::Callback {
     void copyTo(uint32_t snapshot);
     void load(uint32_t snapshot);
 
-    void resetData(const float* const parameterValues);
+    void resetAllData(const float* const parameterValues);
+    void resetSnapshotData(uint32_t snapshot, const float* parameterValues);
+
     void restoreCurrentAndPrevious(uint32_t snapshot);
     void restoreSnapshotData(uint32_t snapshot,
                              const float* parameterValues,

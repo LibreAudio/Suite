@@ -299,11 +299,9 @@ void LibreAudioBaseUI::stateChanged(const char* const key, const char* const val
         const uint8_t snapshot = snapshotKey[0] - 'a';
         DISTRHO_SAFE_ASSERT_INT_RETURN(snapshot < kNumSnapshots, snapshot,);
 
-        // d_stdout("loading snapshot %u | %s", snapshot, value);
-
         if (value[0] == '\0')
         {
-            fSnapshots.resetData(fParameterValues);
+            fSnapshots.resetSnapshotData(snapshot, fParameterValues);
             return;
         }
 
