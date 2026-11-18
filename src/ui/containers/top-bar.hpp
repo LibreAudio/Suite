@@ -7,6 +7,7 @@
 #include "../_lab/image.hpp"
 #include "../_lab/interface.hpp"
 
+#include "../bot/signet.hpp"
 #include "../containers/button-group.hpp"
 #include "../containers/container.hpp"
 #include "../reference/button.hpp"
@@ -26,8 +27,6 @@ class TopBar : public LabReferenceContainerWidget<Reference::TopBar, Horizontal>
     using BaseWidget = LabReferenceContainerWidget<Reference::TopBar, Horizontal>;
 
     // ----------------------------------------------------------------------------------------------------------------
-
-    using LogoWidget = LabImageWidget<IMAGES_LA_68_PNG_DATA, IMAGES_LA_68_PNG_LEN>;
 
     template<Corner corner, const uchar* imageData, uint imageDataSize>
     using Button = ImageButtonWidget<Reference::Widgets::TopBarButton, corner, imageData, imageDataSize>;
@@ -78,7 +77,7 @@ class TopBar : public LabReferenceContainerWidget<Reference::TopBar, Horizontal>
     // ----------------------------------------------------------------------------------------------------------------
 
     const std::array<std::shared_ptr<LabWidget>, 3> fWidgetsLeft = {
-        addWidget<LogoWidget>(),
+        addWidget<SignetWidget>(),
         addWidget<PluginNameWidget>(),
         addSpacer(),
     };

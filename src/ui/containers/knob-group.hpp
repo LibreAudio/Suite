@@ -10,6 +10,7 @@
 #include "../_lab/image.hpp"
 
 #include "../reference.hpp"
+#include "../bot/signet.hpp"
 #include "../widgets/combo-box.hpp"
 #include "../widgets/knob.hpp"
 #include "../widgets/toggle-switch.hpp"
@@ -547,7 +548,7 @@ public:
 
 private:
     std::shared_ptr<KnobGroupWidget<>> fKnobsLeft { new KnobGroupWidget<>(this, kParametersMainStart, 0) };
-    std::shared_ptr<LabWidget> fLogo { new LabImageWidget<IMAGES_LA_68_PNG_DATA, IMAGES_LA_68_PNG_LEN>(this) };
+    std::shared_ptr<LabWidget> fLogo { new SignetWidget(this) };
     std::shared_ptr<KnobGroupWidget<>> fKnobsRight { new KnobGroupWidget<>(this, kParametersMainStart, fKnobsLeft->getLastKnobId() + 1 - kParametersMainStart) };
 
     void updateSize(const bool updateChildren) final
