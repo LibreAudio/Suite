@@ -155,9 +155,9 @@ using CompressorMainArea = MainAreaContainerWidget<CompressorCentralAreaWidget>;
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class CompressorRootWidget : public RootWidget<TopBar, CompressorMainArea>
+class CompressorRootWidget : public RootWidget<TopBar<>, CompressorMainArea>
 {
-    using BaseWidget = RootWidget<TopBar, CompressorMainArea>;
+    using BaseWidget = RootWidget<TopBar<>, CompressorMainArea>;
     using BaseWidget::BaseWidget;
 };
 

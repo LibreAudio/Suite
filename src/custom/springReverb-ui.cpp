@@ -125,7 +125,7 @@ class ReverbCentralAreaWidget final : public CentralAreaWidget<EasyPageWidget, R
 // --------------------------------------------------------------------------------------------------------------------
 
 using ReverbMainArea = MainAreaContainerWidget<ReverbCentralAreaWidget>;
-using ReverbRootWidget = RootWidget<TopBar, ReverbMainArea>;
+using ReverbRootWidget = RootWidget<TopBar<>, ReverbMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

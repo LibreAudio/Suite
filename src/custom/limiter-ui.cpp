@@ -178,7 +178,7 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 using LimiterMainArea = MainAreaContainerWidget<LimiterCentralAreaWidget>;
-using LimiterRootWidget = RootWidget<TopBar, LimiterMainArea>;
+using LimiterRootWidget = RootWidget<TopBar<>, LimiterMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

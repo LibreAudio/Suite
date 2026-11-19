@@ -865,7 +865,7 @@ public:
 };
 
 using GlueBusMainArea = MainAreaContainerWidget<GlueBusStageWidget>;
-using GlueBusRootWidget = RootWidget<TopBar, GlueBusMainArea>;
+using GlueBusRootWidget = RootWidget<TopBar<>, GlueBusMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

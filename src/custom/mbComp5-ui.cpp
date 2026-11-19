@@ -748,7 +748,7 @@ private:
 // --------------------------------------------------------------------------------------------------------------------
 
 using MbComp5MainArea = MainAreaContainerWidget<MbComp5CentralAreaWidget>;
-using MbComp5RootWidget = RootWidget<TopBar, MbComp5MainArea>;
+using MbComp5RootWidget = RootWidget<TopBar<>, MbComp5MainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

@@ -21,6 +21,7 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
+template<bool withEasyExpertPages = true>
 class TopBar : public LabReferenceContainerWidget<Reference::TopBar, Horizontal>,
                private IdleCallback
 {
@@ -85,10 +86,7 @@ class TopBar : public LabReferenceContainerWidget<Reference::TopBar, Horizontal>
         addWidget<UndoRedoGroupWidget>(),
         addWidget<SnapshotsGroupWidget>(),
     };
-    const std::array<std::shared_ptr<LabWidget>, 2> fWidgetsRight = {
-        addWidget<EasyExpertGroupWidget>(),
-        addWidget<MenuPowerGroupWidget>()
-    };
+    std::array<std::shared_ptr<LabWidget>, 2> fWidgetsRight = {};
 
     // ----------------------------------------------------------------------------------------------------------------
 
@@ -96,6 +94,20 @@ public:
     TopBar(LabTopLevelWidget* const parent)
         : BaseWidget(parent)
     {
+        if constexpr (withEasyExpertPages)
+        {
+            fWidgetsRight = {
+                addWidget<EasyExpertGroupWidget>(),
+                addWidget<MenuPowerGroupWidget>()
+            };
+        }
+        else
+        {
+            fWidgetsRight = {
+                addWidget<MenuPowerGroupWidget>()
+            };
+        }
+
         updateSize(true);
         idleCallback();
 
@@ -104,6 +116,14 @@ public:
 
 private:
     Page fLastPage = kPageInit;
+
+    static bool isExpertPage(const Page page) noexcept
+    {
+        if constexpr (withEasyExpertPages)
+            return page == kPageExpert;
+
+        return page == kPageEasy || page == kPageExpert;
+    }
 
     void idleCallback() final
     {
@@ -119,8 +139,8 @@ private:
 
             case kPageEasy:
             case kPageExpert:
-                for (const std::shared_ptr<LabWidget>& widget : fWidgetsExpert)
-                    widget->setVisible(page == kPageExpert);
+                    for (const std::shared_ptr<LabWidget>& widget : fWidgetsExpert)
+                        widget->setVisible(isExpertPage(page));
 
                 if (fLastPage != kPageInit)
                     updateSize(true);

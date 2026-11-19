@@ -1443,7 +1443,7 @@ public:
     }
 };
 
-class DelayRootWidget final : public RootWidget<TopBar, DelayMainAreaWidget>
+class DelayRootWidget final : public RootWidget<TopBar<>, DelayMainAreaWidget>
 {
 public:
     DelayRootWidget(Window& window, LabUIWidgetInterface* const iface)

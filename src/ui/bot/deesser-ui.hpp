@@ -1278,7 +1278,7 @@ public:
 };
 
 using DeEsserMainArea = MainAreaContainerWidget<DeEsserStageWidget>;
-using DeEsserRootWidget = RootWidget<TopBar, DeEsserMainArea>;
+using DeEsserRootWidget = RootWidget<TopBar<>, DeEsserMainArea>;
 
 // // --------------------------------------------------------------------------------------------------------------------
 // // The plugin UI: the starfield behind the stage, with the input spectrum passed to the glassy display.

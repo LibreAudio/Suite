@@ -460,7 +460,7 @@ private:
 };
 
 using DjFilterMainArea = MainAreaContainerWidget<DjFilterStageWidget>;
-using DjFilterRootWidget = RootWidget<TopBar, DjFilterMainArea>;
+using DjFilterRootWidget = RootWidget<TopBar<>, DjFilterMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

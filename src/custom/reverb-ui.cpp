@@ -147,7 +147,7 @@ class ReverbExpertPageWidget final : public ReferencePageWidget<Reference::Centr
 
 using ReverbCentralAreaWidget = CentralAreaWidget<EasyPageWidget, ReverbExpertPageWidget>;
 using ReverbMainArea = MainAreaContainerWidget<ReverbCentralAreaWidget>;
-using ReverbRootWidget = RootWidget<TopBar, ReverbMainArea>;
+using ReverbRootWidget = RootWidget<TopBar<>, ReverbMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

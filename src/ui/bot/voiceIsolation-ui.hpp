@@ -896,7 +896,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using VoiceIsolationRootWidget = RootWidget<TopBar, VoiceIsolationMainAreaWidget>;
+using VoiceIsolationRootWidget = RootWidget<TopBar<>, VoiceIsolationMainAreaWidget>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

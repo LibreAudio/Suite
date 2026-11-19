@@ -3074,10 +3074,10 @@ private:
 
 using EqMainArea = MainAreaContainerWidget<EqCentralAreaWidget>;
 
-class EqRootWidget final : public RootWidget<TopBar, EqMainArea>,
+class EqRootWidget final : public RootWidget<TopBar<false>, EqMainArea>,
                            private IdleCallback
 {
-    using BaseWidget = RootWidget<TopBar, EqMainArea>;
+    using BaseWidget = RootWidget<TopBar<false>, EqMainArea>;
 
     Rectangle<int> fLastDisplayArea;
 

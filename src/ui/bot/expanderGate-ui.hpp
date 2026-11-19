@@ -2277,7 +2277,7 @@ public:
 class ExpanderRootWidget final : public RootBaseWidget,
                                  private IdleCallback
 {
-    std::shared_ptr<TopBar> fTopBar = addWidget<TopBar>();
+    std::shared_ptr<TopBar<>> fTopBar = addWidget<TopBar<>>();
     std::shared_ptr<ExpanderMainAreaWidget> fMainArea = addWidget<ExpanderMainAreaWidget, Expanding>();
 
     Point<int> fLastDisplayPos;

@@ -13,9 +13,9 @@
 namespace LibreAudio {
 
 #ifdef SHADER_PLUGIN
-using RootWidgetUI = RootWidget<TopBar, MainAreaContainerWidget<>>;
+using RootWidgetUI = RootWidget<TopBar<>, MainAreaContainerWidget<>>;
 #else
-using RootWidgetUI = RootWidget<TopBar, ParameterDumpMainAreaWidget>;
+using RootWidgetUI = RootWidget<TopBar<>, ParameterDumpMainAreaWidget>;
 #endif
 
 }
