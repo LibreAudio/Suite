@@ -16,7 +16,6 @@ class CardGroupWidget : public LabReferenceButtonGroupWidget<Reference::Widgets:
 {
     using R = Reference::Widgets::CardGroup;
     using BaseWidget = LabReferenceButtonGroupWidget<R>;
-    using BaseWidget::BaseWidget;
 
 public:
     template<const Color& kAccentColor = Reference::Colors::acc1>
@@ -26,6 +25,10 @@ public:
     {
         return BaseWidget::addButton<CardWidget<kAccentColor>, Expanding>(id, title, subtitle);
     }
+
+protected:
+    explicit CardGroupWidget(LabWidget* const parent)
+        : BaseWidget(parent) {}
 
 private:
     void updateSize(const bool updateChildren) final

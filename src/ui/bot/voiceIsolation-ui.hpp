@@ -798,7 +798,7 @@ class VoiceIsolationStageWidget final : public LabReferenceContainerWidget<Refer
 
     const std::shared_ptr<VoiceIsolationDisplayWidget> fDisplay = addWidget<VoiceIsolationDisplayWidget, Expanding>();
     const std::shared_ptr<VoiceIsolationGroupRowWidget> fGroups = addWidget<VoiceIsolationGroupRowWidget>();
-    const std::shared_ptr<CardGroupWidget> fCards = addCards();
+    const std::shared_ptr<CardGroupWidget> fCards = addWidget<PresetCardsWidget>();
 
     Page fPage = kPageEasy;
 
@@ -821,19 +821,6 @@ public:
     }
 
 private:
-    std::shared_ptr<CardGroupWidget> addCards()
-    {
-        std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
-
-        widget->addCard(kWidgetPresetA, "NATURAL DOUBLE", "Subtle ADT thickening");
-        widget->addCard(kWidgetPresetB, "TIGHT SLAP", "Short doubled slap");
-        widget->addCard(kWidgetPresetC, "WIDE TRIPLE", "Three-voice spread");
-        widget->addCard(kWidgetPresetD, "LUSH STACK", "Full ensemble stack");
-
-        Layout::widgets.push_back({ widget.get(), Fixed });
-        return widget;
-    }
-
     // the groups in Expert mode, the cards in Easy mode, neither on the other pages
     void showPage(const Page page)
     {

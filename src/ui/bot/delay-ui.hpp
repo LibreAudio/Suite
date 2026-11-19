@@ -1347,7 +1347,7 @@ class DelayStageWidget final : public LabReferenceContainerWidget<Reference::Cen
 
     const std::shared_ptr<DelayExpertWidget> fExpert = addWidget<DelayExpertWidget, Expanding>();
     const std::shared_ptr<LabWidget> fSpacer = addSpacer();
-    const std::shared_ptr<CardGroupWidget> fCards = addCards();
+    const std::shared_ptr<CardGroupWidget> fCards = addWidget<PresetCardsWidget>();
 
     // created last, so it draws over everything and gets events first
     const std::unique_ptr<DelayMenuWidget> fMenu { new DelayMenuWidget(this) };
@@ -1378,19 +1378,6 @@ public:
     }
 
 private:
-    std::shared_ptr<CardGroupWidget> addCards()
-    {
-        std::shared_ptr<CardGroupWidget> widget { new CardGroupWidget(this) };
-
-        widget->addCard(kWidgetPresetA, "SLAPBACK", "Short single echo");
-        widget->addCard(kWidgetPresetB, "PING PONG", "Echoes across the stereo field");
-        widget->addCard(kWidgetPresetC, "TAPE ECHO", "Warm, wobbling repeats");
-        widget->addCard(kWidgetPresetD, "AMBIENT WASH", "Long, dark trails");
-
-        Layout::widgets.push_back({ widget.get(), Fixed });
-        return widget;
-    }
-
     // the Expert page in Expert mode, the cards below a spacer in Easy mode, neither on the other pages.
     // The scope is hidden along with the page, so it hides its shader too.
     void showPage(const Page page)
