@@ -46,6 +46,39 @@ static constexpr const char kTextSIDECHAIN[] = "SIDECHAIN";
 
 // --------------------------------------------------------------------------------------------------------------------
 
+class CompressorBottomRightWidget final : public BoxFrameWidget<Horizontal, 1, true>,
+                                          private IdleCallback
+{
+    using R = Reference::Widgets::BoxFrame<1, true>;
+    using BaseWidget = BoxFrameWidget<Horizontal, 1, true>;
+
+    std::unordered_map<FaustParameterIndex, std::shared_ptr<LabParameterWidget>> fWidgets;
+
+public:
+    CompressorBottomRightWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        addHeader<BoxFrameTitle<Reference::Colors::yellow, kTextSIDECHAIN>>();
+        addWidget<kFaustParameterSc_mix>();
+        addWidget<kFaustParameterSc_hp>();
+        addWidget<kFaustParameterSc_lp>();
+        addWidget<kFaustParameterSc_tilt>();
+    }
+
+private:
+    template<FaustParameterIndex kParameterIndex>
+    void addWidget()
+    {
+        fWidgets[kParameterIndex] = BaseWidget::addWidget<NumberBoxWidget<kParameterIndex>, Expanding>();
+    }
+
+    void idleCallback() final
+    {
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
 using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
     Reference::Transparent<Reference::CentralArea>,
     Vertical,
@@ -108,22 +141,7 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
                     NumberBoxWidget<kFaustParameterLink>
                 >
             >,
-            StaticContainerWidget<
-                Reference::Widgets::BoxFrame<1, true>,
-                Vertical,
-                Fixed,
-                BoxFrameTitle<Reference::Colors::yellow, kTextSIDECHAIN>,
-                StaticContainerWidget<
-                    Reference::Widgets::BoxFrame<1, true>::Row,
-                    Horizontal,
-                    Expanding,
-                    // TODO needs to be dynamic
-                    NumberBoxWidget<kFaustParameterSc_mix>,
-                    NumberBoxWidget<kFaustParameterSc_hp>,
-                    NumberBoxWidget<kFaustParameterSc_lp>,
-                    NumberBoxWidget<kFaustParameterSc_tilt>
-                >
-            >
+            CompressorBottomRightWidget
         >
     >
 >;
