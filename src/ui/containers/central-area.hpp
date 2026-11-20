@@ -93,14 +93,14 @@ protected:
         case kPageEasy:
             fEasy->show();
             fExpert->hide();
-            updateGraphSize();
+            updateSize(true);
             for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
                 w->show();
             break;
         case kPageExpert:
             fEasy->hide();
             fExpert->show();
-            updateGraphSize();
+            updateSize(true);
             for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
                 w->show();
             break;

@@ -6,6 +6,7 @@
 
 #include "config.h"
 
+#include "deesser-parameters.hpp"
 #include "delay-parameters.hpp"
 #include "djFilter-parameters.hpp"
 #include "glueBus-parameters.hpp"
@@ -32,6 +33,38 @@ inline constexpr const std::array<PresetMetadata, 0> _kPresetMetadata = {};
 inline constexpr const std::array<float[0], 0> _kPresetValues = {};
 
 inline constexpr const std::array<FaustParameterIndex, 0> _kIgnoredPresetParameters = {};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace deesser {
+
+inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
+    { "Subtle Lead", "Gentle highend reduction for lead vocals" },
+    { "Pop Ballad", "Reduce S in a ballad mix" },
+    { "Maximum Slessness", "Heavy high frequency reduction" },
+    { "Smooth HF Tamer", "Relative detection and medium reduction" },
+}};
+
+inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
+    {
+        3300.0, 20.0, -25.0, -4.0, 2.0, 3.0, 0.0, 0.0, 10.0, 100.0, 0.0, -0,-0,-0,-0,-0,-0,-0,
+    },
+    {
+        4806.0, 0.0, -30.0, -10.0, 2.0, 6.0, 0.0, -100.0, 8.0, 0.5, 0.0, -0,-0,-0,-0,-0,-0,-0,
+    },
+    {
+        3000.0, -30.0, -29.0, -8.0, 8.0, 12.0, 0.0, 0.0, 10.0, 100.0, 0.0, -0,-0,-0,-0,-0,-0,-0,
+    },
+    {
+        4400.0, 100.0, -30.0, -10.0, 3.0, 6.0, 0.0, -100.0, 5.0, 100.0, 0.0, -0,-0,-0,-0,-0,-0,-0,
+    },
+}};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
+};
+
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 

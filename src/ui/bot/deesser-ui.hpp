@@ -1253,9 +1253,9 @@ private:
 // The stage: the starfield, the display above the controls and the control row at the bottom. Easy and Expert pages
 // show the same controls for now.
 
-class DeEsserStageWidget final : public CentralAreaWidget<DeEsserPageWidget, DeEsserPageWidget>
+class DeEsserStageWidget final : public CentralAreaWidget<EasyPageWidget, DeEsserPageWidget>
 {
-    using BaseWidget = CentralAreaWidget<DeEsserPageWidget, DeEsserPageWidget>;
+    using BaseWidget = CentralAreaWidget<EasyPageWidget, DeEsserPageWidget>;
 
     const std::shared_ptr<DeEsserDisplayWidget> fDisplay { addGraphWidget<DeEsserDisplayWidget>() };
 
@@ -1271,7 +1271,11 @@ public:
         const LabMetrics<R> m { this };
         const LabMetrics<DeEsserPageReference> pm { this };
 
-        const uint space = m.border + pm.margin + getEasyWidget()->getLastWidgetHeight();
+        const uint space = m.border + pm.margin + (
+            fLastPage == kPageExpert
+                ? getExpertWidget()->getLastWidgetHeight()
+                : getEasyWidget()->getLastWidgetHeight()
+        );
 
         return Size<uint>(getWidth() - m.border * 2, std::max(1u, getHeight() - std::min(getHeight(), space)));
     }
@@ -1279,37 +1283,6 @@ public:
 
 using DeEsserMainArea = MainAreaContainerWidget<DeEsserStageWidget>;
 using DeEsserRootWidget = RootWidget<TopBar<>, DeEsserMainArea>;
-
-// // --------------------------------------------------------------------------------------------------------------------
-// // The plugin UI: the starfield behind the stage, with the input spectrum passed to the glassy display.
-//
-// class DeEsserUI : public LibreAudioBaseUI
-// {
-// public:
-//     DeEsserUI()
-//     {
-//         const std::list<std::shared_ptr<ShaderWidgetInterface>> shaders {
-//             std::make_shared<ShaderBackgroundWidget>(this, this),
-//             std::make_shared<BotShaderWidget<SHADER_CLOUDSTARFIELD>>(this, this),
-//         };
-//
-//         createRootWidget<DeEsserRootWidget>();
-//
-//         DeEsserRootWidget* const root = static_cast<DeEsserRootWidget*>(fRootWidget.get());
-//         root->enableShaders(shaders);
-//         fStage = root->getMainAreaWidget()->getStageWidget();
-//     }
-//
-// private:
-//     std::shared_ptr<DeEsserStageWidget> fStage;
-//
-//    #if LIBREAUDIO_WANT_GRAPH_ANALYZER
-//     void audioGraphReceived(const float values[LibreAudioAnalyzerIPC::kNumBins]) final
-//     {
-//         fStage->setSpectrum(values);
-//     }
-//    #endif
-// };
 
 // --------------------------------------------------------------------------------------------------------------------
 
