@@ -36,38 +36,13 @@ template<uint8_t band>
 struct MbComp5BandGroupReference : Reference::Widgets::BoxFrame<kNumBands, true> {
     static constexpr const Color kAccentColor = Reference::kAccentColors[band + 1];
 
-    struct Header : Reference::Widgets::BoxFrame<kNumBands, true>::Header {
-        struct Title : Reference::Zero {
-            static constexpr const Color color = kAccentColor;
-            static constexpr const float fontSize = Header::height * 0.75f;
-            static constexpr const float height = Header::height;
-        };
+    using HeaderReference = Reference::Widgets::BoxFrame<kNumBands, true>::Header;
 
-        struct Buttons : Reference::Zero {
-            static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
-            static constexpr const Color borderColor = backgroundColor;
-            static constexpr const Color borderHighlightColor { borderColor, 0.16f };
-            static constexpr const Color borderShadowColor { 0, 0, 0, 0.16f };
-            static constexpr const uint border = 1;
-            static constexpr const uint borderRadius = 6;
-            static constexpr const uint margin = 2;
-            static constexpr const uint padding = 2;
-            static constexpr const uint height = Header::height - Header::margin * 2;
+    struct Header : HeaderReference {
+        using Title = HeaderReference::Title<kAccentColor>;
 
-            static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
-            static constexpr const Point<int> shadowOffset = { 0, 2 };
-            static constexpr const Size<int> shadowSize = { -8, -8 };
-            static constexpr const uint shadowFeather = 12;
-
-            struct Solo : Reference::Zero {
-                static constexpr const Color backgroundColor〡checked = kAccentColor;
-                static constexpr const Color color = Reference::Colors::ink2;
-                static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
-                static constexpr const Color color〡hover = kAccentColor;
-                static constexpr const MouseCursor cursor = kMouseCursorHand;
-                static constexpr const uint borderRadius = 4;
-                static constexpr const uint width = Header::height;
-            };
+        struct Buttons : HeaderReference::ButtonGroup {
+            using Solo = HeaderReference::ButtonGroup::ImageButton<kAccentColor>;
 
             struct Bypass : Solo {
                 using BB = Reference::Widgets::TopBarButton〡Bypass;

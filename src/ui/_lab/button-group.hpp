@@ -14,7 +14,7 @@ START_NAMESPACE_DGL
 template <class R>
 class LabReferenceButtonGroupWidget : public LabReferenceContainerWidget<R, Horizontal>,
                                       protected IdleCallback,
-                                      private ButtonEventHandler::Callback
+                                      protected ButtonEventHandler::Callback
 {
     using BaseWidget = LabReferenceContainerWidget<R, Horizontal>;
 
@@ -53,6 +53,41 @@ protected:
 protected:
     std::list<std::shared_ptr<LabButtonBaseWidget>> fWidgets;
 
+    virtual void checkButtonState(const std::shared_ptr<LabButtonBaseWidget>& widget)
+    {
+        const uint id = widget->getId();
+
+        if (id >= kWidgetIdsStart)
+        {
+            widget->setChecked(this->fInterface->isButtonChecked(id), false);
+            widget->setEnabled(this->fInterface->isButtonEnabled(id));
+        }
+        else
+        {
+            widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
+        }
+    }
+
+    void buttonClicked(SubWidget* const widget, int) override
+    {
+        const uint id = widget->getId();
+
+        if (id >= kWidgetIdsStart)
+        {
+            this->fInterface->buttonClicked(id);
+
+            // other UI buttons might change state when this one changes, so update everything
+            idleCallback();
+        }
+        else
+        {
+            const float value = static_cast<LabButtonBaseWidget*>(widget)->isChecked() ? 1.f : 0.f;
+            this->fInterface->parameterControlPressed(id);
+            this->fInterface->parameterControlModified(id, value);
+            this->fInterface->parameterControlReleased(id);
+        }
+    }
+
     void idleCallback() override
     {
         for (const std::shared_ptr<LabButtonBaseWidget>& widget : fWidgets)
@@ -83,42 +118,6 @@ protected:
 
         // update everything else
         BaseWidget::updateSize(false);
-    }
-
-private:
-    void buttonClicked(SubWidget* const widget, int) final
-    {
-        const uint id = widget->getId();
-
-        if (id >= kWidgetIdsStart)
-        {
-            this->fInterface->buttonClicked(id);
-
-            // other UI buttons might change state when this one changes, so update everything
-            idleCallback();
-        }
-        else
-        {
-            const float value = static_cast<LabButtonBaseWidget*>(widget)->isChecked() ? 1.f : 0.f;
-            this->fInterface->parameterControlPressed(id);
-            this->fInterface->parameterControlModified(id, value);
-            this->fInterface->parameterControlReleased(id);
-        }
-    }
-
-    void checkButtonState(const std::shared_ptr<LabButtonBaseWidget>& widget)
-    {
-        const uint id = widget->getId();
-
-        if (id >= kWidgetIdsStart)
-        {
-            widget->setChecked(this->fInterface->isButtonChecked(id), false);
-            widget->setEnabled(this->fInterface->isButtonEnabled(id));
-        }
-        else
-        {
-            widget->setChecked(d_isNotZero(this->fInterface->getParameterValue(id)), false);
-        }
     }
 };
 

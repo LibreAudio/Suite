@@ -8,6 +8,7 @@
 
 #include "../base.hpp"
 #include "../reference.hpp"
+#include "../reference/button.hpp"
 
 #include "LibreAudioParameters.hpp"
 
@@ -54,6 +55,47 @@ public:
     std::shared_ptr<LabButtonBaseWidget> addWidgetButton()
     {
         return addButton<typename BP::Widget>(BP::kId);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template <class R, const Color& kColor, FaustParameterIndex kFaustParameterIndex>
+class ParameterScalePointsButtonGroupWidget : public LabReferenceButtonGroupWidget<R>
+{
+    using BaseWidget = LabReferenceButtonGroupWidget<R>;
+    using ButtonReference = typename R::TextButton<kColor>;
+
+    static constexpr const uint kRealParameterIndex = kParametersMainStart + kFaustParameterIndex;
+    static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kFaustParameterIndex];
+    static_assert(kParameter.isEnumerator, "scale-points button-group parameter must be enumerator");
+
+public:
+    explicit ParameterScalePointsButtonGroupWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        BaseWidget::setId(kParametersMainStart + kFaustParameterIndex);
+
+        for (uint i = 0; i < kParameter.scalePointCount; ++i)
+            BaseWidget::template addButton<
+                TextButtonWidget<ButtonReference, kCornerAuto>
+            >(i, kParameter.scalePoints[i].label, kParameter.scalePoints[i].label);
+    }
+
+private:
+    void buttonClicked(SubWidget* const widget, int) final
+    {
+        const uint id = widget->getId();
+
+        this->fInterface->parameterControlPressed(kRealParameterIndex);
+        this->fInterface->parameterControlModified(kRealParameterIndex, id);
+        this->fInterface->parameterControlReleased(kRealParameterIndex);
+    }
+
+    void checkButtonState(const std::shared_ptr<LabButtonBaseWidget>& widget) final
+    {
+        const uint index = d_roundToUnsignedInt(this->fInterface->getParameterValue(kParametersMainStart + kFaustParameterIndex));
+        widget->setChecked(widget->getId() == index, false);
     }
 };
 

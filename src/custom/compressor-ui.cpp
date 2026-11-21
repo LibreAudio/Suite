@@ -52,28 +52,86 @@ class CompressorBottomRightWidget final : public BoxFrameWidget<Horizontal, 1, t
     using R = Reference::Widgets::BoxFrame<1, true>;
     using BaseWidget = BoxFrameWidget<Horizontal, 1, true>;
 
+    using HeaderWidget = StaticContainerSizeHintPairWidget<
+        R::Header,
+        Horizontal,
+        SizeHintWidgetPair<
+            Fixed,
+            LabReferenceStaticTextWidget<R::Header::Title<Reference::Colors::yellow>, kTextSIDECHAIN>
+        >,
+        SizeHintWidgetPair<Expanding, LabEmptyWidget>,
+        SizeHintWidgetPair<
+            Fixed,
+            ParameterScalePointsButtonGroupWidget<R::Header::ButtonGroup, Reference::Colors::yellow, kFaustParameterSc_filter>
+        >,
+        SizeHintWidgetPair<
+            Fixed,
+            StaticParameterButtonGroupWidget<
+                R::Header::ButtonGroup,
+                ParameterWidgetPair<
+                    kFaustParameterSc_listen,
+                    ImageButtonWidget<
+                        R::Header::ButtonGroup::Button<Reference::Colors::yellow>,
+                        kCornerBoth,
+                        IMAGES_SOLO_28_PNG_DATA,
+                        IMAGES_SOLO_28_PNG_LEN
+                    >
+                >
+            >
+        >
+    >;
+
     std::unordered_map<FaustParameterIndex, std::shared_ptr<LabParameterWidget>> fWidgets;
 
 public:
     CompressorBottomRightWidget(LabWidget* const parent)
         : BaseWidget(parent)
     {
-        addHeader<BoxFrameTitle<Reference::Colors::yellow, kTextSIDECHAIN>>();
+        addHeader<HeaderWidget>();
         addWidget<kFaustParameterSc_mix>();
         addWidget<kFaustParameterSc_hp>();
         addWidget<kFaustParameterSc_lp>();
+        addWidget<kFaustParameterSc_band_freq>();
+        addWidget<kFaustParameterSc_band_q>();
+        addWidget<kFaustParameterSc_bell_freq>();
+        addWidget<kFaustParameterSc_bell_gain>();
         addWidget<kFaustParameterSc_tilt>();
+        updateItemVisibility();
+        addIdleCallback(this);
     }
 
 private:
+    uint fFilterValue = getFilterValue();
+
     template<FaustParameterIndex kParameterIndex>
     void addWidget()
     {
         fWidgets[kParameterIndex] = BaseWidget::addWidget<NumberBoxWidget<kParameterIndex>, Expanding>();
     }
 
+    uint getFilterValue() const noexcept
+    {
+        return d_roundToUnsignedInt(fInterface->getParameterValue(kParametersMainStart + kFaustParameterSc_filter));
+    }
+
     void idleCallback() final
     {
+        if (const uint filter = getFilterValue(); fFilterValue != filter)
+        {
+            fFilterValue = filter;
+            updateItemVisibility();
+        }
+    }
+
+    void updateItemVisibility()
+    {
+        fWidgets[kFaustParameterSc_hp]->setVisible(fFilterValue == 0);
+        fWidgets[kFaustParameterSc_lp]->setVisible(fFilterValue == 0);
+        fWidgets[kFaustParameterSc_band_freq]->setVisible(fFilterValue == 1);
+        fWidgets[kFaustParameterSc_band_q]->setVisible(fFilterValue == 1);
+        fWidgets[kFaustParameterSc_bell_freq]->setVisible(fFilterValue == 2);
+        fWidgets[kFaustParameterSc_bell_gain]->setVisible(fFilterValue == 2);
+        updateSize(true);
     }
 };
 

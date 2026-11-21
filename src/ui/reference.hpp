@@ -23,8 +23,8 @@ namespace Reference {
     };
 
     struct Common {
-        static constexpr const float fontSize = 17;
-        static constexpr const float letterSpacing = fontSize * 0.01;
+        static constexpr const float fontSize = 17.f;
+        static constexpr const float letterSpacing = fontSize * 0.01f;
         // static constexpr const uint margin = 12;
 
         static constexpr const uint margin = 8;
@@ -196,10 +196,50 @@ namespace Reference {
                 static constexpr const uint padding = BoxFrame::padding;
                 static constexpr const uint height = 18;
 
+                struct ButtonGroup : Zero {
+                    static constexpr const Color backgroundColor = { 0xff, 0xff, 0xff, 0.07f };
+                    static constexpr const Color borderColor = backgroundColor;
+                    static constexpr const Color borderHighlightColor { borderColor, 0.16f };
+                    static constexpr const Color borderShadowColor { 0, 0, 0, 0.16f };
+                    static constexpr const uint border = 1;
+                    static constexpr const uint borderRadius = 6;
+                    static constexpr const uint margin = 2;
+                    static constexpr const uint padding = 2;
+                    static constexpr const uint height = Header::height - Header::margin * 2;
+
+                    static constexpr const Color shadowColor { 0, 0, 0, 0.6f };
+                    static constexpr const Point<int> shadowOffset = { 0, 2 };
+                    static constexpr const Size<int> shadowSize = { -8, -8 };
+                    static constexpr const uint shadowFeather = 12;
+
+                    template<const Color& kColor>
+                    struct Button : Zero {
+                        static constexpr const Color backgroundColor〡checked = kColor;
+                        static constexpr const Color color = Reference::Colors::ink2;
+                        static constexpr const Color color〡checked = Color(0x17, 0x17, 0x1b);
+                        static constexpr const Color color〡hover = kColor;
+                        static constexpr const MouseCursor cursor = kMouseCursorHand;
+                        static constexpr const float fontSize = Header::height * 0.75f;
+                        static constexpr const float letterSpacing = fontSize * 0.01f;
+                        static constexpr const uint borderRadius = 4;
+                    };
+
+                    template<const Color& kColor>
+                    struct ImageButton : Button<kColor> {
+                        static constexpr const uint width = Header::height;
+                    };
+
+                    template<const Color& kColor>
+                    struct TextButton : Button<kColor> {
+                        static constexpr const uint margin = 4;
+                    };
+                };
+
                 template<const Color& kColor>
-                struct Title : Reference::Zero {
+                struct Title : Zero {
                     static constexpr const Color color = kColor;
                     static constexpr const float fontSize = Header::height * 0.75f;
+                    static constexpr const float letterSpacing = fontSize * 0.01f;
                     static constexpr const float height = Header::height;
                 };
             };
