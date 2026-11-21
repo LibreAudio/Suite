@@ -64,7 +64,7 @@ template <class R, const Color& kColor, FaustParameterIndex kFaustParameterIndex
 class ParameterScalePointsButtonGroupWidget : public LabReferenceButtonGroupWidget<R>
 {
     using BaseWidget = LabReferenceButtonGroupWidget<R>;
-    using ButtonReference = typename R::TextButton<kColor>;
+    using ButtonReference = typename R::template TextButton<kColor>;
 
     static constexpr const uint kRealParameterIndex = kParametersMainStart + kFaustParameterIndex;
     static constexpr const LibreAudioParameter& kParameter = kFaustParameters[kFaustParameterIndex];
