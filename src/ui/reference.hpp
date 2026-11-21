@@ -668,6 +668,11 @@ namespace Reference {
         static constexpr const Color shadowColor = Colors::transparent;
     };
 
+    template<uint kNumRows = 1, bool kIncludeHeader = false>
+    struct BoxFrameArea : Transparent<Widgets::BoxFrame<kNumRows, kIncludeHeader>> {
+        static constexpr const uint margin = 0;
+    };
+
     static constexpr const Color kAccentColors[] = {
         Colors::acc1,
         Colors::acc2,

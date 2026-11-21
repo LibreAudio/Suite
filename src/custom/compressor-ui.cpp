@@ -15,29 +15,6 @@
 
 namespace LibreAudio {
 
-// kFaustParameterThreshold,
-// kFaustParameterRatio,
-// kFaustParameterKnee,
-// kFaustParameterRange,
-// kFaustParameterScale_lm,
-// kFaustParameterScale_rs,
-// kFaustParameterLookahead,
-// kFaustParameterAttack,
-// kFaustParameterAttack_curve,
-// kFaustParameterHold,
-// kFaustParameterRelease,
-// kFaustParameterRelease_curve,
-// kFaustParameterRelease_s,
-// kFaustParameterAuto_release,
-// ,
-// kFaustParameterMid_side,
-// ,
-// kFaustParameterDrive,
-// kFaustParameterMakeup,
-// kFaustParameterDrywet,
-// kFaustParameterGr_1,
-// kFaustParameterGr_2,
-
 // --------------------------------------------------------------------------------------------------------------------
 
 static constexpr const char kTextCOMPRESSION_RESPONSE[] = "COMPRESSION RESPONSE";
@@ -181,7 +158,7 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
     SizeHintWidgetPair<
         Fixed,
         StaticContainerWidget<
-            Reference::Transparent<Reference::Margin<0, Reference::Widgets::BoxFrame<1, true>>>,
+            Reference::BoxFrameArea<1, true>,
             Horizontal,
             Expanding,
             StaticContainerWidget<
