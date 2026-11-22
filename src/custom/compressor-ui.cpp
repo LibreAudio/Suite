@@ -66,13 +66,13 @@ public:
     {
         addHeader<HeaderWidget>();
         addWidget<kFaustParameterSc_mix>();
+        addWidget<kFaustParameterSc_tilt>();
         addWidget<kFaustParameterSc_hp>();
         addWidget<kFaustParameterSc_lp>();
         addWidget<kFaustParameterSc_band_freq>();
         addWidget<kFaustParameterSc_band_q>();
         addWidget<kFaustParameterSc_bell_freq>();
         addWidget<kFaustParameterSc_bell_gain>();
-        addWidget<kFaustParameterSc_tilt>();
         updateItemVisibility();
         addIdleCallback(this);
     }
