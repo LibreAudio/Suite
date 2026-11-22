@@ -177,11 +177,25 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
             Fixed,
             StaticBoxFrameTitleWidget<Reference::Colors::green, kTextCOMPRESSION_RESPONSE>,
             CompressorEnvelopeWidget,
-            StaticBoxFrameRowWidget<
-                NumberBoxWidget<kFaustParameterPeak_rms>,
-                NumberBoxWidget<kFaustParameterRms_time>,
-                NumberBoxWidget<kFaustParameterFeedback>,
-                NumberBoxWidget<kFaustParameterLink>
+            StaticContainerWidget<
+                Reference::Padding<
+                    24
+                    // Reference::BoxFrameArea<1, true>::border * 4 +
+                    // Reference::BoxFrameArea<1, true>::padding +
+                    // Reference::Widgets::BoxFrame<0>::margin * 2
+                >,
+                Horizontal,
+                Expanding,
+                StaticBoxFrameRowWidget<
+                    NumberBoxWidget<kFaustParameterLookahead>,
+                    NumberBoxWidget<kFaustParameterAttack>,
+                    NumberBoxWidget<kFaustParameterHold>
+                >,
+                StaticBoxFrameRowWidget<
+                    NumberBoxWidget<kFaustParameterRelease>,
+                    NumberBoxWidget<kFaustParameterRelease_curve>,
+                    NumberBoxWidget<kFaustParameterAuto_release>
+                >
             >
         >
     >,

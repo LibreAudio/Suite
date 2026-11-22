@@ -6,6 +6,7 @@
 
 #include "config.h"
 
+#include "compressor-parameters.hpp"
 #include "deesser-parameters.hpp"
 #include "delay-parameters.hpp"
 #include "djFilter-parameters.hpp"
@@ -33,6 +34,38 @@ inline constexpr const std::array<PresetMetadata, 0> _kPresetMetadata = {};
 inline constexpr const std::array<float[0], 0> _kPresetValues = {};
 
 inline constexpr const std::array<FaustParameterIndex, 0> _kIgnoredPresetParameters = {};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace compressor {
+
+inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata = {{
+    { "Mix Bus", "Slow and smooth glue on the mix bus" },
+    { "Lead Vocals", "In your face distressing compression" },
+    { "Fat Snare", "Snappy transient enhancing impact" },
+    { "New York Filler", "Parallel compression for rich mixes" },
+}};
+
+inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
+    {
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+    },
+    {
+        -29.899999618530273, 8.0, 6.0, 60.0, 0.0, 10.0, 5.0, 40.0, 70.0, 100.0, 100.0, 5.0, 50.0, 100.0, 0.0, 0.0, 0.0, 180.0, 20000.0, 1000.0, 1.0, 1000.0, 0.0, 3.0, 0.0, 50.0, 4.0, 100.0, -0,-0,-0,-0,
+    },
+    {
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+    },
+    {
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+    },
+}};
+
+inline constexpr const std::array _kIgnoredPresetParameters = {
+    kFaustParameterDrywet,
+};
+
+}
 
 // --------------------------------------------------------------------------------------------------------------------
 
