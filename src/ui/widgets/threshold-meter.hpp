@@ -14,40 +14,60 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<FaustParameterIndex kParameterIndex,
+template<class R,
+         class BaseWidget,
          FaustParameterIndex kLeftMeterIndex,
-         FaustParameterIndex kRightMeterIndex,
-         class R = Reference::Widgets::ThresholdMeter<>>
-class ThresholdMeterWidget final : public LabParameterWidget
+         FaustParameterIndex kRightMeterIndex>
+class ThresholdMeterBaseWidget : public BaseWidget,
+                                 private std::conditional_t<std::is_base_of_v<IdleCallback, BaseWidget>, Unused, IdleCallback>
 {
-    using BaseWidget = LabParameterWidget;
+    static constexpr const float kTicks[] = { -6, -12, -24, -36, -48 };
+    static constexpr const uint kWidth = (R::border + R::margin + R::Track::width) * 2 + R::padding + R::Slider::width;
 
-    static constexpr const LibreAudioParameter& kParameterSlider = kFaustParameters[kParameterIndex];
+public:
+    explicit ThresholdMeterBaseWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        if constexpr (! std::is_base_of_v<IdleCallback, BaseWidget>)
+            BaseWidget::addIdleCallback(this);
+    }
+
+    explicit ThresholdMeterBaseWidget(LabWidget* const parent, const uint32_t id)
+        : BaseWidget(parent, id) {}
+
+protected:
     static constexpr const LibreAudioParameter& kParameterMeterL = kFaustParameters[kLeftMeterIndex];
     static constexpr const LibreAudioParameter& kParameterMeterR = kFaustParameters[kRightMeterIndex];
 
-    static constexpr const float ticks[] = { -6, -12, -24, -36, -48 };
-
-    static_assert(kParameterSlider.max <= kParameterMeterL.max, "gain vs meter max mismatch");
-    static_assert(kParameterSlider.min >= kParameterMeterL.min, "gain vs meter min mismatch");
     static_assert(kParameterMeterL.max == kParameterMeterR.max, "meter L vs R max mismatch");
     static_assert(kParameterMeterL.min == kParameterMeterR.min, "meter L vs R min mismatch");
 
-public:
-    ThresholdMeterWidget(LabWidget* const parent)
-        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
+    void idleCallback() override
     {
-        updateReferenceSize<R>();
+        if (const float valueL = std::clamp(this->fInterface->getParameterValue(kParametersMainStart + kLeftMeterIndex),
+                                            kParameterMeterL.min,
+                                            kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
+        {
+            fMeterValueL = valueL;
+            BaseWidget::repaint();
+        }
 
-        setActiveCursor(R::cursor);
-        setName(kParameterSlider.label);
-        setDefault(kParameterSlider.init);
-        setRange(kParameterSlider.min, kParameterSlider.max);
-        setStep(kParameterSlider.step);
-        setUsingLogScale(kParameterSlider.isLogarithmic);
-        setValue(kParameterSlider.init, false);
+        if (const float valueR = std::clamp(this->fInterface->getParameterValue(kParametersMainStart + kRightMeterIndex),
+                                            kParameterMeterR.min,
+                                            kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
+        {
+            fMeterValueR = valueR;
+            BaseWidget::repaint();
+        }
 
-        updateSize(false);
+        if constexpr (std::is_base_of_v<IdleCallback, BaseWidget>)
+            BaseWidget::idleCallback();
+    }
+
+    void updateSize(const bool updateChildren) override
+    {
+        BaseWidget::template updateReferenceSize<R>();
+        BaseWidget::updateSize(updateChildren);
     }
 
 private:
@@ -61,75 +81,55 @@ private:
         return d_roundToIntPositive(height * normalized);
     }
 
-    void idleCallback() final
-    {
-        if (const float valueL = std::clamp(fInterface->getParameterValue(kParametersMainStart + kLeftMeterIndex),
-                                            kParameterMeterL.min,
-                                            kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
-        {
-            fMeterValueL = valueL;
-            repaint();
-        }
-
-        if (const float valueR = std::clamp(fInterface->getParameterValue(kParametersMainStart + kRightMeterIndex),
-                                            kParameterMeterR.min,
-                                            kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
-        {
-            fMeterValueR = valueR;
-            repaint();
-        }
-
-        BaseWidget::idleCallback();
-    }
-
     void onNanoDisplay() final
     {
-        const float border = R::border * fScaleFactor;
-        const float margin = R::margin * fScaleFactor;
-        const float padding = R::padding * fScaleFactor;
-        const float w = getWidth();
-        const float h = getHeight();
+        const float border = R::border * this->fScaleFactor;
+        const float margin = R::margin * this->fScaleFactor;
+        const float padding = R::padding * this->fScaleFactor;
+        const float w = BaseWidget::getWidth();
+        const float h = BaseWidget::getHeight();
 
-        const float sw = R::Slider::width * fScaleFactor;
+        const float sx = border + margin + (w - kWidth * this->fScaleFactor) * 0.5f;
+        const float sw = R::Slider::width * this->fScaleFactor;
 
-        const float mborder = R::Meter::border * fScaleFactor;
-        const float mx = border + margin + sw + padding;
+        const float mborder = R::Meter::border * this->fScaleFactor;
+        const float mx = sx + sw + padding;
         const float my = border + margin;
-        const float mw = w - (border + margin) * 2 - sw - padding;
+        const float mw = w - sx * 2 - sw - padding;
         const float mh = h - (border + margin) * 2;
 
         const float tx = mx + mborder;
         const float ty = my + mborder;
         const float tw2 = mw - mborder * 2;
-        const float tw1 = R::Track::width * fScaleFactor - 1.5f * fScaleFactor;
+        const float tw1 = R::Track::width * this->fScaleFactor - 1.5f * this->fScaleFactor;
         const float th = mh - mborder * 2;
 
         // ------------------------------------------------------------------------------------------------------------
         // draw background
 
-        drawReferenceBackground<R>();
+        BaseWidget::template drawReferenceBackground<R>();
 
         // ------------------------------------------------------------------------------------------------------------
         // meter area
 
         // background
-        beginPath();
+        BaseWidget::beginPath();
 
         if constexpr (R::Meter::borderRadius != 0)
-            roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+            BaseWidget::roundedRect(mx, my, mw, mh, R::Meter::borderRadius * this->fScaleFactor);
         else
-            rect(mx, my, mw, mh);
+            BaseWidget::rect(mx, my, mw, mh);
 
-        fillColor(R::Meter::backgroundColor);
-        fill();
+        BaseWidget::fillColor(R::Meter::backgroundColor);
+        BaseWidget::fill();
 
         // meter tracks
-        beginPath();
+        BaseWidget::beginPath();
 
         if constexpr (R::Meter::borderRadius != 0)
-            roundedRect(tx, ty, tw2, th, R::Meter::borderRadius * fScaleFactor);
+            BaseWidget::roundedRect(tx, ty, tw2, th, R::Meter::borderRadius * this->fScaleFactor);
         else
-            rect(tx, ty, tw2, th);
+            BaseWidget::rect(tx, ty, tw2, th);
 
         if (d_isNotEqual(fMeterValueL, kParameterMeterL.min))
         {
@@ -137,12 +137,12 @@ private:
             const float vh = th - vy;
             const float ly = ty + vy;
 
-            fillPaint(linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
+            BaseWidget::fillPaint(BaseWidget::linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            save();
-            scissor(tx, ly, tw1, vh);
-            fill();
-            restore();
+            BaseWidget::save();
+            BaseWidget::scissor(tx, ly, tw1, vh);
+            BaseWidget::fill();
+            BaseWidget::restore();
         }
 
         if (d_isNotEqual(fMeterValueR, kParameterMeterR.min))
@@ -151,83 +151,126 @@ private:
             const float vh = th - vy;
             const float ly = ty + vy;
 
-            fillPaint(linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
+            BaseWidget::fillPaint(BaseWidget::linearGradient(0, ly, 0, ly + vh, R::Track::colorGradientStart, R::Track::colorGradientStop));
 
-            save();
-            scissor(w - border - mborder - tw1, ly, tw1, vh);
-            fill();
-            restore();
+            BaseWidget::save();
+            BaseWidget::scissor(w - sx + margin - mborder - tw1, ly, tw1, vh);
+            BaseWidget::fill();
+            BaseWidget::restore();
         }
 
-        beginPath();
+        BaseWidget::beginPath();
 
         if constexpr (R::Meter::borderRadius != 0)
-            roundedRect(mx, my, mw, mh, R::Meter::borderRadius * fScaleFactor);
+            BaseWidget::roundedRect(mx, my, mw, mh, R::Meter::borderRadius * BaseWidget::fScaleFactor);
         else
-            rect(mx, my, mw, mh);
+            BaseWidget::rect(mx, my, mw, mh);
 
         // inset shading
         // FIXME define sizes elsewhere
-        fillPaint(linearGradient(0, my, 0, my + 4 * fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
-        fill();
+        BaseWidget::fillPaint(BaseWidget::linearGradient(0, my, 0, my + 4 * BaseWidget::fScaleFactor, R::Meter::insetShadingColor, Reference::Colors::transparent));
+        BaseWidget::fill();
 
         // border
         if constexpr (R::Meter::border != 0)
         {
-            strokeColor(R::backgroundColor);
-            strokeWidth(mborder * 0.5f);
-            stroke();
+            BaseWidget::strokeColor(R::backgroundColor);
+            BaseWidget::strokeWidth(mborder * 0.5f);
+            BaseWidget::stroke();
         }
 
         // ------------------------------------------------------------------------------------------------------------
         // draw ticks
 
-        strokeColor(R::Tick::color);
-        strokeWidth(R::Tick::height * fScaleFactor);
+        BaseWidget::strokeColor(R::Tick::color);
+        BaseWidget::strokeWidth(R::Tick::height * this->fScaleFactor);
 
-        for (float tick : ticks)
+        for (float tick : kTicks)
         {
             const float lh = meterLevelToHeight(tick, th);
 
-            beginPath();
-            moveTo(tx, ty + lh);
-            lineTo(tx + tw2, ty + lh);
-            stroke();
+            BaseWidget::beginPath();
+            BaseWidget::moveTo(tx, ty + lh);
+            BaseWidget::lineTo(tx + tw2, ty + lh);
+            BaseWidget::stroke();
         }
 
         // ------------------------------------------------------------------------------------------------------------
         // slider
 
+        if constexpr (std::is_base_of_v<KnobEventHandler, BaseWidget>)
         {
-            const float sx = border + margin;
-            const float sy = border + margin + meterLevelToHeight(getValue(), th);
+            const float sy = border + margin + meterLevelToHeight(BaseWidget::getValue(), th);
 
-            beginPath();
-            moveTo(sx, sy - (sw - padding) * 0.5f);
-            lineTo(sx + sw - padding, sy);
-            lineTo(sx, sy + (sw - padding) * 0.5f);
-            closePath();
-            fillColor(R::Slider::color);
-            fill();
+            BaseWidget::beginPath();
+            BaseWidget::moveTo(sx, sy - (sw - padding) * 0.5f);
+            BaseWidget::lineTo(sx + sw - padding, sy);
+            BaseWidget::lineTo(sx, sy + (sw - padding) * 0.5f);
+            BaseWidget::closePath();
+            BaseWidget::fillColor(R::Slider::color);
+            BaseWidget::fill();
 
-            beginPath();
-            moveTo(sx + sw + padding, sy);
-            lineTo(w - border - margin, sy);
-            strokeColor(R::Slider::color);
-            strokeWidth(1 * fScaleFactor);
-            stroke();
+            BaseWidget::beginPath();
+            BaseWidget::moveTo(sx + sw + padding, sy);
+            BaseWidget::lineTo(w - sx, sy);
+            BaseWidget::strokeColor(R::Slider::color);
+            BaseWidget::strokeWidth(1 * this->fScaleFactor);
+            BaseWidget::stroke();
         }
 
         // ------------------------------------------------------------------------------------------------------------
         // draw border
 
-        drawReferenceBorder<R>();
+        BaseWidget::template drawReferenceBorder<R>();
     }
+};
 
-    void updateSize(const bool updateChildren) final
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kLeftMeterIndex,
+         FaustParameterIndex kRightMeterIndex,
+         class R = Reference::Widgets::ThresholdMeter<>>
+class MeterWidget final : public ThresholdMeterBaseWidget<R, LabWidget, kLeftMeterIndex, kRightMeterIndex>
+{
+    using BaseWidget = ThresholdMeterBaseWidget<R, LabWidget, kLeftMeterIndex, kRightMeterIndex>;
+
+public:
+    MeterWidget(LabWidget* const parent)
+        : BaseWidget(parent)
     {
-        updateReferenceSize<R>();
-        BaseWidget::updateSize(updateChildren);
+        BaseWidget::setId(kParametersMainStart + kLeftMeterIndex);
+        BaseWidget::setName(BaseWidget::kParameterMeterL.name);
+        BaseWidget::updateSize(false);
+    }
+};
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<FaustParameterIndex kParameterIndex,
+         FaustParameterIndex kLeftMeterIndex,
+         FaustParameterIndex kRightMeterIndex,
+         class R = Reference::Widgets::ThresholdMeter<>>
+class ThresholdMeterWidget final : public ThresholdMeterBaseWidget<R, LabParameterWidget, kLeftMeterIndex, kRightMeterIndex>
+{
+    using BaseWidget = ThresholdMeterBaseWidget<R, LabParameterWidget, kLeftMeterIndex, kRightMeterIndex>;
+
+    static constexpr const LibreAudioParameter& kParameterSlider = kFaustParameters[kParameterIndex];
+
+    static_assert(kParameterSlider.max <= BaseWidget::kParameterMeterL.max, "gain vs meter max mismatch");
+    static_assert(kParameterSlider.min >= BaseWidget::kParameterMeterL.min, "gain vs meter min mismatch");
+
+public:
+    ThresholdMeterWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
+    {
+        BaseWidget::setActiveCursor(R::cursor);
+        BaseWidget::setName(kParameterSlider.name);
+        BaseWidget::setDefault(kParameterSlider.init);
+        BaseWidget::setRange(kParameterSlider.min, kParameterSlider.max);
+        BaseWidget::setStep(kParameterSlider.step);
+        BaseWidget::setUsingLogScale(kParameterSlider.isLogarithmic);
+        BaseWidget::setValue(kParameterSlider.init, false);
+        BaseWidget::updateSize(false);
     }
 };
 

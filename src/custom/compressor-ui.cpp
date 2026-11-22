@@ -33,7 +33,7 @@ class CompressorBottomRightWidget final : public BoxFrameWidget<Horizontal, 1, t
         R::Header,
         Horizontal,
         Fixed,
-        LabReferenceStaticTextWidget<R::Header::Title<Reference::Colors::yellow>, kTextSIDECHAIN>,
+        StaticBoxFrameTitleWidget<Reference::Colors::yellow, kTextSIDECHAIN>,
         LabEmptyWidget,
         ParameterScalePointsButtonGroupWidget<R::Header::ButtonGroup, Reference::Colors::yellow, kFaustParameterSc_filter>,
         StaticParameterButtonGroupWidget<
@@ -140,7 +140,8 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
                 ThresholdMeterWidget<
                     kFaustParameterThreshold,
                     kFaustParameterLevel_1,
-                    kFaustParameterLevel_2
+                    kFaustParameterLevel_2,
+                    Reference::Widgets::BigThresholdMeter<>
                 >
             >,
             StaticVerticalCompressorBoxFrameWidget<
@@ -162,10 +163,10 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
             >,
             StaticVerticalCompressorBoxFrameWidget<
                 Expanding,
-                ThresholdMeterWidget<
+                MeterWidget<
                     kFaustParameterGr_1,
-                    kFaustParameterGr_1,
-                    kFaustParameterGr_2
+                    kFaustParameterGr_2,
+                    Reference::Widgets::BigMeter<>
                 >
             >
         >
@@ -228,7 +229,7 @@ public:
     [[nodiscard]] Size<uint> getCentralAreaSize() const noexcept
     {
         if (getCurrentPage(fInterface) == kPageExpert)
-            return getGraphSize();
+            return Size<uint>(getWidth(), getExpertWidget()->getFirstWidgetHeight());
 
         return getSize();
     }
@@ -266,11 +267,7 @@ public:
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class CompressorRootWidget : public RootWidget<TopBar<>, CompressorMainArea>
-{
-    using BaseWidget = RootWidget<TopBar<>, CompressorMainArea>;
-    using BaseWidget::BaseWidget;
-};
+using CompressorRootWidget = RootWidget<TopBar<>, CompressorMainArea>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

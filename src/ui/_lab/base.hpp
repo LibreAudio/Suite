@@ -30,6 +30,9 @@ enum Orientation : bool {
     Vertical,
 };
 
+// Provide a class that does nothing, so we can have a conditional type
+struct Unused {};
+
 constexpr inline const Corner kCornerAuto = static_cast<Corner>(UINT8_MAX);
 
 // widget ids are assigned after parameters (defined elsewhere), so leave a big enough gap to ensure no overlap

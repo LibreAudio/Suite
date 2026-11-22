@@ -566,6 +566,29 @@ namespace Reference {
             static constexpr const uint width = (border + margin + Track::width) * 2 + padding + Slider::width;
         };
 
+        template<const Color& kAccentColor = Colors::acc1>
+        struct BigThresholdMeter : ThresholdMeter<kAccentColor> {
+            using Base = ThresholdMeter<kAccentColor>;
+            using Meter = typename Base::Meter;
+            using Slider = typename Base::Slider;
+            using Tick = typename Base::Tick;
+            struct Track : Base::Track {
+                static constexpr const uint width = 8 * 2;
+            };
+            static constexpr const uint width = 0;
+        };
+
+        template<const Color& kAccentColor = Colors::acc1>
+        struct BigMeter : BigThresholdMeter<kAccentColor> {
+            using Base = BigThresholdMeter<kAccentColor>;
+            using Meter = typename Base::Meter;
+            using Tick = typename Base::Tick;
+            using Track = typename Base::Track;
+            struct Slider : Base::Slider {
+                static constexpr const uint width = 0;
+            };
+        };
+
         template <uint8_t accent, bool small = false>
         struct ToggleSwitch : std::conditional_t<small, SmallKnob, Knob> {
             static constexpr const Color color = Colors::acc2;

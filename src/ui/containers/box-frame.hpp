@@ -24,9 +24,6 @@ class BoxFrameWidget : public LabReferenceContainerWidget<Reference::Widgets::Bo
 
     static constexpr const bool kSeparateBodyLayout = kIncludeHeader && kOrientation == Horizontal;
 
-    // Provide a class that does nothing, so we can have a conditional type
-    struct Unused {};
-
     // Optional header widget
     std::conditional_t<kIncludeHeader, std::shared_ptr<LabWidget>, Unused> fHeader;
 
