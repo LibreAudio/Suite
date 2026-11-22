@@ -47,8 +47,15 @@ class CheckBoxWidget : public ToggleSwitchBaseWidget<kParameterIndex>
 {
     using R = CheckBoxReference<kParameterIndex>;
     using BaseWidget = ToggleSwitchBaseWidget<kParameterIndex>;
-    using BaseWidget::BaseWidget;
     using State = typename BaseWidget::State;
+
+public:
+    explicit CheckBoxWidget(LabWidget* const parent)
+        : BaseWidget(parent)
+    {
+        BaseWidget::setActiveCursor(R::cursor);
+        updateSize(false);
+    }
 
 private:
     void onNanoDisplay() final
