@@ -42,7 +42,7 @@ public:
         addIdleCallback(this);
     }
 
-    void setActiveCursor(const MouseCursor cursor)
+    void setActiveCursor(const MouseCursor cursor) noexcept
     {
         fActiveCursor = cursor;
     }

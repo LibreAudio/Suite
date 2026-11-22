@@ -114,23 +114,58 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+using CompressorBoxFrameReference = Reference::Width<100, Reference::Widgets::BoxFrame<0>>;
+
 using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
     Reference::Transparent<Reference::CentralArea>,
     Vertical,
     SizeHintWidgetPair<
         Expanding,
         StaticContainerWidget<
-            Reference::Height<0, Reference::Widgets::BoxFrame<1>>,
+            Reference::BoxFrameArea<0>,
             Horizontal,
-            Expanding
-    //         // StaticContainerWidget<
-    //         //     Reference::Widgets::BoxFrame<6>>::Row,
-    //         //     Vertical,
-    //         //     Fixed,
-    //         //     NumberBoxWidget<kFaustParameterThreshold>
-    //         // >
-    //         // NumberBoxWithMeterWidget<kFaustParameterThreshold, kFaustParameterGr>,
-    //         // NumberBoxWidget<kFaustParameterCeiling>
+            Fixed,
+            StaticContainerWidget<
+                CompressorBoxFrameReference,
+                Vertical,
+                Expanding,
+                ThresholdMeterWidget<
+                    kFaustParameterThreshold,
+                    kFaustParameterLevel_1,
+                    kFaustParameterLevel_2
+                >
+            >,
+            StaticContainerWidget<
+                CompressorBoxFrameReference,
+                Vertical,
+                Fixed,
+                NumberBoxWidget<kFaustParameterThreshold>,
+                NumberBoxWidget<kFaustParameterRatio>,
+                LabEmptyWidget,
+                NumberBoxWidget<kFaustParameterKnee>,
+                NumberBoxWidget<kFaustParameterRange>
+            >,
+            LabEmptyWidget,
+            StaticContainerWidget<
+                CompressorBoxFrameReference,
+                Vertical,
+                Fixed,
+                NumberBoxWidget<kFaustParameterDrive>,
+                SwitchBoxWidget<kFaustParameterMid_side>,
+                LabEmptyWidget,
+                NumberBoxWidget<kFaustParameterMakeup>,
+                NumberBoxWidget<kFaustParameterDrywet>
+            >,
+            StaticContainerWidget<
+                CompressorBoxFrameReference,
+                Vertical,
+                Expanding,
+                ThresholdMeterWidget<
+                    kFaustParameterGr_1,
+                    kFaustParameterGr_1,
+                    kFaustParameterGr_2
+                >
+            >
         >
     >,
     SizeHintWidgetPair<
