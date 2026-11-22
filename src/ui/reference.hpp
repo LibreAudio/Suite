@@ -173,8 +173,6 @@ namespace Reference {
     struct Widgets {
         template<uint kNumRows = 1, bool kIncludeHeader = false>
         struct BoxFrame : Zero {
-            static_assert(kNumRows != 0, "box frame must have at least 1 row");
-
             static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
             static constexpr const Color borderColor = backgroundColor;
             static constexpr const Color borderHighlightColor { 0x40, 0x42, 0x4c, 0.8f };
@@ -250,10 +248,11 @@ namespace Reference {
                 static constexpr const uint height = Common::rowHeight;
             };
 
-            static constexpr const uint height = (border + margin) * 2
-                                               + padding * (kNumRows - 1)
-                                               + Row::height * kNumRows
-                                               + (kIncludeHeader ? Header::height + padding : 0);
+            static constexpr const uint height = kNumRows == 0 ? 0 :
+                (border + margin) * 2
+                + padding * (kNumRows - 1)
+                + Row::height * kNumRows
+                + (kIncludeHeader ? Header::height + padding : 0);
         };
 
         template<const Color& kAccentColor>
@@ -534,6 +533,7 @@ namespace Reference {
         template<const Color& kAccentColor = Colors::acc1>
         struct SwitchBox : NumberBox<kAccentColor> {
             static constexpr const Color color = kAccentColor;
+            static constexpr const MouseCursor cursor = kMouseCursorHand;
             struct Bar : NumberBox<kAccentColor>::Bar {};
             struct Name : NumberBox<kAccentColor>::Name {};
         };

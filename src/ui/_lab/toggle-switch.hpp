@@ -42,9 +42,16 @@ protected:
             parameterChangedByHost();
     }
 
+    void setActiveCursor(const MouseCursor cursor) noexcept
+    {
+        fActiveCursor = cursor;
+    }
+
     virtual void parameterChangedByHost() {}
 
 private:
+    MouseCursor fActiveCursor = kMouseCursorArrow;
+
     void stateChanged(const State state, const State oldState) final
     {
         if ((state & kButtonStateActive) != 0)
@@ -56,6 +63,21 @@ private:
         {
             if ((oldState & kButtonStateActive) != 0)
                 fInterface->parameterControlReleased(getId());
+        }
+
+        if (fActiveCursor != kMouseCursorArrow)
+        {
+            if ((state & kButtonStateActiveHover) != 0 && (oldState & kButtonStateActiveHover) == 0)
+            {
+                setCursor(fActiveCursor);
+                return;
+            }
+
+            if ((state & kButtonStateActiveHover) == 0 && (oldState & kButtonStateActiveHover) != 0)
+            {
+                resetCursor();
+                return;
+            }
         }
     }
 

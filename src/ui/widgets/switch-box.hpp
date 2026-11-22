@@ -73,6 +73,7 @@ public:
     explicit SwitchBoxWidget(LabWidget* const parent)
         : BaseWidget(parent, kParametersMainStart + kParameterIndex)
     {
+        setActiveCursor(R::cursor);
         updateSize(false);
     }
 
@@ -82,6 +83,7 @@ protected:
         fImageWidth = fImage.getWidth() * fScaleFactor / 2.f;
         fImageHeight = fImage.getHeight() * fScaleFactor / 2.f;
 
+        updateReferenceSize<R>();
         BaseWidget::updateSize(updateChildren);
     }
 
