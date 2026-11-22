@@ -80,7 +80,7 @@ class StaticContainerWidget : public LabReferenceContainerWidget<R, orientation>
     using BaseWidget::BaseWidget;
 
     const std::array<std::shared_ptr<LabWidget>, sizeof...(Args)> widgets {
-        this->template addWidget<Args, sizeHint>()...
+        this->template addWidget<Args, std::is_same_v<Args, LabEmptyWidget> ? Expanding : sizeHint>()...
     };
 
 protected:
