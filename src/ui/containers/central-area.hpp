@@ -58,8 +58,6 @@ public:
     }
 
 protected:
-    Page fLastPage = kPageEasy;
-
     template<class W,
              typename... Args,
              typename = std::enable_if_t<std::is_base_of_v<LabWidget, W> && std::is_base_of_v<GraphInterface, W>>>
@@ -93,14 +91,12 @@ protected:
         case kPageEasy:
             fEasy->show();
             fExpert->hide();
-            updateSize(true);
             for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
                 w->show();
             break;
         case kPageExpert:
             fEasy->hide();
             fExpert->show();
-            updateSize(true);
             for (const std::shared_ptr<LabWidget>& w : fGraphWidgets)
                 w->show();
             break;
@@ -166,6 +162,9 @@ protected:
 
         BaseWidget::updateSize(updateChildren);
     }
+
+private:
+    Page fLastPage = kPageEasy;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

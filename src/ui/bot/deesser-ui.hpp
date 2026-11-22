@@ -1272,7 +1272,7 @@ public:
         const LabMetrics<DeEsserPageReference> pm { this };
 
         const uint space = m.border + pm.margin + (
-            fLastPage == kPageExpert
+            getCurrentPage(fInterface) == kPageExpert
                 ? getExpertWidget()->getLastWidgetHeight()
                 : getEasyWidget()->getLastWidgetHeight()
         );

@@ -91,7 +91,7 @@ using StaticHorizontalBoxFrameWidget = StaticContainerWidget<
 
 template<typename... Args>
 using StaticVerticalBoxFrameWidget = StaticContainerWidget<
-    Reference::Widgets::BoxFrame<1>,
+    Reference::Widgets::BoxFrame<0>,
     Vertical,
     Fixed,
     Args...

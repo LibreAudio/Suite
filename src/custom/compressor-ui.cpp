@@ -115,19 +115,27 @@ using CompressorEnvelopeWidget = LabReferenceWidget<
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using CompressorBoxFrameReference = Reference::Width<100, Reference::Widgets::BoxFrame<0>>;
+using CompressorVerticalBoxFrameReference = Reference::Width<100, Reference::Widgets::BoxFrame<0>>;
+
+template<SizeHint sizeHint, typename... Args>
+using StaticVerticalCompressorBoxFrameWidget = StaticContainerWidget<
+    CompressorVerticalBoxFrameReference,
+    Vertical,
+    sizeHint,
+    Args...
+>;
+
+// --------------------------------------------------------------------------------------------------------------------
 
 using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
     Reference::Transparent<Reference::Margin<0, Reference::CentralArea>>,
     Vertical,
     SizeHintWidgetPair<Expanding,
         StaticContainerWidget<
-            Reference::Transparent<Reference::CentralArea>,
+            Reference::CentralArea,
             Horizontal,
             Fixed,
-            StaticContainerWidget<
-                CompressorBoxFrameReference,
-                Vertical,
+            StaticVerticalCompressorBoxFrameWidget<
                 Expanding,
                 ThresholdMeterWidget<
                     kFaustParameterThreshold,
@@ -135,9 +143,7 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
                     kFaustParameterLevel_2
                 >
             >,
-            StaticContainerWidget<
-                CompressorBoxFrameReference,
-                Vertical,
+            StaticVerticalCompressorBoxFrameWidget<
                 Fixed,
                 NumberBoxWidget<kFaustParameterThreshold>,
                 NumberBoxWidget<kFaustParameterRatio>,
@@ -146,9 +152,7 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
                 NumberBoxWidget<kFaustParameterRange>
             >,
             LabEmptyWidget,
-            StaticContainerWidget<
-                CompressorBoxFrameReference,
-                Vertical,
+            StaticVerticalCompressorBoxFrameWidget<
                 Fixed,
                 NumberBoxWidget<kFaustParameterDrive>,
                 SwitchBoxWidget<kFaustParameterMid_side>,
@@ -156,9 +160,7 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
                 NumberBoxWidget<kFaustParameterMakeup>,
                 NumberBoxWidget<kFaustParameterDrywet>
             >,
-            StaticContainerWidget<
-                CompressorBoxFrameReference,
-                Vertical,
+            StaticVerticalCompressorBoxFrameWidget<
                 Expanding,
                 ThresholdMeterWidget<
                     kFaustParameterGr_1,
@@ -209,22 +211,44 @@ class CompressorCentralAreaWidget final : public CentralAreaWidget<EasyPageWidge
     using BaseWidget::BaseWidget;
 
 public:
-    Size<uint> getGraphSize() const noexcept final
+    [[nodiscard]] Size<uint> getCentralAreaSize() const noexcept
     {
+        if (getCurrentPage(fInterface) == kPageExpert)
+            return getGraphSize();
+
+        return getSize();
+    }
+
+    [[nodiscard]] Size<uint> getGraphSize() const noexcept final
+    {
+        if (getCurrentPage(fInterface) == kPageExpert)
+            return Size<uint>(getWidth(), getExpertWidget()->getFirstWidgetHeight());
+
         const LabMetrics<R> m { this };
 
-        const float space = m.margin + m.border + m.padding + (
-            fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
-                                   : 0 // getExpertWidget()->getLastWidgetHeight()
-        );
+        return Size<uint>(getWidth() - m.border * 2,
+                          getHeight() - getEasyWidget()->getLastWidgetHeight() - m.margin + m.border + m.padding);
+    }
 
-        return Size<uint>(getWidth() - m.border * 2, getHeight() - space);
+private:
+    void onNanoDisplay() final
+    {
     }
 };
 
 // --------------------------------------------------------------------------------------------------------------------
 
-using CompressorMainArea = MainAreaContainerWidget<CompressorCentralAreaWidget>;
+class CompressorMainArea : public MainAreaContainerWidget<CompressorCentralAreaWidget>
+{
+    using BaseWidget = MainAreaContainerWidget<CompressorCentralAreaWidget>;
+    using BaseWidget::BaseWidget;
+
+public:
+    [[nodiscard]] Size<uint> getCentralAreaSize() const noexcept
+    {
+        return getCentralAreaWidget()->getCentralAreaSize();
+    }
+};
 
 // --------------------------------------------------------------------------------------------------------------------
 

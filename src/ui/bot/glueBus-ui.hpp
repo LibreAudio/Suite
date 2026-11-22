@@ -857,7 +857,9 @@ public:
         const LabMetrics<GlueBusPageReference> pm { this };
 
         const uint space = m.border + pm.margin + (
-            fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight() : getExpertWidget()->getControlsHeight()
+            getCurrentPage(fInterface) == kPageEasy
+                ? getEasyWidget()->getLastWidgetHeight()
+                : getExpertWidget()->getControlsHeight()
         );
 
         return Size<uint>(getWidth() - m.border * 2, std::max(1u, getHeight() - std::min(getHeight(), space)));

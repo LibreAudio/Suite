@@ -20,7 +20,8 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-class RootBaseWidget : public LabReferenceRootWidget<Reference::Window, Vertical>
+class RootBaseWidget : public LabReferenceRootWidget<Reference::Window, Vertical>,
+                       protected IdleCallback
 {
     using BaseWidget = LabReferenceRootWidget<Reference::Window, Vertical>;
 
@@ -48,6 +49,8 @@ public:
                              FONTS_CHILLAX_REGULAR_TTF_DATA,
                              FONTS_CHILLAX_REGULAR_TTF_LEN,
                              false);
+
+        addIdleCallback(this);
     }
 
     void enableShaders(const std::list<std::shared_ptr<ShaderWidgetInterface>>& shaders)
@@ -60,6 +63,19 @@ protected:
     std::list<std::shared_ptr<ShaderWidgetInterface>> fShaders;
 
     friend class DISTRHO_NAMESPACE::LibreAudioBaseUI;
+
+    void idleCallback() override
+    {
+        const Page page = getCurrentPage(fInterface);
+        if (fLastPage == page)
+            return;
+        fLastPage = page;
+
+        updateSize(true);
+    }
+
+private:
+    Page fLastPage = kPageEasy;
 };
 
 // --------------------------------------------------------------------------------------------------------------------

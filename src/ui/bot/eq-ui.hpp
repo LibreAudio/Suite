@@ -3074,23 +3074,18 @@ private:
 
 using EqMainArea = MainAreaContainerWidget<EqCentralAreaWidget>;
 
-class EqRootWidget final : public RootWidget<TopBar<false>, EqMainArea>,
-                           private IdleCallback
+class EqRootWidget final : public RootWidget<TopBar<false>, EqMainArea>
 {
     using BaseWidget = RootWidget<TopBar<false>, EqMainArea>;
+    using BaseWidget::BaseWidget;
 
     Rectangle<int> fLastDisplayArea;
-
-public:
-    EqRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : BaseWidget(window, iface)
-    {
-        addIdleCallback(this);
-    }
 
 private:
     void idleCallback() final
     {
+        BaseWidget::idleCallback();
+
         const Rectangle<int> area = fMainArea->getCentralAreaWidget()->getDisplayAbsoluteArea();
 
         if (area.getPos() != fLastDisplayArea.getPos() || area.getSize() != fLastDisplayArea.getSize())

@@ -60,6 +60,20 @@ public:
         return widget;
     }
 
+    uint getFirstWidgetWidth() const noexcept
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(), 0);
+
+        return static_cast<LabWidget*>(Layout::widgets.front().widget)->getWidth();
+    }
+
+    uint getFirstWidgetHeight() const noexcept
+    {
+        DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(), 0);
+
+        return static_cast<LabWidget*>(Layout::widgets.front().widget)->getHeight();
+    }
+
     uint getLastWidgetWidth() const noexcept
     {
         DISTRHO_SAFE_ASSERT_RETURN(! Layout::widgets.empty(), 0);

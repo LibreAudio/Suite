@@ -2274,9 +2274,10 @@ public:
 
 // The starfield sits on the display, and follows it as switching pages changes its height.
 
-class ExpanderRootWidget final : public RootBaseWidget,
-                                 private IdleCallback
+class ExpanderRootWidget final : public RootBaseWidget
 {
+    using RootBaseWidget::RootBaseWidget;
+
     std::shared_ptr<TopBar<>> fTopBar = addWidget<TopBar<>>();
     std::shared_ptr<ExpanderMainAreaWidget> fMainArea = addWidget<ExpanderMainAreaWidget, Expanding>();
 
@@ -2285,12 +2286,6 @@ class ExpanderRootWidget final : public RootBaseWidget,
 
 public:
     using MainAreaWidget = ExpanderMainAreaWidget;
-
-    ExpanderRootWidget(Window& window, LabUIWidgetInterface* const iface)
-        : RootBaseWidget(window, iface)
-    {
-        addIdleCallback(this);
-    }
 
     const std::shared_ptr<MainAreaWidget>& getMainAreaWidget() const noexcept
     {

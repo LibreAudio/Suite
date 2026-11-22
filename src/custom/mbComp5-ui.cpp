@@ -403,7 +403,7 @@ private:
         const LabMetrics<R> m { this };
 
         const float gh = m.height - (R::border + R::margin * 2 +
-            (fLastPage == kPageExpert
+            (getCurrentPage(fInterface) == kPageExpert
                 ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::GridLabel::fontSize * 0.5f + R::padding
                 : Reference::Widgets::CardGroup::height + R::margin * 0.5f
             )) * fScaleFactor;
@@ -443,7 +443,7 @@ private:
 
         fGraph->setFreqs({ fFreqs[1], fFreqs[2], fFreqs[3], fFreqs[4] });
 
-        if (fLastPage == kPageExpert)
+        if (getCurrentPage(fInterface) == kPageExpert)
         {
             fontFace("mono");
             fontSize(R::FreqLine::fontSize * fScaleFactor);
@@ -560,7 +560,7 @@ private:
         const float gfontsize = R::GridLabel::fontSize * fScaleFactor;
         const float gmargin = R::margin * fScaleFactor + gfontsize * 0.5f;
         const float gh = getHeight() - (R::margin * 2 + R::padding + R::GridLabel::fontSize +
-            (fLastPage == kPageExpert
+            (getCurrentPage(fInterface) == kPageExpert
                 ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::padding
                 : Reference::Widgets::CardGroup::height
             )) * fScaleFactor;
@@ -674,7 +674,7 @@ private:
             const float gfontsize = R::GridLabel::fontSize * fScaleFactor;
             const float gmargin = R::margin * fScaleFactor + gfontsize * 0.5f;
             const float gh = getHeight() - (R::margin * 2 + R::padding + R::GridLabel::fontSize +
-                (fLastPage == kPageExpert
+                (getCurrentPage(fInterface) == kPageExpert
                     ? MbComp5BandsReference::height + MbComp5NonBandParamsGroupReference::height + R::padding
                     : Reference::Widgets::CardGroup::height
                 )) * fScaleFactor;

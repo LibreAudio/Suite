@@ -114,8 +114,8 @@ class ReverbCentralAreaWidget final : public CentralAreaWidget<EasyPageWidget, R
         const LabMetrics<R> m { this };
 
         const float space = m.margin + m.border + m.padding + (
-            fLastPage == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
-                                   : getExpertWidget()->getLastWidgetHeight()
+            getCurrentPage(fInterface) == kPageEasy ? getEasyWidget()->getLastWidgetHeight()
+                                                    : getExpertWidget()->getLastWidgetHeight()
         );
 
         return Size<uint>(getWidth() - m.border * 2, getHeight() - space);
