@@ -14,25 +14,28 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template <class R = Reference::Widgets::ThresholdMeter<>>
+template<FaustParameterIndex kParameterIndex,
+         FaustParameterIndex kLeftMeterIndex,
+         FaustParameterIndex kRightMeterIndex,
+         class R = Reference::Widgets::ThresholdMeter<>>
 class ThresholdMeterWidget final : public LabParameterWidget
 {
     using BaseWidget = LabParameterWidget;
 
+    static constexpr const LibreAudioParameter& kParameterSlider = kFaustParameters[kParameterIndex];
+    static constexpr const LibreAudioParameter& kParameterMeterL = kFaustParameters[kLeftMeterIndex];
+    static constexpr const LibreAudioParameter& kParameterMeterR = kFaustParameters[kRightMeterIndex];
+
     static constexpr const float ticks[] = { -6, -12, -24, -36, -48 };
 
+    static_assert(kParameterSlider.max <= kParameterMeterL.max, "gain vs meter max mismatch");
+    static_assert(kParameterSlider.min >= kParameterMeterL.min, "gain vs meter min mismatch");
+    static_assert(kParameterMeterL.max == kParameterMeterR.max, "meter L vs R max mismatch");
+    static_assert(kParameterMeterL.min == kParameterMeterR.min, "meter L vs R min mismatch");
+
 public:
-    ThresholdMeterWidget(LabWidget* const parent,
-                         const FaustParameterIndex slider,
-                         const FaustParameterIndex meterL,
-                         const FaustParameterIndex meterR)
-        : BaseWidget(parent, kParametersMainStart + slider),
-          kParameterIdSlider(slider),
-          kParameterIdMeterL(meterL),
-          kParameterIdMeterR(meterR),
-          kParameterSlider(kFaustParameters[slider]),
-          kParameterMeterL(kFaustParameters[meterL]),
-          kParameterMeterR(kFaustParameters[meterR])
+    ThresholdMeterWidget(LabWidget* const parent)
+        : BaseWidget(parent, kParametersMainStart + kParameterIndex)
     {
         updateReferenceSize<R>();
 
@@ -45,22 +48,9 @@ public:
         setValue(kParameterSlider.init, false);
 
         updateSize(false);
-
-        DISTRHO_CUSTOM_SAFE_ASSERT("gain vs meter max mismatch", kParameterSlider.max <= kParameterMeterL.max);
-        DISTRHO_CUSTOM_SAFE_ASSERT("gain vs meter min mismatch", kParameterSlider.min >= kParameterMeterL.min);
-        DISTRHO_CUSTOM_SAFE_ASSERT("meter L vs R max mismatch", kParameterMeterL.max == kParameterMeterR.max);
-        DISTRHO_CUSTOM_SAFE_ASSERT("meter L vs R min mismatch", kParameterMeterL.min == kParameterMeterR.min);
     }
 
 private:
-    const uint kParameterIdSlider;
-    const uint kParameterIdMeterL;
-    const uint kParameterIdMeterR;
-
-    const LibreAudioParameter& kParameterSlider;
-    const LibreAudioParameter& kParameterMeterL;
-    const LibreAudioParameter& kParameterMeterR;
-
     float fMeterValueL = kParameterMeterL.min;
     float fMeterValueR = kParameterMeterR.min;
 
@@ -73,7 +63,7 @@ private:
 
     void idleCallback() final
     {
-        if (const float valueL = std::clamp(fInterface->getParameterValue(kParametersMainStart + kParameterIdMeterL),
+        if (const float valueL = std::clamp(fInterface->getParameterValue(kParametersMainStart + kLeftMeterIndex),
                                             kParameterMeterL.min,
                                             kParameterMeterL.max); d_isNotEqual(fMeterValueL, valueL))
         {
@@ -81,7 +71,7 @@ private:
             repaint();
         }
 
-        if (const float valueR = std::clamp(fInterface->getParameterValue(kParametersMainStart + kParameterIdMeterR),
+        if (const float valueR = std::clamp(fInterface->getParameterValue(kParametersMainStart + kRightMeterIndex),
                                             kParameterMeterR.min,
                                             kParameterMeterR.max); d_isNotEqual(fMeterValueR, valueR))
         {

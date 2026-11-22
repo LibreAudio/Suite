@@ -113,7 +113,12 @@ class MbComp5BandGroupWidget final : public BoxFrameWidget<Vertical, kNumBands, 
     // ----------------------------------------------------------------------------------------------------------------
 
 public:
-    using MeterWidget = ThresholdMeterWidget<Reference::Widgets::ThresholdMeter<kAccentColor>>;
+    using MeterWidget = ThresholdMeterWidget<
+        getParameterIndexForBand(kFaustParameterBand1_threshold),
+        getLevelParameterIndex(false),
+        getLevelParameterIndex(true),
+        Reference::Widgets::ThresholdMeter<kAccentColor>
+    >;
 
     // ----------------------------------------------------------------------------------------------------------------
     // header: text + buttons
@@ -144,9 +149,7 @@ public:
 
         const std::array<std::shared_ptr<LabWidget>, 2> widgets {
             this->template addWidget<NumberBoxStackWidget, Expanding>(),
-            this->template addWidget<MeterWidget>(getParameterIndexForBand(kFaustParameterBand1_threshold),
-                                                                           getLevelParameterIndex(false),
-                                                                           getLevelParameterIndex(true)),
+            this->template addWidget<MeterWidget>(),
         };
 
     public:
