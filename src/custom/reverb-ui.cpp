@@ -37,7 +37,7 @@ using ReverbEarlyGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<1, true>,
     Vertical,
     Fixed,
-    BoxFrameTitle<Reference::Colors::yellow, kTextEARLY>,
+    StaticBoxFrameTitleWidget<Reference::Colors::yellow, kTextEARLY>,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
@@ -56,7 +56,7 @@ using ReverbTailGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<2, true>,
     Vertical,
     Fixed,
-    BoxFrameTitle<Reference::Colors::green, kTextTAIL>,
+    StaticBoxFrameTitleWidget<Reference::Colors::green, kTextTAIL>,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>::Row,
         Horizontal,
@@ -89,7 +89,7 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
-        BoxFrameTitle<Reference::Colors::red, kTextINPUT>,
+        StaticBoxFrameTitleWidget<Reference::Colors::red, kTextINPUT>,
         NumberBoxWidget<kFaustParameterPredelay>,
         NumberBoxWidget<kFaustParameterDim>
     >,
@@ -97,7 +97,7 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
-        BoxFrameTitle<Reference::Colors::blue, kTextFILTERS>,
+        StaticBoxFrameTitleWidget<Reference::Colors::blue, kTextFILTERS>,
         NumberBoxWidget<kFaustParameterLowcut>,
         NumberBoxWidget<kFaustParameterHighcut>
     >,
@@ -105,7 +105,7 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
-        BoxFrameTitle<Reference::Colors::pink, kTextDYNAMICS>,
+        StaticBoxFrameTitleWidget<Reference::Colors::pink, kTextDYNAMICS>,
         NumberBoxWithMeterWidget<kFaustParameterDeess_amount, kFaustParameterDeess_meter>,
         NumberBoxWithMeterWidget<kFaustParameterDuck_amount, kFaustParameterDuck_meter>
     >,
@@ -113,7 +113,7 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
-        BoxFrameTitle<Reference::Colors::babyblue, kTextMIXER>,
+        StaticBoxFrameTitleWidget<Reference::Colors::babyblue, kTextMIXER>,
         NumberBoxWidget<kFaustParameterEr_level>,
         NumberBoxWidget<kFaustParameterTail_level>
     >,
@@ -121,7 +121,7 @@ using ReverbBottomGroupWidget = StaticContainerWidget<
         Reference::Widgets::BoxFrame<2, true>,
         Vertical,
         Fixed,
-        BoxFrameTitle<Reference::Colors::babyblue, kTextOUTPUT>,
+        StaticBoxFrameTitleWidget<Reference::Colors::babyblue, kTextOUTPUT>,
         NumberBoxWidget<kFaustParameterStereo_width>,
         NumberBoxWidget<kFaustParameterDrywet>
     >

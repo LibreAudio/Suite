@@ -29,30 +29,22 @@ class CompressorBottomRightWidget final : public BoxFrameWidget<Horizontal, 1, t
     using R = Reference::Widgets::BoxFrame<1, true>;
     using BaseWidget = BoxFrameWidget<Horizontal, 1, true>;
 
-    using HeaderWidget = StaticContainerSizeHintPairWidget<
+    using HeaderWidget = StaticContainerWidget<
         R::Header,
         Horizontal,
-        SizeHintWidgetPair<
-            Fixed,
-            LabReferenceStaticTextWidget<R::Header::Title<Reference::Colors::yellow>, kTextSIDECHAIN>
-        >,
-        SizeHintWidgetPair<Expanding, LabEmptyWidget>,
-        SizeHintWidgetPair<
-            Fixed,
-            ParameterScalePointsButtonGroupWidget<R::Header::ButtonGroup, Reference::Colors::yellow, kFaustParameterSc_filter>
-        >,
-        SizeHintWidgetPair<
-            Fixed,
-            StaticParameterButtonGroupWidget<
-                R::Header::ButtonGroup,
-                ParameterWidgetPair<
-                    kFaustParameterSc_listen,
-                    ImageButtonWidget<
-                        R::Header::ButtonGroup::Button<Reference::Colors::yellow>,
-                        kCornerBoth,
-                        IMAGES_SOLO_28_PNG_DATA,
-                        IMAGES_SOLO_28_PNG_LEN
-                    >
+        Fixed,
+        LabReferenceStaticTextWidget<R::Header::Title<Reference::Colors::yellow>, kTextSIDECHAIN>,
+        LabEmptyWidget,
+        ParameterScalePointsButtonGroupWidget<R::Header::ButtonGroup, Reference::Colors::yellow, kFaustParameterSc_filter>,
+        StaticParameterButtonGroupWidget<
+            R::Header::ButtonGroup,
+            ParameterWidgetPair<
+                kFaustParameterSc_listen,
+                ImageButtonWidget<
+                    R::Header::ButtonGroup::Button<Reference::Colors::yellow>,
+                    kCornerBoth,
+                    IMAGES_SOLO_28_PNG_DATA,
+                    IMAGES_SOLO_28_PNG_LEN
                 >
             >
         >
@@ -114,15 +106,23 @@ private:
 
 // --------------------------------------------------------------------------------------------------------------------
 
+using CompressorEnvelopeWidget = LabReferenceWidget<
+    Reference::Height<
+        Reference::Widgets::BoxFrame<1>::Row::height * 2 + Reference::Widgets::BoxFrame<1>::Row::padding,
+        Reference::Widgets::NumberBox<>
+    >
+>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
 using CompressorBoxFrameReference = Reference::Width<100, Reference::Widgets::BoxFrame<0>>;
 
 using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
-    Reference::Transparent<Reference::CentralArea>,
+    Reference::Transparent<Reference::Margin<0, Reference::CentralArea>>,
     Vertical,
-    SizeHintWidgetPair<
-        Expanding,
+    SizeHintWidgetPair<Expanding,
         StaticContainerWidget<
-            Reference::BoxFrameArea<0>,
+            Reference::Transparent<Reference::CentralArea>,
             Horizontal,
             Fixed,
             StaticContainerWidget<
@@ -168,21 +168,14 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
             >
         >
     >,
-    SizeHintWidgetPair<
-        Fixed,
+    SizeHintWidgetPair<Fixed,
         StaticContainerWidget<
             Reference::Widgets::BoxFrame<3, true>,
             Vertical,
             Fixed,
-            BoxFrameTitle<Reference::Colors::green, kTextCOMPRESSION_RESPONSE>,
-            LabReferenceWidget<Reference::Height<
-                Reference::Widgets::BoxFrame<1>::Row::height * 2 + Reference::Widgets::BoxFrame<1>::Row::padding,
-                Reference::Widgets::NumberBox<>
-            >>,
-            StaticContainerWidget<
-                Reference::Widgets::BoxFrame<1>::Row,
-                Horizontal,
-                Expanding,
+            StaticBoxFrameTitleWidget<Reference::Colors::green, kTextCOMPRESSION_RESPONSE>,
+            CompressorEnvelopeWidget,
+            StaticBoxFrameRowWidget<
                 NumberBoxWidget<kFaustParameterPeak_rms>,
                 NumberBoxWidget<kFaustParameterRms_time>,
                 NumberBoxWidget<kFaustParameterFeedback>,
@@ -190,26 +183,18 @@ using CompressorExpertPageWidget = StaticContainerSizeHintPairWidget<
             >
         >
     >,
-    SizeHintWidgetPair<
-        Fixed,
+    SizeHintWidgetPair<Fixed,
         StaticContainerWidget<
             Reference::BoxFrameArea<1, true>,
             Horizontal,
             Expanding,
-            StaticContainerWidget<
-                Reference::Widgets::BoxFrame<1, true>,
-                Vertical,
-                Fixed,
-                BoxFrameTitle<Reference::Colors::babyblue, kTextDETECTOR>,
-                StaticContainerWidget<
-                    Reference::Widgets::BoxFrame<1, true>::Row,
-                    Horizontal,
-                    Expanding,
-                    NumberBoxWidget<kFaustParameterPeak_rms>,
-                    NumberBoxWidget<kFaustParameterRms_time>,
-                    NumberBoxWidget<kFaustParameterFeedback>,
-                    NumberBoxWidget<kFaustParameterLink>
-                >
+            StaticHorizontalTitledBoxFrameWidget<
+                Reference::Colors::babyblue,
+                kTextDETECTOR,
+                NumberBoxWidget<kFaustParameterPeak_rms>,
+                NumberBoxWidget<kFaustParameterRms_time>,
+                NumberBoxWidget<kFaustParameterFeedback>,
+                NumberBoxWidget<kFaustParameterLink>
             >,
             CompressorBottomRightWidget
         >

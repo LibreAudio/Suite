@@ -14,9 +14,6 @@ namespace LibreAudio {
 
 // --------------------------------------------------------------------------------------------------------------------
 
-template<const Color& color, const char text[]>
-using BoxFrameTitle = LabReferenceStaticTextWidget<Reference::Widgets::BoxFrame<>::Header::Title<color>, text>;
-
 template<Orientation kOrientation, uint kNumRows = 1, bool kIncludeHeader = false>
 class BoxFrameWidget : public LabReferenceContainerWidget<Reference::Widgets::BoxFrame<kNumRows, kIncludeHeader>,
                                                           kIncludeHeader ? Vertical : kOrientation>
@@ -73,6 +70,58 @@ protected:
         return BaseWidget::template addWidget<W, sizeHint, Args...>();
     }
 };
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<const Color& color, const char text[]>
+using StaticBoxFrameTitleWidget = LabReferenceStaticTextWidget<
+    Reference::Widgets::BoxFrame<1>::Header::Title<color>,
+    text
+>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<typename... Args>
+using StaticHorizontalBoxFrameWidget = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1>,
+    Horizontal,
+    Expanding,
+    Args...
+>;
+
+template<typename... Args>
+using StaticVerticalBoxFrameWidget = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1>,
+    Vertical,
+    Fixed,
+    Args...
+>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<typename... Args>
+using StaticBoxFrameRowWidget = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1>::Row,
+    Horizontal,
+    Expanding,
+    Args...
+>;
+
+// --------------------------------------------------------------------------------------------------------------------
+
+template<const Color& color, const char text[], typename... Args>
+using StaticHorizontalTitledBoxFrameWidget = StaticContainerWidget<
+    Reference::Widgets::BoxFrame<1, true>,
+    Vertical,
+    Fixed,
+    StaticBoxFrameTitleWidget<color, text>,
+    StaticContainerWidget<
+        Reference::Widgets::BoxFrame<1, true>::Row,
+        Horizontal,
+        Expanding,
+        Args...
+    >
+>;
 
 // --------------------------------------------------------------------------------------------------------------------
 

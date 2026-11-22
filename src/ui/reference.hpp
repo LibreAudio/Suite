@@ -171,7 +171,7 @@ namespace Reference {
     };
 
     struct Widgets {
-        template<uint kNumRows = 1, bool kIncludeHeader = false>
+        template<uint kNumRows, bool kIncludeHeader = false>
         struct BoxFrame : Zero {
             static constexpr const Color backgroundColor { 0x30, 0x32, 0x3c, 0.7f };
             static constexpr const Color borderColor = backgroundColor;

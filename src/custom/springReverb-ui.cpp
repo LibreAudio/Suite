@@ -39,7 +39,7 @@ using ReverbInputGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<1, true>,
     Vertical,
     Fixed,
-    BoxFrameTitle<Reference::Colors::blue, kTextINPUT>,
+    StaticBoxFrameTitleWidget<Reference::Colors::blue, kTextINPUT>,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
@@ -53,7 +53,7 @@ using ReverbDynamicsGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<1, true>,
     Vertical,
     Fixed,
-    BoxFrameTitle<Reference::Colors::yellow, kTextDYNAMICS>,
+    StaticBoxFrameTitleWidget<Reference::Colors::yellow, kTextDYNAMICS>,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
@@ -67,7 +67,7 @@ using ReverbMixerGroupWidget = StaticContainerWidget<
     Reference::Widgets::BoxFrame<1, true>,
     Vertical,
     Fixed,
-    BoxFrameTitle<Reference::Colors::blue, kTextMIXER>,
+    StaticBoxFrameTitleWidget<Reference::Colors::blue, kTextMIXER>,
     StaticContainerWidget<
         Reference::Widgets::BoxFrame<1, true>::Row,
         Horizontal,
