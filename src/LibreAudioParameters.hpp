@@ -149,11 +149,6 @@ inline constexpr const LibreAudioParameter& getParameter(const uint32_t index) n
         _kFallback;
 }
 
-inline constexpr float getParameterInit(const uint32_t index) noexcept
-{
-    return getParameter(index).init;
-}
-
 inline constexpr const char* getParameterSymbol(const uint32_t index) noexcept
 {
     return getParameter(index).symbol;

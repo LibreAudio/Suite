@@ -48,16 +48,16 @@ inline constexpr const std::array<PresetMetadata, kNumPresets> _kPresetMetadata 
 
 inline constexpr const std::array<float[kFaustParameterCount], kNumPresets> _kPresetValues = {{
     {
-        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, kFaustParameters[kFaustParameterSc_filter].init, 38.0, 20000.0, 1000.0, 1.0, 1000.0, 0.0, 0.0, 0.0, 15.0, 2.200000047683716, 100.0, kFaustParameters[kFaustParameterGr_1].init, kFaustParameters[kFaustParameterGr_2].init, kFaustParameters[kFaustParameterLevel_1].init, kFaustParameters[kFaustParameterLevel_2].init,
     },
     {
-        -29.899999618530273, 8.0, 6.0, 60.0, 0.0, 10.0, 5.0, 40.0, 70.0, 100.0, 100.0, 5.0, 50.0, 100.0, 0.0, 0.0, 0.0, 180.0, 20000.0, 1000.0, 1.0, 1000.0, 0.0, 3.0, 0.0, 50.0, 4.0, 100.0, -0,-0,-0,-0,
+        -29.899999618530273, 8.0, 6.0, 60.0, 0.0, 10.0, 5.0, 40.0, 70.0, 100.0, 100.0, 5.0, 50.0, 100.0, 0.0, 0.0, 0.0, 180.0, 20000.0, 1000.0, 1.0, 1000.0, 0.0, 3.0, 0.0, 50.0, 4.0, 100.0, kFaustParameters[kFaustParameterGr_1].init, kFaustParameters[kFaustParameterGr_2].init, kFaustParameters[kFaustParameterLevel_1].init, kFaustParameters[kFaustParameterLevel_2].init,
     },
     {
-        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, kFaustParameters[kFaustParameterSc_filter].init, 38.0, 20000.0, kFaustParameters[kFaustParameterSc_band_freq].init, kFaustParameters[kFaustParameterSc_band_q].init, kFaustParameters[kFaustParameterSc_bell_freq].init, kFaustParameters[kFaustParameterSc_bell_gain].init, 0.0, 0.0, 15.0, 2.200000047683716, 100.0, kFaustParameters[kFaustParameterGr_1].init, kFaustParameters[kFaustParameterGr_2].init, kFaustParameters[kFaustParameterLevel_1].init, kFaustParameters[kFaustParameterLevel_2].init,
     },
     {
-        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, -0,38.0, 20000.0, -0,-0,-0,-0,0.0, 0.0, 15.0, 2.200000047683716, 100.0, -0,-0,-0,-0,
+        -23.30000114440918, 1.5, 6.0, 13.90000057220459, 0.0, 30.0, 10.0, 225.0, 72.0, 50.0, 0.0, 20.0, 100.0, 0.0, 1.0, 0.0, kFaustParameters[kFaustParameterSc_filter].init, 38.0, 20000.0, kFaustParameters[kFaustParameterSc_band_freq].init, kFaustParameters[kFaustParameterSc_band_q].init, kFaustParameters[kFaustParameterSc_bell_freq].init, kFaustParameters[kFaustParameterSc_bell_gain].init, 0.0, 0.0, 15.0, 2.200000047683716, 100.0, kFaustParameters[kFaustParameterGr_1].init, kFaustParameters[kFaustParameterGr_2].init, kFaustParameters[kFaustParameterLevel_1].init, kFaustParameters[kFaustParameterLevel_2].init,
     },
 }};
 
@@ -360,6 +360,20 @@ inline constexpr const decltype(_kPresetMetadata) kPresetMetadata = _kPresetMeta
 inline constexpr const decltype(_kPresetValues) kPresetValues = _kPresetValues;
 inline constexpr const decltype(_kIgnoredPresetParameters) kIgnoredPresetParameters = _kIgnoredPresetParameters;
 
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// utility for getting default/init value
+
+inline constexpr float getParameterInit(const uint32_t index) noexcept
+{
+    if constexpr (kPresetValues.size() != 0)
+    {
+        if (index >= kParametersMainStart && index <= kParametersMainEnd)
+            return kPresetValues[0][index - kParametersMainStart];
+    }
+
+    return getParameter(index).init;
 }
 
 // --------------------------------------------------------------------------------------------------------------------

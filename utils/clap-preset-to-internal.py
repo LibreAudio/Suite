@@ -20,6 +20,6 @@ for symbol in params:
     if symbol in values:
         print(values[symbol], end=", ")
     else:
-        print("-0", end=",")
+        print(f"kFaustParameters[kFaustParameter{symbol.title()}].init", end=", ")
 
 print()

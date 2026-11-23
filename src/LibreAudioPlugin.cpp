@@ -10,6 +10,7 @@
 
 #include "FaustDSP.hpp"
 #include "LibreAudioParameters.hpp"
+#include "LibreAudioPresets.hpp"
 #include "LibreAudioStates.hpp"
 
 #if LIBREAUDIO_WANT_COMMON_IO
@@ -68,6 +69,13 @@ LibreAudioPlugin::LibreAudioPlugin()
     fGlobalWetValue.setTargetValue(1.f);
 
     fMainDSP->init(iSampleRate);
+
+    if constexpr (kPresetValues.size() != 0)
+    {
+        for (uint16_t i = 0; i <= kFaustParameterCount; ++i)
+            fMainDSP->set(i, kPresetValues[0][i]);
+    }
+
    #if LIBREAUDIO_WANT_COMMON_IO
     fInputDSP->init(iSampleRate);
     fOutputDSP->init(iSampleRate);
@@ -199,6 +207,11 @@ void LibreAudioPlugin::initParameter(uint32_t index, Parameter& parameter)
         parameter.groupId = kGroupMain;
        #endif
         initLibreAudioParameter(parameter, getParameter(index));
+        if constexpr (kPresetValues.size() != 0)
+        {
+            if (index >= kParametersMainStart && index <= kParametersMainEnd)
+                parameter.ranges.def = kPresetValues[0][index - kParametersMainStart];
+        }
         break;
     }
 }
